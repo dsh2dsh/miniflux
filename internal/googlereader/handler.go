@@ -1360,7 +1360,7 @@ func (h *handler) handleReadingListStreamHandler(w http.ResponseWriter, r *http.
 		json.ServerError(w, r, err)
 		return
 	}
-	var itemRefs = make([]itemRef, 0)
+	itemRefs := make([]itemRef, 0)
 	for _, entryID := range rawEntryIDs {
 		formattedID := strconv.FormatInt(entryID, 10)
 		itemRefs = append(itemRefs, itemRef{ID: formattedID})
@@ -1398,7 +1398,7 @@ func (h *handler) handleStarredStreamHandler(w http.ResponseWriter, r *http.Requ
 		json.ServerError(w, r, err)
 		return
 	}
-	var itemRefs = make([]itemRef, 0)
+	itemRefs := make([]itemRef, 0)
 	for _, entryID := range rawEntryIDs {
 		formattedID := strconv.FormatInt(entryID, 10)
 		itemRefs = append(itemRefs, itemRef{ID: formattedID})
@@ -1436,7 +1436,7 @@ func (h *handler) handleReadStreamHandler(w http.ResponseWriter, r *http.Request
 		json.ServerError(w, r, err)
 		return
 	}
-	var itemRefs = make([]itemRef, 0)
+	itemRefs := make([]itemRef, 0)
 	for _, entryID := range rawEntryIDs {
 		formattedID := strconv.FormatInt(entryID, 10)
 		itemRefs = append(itemRefs, itemRef{ID: formattedID})
@@ -1491,7 +1491,7 @@ func (h *handler) handleFeedStreamHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var itemRefs = make([]itemRef, 0)
+	itemRefs := make([]itemRef, 0)
 	for _, entryID := range rawEntryIDs {
 		formattedID := strconv.FormatInt(entryID, 10)
 		itemRefs = append(itemRefs, itemRef{ID: formattedID})
