@@ -20,7 +20,7 @@ func TestMain(m *testing.M) {
 }
 
 func BenchmarkSanitize(b *testing.B) {
-	var testCases = map[string][]string{
+	testCases := map[string][]string{
 		"miniflux_github.html":    {"https://github.com/miniflux/v2", ""},
 		"miniflux_wikipedia.html": {"https://fr.wikipedia.org/wiki/Miniflux", ""},
 	}
@@ -31,7 +31,7 @@ func BenchmarkSanitize(b *testing.B) {
 		}
 		testCases[filename][1] = string(data)
 	}
-	for range b.N {
+	for b.Loop() {
 		for _, v := range testCases {
 			Sanitize(v[0], v[1])
 		}
@@ -627,12 +627,11 @@ func TestReplaceProtocolRelativeYoutubeURL(t *testing.T) {
 
 func TestReplaceYoutubeURLWithCustomURL(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("YOUTUBE_EMBED_URL_OVERRIDE", "https://invidious.custom/embed/")
+	t.Setenv("YOUTUBE_EMBED_URL_OVERRIDE", "https://invidious.custom/embed/")
 
 	var err error
 	parser := config.NewParser()
 	config.Opts, err = parser.ParseEnvironmentVariables()
-
 	if err != nil {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}

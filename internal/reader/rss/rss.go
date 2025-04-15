@@ -5,6 +5,7 @@ package rss // import "miniflux.app/v2/internal/reader/rss"
 
 import (
 	"encoding/xml"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -209,7 +210,7 @@ func (ic *InnerContent) UnmarshalXML(d *xml.Decoder, start xml.StartElement) err
 	for {
 		token, err := d.Token()
 		if err != nil {
-			return err
+			return fmt.Errorf("readers/rss: %w", err)
 		}
 
 		switch t := token.(type) {

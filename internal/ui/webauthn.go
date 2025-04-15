@@ -60,13 +60,18 @@ func (u WebAuthnUser) WebAuthnCredentials() []webauthn.Credential {
 func newWebAuthn() (*webauthn.WebAuthn, error) {
 	url, err := url.Parse(config.Opts.BaseURL())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ui: failed parse %q: %w",
+			config.Opts.BaseURL(), err)
 	}
-	return webauthn.New(&webauthn.Config{
+	authn, err := webauthn.New(&webauthn.Config{
 		RPDisplayName: "Miniflux",
 		RPID:          url.Hostname(),
 		RPOrigins:     []string{config.Opts.RootURL()},
 	})
+	if err != nil {
+		return nil, fmt.Errorf("ui: failed create webauthn: %w", err)
+	}
+	return authn, nil
 }
 
 func (h *handler) beginRegistration(w http.ResponseWriter, r *http.Request) {
@@ -106,7 +111,6 @@ func (h *handler) beginRegistration(w http.ResponseWriter, r *http.Request) {
 		},
 		webauthn.WithExclusions(credsDescriptors),
 	)
-
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -311,7 +315,10 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.store.WebAuthnSaveLogin(matchingCredential.Handle)
+	if err := h.store.WebAuthnSaveLogin(matchingCredential.Handle); err != nil {
+		json.ServerError(w, r, err)
+		return
+	}
 
 	slog.Info("User authenticated successfully with webauthn",
 		slog.Bool("authentication_successful", true),
@@ -320,7 +327,11 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) {
 		slog.Int64("user_id", user.ID),
 		slog.String("username", user.Username),
 	)
-	h.store.SetLastLogin(user.ID)
+
+	if err := h.store.SetLastLogin(user.ID); err != nil {
+		json.ServerError(w, r, err)
+		return
+	}
 
 	sess := session.New(h.store, request.SessionID(r))
 	sess.SetLanguage(user.Language)

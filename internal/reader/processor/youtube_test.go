@@ -9,7 +9,7 @@ import (
 )
 
 func TestParseISO8601(t *testing.T) {
-	var scenarios = []struct {
+	scenarios := []struct {
 		duration string
 		expected time.Duration
 	}{

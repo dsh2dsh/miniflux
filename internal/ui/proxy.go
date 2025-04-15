@@ -84,7 +84,7 @@ func (h *handler) mediaProxy(w http.ResponseWriter, r *http.Request) {
 		slog.String("media_url", mediaURL),
 	)
 
-	req, err := http.NewRequest("GET", mediaURL, nil)
+	req, err := http.NewRequest(http.MethodGet, mediaURL, nil)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return

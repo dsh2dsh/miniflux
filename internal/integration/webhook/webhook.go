@@ -6,6 +6,7 @@ package webhook // import "miniflux.app/v2/internal/integration/webhook"
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -72,9 +73,9 @@ func (c *Client) SendNewEntriesWebhookEvent(feed *model.Feed, entries model.Entr
 		return nil
 	}
 
-	var webhookEntries []*WebhookEntry
-	for _, entry := range entries {
-		webhookEntries = append(webhookEntries, &WebhookEntry{
+	webhookEntries := make([]*WebhookEntry, len(entries))
+	for i, entry := range entries {
+		webhookEntries[i] = &WebhookEntry{
 			ID:          entry.ID,
 			UserID:      entry.UserID,
 			FeedID:      entry.FeedID,
@@ -93,8 +94,9 @@ func (c *Client) SendNewEntriesWebhookEvent(feed *model.Feed, entries model.Entr
 			ReadingTime: entry.ReadingTime,
 			Enclosures:  entry.Enclosures,
 			Tags:        entry.Tags,
-		})
+		}
 	}
+
 	return c.makeRequest(NewEntriesEventType, &WebhookNewEntriesEvent{
 		EventType: NewEntriesEventType,
 		Feed: &WebhookFeed{
@@ -113,17 +115,17 @@ func (c *Client) SendNewEntriesWebhookEvent(feed *model.Feed, entries model.Entr
 
 func (c *Client) makeRequest(eventType string, payload any) error {
 	if c.webhookURL == "" {
-		return fmt.Errorf(`webhook: missing webhook URL`)
+		return errors.New(`webhook: missing webhook URL`)
 	}
 
 	requestBody, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("webhook: unable to encode request body: %v", err)
+		return fmt.Errorf("webhook: unable to encode request body: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, c.webhookURL, bytes.NewReader(requestBody))
 	if err != nil {
-		return fmt.Errorf("webhook: unable to create request: %v", err)
+		return fmt.Errorf("webhook: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -134,7 +136,7 @@ func (c *Client) makeRequest(eventType string, payload any) error {
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("webhook: unable to send request: %v", err)
+		return fmt.Errorf("webhook: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 

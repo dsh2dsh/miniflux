@@ -9,7 +9,7 @@ import (
 )
 
 func InitializeDefaultLogger(logLevel string, logFile io.Writer, logFormat string, logTime bool) error {
-	var programLogLevel = new(slog.LevelVar)
+	programLogLevel := new(slog.LevelVar)
 	switch logLevel {
 	case "debug":
 		programLogLevel.Set(slog.LevelDebug)

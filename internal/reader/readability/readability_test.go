@@ -165,7 +165,7 @@ func TestRemoveBlacklist(t *testing.T) {
 }
 
 func BenchmarkExtractContent(b *testing.B) {
-	var testCases = map[string][]byte{
+	testCases := map[string][]byte{
 		"miniflux_github.html":    {},
 		"miniflux_wikipedia.html": {},
 	}
@@ -176,7 +176,7 @@ func BenchmarkExtractContent(b *testing.B) {
 		}
 		testCases[filename] = data
 	}
-	for range b.N {
+	for b.Loop() {
 		for _, v := range testCases {
 			ExtractContent(bytes.NewReader(v))
 		}

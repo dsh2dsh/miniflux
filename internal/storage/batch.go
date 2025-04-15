@@ -63,7 +63,7 @@ func (b *BatchBuilder) FetchJobs() (jobs model.JobList, err error) {
 	query := `SELECT id, user_id FROM feeds`
 
 	if len(b.conditions) > 0 {
-		query += fmt.Sprintf(" WHERE %s", strings.Join(b.conditions, " AND "))
+		query += " WHERE " + strings.Join(b.conditions, " AND ")
 	}
 
 	if b.limit > 0 {
@@ -72,14 +72,14 @@ func (b *BatchBuilder) FetchJobs() (jobs model.JobList, err error) {
 
 	rows, err := b.db.Query(query, b.args...)
 	if err != nil {
-		return nil, fmt.Errorf(`store: unable to fetch batch of jobs: %v`, err)
+		return nil, fmt.Errorf(`store: unable to fetch batch of jobs: %w`, err)
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var job model.Job
 		if err := rows.Scan(&job.FeedID, &job.UserID); err != nil {
-			return nil, fmt.Errorf(`store: unable to fetch job: %v`, err)
+			return nil, fmt.Errorf(`store: unable to fetch job: %w`, err)
 		}
 
 		jobs = append(jobs, job)

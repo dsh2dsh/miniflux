@@ -33,7 +33,7 @@ func (s *Storage) SetLastLogin(userID int64) error {
 	query := `UPDATE users SET last_login_at=now() WHERE id=$1`
 	_, err := s.db.Exec(query, userID)
 	if err != nil {
-		return fmt.Errorf(`store: unable to update last login date: %v`, err)
+		return fmt.Errorf(`store: unable to update last login date: %w`, err)
 	}
 
 	return nil
@@ -42,14 +42,19 @@ func (s *Storage) SetLastLogin(userID int64) error {
 // UserExists checks if a user exists by using the given username.
 func (s *Storage) UserExists(username string) bool {
 	var result bool
-	s.db.QueryRow(`SELECT true FROM users WHERE username=LOWER($1)`, username).Scan(&result)
+	_ = s.db.QueryRow(
+		`SELECT true FROM users WHERE username=LOWER($1)`, username).
+		Scan(&result)
 	return result
 }
 
 // AnotherUserExists checks if another user exists with the given username.
 func (s *Storage) AnotherUserExists(userID int64, username string) bool {
 	var result bool
-	s.db.QueryRow(`SELECT true FROM users WHERE id != $1 AND username=LOWER($2)`, userID, username).Scan(&result)
+	_ = s.db.QueryRow(
+		`SELECT true FROM users WHERE id != $1 AND username=LOWER($2)`,
+		userID, username,
+	).Scan(&result)
 	return result
 }
 
@@ -101,7 +106,7 @@ func (s *Storage) CreateUser(userCreationRequest *model.UserCreationRequest) (*m
 
 	tx, err := s.db.Begin()
 	if err != nil {
-		return nil, fmt.Errorf(`store: unable to start transaction: %v`, err)
+		return nil, fmt.Errorf(`store: unable to start transaction: %w`, err)
 	}
 
 	var user model.User
@@ -143,23 +148,25 @@ func (s *Storage) CreateUser(userCreationRequest *model.UserCreationRequest) (*m
 	)
 	if err != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf(`store: unable to create user: %v`, err)
+		return nil, fmt.Errorf(`store: unable to create user: %w`, err)
 	}
 
 	_, err = tx.Exec(`INSERT INTO categories (user_id, title) VALUES ($1, $2)`, user.ID, "All")
 	if err != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf(`store: unable to create user default category: %v`, err)
+		return nil, fmt.Errorf(
+			`store: unable to create user default category: %w`, err)
 	}
 
 	_, err = tx.Exec(`INSERT INTO integrations (user_id) VALUES ($1)`, user.ID)
 	if err != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf(`store: unable to create integration row: %v`, err)
+		return nil, fmt.Errorf(
+			`store: unable to create integration row: %w`, err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf(`store: unable to commit transaction: %v`, err)
+		return nil, fmt.Errorf(`store: unable to commit transaction: %w`, err)
 	}
 
 	return &user, nil
@@ -242,7 +249,7 @@ func (s *Storage) UpdateUser(user *model.User) error {
 			user.ID,
 		)
 		if err != nil {
-			return fmt.Errorf(`store: unable to update user: %v`, err)
+			return fmt.Errorf(`store: unable to update user: %w`, err)
 		}
 	} else {
 		query := `
@@ -309,9 +316,8 @@ func (s *Storage) UpdateUser(user *model.User) error {
 			user.KeepFilterEntryRules,
 			user.ID,
 		)
-
 		if err != nil {
-			return fmt.Errorf(`store: unable to update user: %v`, err)
+			return fmt.Errorf(`store: unable to update user: %w`, err)
 		}
 	}
 
@@ -454,7 +460,11 @@ func (s *Storage) UserByField(field, value string) (*model.User, error) {
 // AnotherUserWithFieldExists returns true if a user has the value set for the given field.
 func (s *Storage) AnotherUserWithFieldExists(userID int64, field, value string) bool {
 	var result bool
-	s.db.QueryRow(fmt.Sprintf(`SELECT true FROM users WHERE id <> $1 AND %s=$2`, pq.QuoteIdentifier(field)), userID, value).Scan(&result)
+	_ = s.db.QueryRow(
+		fmt.Sprintf(`SELECT true FROM users WHERE id <> $1 AND %s=$2`,
+			pq.QuoteIdentifier(field)),
+		userID, value,
+	).Scan(&result)
 	return result
 }
 
@@ -501,7 +511,7 @@ func (s *Storage) UserByAPIKey(token string) (*model.User, error) {
 	return s.fetchUser(query, token)
 }
 
-func (s *Storage) fetchUser(query string, args ...interface{}) (*model.User, error) {
+func (s *Storage) fetchUser(query string, args ...any) (*model.User, error) {
 	var user model.User
 	err := s.db.QueryRow(query, args...).Scan(
 		&user.ID,
@@ -538,7 +548,7 @@ func (s *Storage) fetchUser(query string, args ...interface{}) (*model.User, err
 	if err == sql.ErrNoRows {
 		return nil, nil
 	} else if err != nil {
-		return nil, fmt.Errorf(`store: unable to fetch user: %v`, err)
+		return nil, fmt.Errorf(`store: unable to fetch user: %w`, err)
 	}
 
 	return &user, nil
@@ -548,21 +558,23 @@ func (s *Storage) fetchUser(query string, args ...interface{}) (*model.User, err
 func (s *Storage) RemoveUser(userID int64) error {
 	tx, err := s.db.Begin()
 	if err != nil {
-		return fmt.Errorf(`store: unable to start transaction: %v`, err)
+		return fmt.Errorf(`store: unable to start transaction: %w`, err)
 	}
 
 	if _, err := tx.Exec(`DELETE FROM users WHERE id=$1`, userID); err != nil {
 		tx.Rollback()
-		return fmt.Errorf(`store: unable to remove user #%d: %v`, userID, err)
+		return fmt.Errorf(`store: unable to remove user #%d: %w`, userID, err)
 	}
 
 	if _, err := tx.Exec(`DELETE FROM integrations WHERE user_id=$1`, userID); err != nil {
 		tx.Rollback()
-		return fmt.Errorf(`store: unable to remove integration settings for user #%d: %v`, userID, err)
+		return fmt.Errorf(
+			`store: unable to remove integration settings for user #%d: %w`,
+			userID, err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf(`store: unable to commit transaction: %v`, err)
+		return fmt.Errorf(`store: unable to commit transaction: %w`, err)
 	}
 
 	return nil
@@ -571,34 +583,40 @@ func (s *Storage) RemoveUser(userID int64) error {
 // RemoveUserAsync deletes user data without locking the database.
 func (s *Storage) RemoveUserAsync(userID int64) {
 	go func() {
+		log := slog.With(slog.Int64("user_id", userID))
 		if err := s.deleteUserFeeds(userID); err != nil {
-			slog.Error("Unable to delete user feeds",
-				slog.Int64("user_id", userID),
-				slog.Any("error", err),
-			)
+			log.Error("Unable to delete user feeds", slog.Any("error", err))
 			return
 		}
 
-		s.db.Exec(`DELETE FROM users WHERE id=$1`, userID)
-		s.db.Exec(`DELETE FROM integrations WHERE user_id=$1`, userID)
+		_, err := s.db.Exec(`DELETE FROM users WHERE id=$1`, userID)
+		if err != nil {
+			log.Error("storage: failed delete from users", slog.Any("error", err))
+			return
+		}
 
-		slog.Debug("User deleted",
-			slog.Int64("user_id", userID),
-			slog.Int("goroutines", runtime.NumGoroutine()),
-		)
+		_, err = s.db.Exec(`DELETE FROM integrations WHERE user_id=$1`, userID)
+		if err != nil {
+			log.Error("storage: failed delete from integrations",
+				slog.Any("error", err))
+			return
+		}
+		log.Debug("User deleted", slog.Int("goroutines", runtime.NumGoroutine()))
 	}()
 }
 
 func (s *Storage) deleteUserFeeds(userID int64) error {
 	rows, err := s.db.Query(`SELECT id FROM feeds WHERE user_id=$1`, userID)
 	if err != nil {
-		return fmt.Errorf(`store: unable to get user feeds: %v`, err)
+		return fmt.Errorf(`store: unable to get user feeds: %w`, err)
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var feedID int64
-		rows.Scan(&feedID)
+		if err := rows.Scan(&feedID); err != nil {
+			return fmt.Errorf("storage: %w", err)
+		}
 
 		slog.Debug("Deleting feed",
 			slog.Int64("user_id", userID),
@@ -653,7 +671,7 @@ func (s *Storage) Users() (model.Users, error) {
 	`
 	rows, err := s.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf(`store: unable to fetch users: %v`, err)
+		return nil, fmt.Errorf(`store: unable to fetch users: %w`, err)
 	}
 	defer rows.Close()
 
@@ -691,9 +709,8 @@ func (s *Storage) Users() (model.Users, error) {
 			&user.BlockFilterEntryRules,
 			&user.KeepFilterEntryRules,
 		)
-
 		if err != nil {
-			return nil, fmt.Errorf(`store: unable to fetch users row: %v`, err)
+			return nil, fmt.Errorf(`store: unable to fetch users row: %w`, err)
 		}
 
 		users = append(users, &user)
@@ -711,11 +728,11 @@ func (s *Storage) CheckPassword(username, password string) error {
 	if err == sql.ErrNoRows {
 		return fmt.Errorf(`store: unable to find this user: %s`, username)
 	} else if err != nil {
-		return fmt.Errorf(`store: unable to fetch user: %v`, err)
+		return fmt.Errorf(`store: unable to fetch user: %w`, err)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
-		return fmt.Errorf(`store: invalid password for "%s" (%v)`, username, err)
+		return fmt.Errorf(`store: invalid password for "%s" (%w)`, username, err)
 	}
 
 	return nil
@@ -730,7 +747,7 @@ func (s *Storage) HasPassword(userID int64) (bool, error) {
 	if err == sql.ErrNoRows {
 		return false, nil
 	} else if err != nil {
-		return false, fmt.Errorf(`store: unable to execute query: %v`, err)
+		return false, fmt.Errorf(`store: unable to execute query: %w`, err)
 	}
 
 	if result {

@@ -10,7 +10,7 @@ import (
 )
 
 func TestContextStringValue(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 	ctx := r.Context()
 	ctx = context.WithValue(ctx, ClientIPContextKey, "IP")
 	r = r.WithContext(ctx)
@@ -24,7 +24,7 @@ func TestContextStringValue(t *testing.T) {
 }
 
 func TestContextStringValueWithInvalidType(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 	ctx := r.Context()
 	ctx = context.WithValue(ctx, ClientIPContextKey, 0)
 	r = r.WithContext(ctx)
@@ -38,7 +38,7 @@ func TestContextStringValueWithInvalidType(t *testing.T) {
 }
 
 func TestContextStringValueWhenUnset(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
 	result := getContextStringValue(r, ClientIPContextKey)
 	expected := ""
@@ -49,7 +49,7 @@ func TestContextStringValueWhenUnset(t *testing.T) {
 }
 
 func TestContextBoolValue(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 	ctx := r.Context()
 	ctx = context.WithValue(ctx, IsAdminUserContextKey, true)
 	r = r.WithContext(ctx)
@@ -63,7 +63,7 @@ func TestContextBoolValue(t *testing.T) {
 }
 
 func TestContextBoolValueWithInvalidType(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 	ctx := r.Context()
 	ctx = context.WithValue(ctx, IsAdminUserContextKey, "invalid")
 	r = r.WithContext(ctx)
@@ -77,7 +77,7 @@ func TestContextBoolValueWithInvalidType(t *testing.T) {
 }
 
 func TestContextBoolValueWhenUnset(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
 	result := getContextBoolValue(r, IsAdminUserContextKey)
 	expected := false
@@ -88,7 +88,7 @@ func TestContextBoolValueWhenUnset(t *testing.T) {
 }
 
 func TestContextInt64Value(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 	ctx := r.Context()
 	ctx = context.WithValue(ctx, UserIDContextKey, int64(1234))
 	r = r.WithContext(ctx)
@@ -102,7 +102,7 @@ func TestContextInt64Value(t *testing.T) {
 }
 
 func TestContextInt64ValueWithInvalidType(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 	ctx := r.Context()
 	ctx = context.WithValue(ctx, UserIDContextKey, "invalid")
 	r = r.WithContext(ctx)
@@ -116,7 +116,7 @@ func TestContextInt64ValueWithInvalidType(t *testing.T) {
 }
 
 func TestContextInt64ValueWhenUnset(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
 	result := getContextInt64Value(r, UserIDContextKey)
 	expected := int64(0)
@@ -127,7 +127,7 @@ func TestContextInt64ValueWhenUnset(t *testing.T) {
 }
 
 func TestIsAdmin(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
 	result := IsAdminUser(r)
 	expected := false
@@ -149,7 +149,7 @@ func TestIsAdmin(t *testing.T) {
 }
 
 func TestIsAuthenticated(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
 	result := IsAuthenticated(r)
 	expected := false
@@ -171,7 +171,7 @@ func TestIsAuthenticated(t *testing.T) {
 }
 
 func TestUserID(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
 	result := UserID(r)
 	expected := int64(0)
@@ -193,7 +193,7 @@ func TestUserID(t *testing.T) {
 }
 
 func TestUserTimezone(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
 	result := UserTimezone(r)
 	expected := "UTC"
@@ -215,7 +215,7 @@ func TestUserTimezone(t *testing.T) {
 }
 
 func TestUserLanguage(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
 	result := UserLanguage(r)
 	expected := "en_US"
@@ -237,7 +237,7 @@ func TestUserLanguage(t *testing.T) {
 }
 
 func TestUserTheme(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
 	result := UserTheme(r)
 	expected := "system_serif"
@@ -259,7 +259,7 @@ func TestUserTheme(t *testing.T) {
 }
 
 func TestCSRF(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
 	result := CSRF(r)
 	expected := ""
@@ -281,7 +281,7 @@ func TestCSRF(t *testing.T) {
 }
 
 func TestSessionID(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
 	result := SessionID(r)
 	expected := ""
@@ -303,7 +303,7 @@ func TestSessionID(t *testing.T) {
 }
 
 func TestUserSessionToken(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
 	result := UserSessionToken(r)
 	expected := ""
@@ -325,7 +325,7 @@ func TestUserSessionToken(t *testing.T) {
 }
 
 func TestOAuth2State(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
 	result := OAuth2State(r)
 	expected := ""
@@ -347,7 +347,7 @@ func TestOAuth2State(t *testing.T) {
 }
 
 func TestFlashMessage(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
 	result := FlashMessage(r)
 	expected := ""
@@ -369,7 +369,7 @@ func TestFlashMessage(t *testing.T) {
 }
 
 func TestFlashErrorMessage(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
 	result := FlashErrorMessage(r)
 	expected := ""
@@ -391,7 +391,7 @@ func TestFlashErrorMessage(t *testing.T) {
 }
 
 func TestPocketRequestToken(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
 	result := PocketRequestToken(r)
 	expected := ""
@@ -413,7 +413,7 @@ func TestPocketRequestToken(t *testing.T) {
 }
 
 func TestClientIP(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
 	result := ClientIP(r)
 	expected := ""

@@ -4,6 +4,7 @@
 package systemd // import "miniflux.app/v2/internal/systemd"
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -36,11 +37,11 @@ func HasSystemdWatchdog() bool {
 func WatchdogInterval() (time.Duration, error) {
 	s, err := strconv.Atoi(os.Getenv("WATCHDOG_USEC"))
 	if err != nil {
-		return 0, fmt.Errorf(`systemd: error converting WATCHDOG_USEC: %v`, err)
+		return 0, fmt.Errorf(`systemd: error converting WATCHDOG_USEC: %w`, err)
 	}
 
 	if s <= 0 {
-		return 0, fmt.Errorf(`systemd: error WATCHDOG_USEC must be a positive number`)
+		return 0, errors.New(`systemd: error WATCHDOG_USEC must be a positive number`)
 	}
 
 	return time.Duration(s) * time.Microsecond, nil
@@ -61,12 +62,12 @@ func SdNotify(state string) error {
 
 	conn, err := net.DialUnix(addr.Net, nil, addr)
 	if err != nil {
-		return err
+		return fmt.Errorf("systemd: %w", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if _, err = conn.Write([]byte(state)); err != nil {
-		return err
+		return fmt.Errorf("systemd: %w", err)
 	}
 
 	return nil

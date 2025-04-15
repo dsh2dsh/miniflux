@@ -14,9 +14,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-var (
-	ErrEmptyUsername = errors.New("oidc: username is empty")
-)
+var ErrEmptyUsername = errors.New("oidc: username is empty")
 
 type oidcProvider struct {
 	clientID     string

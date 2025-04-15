@@ -6,6 +6,7 @@ package wallabag // import "miniflux.app/v2/internal/integration/wallabag"
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -33,7 +34,7 @@ func NewClient(baseURL, clientID, clientSecret, username, password string, onlyU
 
 func (c *Client) CreateEntry(entryURL, entryTitle, entryContent string) error {
 	if c.baseURL == "" || c.clientID == "" || c.clientSecret == "" || c.username == "" || c.password == "" {
-		return fmt.Errorf("wallabag: missing base URL, client ID, client secret, username or password")
+		return errors.New("wallabag: missing base URL, client ID, client secret, username or password")
 	}
 
 	accessToken, err := c.getAccessToken()
@@ -47,7 +48,7 @@ func (c *Client) CreateEntry(entryURL, entryTitle, entryContent string) error {
 func (c *Client) createEntry(accessToken, entryURL, entryTitle, entryContent string) error {
 	apiEndpoint, err := urllib.JoinBaseURLAndPath(c.baseURL, "/api/entries.json")
 	if err != nil {
-		return fmt.Errorf("wallbag: unable to generate entries endpoint: %v", err)
+		return fmt.Errorf("wallbag: unable to generate entries endpoint: %w", err)
 	}
 
 	if c.onlyURL {
@@ -60,12 +61,12 @@ func (c *Client) createEntry(accessToken, entryURL, entryTitle, entryContent str
 		Content: entryContent,
 	})
 	if err != nil {
-		return fmt.Errorf("wallbag: unable to encode request body: %v", err)
+		return fmt.Errorf("wallbag: unable to encode request body: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBody))
 	if err != nil {
-		return fmt.Errorf("wallbag: unable to create request: %v", err)
+		return fmt.Errorf("wallbag: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -76,7 +77,7 @@ func (c *Client) createEntry(accessToken, entryURL, entryTitle, entryContent str
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("wallabag: unable to send request: %v", err)
+		return fmt.Errorf("wallabag: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -97,12 +98,12 @@ func (c *Client) getAccessToken() (string, error) {
 
 	apiEndpoint, err := urllib.JoinBaseURLAndPath(c.baseURL, "/oauth/v2/token")
 	if err != nil {
-		return "", fmt.Errorf("wallbag: unable to generate token endpoint: %v", err)
+		return "", fmt.Errorf("wallbag: unable to generate token endpoint: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, apiEndpoint, strings.NewReader(values.Encode()))
 	if err != nil {
-		return "", fmt.Errorf("wallbag: unable to create request: %v", err)
+		return "", fmt.Errorf("wallbag: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -112,7 +113,7 @@ func (c *Client) getAccessToken() (string, error) {
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return "", fmt.Errorf("wallabag: unable to send request: %v", err)
+		return "", fmt.Errorf("wallabag: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -122,7 +123,7 @@ func (c *Client) getAccessToken() (string, error) {
 
 	var responseBody tokenResponse
 	if err := json.NewDecoder(response.Body).Decode(&responseBody); err != nil {
-		return "", fmt.Errorf("wallabag: unable to decode token response: %v", err)
+		return "", fmt.Errorf("wallabag: unable to decode token response: %w", err)
 	}
 
 	return responseBody.AccessToken, nil

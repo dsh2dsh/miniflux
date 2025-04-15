@@ -336,7 +336,7 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) flushHistory(w http.ResponseWriter, r *http.Request) {
 	loggedUserID := request.UserID(r)
-	go h.store.FlushHistory(loggedUserID)
+	go func() { _ = h.store.FlushHistory(loggedUserID) }()
 	json.Accepted(w, r)
 }
 

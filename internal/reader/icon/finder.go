@@ -211,7 +211,10 @@ func resizeIcon(icon *model.Icon) *model.Icon {
 		return icon
 	}
 
-	r.Seek(0, io.SeekStart)
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		slog.Error("reader/icon: failed seek to start", slog.Any("error", err))
+		return icon
+	}
 
 	var src image.Image
 	switch icon.MimeType {
@@ -255,7 +258,7 @@ func findIconURLsFromHTMLDocument(body io.Reader, contentType string) ([]string,
 
 	doc, err := goquery.NewDocumentFromReader(htmlDocumentReader)
 	if err != nil {
-		return nil, fmt.Errorf("icon: unable to read document: %v", err)
+		return nil, fmt.Errorf("icon: unable to read document: %w", err)
 	}
 
 	var iconURLs []string
@@ -302,7 +305,7 @@ func parseImageDataURL(value string) (*model.Icon, error) {
 		var err error
 		blob, err = base64.StdEncoding.DecodeString(data)
 		if err != nil {
-			return nil, fmt.Errorf(`icon: invalid data %q (%v)`, value, err)
+			return nil, fmt.Errorf(`icon: invalid data %q (%w)`, value, err)
 		}
 	case "":
 		decodedData, err := url.QueryUnescape(data)

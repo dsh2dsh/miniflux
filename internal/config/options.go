@@ -99,7 +99,7 @@ var defaultHTTPClientUserAgent = "Mozilla/5.0 (compatible; Miniflux/" + version.
 // Option contains a key to value map of a single option. It may be used to output debug strings.
 type Option struct {
 	Key   string
-	Value interface{}
+	Value any
 }
 
 // Options contains configuration options.
@@ -711,7 +711,7 @@ func (o *Options) SortedOptions(redactSecret bool) []*Option {
 		mediaProxyPrivateKeyValue = "<binary-data>"
 	}
 
-	var keyValues = map[string]interface{}{
+	keyValues := map[string]any{
 		"ADMIN_PASSWORD":                         redactSecretValue(o.adminPassword, redactSecret),
 		"ADMIN_USERNAME":                         o.adminUsername,
 		"AUTH_PROXY_HEADER":                      o.authProxyHeader,
@@ -801,9 +801,9 @@ func (o *Options) SortedOptions(redactSecret bool) []*Option {
 	}
 	sort.Strings(keys)
 
-	var sortedOptions []*Option
-	for _, key := range keys {
-		sortedOptions = append(sortedOptions, &Option{Key: key, Value: keyValues[key]})
+	sortedOptions := make([]*Option, len(keys))
+	for i, key := range keys {
+		sortedOptions[i] = &Option{Key: key, Value: keyValues[key]}
 	}
 	return sortedOptions
 }

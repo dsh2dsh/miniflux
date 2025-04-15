@@ -6,6 +6,7 @@ package shiori // import "miniflux.app/v2/internal/integration/shiori"
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -28,17 +29,17 @@ func NewClient(baseURL, username, password string) *Client {
 
 func (c *Client) CreateBookmark(entryURL, entryTitle string) error {
 	if c.baseURL == "" || c.username == "" || c.password == "" {
-		return fmt.Errorf("shiori: missing base URL, username or password")
+		return errors.New("shiori: missing base URL, username or password")
 	}
 
 	token, err := c.authenticate()
 	if err != nil {
-		return fmt.Errorf("shiori: unable to authenticate: %v", err)
+		return fmt.Errorf("shiori: unable to authenticate: %w", err)
 	}
 
 	apiEndpoint, err := urllib.JoinBaseURLAndPath(c.baseURL, "/api/bookmarks")
 	if err != nil {
-		return fmt.Errorf("shiori: invalid API endpoint: %v", err)
+		return fmt.Errorf("shiori: invalid API endpoint: %w", err)
 	}
 
 	requestBody, err := json.Marshal(&addBookmarkRequest{
@@ -50,14 +51,13 @@ func (c *Client) CreateBookmark(entryURL, entryTitle string) error {
 		Public:        0,
 		Tags:          make([]string, 0),
 	})
-
 	if err != nil {
-		return fmt.Errorf("shiori: unable to encode request body: %v", err)
+		return fmt.Errorf("shiori: unable to encode request body: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBody))
 	if err != nil {
-		return fmt.Errorf("shiori: unable to create request: %v", err)
+		return fmt.Errorf("shiori: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -68,7 +68,7 @@ func (c *Client) CreateBookmark(entryURL, entryTitle string) error {
 
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("shiori: unable to send request: %v", err)
+		return fmt.Errorf("shiori: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -82,17 +82,17 @@ func (c *Client) CreateBookmark(entryURL, entryTitle string) error {
 func (c *Client) authenticate() (token string, err error) {
 	apiEndpoint, err := urllib.JoinBaseURLAndPath(c.baseURL, "/api/v1/auth/login")
 	if err != nil {
-		return "", fmt.Errorf("shiori: invalid API endpoint: %v", err)
+		return "", fmt.Errorf("shiori: invalid API endpoint: %w", err)
 	}
 
 	requestBody, err := json.Marshal(&authRequest{Username: c.username, Password: c.password, RememberMe: false})
 	if err != nil {
-		return "", fmt.Errorf("shiori: unable to encode request body: %v", err)
+		return "", fmt.Errorf("shiori: unable to encode request body: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBody))
 	if err != nil {
-		return "", fmt.Errorf("shiori: unable to create request: %v", err)
+		return "", fmt.Errorf("shiori: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -103,7 +103,7 @@ func (c *Client) authenticate() (token string, err error) {
 
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return "", fmt.Errorf("shiori: unable to send request: %v", err)
+		return "", fmt.Errorf("shiori: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -113,7 +113,7 @@ func (c *Client) authenticate() (token string, err error) {
 
 	var authResponse authResponse
 	if err := json.NewDecoder(response.Body).Decode(&authResponse); err != nil {
-		return "", fmt.Errorf("shiori: unable to decode response: %v", err)
+		return "", fmt.Errorf("shiori: unable to decode response: %w", err)
 	}
 	return authResponse.Message.Token, nil
 }

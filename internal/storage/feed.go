@@ -36,7 +36,7 @@ func (l byStateAndName) Less(i, j int) bool {
 func (s *Storage) FeedExists(userID, feedID int64) bool {
 	var result bool
 	query := `SELECT true FROM feeds WHERE user_id=$1 AND id=$2`
-	s.db.QueryRow(query, userID, feedID).Scan(&result)
+	_ = s.db.QueryRow(query, userID, feedID).Scan(&result)
 	return result
 }
 
@@ -44,7 +44,7 @@ func (s *Storage) FeedExists(userID, feedID int64) bool {
 func (s *Storage) CategoryFeedExists(userID, categoryID, feedID int64) bool {
 	var result bool
 	query := `SELECT true FROM feeds WHERE user_id=$1 AND category_id=$2 AND id=$3`
-	s.db.QueryRow(query, userID, categoryID, feedID).Scan(&result)
+	_ = s.db.QueryRow(query, userID, categoryID, feedID).Scan(&result)
 	return result
 }
 
@@ -52,7 +52,7 @@ func (s *Storage) CategoryFeedExists(userID, categoryID, feedID int64) bool {
 func (s *Storage) FeedURLExists(userID int64, feedURL string) bool {
 	var result bool
 	query := `SELECT true FROM feeds WHERE user_id=$1 AND feed_url=$2`
-	s.db.QueryRow(query, userID, feedURL).Scan(&result)
+	_ = s.db.QueryRow(query, userID, feedURL).Scan(&result)
 	return result
 }
 
@@ -60,7 +60,7 @@ func (s *Storage) FeedURLExists(userID int64, feedURL string) bool {
 func (s *Storage) AnotherFeedURLExists(userID, feedID int64, feedURL string) bool {
 	var result bool
 	query := `SELECT true FROM feeds WHERE id <> $1 AND user_id=$2 AND feed_url=$3`
-	s.db.QueryRow(query, feedID, userID, feedURL).Scan(&result)
+	_ = s.db.QueryRow(query, feedID, userID, feedURL).Scan(&result)
 	return result
 }
 
@@ -196,7 +196,8 @@ func (s *Storage) WeeklyFeedEntryCount(userID, feedID int64) (int, error) {
 	case errors.Is(err, sql.ErrNoRows):
 		return 0, nil
 	case err != nil:
-		return 0, fmt.Errorf(`store: unable to fetch weekly count for feed #%d: %v`, feedID, err)
+		return 0, fmt.Errorf(
+			`store: unable to fetch weekly count for feed #%d: %w`, feedID, err)
 	}
 
 	return weeklyCount, nil
@@ -212,7 +213,7 @@ func (s *Storage) FeedByID(userID, feedID int64) (*model.Feed, error) {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, nil
 	case err != nil:
-		return nil, fmt.Errorf(`store: unable to fetch feed #%d: %v`, feedID, err)
+		return nil, fmt.Errorf(`store: unable to fetch feed #%d: %w`, feedID, err)
 	}
 
 	return feed, nil
@@ -288,7 +289,7 @@ func (s *Storage) CreateFeed(feed *model.Feed) error {
 		feed.ProxyURL,
 	).Scan(&feed.ID)
 	if err != nil {
-		return fmt.Errorf(`store: unable to create feed %q: %v`, feed.FeedURL, err)
+		return fmt.Errorf(`store: unable to create feed %q: %w`, feed.FeedURL, err)
 	}
 
 	for _, entry := range feed.Entries {
@@ -297,13 +298,15 @@ func (s *Storage) CreateFeed(feed *model.Feed) error {
 
 		tx, err := s.db.Begin()
 		if err != nil {
-			return fmt.Errorf(`store: unable to start transaction: %v`, err)
+			return fmt.Errorf(`store: unable to start transaction: %w`, err)
 		}
 
 		entryExists, err := s.entryExists(tx, entry)
 		if err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				return fmt.Errorf(`store: unable to rollback transaction: %v (rolled back due to: %v)`, rollbackErr, err)
+				return fmt.Errorf(
+					`store: unable to rollback transaction: %w (rolled back due to: %w)`,
+					rollbackErr, err)
 			}
 			return err
 		}
@@ -311,14 +314,16 @@ func (s *Storage) CreateFeed(feed *model.Feed) error {
 		if !entryExists {
 			if err := s.createEntry(tx, entry); err != nil {
 				if rollbackErr := tx.Rollback(); rollbackErr != nil {
-					return fmt.Errorf(`store: unable to rollback transaction: %v (rolled back due to: %v)`, rollbackErr, err)
+					return fmt.Errorf(
+						`store: unable to rollback transaction: %w (rolled back due to: %w)`,
+						rollbackErr, err)
 				}
 				return err
 			}
 		}
 
 		if err := tx.Commit(); err != nil {
-			return fmt.Errorf(`store: unable to commit transaction: %v`, err)
+			return fmt.Errorf(`store: unable to commit transaction: %w`, err)
 		}
 	}
 
@@ -410,9 +415,9 @@ func (s *Storage) UpdateFeed(feed *model.Feed) (err error) {
 		feed.ID,
 		feed.UserID,
 	)
-
 	if err != nil {
-		return fmt.Errorf(`store: unable to update feed #%d (%s): %v`, feed.ID, feed.FeedURL, err)
+		return fmt.Errorf(`store: unable to update feed #%d (%s): %w`,
+			feed.ID, feed.FeedURL, err)
 	}
 
 	return nil
@@ -439,9 +444,9 @@ func (s *Storage) UpdateFeedError(feed *model.Feed) (err error) {
 		feed.ID,
 		feed.UserID,
 	)
-
 	if err != nil {
-		return fmt.Errorf(`store: unable to update feed error #%d (%s): %v`, feed.ID, feed.FeedURL, err)
+		return fmt.Errorf(`store: unable to update feed error #%d (%s): %w`,
+			feed.ID, feed.FeedURL, err)
 	}
 
 	return nil
@@ -452,14 +457,14 @@ func (s *Storage) UpdateFeedError(feed *model.Feed) (err error) {
 func (s *Storage) RemoveFeed(userID, feedID int64) error {
 	rows, err := s.db.Query(`SELECT id FROM entries WHERE user_id=$1 AND feed_id=$2`, userID, feedID)
 	if err != nil {
-		return fmt.Errorf(`store: unable to get user feed entries: %v`, err)
+		return fmt.Errorf(`store: unable to get user feed entries: %w`, err)
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var entryID int64
 		if err := rows.Scan(&entryID); err != nil {
-			return fmt.Errorf(`store: unable to read user feed entry ID: %v`, err)
+			return fmt.Errorf(`store: unable to read user feed entry ID: %w`, err)
 		}
 
 		slog.Debug("Deleting entry",
@@ -469,12 +474,13 @@ func (s *Storage) RemoveFeed(userID, feedID int64) error {
 		)
 
 		if _, err := s.db.Exec(`DELETE FROM entries WHERE id=$1 AND user_id=$2`, entryID, userID); err != nil {
-			return fmt.Errorf(`store: unable to delete user feed entries #%d: %v`, entryID, err)
+			return fmt.Errorf(
+				`store: unable to delete user feed entries #%d: %w`, entryID, err)
 		}
 	}
 
 	if _, err := s.db.Exec(`DELETE FROM feeds WHERE id=$1 AND user_id=$2`, feedID, userID); err != nil {
-		return fmt.Errorf(`store: unable to delete feed #%d: %v`, feedID, err)
+		return fmt.Errorf(`store: unable to delete feed #%d: %w`, feedID, err)
 	}
 
 	return nil
@@ -483,10 +489,16 @@ func (s *Storage) RemoveFeed(userID, feedID int64) error {
 // ResetFeedErrors removes all feed errors.
 func (s *Storage) ResetFeedErrors() error {
 	_, err := s.db.Exec(`UPDATE feeds SET parsing_error_count=0, parsing_error_msg=''`)
-	return err
+	if err != nil {
+		return fmt.Errorf("storage: failed reset feed errors: %w", err)
+	}
+	return nil
 }
 
 func (s *Storage) ResetNextCheckAt() error {
 	_, err := s.db.Exec(`UPDATE feeds SET next_check_at=now()`)
-	return err
+	if err != nil {
+		return fmt.Errorf("storage: failed reset next check: %w", err)
+	}
+	return nil
 }

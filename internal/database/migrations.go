@@ -12,6 +12,8 @@ import (
 var schemaVersion = len(migrations)
 
 // Order is important. Add new migrations at the end of the list.
+//
+//nolint:wrapcheck // Migrate() wraps errors
 var migrations = []func(tx *sql.Tx, driver string) error{
 	func(tx *sql.Tx, _ string) (err error) {
 		sql := `
@@ -459,7 +461,7 @@ var migrations = []func(tx *sql.Tx, driver string) error{
 			if err != nil {
 				return err
 			}
-			defer tx.Exec("CLOSE my_cursor")
+			defer func() { _, _ = tx.Exec("CLOSE my_cursor") }()
 
 			for {
 				var (
@@ -1037,7 +1039,7 @@ var migrations = []func(tx *sql.Tx, driver string) error{
 		if err != nil {
 			return err
 		}
-		defer tx.Exec("CLOSE id_cursor")
+		defer func() { _, _ = tx.Exec("CLOSE id_cursor") }()
 
 		for {
 			var id int64
@@ -1054,7 +1056,6 @@ var migrations = []func(tx *sql.Tx, driver string) error{
 				UPDATE icons SET external_id = $1 WHERE id = $2
 				`,
 				crypto.GenerateRandomStringHex(20), id)
-
 			if err != nil {
 				return err
 			}

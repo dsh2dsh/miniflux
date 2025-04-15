@@ -16,7 +16,10 @@ import (
 func Serialize(subscriptions SubcriptionList) string {
 	var b bytes.Buffer
 	writer := bufio.NewWriter(&b)
-	writer.WriteString(xml.Header)
+	if _, err := writer.WriteString(xml.Header); err != nil {
+		slog.Error("reader/opml: failed write", slog.Any("error", err))
+		return ""
+	}
 
 	opmlDocument := convertSubscriptionsToOPML(subscriptions)
 	encoder := xml.NewEncoder(writer)
@@ -27,7 +30,6 @@ func Serialize(subscriptions SubcriptionList) string {
 		)
 		return ""
 	}
-
 	return b.String()
 }
 

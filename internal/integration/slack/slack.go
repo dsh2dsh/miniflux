@@ -18,8 +18,10 @@ import (
 	"miniflux.app/v2/internal/version"
 )
 
-const defaultClientTimeout = 10 * time.Second
-const slackMsgColor = "#5865F2"
+const (
+	defaultClientTimeout = 10 * time.Second
+	slackMsgColor        = "#5865F2"
+)
 
 type Client struct {
 	webhookURL string
@@ -64,12 +66,12 @@ func (c *Client) SendSlackMsg(feed *model.Feed, entries model.Entries) error {
 			},
 		})
 		if err != nil {
-			return fmt.Errorf("slack: unable to encode request body: %v", err)
+			return fmt.Errorf("slack: unable to encode request body: %w", err)
 		}
 
 		request, err := http.NewRequest(http.MethodPost, c.webhookURL, bytes.NewReader(requestBody))
 		if err != nil {
-			return fmt.Errorf("slack: unable to create request: %v", err)
+			return fmt.Errorf("slack: unable to create request: %w", err)
 		}
 
 		request.Header.Set("Content-Type", "application/json")
@@ -84,7 +86,7 @@ func (c *Client) SendSlackMsg(feed *model.Feed, entries model.Entries) error {
 		httpClient := &http.Client{Timeout: defaultClientTimeout}
 		response, err := httpClient.Do(request)
 		if err != nil {
-			return fmt.Errorf("slack: unable to send request: %v", err)
+			return fmt.Errorf("slack: unable to send request: %w", err)
 		}
 		response.Body.Close()
 

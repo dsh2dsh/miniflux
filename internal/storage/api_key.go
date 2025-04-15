@@ -13,7 +13,7 @@ import (
 func (s *Storage) APIKeyExists(userID int64, description string) bool {
 	var result bool
 	query := `SELECT true FROM api_keys WHERE user_id=$1 AND lower(description)=lower($2) LIMIT 1`
-	s.db.QueryRow(query, userID, description).Scan(&result)
+	_ = s.db.QueryRow(query, userID, description).Scan(&result)
 	return result
 }
 
@@ -22,7 +22,8 @@ func (s *Storage) SetAPIKeyUsedTimestamp(userID int64, token string) error {
 	query := `UPDATE api_keys SET last_used_at=now() WHERE user_id=$1 and token=$2`
 	_, err := s.db.Exec(query, userID, token)
 	if err != nil {
-		return fmt.Errorf(`store: unable to update last used date for API key: %v`, err)
+		return fmt.Errorf(
+			`store: unable to update last used date for API key: %w`, err)
 	}
 
 	return nil
@@ -41,7 +42,7 @@ func (s *Storage) APIKeys(userID int64) (model.APIKeys, error) {
 	`
 	rows, err := s.db.Query(query, userID)
 	if err != nil {
-		return nil, fmt.Errorf(`store: unable to fetch API Keys: %v`, err)
+		return nil, fmt.Errorf(`store: unable to fetch API Keys: %w`, err)
 	}
 	defer rows.Close()
 
@@ -56,7 +57,7 @@ func (s *Storage) APIKeys(userID int64) (model.APIKeys, error) {
 			&apiKey.LastUsedAt,
 			&apiKey.CreatedAt,
 		); err != nil {
-			return nil, fmt.Errorf(`store: unable to fetch API Key row: %v`, err)
+			return nil, fmt.Errorf(`store: unable to fetch API Key row: %w`, err)
 		}
 
 		apiKeys = append(apiKeys, &apiKey)
@@ -85,7 +86,7 @@ func (s *Storage) CreateAPIKey(apiKey *model.APIKey) error {
 		&apiKey.CreatedAt,
 	)
 	if err != nil {
-		return fmt.Errorf(`store: unable to create category: %v`, err)
+		return fmt.Errorf(`store: unable to create category: %w`, err)
 	}
 
 	return nil
@@ -96,7 +97,7 @@ func (s *Storage) RemoveAPIKey(userID, keyID int64) error {
 	query := `DELETE FROM api_keys WHERE id = $1 AND user_id = $2`
 	_, err := s.db.Exec(query, keyID, userID)
 	if err != nil {
-		return fmt.Errorf(`store: unable to remove this API Key: %v`, err)
+		return fmt.Errorf(`store: unable to remove this API Key: %w`, err)
 	}
 
 	return nil

@@ -39,7 +39,7 @@ func TestSerialize(t *testing.T) {
 }
 
 func TestNormalizedCategoriesOrder(t *testing.T) {
-	var orderTests = []struct {
+	orderTests := []struct {
 		naturalOrderName string
 		correctOrderName string
 	}{

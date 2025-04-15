@@ -50,7 +50,7 @@ func TestWhitelistedContentTypes(t *testing.T) {
 }
 
 func TestSelectorRules(t *testing.T) {
-	var ruleTestCases = map[string]string{
+	ruleTestCases := map[string]string{
 		"img.html":    "article > img",
 		"iframe.html": "article > iframe",
 		"p.html":      "article > p",

@@ -6,6 +6,7 @@ package notion
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -26,7 +27,7 @@ func NewClient(apiToken, pageID string) *Client {
 
 func (c *Client) UpdateDocument(entryURL string, entryTitle string) error {
 	if c.apiToken == "" || c.pageID == "" {
-		return fmt.Errorf("notion: missing API token or page ID")
+		return errors.New("notion: missing API token or page ID")
 	}
 
 	apiEndpoint := "https://api.notion.com/v1/blocks/" + c.pageID + "/children"
@@ -43,12 +44,12 @@ func (c *Client) UpdateDocument(entryURL string, entryTitle string) error {
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("notion: unable to encode request body: %v", err)
+		return fmt.Errorf("notion: unable to encode request body: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPatch, apiEndpoint, bytes.NewReader(requestBody))
 	if err != nil {
-		return fmt.Errorf("notion: unable to create request: %v", err)
+		return fmt.Errorf("notion: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -59,7 +60,7 @@ func (c *Client) UpdateDocument(entryURL string, entryTitle string) error {
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("notion: unable to send request: %v", err)
+		return fmt.Errorf("notion: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 

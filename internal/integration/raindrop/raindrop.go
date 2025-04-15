@@ -6,6 +6,7 @@ package raindrop // import "miniflux.app/v2/internal/integration/raindrop"
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -29,7 +30,7 @@ func NewClient(token, collectionID, tags string) *Client {
 // https://developer.raindrop.io/v1/raindrops/single#create-raindrop
 func (c *Client) CreateRaindrop(entryURL, entryTitle string) error {
 	if c.token == "" {
-		return fmt.Errorf("raindrop: missing token")
+		return errors.New("raindrop: missing token")
 	}
 
 	var request *http.Request
@@ -40,12 +41,12 @@ func (c *Client) CreateRaindrop(entryURL, entryTitle string) error {
 		Tags:       c.tags,
 	})
 	if err != nil {
-		return fmt.Errorf("raindrop: unable to encode request body: %v", err)
+		return fmt.Errorf("raindrop: unable to encode request body: %w", err)
 	}
 
 	request, err = http.NewRequest(http.MethodPost, "https://api.raindrop.io/rest/v1/raindrop", bytes.NewReader(requestBodyJson))
 	if err != nil {
-		return fmt.Errorf("raindrop: unable to create request: %v", err)
+		return fmt.Errorf("raindrop: unable to create request: %w", err)
 	}
 	request.Header.Set("Content-Type", "application/json")
 
@@ -55,7 +56,7 @@ func (c *Client) CreateRaindrop(entryURL, entryTitle string) error {
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("raindrop: unable to send request: %v", err)
+		return fmt.Errorf("raindrop: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -69,7 +70,7 @@ func (c *Client) CreateRaindrop(entryURL, entryTitle string) error {
 type raindrop struct {
 	Link       string     `json:"link"`
 	Title      string     `json:"title"`
-	Collection collection `json:"collection,omitempty"`
+	Collection collection `json:"collection"`
 	Tags       []string   `json:"tags"`
 }
 

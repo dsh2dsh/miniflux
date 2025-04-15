@@ -65,7 +65,15 @@ func (m *middleware) serve(next http.Handler) http.Handler {
 			slog.String("username", user.Username),
 		)
 
-		m.store.SetLastLogin(user.ID)
+		if err := m.store.SetLastLogin(user.ID); err != nil {
+			slog.Error("[Fever] Failed set last login",
+				slog.String("client_ip", clientIP),
+				slog.String("user_agent", r.UserAgent()),
+				slog.Int64("user_id", user.ID),
+				slog.String("username", user.Username),
+				slog.Any("error", err),
+			)
+		}
 
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, request.UserIDContextKey, user.ID)

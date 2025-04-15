@@ -24,7 +24,7 @@ func NewXMLDecoder(data io.ReadSeeker) *xml.Decoder {
 		decoder = xml.NewDecoder(bytes.NewReader(filteredBytes))
 	} else {
 		// filter invalid chars later within decoder.CharsetReader
-		data.Seek(0, io.SeekStart)
+		_, _ = data.Seek(0, io.SeekStart)
 		decoder = xml.NewDecoder(data)
 	}
 

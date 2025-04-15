@@ -175,35 +175,33 @@ type RequestModifiers struct {
 }
 
 func (r RequestModifiers) String() string {
-	var results []string
-
-	results = append(results, fmt.Sprintf("UserID: %d", r.UserID))
-
-	var streamStr []string
-	for _, s := range r.Streams {
-		streamStr = append(streamStr, s.String())
+	streamStr := make([]string, len(r.Streams))
+	for i, s := range r.Streams {
+		streamStr[i] = s.String()
 	}
-	results = append(results, fmt.Sprintf("Streams: [%s]", strings.Join(streamStr, ", ")))
 
-	var exclusions []string
-	for _, s := range r.ExcludeTargets {
-		exclusions = append(exclusions, s.String())
+	exclusions := make([]string, len(r.ExcludeTargets))
+	for i, s := range r.ExcludeTargets {
+		exclusions[i] = s.String()
 	}
-	results = append(results, fmt.Sprintf("Exclusions: [%s]", strings.Join(exclusions, ", ")))
 
-	var filters []string
-	for _, s := range r.FilterTargets {
-		filters = append(filters, s.String())
+	filters := make([]string, len(r.FilterTargets))
+	for i, s := range r.FilterTargets {
+		filters[i] = s.String()
 	}
-	results = append(results, fmt.Sprintf("Filters: [%s]", strings.Join(filters, ", ")))
 
-	results = append(results, fmt.Sprintf("Count: %d", r.Count))
-	results = append(results, fmt.Sprintf("Offset: %d", r.Offset))
-	results = append(results, fmt.Sprintf("Sort Direction: %s", r.SortDirection))
-	results = append(results, fmt.Sprintf("Continuation Token: %s", r.ContinuationToken))
-	results = append(results, fmt.Sprintf("Start Time: %d", r.StartTime))
-	results = append(results, fmt.Sprintf("Stop Time: %d", r.StopTime))
-
+	results := []string{
+		"UserID: " + strconv.FormatInt(r.UserID, 10),
+		"Streams: [" + strings.Join(streamStr, ", ") + "]",
+		"Exclusions: [" + strings.Join(exclusions, ", ") + "]",
+		"Filters: [" + strings.Join(filters, ", ") + "]",
+		"Count: " + strconv.FormatInt(int64(r.Count), 10),
+		"Offset: " + strconv.FormatInt(int64(r.Offset), 10),
+		"Sort Direction: " + r.SortDirection,
+		"Continuation Token: " + r.ContinuationToken,
+		"Start Time: " + strconv.FormatInt(r.StartTime, 10),
+		"Stop Time: " + strconv.FormatInt(r.StopTime, 10),
+	}
 	return strings.Join(results, "; ")
 }
 
@@ -370,7 +368,7 @@ func checkAndSimplifyTags(addTags []Stream, removeTags []Stream) (map[StreamType
 func getItemIDs(r *http.Request) ([]int64, error) {
 	items := r.Form[ParamItemIDs]
 	if len(items) == 0 {
-		return nil, fmt.Errorf("googlereader: no items requested")
+		return nil, errors.New("googlereader: no items requested")
 	}
 
 	itemIDs := make([]int64, len(items))
@@ -394,14 +392,14 @@ func checkOutputFormat(r *http.Request) error {
 	if r.Method == http.MethodPost {
 		err := r.ParseForm()
 		if err != nil {
-			return err
+			return fmt.Errorf("googlereader: failed parse form: %w", err)
 		}
 		output = r.Form.Get("output")
 	} else {
 		output = request.QueryStringParam(r, "output", "")
 	}
 	if output != "json" {
-		err := fmt.Errorf("googlereader: only json output is supported")
+		err := errors.New("googlereader: only json output is supported")
 		return err
 	}
 	return nil
@@ -466,7 +464,10 @@ func (h *handler) clientLoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.store.SetLastLogin(integration.UserID)
+	if err := h.store.SetLastLogin(integration.UserID); err != nil {
+		json.ServerError(w, r, err)
+		return
+	}
 
 	token := getAuthToken(integration.GoogleReaderUsername, integration.GoogleReaderPassword)
 	slog.Debug("[GoogleReader] Created token",
@@ -525,7 +526,9 @@ func (h *handler) tokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "text/plain; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(token))
+	if _, err := w.Write([]byte(token)); err != nil {
+		json.ServerError(w, r, err)
+	}
 }
 
 func (h *handler) editTagHandler(w http.ResponseWriter, r *http.Request) {
@@ -555,7 +558,7 @@ func (h *handler) editTagHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(addTags) == 0 && len(removeTags) == 0 {
-		err = fmt.Errorf("googlreader: add or/and remove tags should be supplied")
+		err = errors.New("googlreader: add or/and remove tags should be supplied")
 		json.ServerError(w, r, err)
 		return
 	}
@@ -737,7 +740,7 @@ func (h *handler) quickAddHandler(w http.ResponseWriter, r *http.Request) {
 func getFeed(stream Stream, store *storage.Storage, userID int64) (*model.Feed, error) {
 	feedID, err := strconv.ParseInt(stream.ID, 10, 64)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("googlereader: %w", err)
 	}
 	return store.FeedByID(userID, feedID)
 }
@@ -793,7 +796,7 @@ func unsubscribe(streams []Stream, store *storage.Storage, userID int64) error {
 	for _, stream := range streams {
 		feedID, err := strconv.ParseInt(stream.ID, 10, 64)
 		if err != nil {
-			return err
+			return fmt.Errorf("googlereader: %w", err)
 		}
 		err = store.RemoveFeed(userID, feedID)
 		if err != nil {
@@ -1262,7 +1265,14 @@ func (h *handler) userInfoHandler(w http.ResponseWriter, r *http.Request) {
 		json.ServerError(w, r, err)
 		return
 	}
-	userInfo := userInfo{UserID: fmt.Sprint(user.ID), UserName: user.Username, UserProfileID: fmt.Sprint(user.ID), UserEmail: user.Username}
+
+	userId := strconv.FormatInt(user.ID, 10)
+	userInfo := userInfo{
+		UserID:        userId,
+		UserName:      user.Username,
+		UserProfileID: userId,
+		UserEmail:     user.Username,
+	}
 	json.OK(w, r, userInfo)
 }
 
@@ -1301,7 +1311,7 @@ func (h *handler) streamItemIDsHandler(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if len(rm.Streams) != 1 {
-		json.ServerError(w, r, fmt.Errorf(
+		json.ServerError(w, r, errors.New(
 			"googlereader: only one stream type expected"))
 		return
 	}

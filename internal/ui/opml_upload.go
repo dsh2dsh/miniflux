@@ -98,7 +98,9 @@ func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
 	requestBuilder.WithTimeout(config.Opts.HTTPClientTimeout())
 	requestBuilder.WithProxyRotator(proxyrotator.ProxyRotatorInstance)
 
-	responseHandler := fetcher.NewResponseHandler(requestBuilder.ExecuteRequest(opmlFileURL))
+	//nolint:bodyclose // responseHandler close it
+	responseHandler := fetcher.NewResponseHandler(
+		requestBuilder.ExecuteRequest(opmlFileURL))
 	defer responseHandler.Close()
 
 	if localizedError := responseHandler.LocalizedError(); localizedError != nil {

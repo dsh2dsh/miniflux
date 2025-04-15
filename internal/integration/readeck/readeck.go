@@ -6,6 +6,7 @@ package readeck // import "miniflux.app/v2/internal/integration/readeck"
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"mime/multipart"
 	"net/http"
@@ -31,12 +32,12 @@ func NewClient(baseURL, apiKey, labels string, onlyURL bool) *Client {
 
 func (c *Client) CreateBookmark(entryURL, entryTitle string, entryContent string) error {
 	if c.baseURL == "" || c.apiKey == "" {
-		return fmt.Errorf("readeck: missing base URL or API key")
+		return errors.New("readeck: missing base URL or API key")
 	}
 
 	apiEndpoint, err := urllib.JoinBaseURLAndPath(c.baseURL, "/api/bookmarks/")
 	if err != nil {
-		return fmt.Errorf(`readeck: invalid API endpoint: %v`, err)
+		return fmt.Errorf(`readeck: invalid API endpoint: %w`, err)
 	}
 
 	labelsSplitFn := func(c rune) bool {
@@ -52,11 +53,11 @@ func (c *Client) CreateBookmark(entryURL, entryTitle string, entryContent string
 			Labels: labelsSplit,
 		})
 		if err != nil {
-			return fmt.Errorf("readeck: unable to encode request body: %v", err)
+			return fmt.Errorf("readeck: unable to encode request body: %w", err)
 		}
 		request, err = http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBodyJson))
 		if err != nil {
-			return fmt.Errorf("readeck: unable to create request: %v", err)
+			return fmt.Errorf("readeck: unable to create request: %w", err)
 		}
 		request.Header.Set("Content-Type", "application/json")
 	} else {
@@ -65,28 +66,40 @@ func (c *Client) CreateBookmark(entryURL, entryTitle string, entryContent string
 
 		urlPart, err := multipartWriter.CreateFormField("url")
 		if err != nil {
-			return fmt.Errorf("readeck: unable to encode request body (entry url): %v", err)
+			return fmt.Errorf("readeck: unable to encode request body (entry url): %w", err)
 		}
-		urlPart.Write([]byte(entryURL))
+
+		if _, err := urlPart.Write([]byte(entryURL)); err != nil {
+			return fmt.Errorf("readeck: unable to write (entry url): %w", err)
+		}
 
 		titlePart, err := multipartWriter.CreateFormField("title")
 		if err != nil {
-			return fmt.Errorf("readeck: unable to encode request body (entry title): %v", err)
+			return fmt.Errorf("readeck: unable to encode request body (entry title): %w", err)
 		}
-		titlePart.Write([]byte(entryTitle))
+
+		if _, err := titlePart.Write([]byte(entryTitle)); err != nil {
+			return fmt.Errorf("readeck: unable to write (entry title): %w", err)
+		}
 
 		featurePart, err := multipartWriter.CreateFormField("feature_find_main")
 		if err != nil {
-			return fmt.Errorf("readeck: unable to encode request body (feature_find_main flag): %v", err)
+			return fmt.Errorf("readeck: unable to encode request body (feature_find_main flag): %w", err)
 		}
-		featurePart.Write([]byte("false")) // false to disable readability
+
+		// false to disable readability
+		if _, err := featurePart.Write([]byte("false")); err != nil {
+			return fmt.Errorf("readeck: unable to write (feature_find_main flag): %w", err)
+		}
 
 		for _, label := range labelsSplit {
 			labelPart, err := multipartWriter.CreateFormField("labels")
 			if err != nil {
-				return fmt.Errorf("readeck: unable to encode request body (entry labels): %v", err)
+				return fmt.Errorf("readeck: unable to encode request body (entry labels): %w", err)
 			}
-			labelPart.Write([]byte(label))
+			if _, err := labelPart.Write([]byte(label)); err != nil {
+				return fmt.Errorf("readeck: unable to write (entry labels): %w", err)
+			}
 		}
 
 		contentBodyHeader, err := json.Marshal(&partContentHeader{
@@ -94,24 +107,31 @@ func (c *Client) CreateBookmark(entryURL, entryTitle string, entryContent string
 			ContentHeader: contentHeader{ContentType: "text/html; charset=utf-8"},
 		})
 		if err != nil {
-			return fmt.Errorf("readeck: unable to encode request body (entry content header): %v", err)
+			return fmt.Errorf("readeck: unable to encode request body (entry content header): %w", err)
 		}
 
 		contentPart, err := multipartWriter.CreateFormFile("resource", "blob")
 		if err != nil {
-			return fmt.Errorf("readeck: unable to encode request body (entry content): %v", err)
+			return fmt.Errorf("readeck: unable to encode request body (entry content): %w", err)
 		}
-		contentPart.Write(contentBodyHeader)
-		contentPart.Write([]byte("\n"))
-		contentPart.Write([]byte(entryContent))
+
+		if _, err := contentPart.Write(contentBodyHeader); err != nil {
+			return fmt.Errorf("readeck: unable to write (entry content): %w", err)
+		}
+		if _, err := contentPart.Write([]byte("\n")); err != nil {
+			return fmt.Errorf("readeck: unable to write (entry content): %w", err)
+		}
+		if _, err := contentPart.Write([]byte(entryContent)); err != nil {
+			return fmt.Errorf("readeck: unable to write (entry content): %w", err)
+		}
 
 		err = multipartWriter.Close()
 		if err != nil {
-			return fmt.Errorf("readeck: unable to encode request body: %v", err)
+			return fmt.Errorf("readeck: unable to encode request body: %w", err)
 		}
 		request, err = http.NewRequest(http.MethodPost, apiEndpoint, requestBody)
 		if err != nil {
-			return fmt.Errorf("readeck: unable to create request: %v", err)
+			return fmt.Errorf("readeck: unable to create request: %w", err)
 		}
 		request.Header.Set("Content-Type", multipartWriter.FormDataContentType())
 	}
@@ -122,7 +142,7 @@ func (c *Client) CreateBookmark(entryURL, entryTitle string, entryContent string
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("readeck: unable to send request: %v", err)
+		return fmt.Errorf("readeck: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 

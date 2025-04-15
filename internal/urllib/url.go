@@ -4,6 +4,7 @@
 package urllib // import "miniflux.app/v2/internal/urllib"
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -26,7 +27,7 @@ func AbsoluteURL(baseURL, input string) (string, error) {
 
 	u, err := url.Parse(input)
 	if err != nil {
-		return "", fmt.Errorf("unable to parse input URL: %v", err)
+		return "", fmt.Errorf("unable to parse input URL: %w", err)
 	}
 
 	if u.IsAbs() {
@@ -35,7 +36,7 @@ func AbsoluteURL(baseURL, input string) (string, error) {
 
 	base, err := url.Parse(baseURL)
 	if err != nil {
-		return "", fmt.Errorf("unable to parse base URL: %v", err)
+		return "", fmt.Errorf("unable to parse base URL: %w", err)
 	}
 
 	return base.ResolveReference(u).String(), nil
@@ -83,11 +84,11 @@ func Domain(websiteURL string) string {
 // JoinBaseURLAndPath returns a URL string with the provided path elements joined together.
 func JoinBaseURLAndPath(baseURL, path string) (string, error) {
 	if baseURL == "" {
-		return "", fmt.Errorf("empty base URL")
+		return "", errors.New("empty base URL")
 	}
 
 	if path == "" {
-		return "", fmt.Errorf("empty path")
+		return "", errors.New("empty path")
 	}
 
 	_, err := url.Parse(baseURL)

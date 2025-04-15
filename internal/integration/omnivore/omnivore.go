@@ -74,10 +74,10 @@ func NewClient(apiToken string, apiEndpoint string) Client {
 }
 
 func (c *client) SaveUrl(url string) error {
-	var payload = map[string]interface{}{
+	payload := map[string]any{
 		"query": mutation,
-		"variables": map[string]interface{}{
-			"input": map[string]interface{}{
+		"variables": map[string]any{
+			"input": map[string]any{
 				"clientRequestId": crypto.GenerateUUID(),
 				"source":          "api",
 				"url":             url,
@@ -86,11 +86,11 @@ func (c *client) SaveUrl(url string) error {
 	}
 	b, err := json.Marshal(payload)
 	if err != nil {
-		return err
+		return fmt.Errorf("integration/omnivore: failed marshal: %w", err)
 	}
 	req, err := http.NewRequest(http.MethodPost, c.apiEndpoint, bytes.NewReader(b))
 	if err != nil {
-		return err
+		return fmt.Errorf("integration/omnivore: %w", err)
 	}
 
 	req.Header.Set("Authorization", c.apiToken)
@@ -99,13 +99,13 @@ func (c *client) SaveUrl(url string) error {
 
 	resp, err := c.wrapped.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("integration/omnivore: %w", err)
 	}
 
 	defer resp.Body.Close()
 	b, err = io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("omnivore: failed to parse response: %s", err)
+		return fmt.Errorf("omnivore: failed to parse response: %w", err)
 	}
 
 	if resp.StatusCode >= 400 {

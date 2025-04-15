@@ -6,6 +6,7 @@ package linkding // import "miniflux.app/v2/internal/integration/linkding"
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -30,7 +31,7 @@ func NewClient(baseURL, apiKey, tags string, unread bool) *Client {
 
 func (c *Client) CreateBookmark(entryURL, entryTitle string) error {
 	if c.baseURL == "" || c.apiKey == "" {
-		return fmt.Errorf("linkding: missing base URL or API key")
+		return errors.New("linkding: missing base URL or API key")
 	}
 
 	tagsSplitFn := func(c rune) bool {
@@ -39,7 +40,7 @@ func (c *Client) CreateBookmark(entryURL, entryTitle string) error {
 
 	apiEndpoint, err := urllib.JoinBaseURLAndPath(c.baseURL, "/api/bookmarks/")
 	if err != nil {
-		return fmt.Errorf(`linkding: invalid API endpoint: %v`, err)
+		return fmt.Errorf(`linkding: invalid API endpoint: %w`, err)
 	}
 
 	requestBody, err := json.Marshal(&linkdingBookmark{
@@ -48,14 +49,13 @@ func (c *Client) CreateBookmark(entryURL, entryTitle string) error {
 		TagNames: strings.FieldsFunc(c.tags, tagsSplitFn),
 		Unread:   c.unread,
 	})
-
 	if err != nil {
-		return fmt.Errorf("linkding: unable to encode request body: %v", err)
+		return fmt.Errorf("linkding: unable to encode request body: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBody))
 	if err != nil {
-		return fmt.Errorf("linkding: unable to create request: %v", err)
+		return fmt.Errorf("linkding: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -65,7 +65,7 @@ func (c *Client) CreateBookmark(entryURL, entryTitle string) error {
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("linkding: unable to send request: %v", err)
+		return fmt.Errorf("linkding: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 

@@ -4,6 +4,7 @@
 package sanitizer // import "miniflux.app/v2/internal/reader/sanitizer"
 
 import (
+	"errors"
 	"io"
 	"net/url"
 	"slices"
@@ -17,68 +18,66 @@ import (
 	"golang.org/x/net/html"
 )
 
-var (
-	tagAllowList = map[string][]string{
-		"a":          {"href", "title", "id"},
-		"abbr":       {"title"},
-		"acronym":    {"title"},
-		"aside":      {},
-		"audio":      {"src"},
-		"blockquote": {},
-		"b":          {},
-		"br":         {},
-		"caption":    {},
-		"cite":       {},
-		"code":       {},
-		"dd":         {"id"},
-		"del":        {},
-		"dfn":        {},
-		"dl":         {"id"},
-		"dt":         {"id"},
-		"em":         {},
-		"figcaption": {},
-		"figure":     {},
-		"h1":         {"id"},
-		"h2":         {"id"},
-		"h3":         {"id"},
-		"h4":         {"id"},
-		"h5":         {"id"},
-		"h6":         {"id"},
-		"hr":         {},
-		"iframe":     {"width", "height", "frameborder", "src", "allowfullscreen"},
-		"img":        {"alt", "title", "src", "srcset", "sizes", "width", "height"},
-		"ins":        {},
-		"kbd":        {},
-		"li":         {"id"},
-		"ol":         {"id"},
-		"p":          {},
-		"picture":    {},
-		"pre":        {},
-		"q":          {"cite"},
-		"rp":         {},
-		"rt":         {},
-		"rtc":        {},
-		"ruby":       {},
-		"s":          {},
-		"samp":       {},
-		"source":     {"src", "type", "srcset", "sizes", "media"},
-		"strong":     {},
-		"sub":        {},
-		"sup":        {"id"},
-		"table":      {},
-		"td":         {"rowspan", "colspan"},
-		"tfoot":      {},
-		"th":         {"rowspan", "colspan"},
-		"thead":      {},
-		"time":       {"datetime"},
-		"tr":         {},
-		"u":          {},
-		"ul":         {"id"},
-		"var":        {},
-		"video":      {"poster", "height", "width", "src"},
-		"wbr":        {},
-	}
-)
+var tagAllowList = map[string][]string{
+	"a":          {"href", "title", "id"},
+	"abbr":       {"title"},
+	"acronym":    {"title"},
+	"aside":      {},
+	"audio":      {"src"},
+	"blockquote": {},
+	"b":          {},
+	"br":         {},
+	"caption":    {},
+	"cite":       {},
+	"code":       {},
+	"dd":         {"id"},
+	"del":        {},
+	"dfn":        {},
+	"dl":         {"id"},
+	"dt":         {"id"},
+	"em":         {},
+	"figcaption": {},
+	"figure":     {},
+	"h1":         {"id"},
+	"h2":         {"id"},
+	"h3":         {"id"},
+	"h4":         {"id"},
+	"h5":         {"id"},
+	"h6":         {"id"},
+	"hr":         {},
+	"iframe":     {"width", "height", "frameborder", "src", "allowfullscreen"},
+	"img":        {"alt", "title", "src", "srcset", "sizes", "width", "height"},
+	"ins":        {},
+	"kbd":        {},
+	"li":         {"id"},
+	"ol":         {"id"},
+	"p":          {},
+	"picture":    {},
+	"pre":        {},
+	"q":          {"cite"},
+	"rp":         {},
+	"rt":         {},
+	"rtc":        {},
+	"ruby":       {},
+	"s":          {},
+	"samp":       {},
+	"source":     {"src", "type", "srcset", "sizes", "media"},
+	"strong":     {},
+	"sub":        {},
+	"sup":        {"id"},
+	"table":      {},
+	"td":         {"rowspan", "colspan"},
+	"tfoot":      {},
+	"th":         {"rowspan", "colspan"},
+	"thead":      {},
+	"time":       {"datetime"},
+	"tr":         {},
+	"u":          {},
+	"ul":         {"id"},
+	"var":        {},
+	"video":      {"poster", "height", "width", "src"},
+	"wbr":        {},
+}
 
 // Sanitize returns safe HTML.
 func Sanitize(baseURL, input string) string {
@@ -91,7 +90,7 @@ func Sanitize(baseURL, input string) string {
 	for {
 		if tokenizer.Next() == html.ErrorToken {
 			err := tokenizer.Err()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return buffer.String()
 			}
 
@@ -168,7 +167,6 @@ func Sanitize(baseURL, input string) string {
 }
 
 func sanitizeAttributes(baseURL, tagName string, attributes []html.Attribute) ([]string, string) {
-	var htmlAttrs, attrNames []string
 	var err error
 	var isImageLargerThanLayout bool
 	var isAnchorLink bool
@@ -178,6 +176,8 @@ func sanitizeAttributes(baseURL, tagName string, attributes []html.Attribute) ([
 		isImageLargerThanLayout = imgWidth > 750
 	}
 
+	htmlAttrs := make([]string, 0, len(attributes))
+	attrNames := make([]string, 0, len(attributes))
 	for _, attribute := range attributes {
 		value := attribute.Val
 
@@ -451,7 +451,7 @@ func sanitizeSrcsetAttr(baseURL, value string) string {
 }
 
 func isValidDataAttribute(value string) bool {
-	var dataAttributeAllowList = []string{
+	dataAttributeAllowList := []string{
 		"data:image/avif",
 		"data:image/apng",
 		"data:image/png",

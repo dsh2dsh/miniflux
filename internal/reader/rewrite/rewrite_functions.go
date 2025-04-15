@@ -475,7 +475,7 @@ func fixGhostCards(entryContent string) string {
 			return
 		}
 
-		link := ""
+		var link string
 		if author == "" || strings.HasSuffix(title, author) {
 			link = fmt.Sprintf("<a href=\"%s\">%s</a>", href, title)
 		} else {

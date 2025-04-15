@@ -278,13 +278,11 @@ func (h *handler) handleItems(w http.ResponseWriter, r *http.Request) {
 		csvItemIDs := request.QueryStringParam(r, "with_ids", "")
 		if csvItemIDs != "" {
 			var itemIDs []int64
-
-			for _, strItemID := range strings.Split(csvItemIDs, ",") {
+			for strItemID := range strings.SplitSeq(csvItemIDs, ",") {
 				strItemID = strings.TrimSpace(strItemID)
 				itemID, _ := strconv.ParseInt(strItemID, 10, 64)
 				itemIDs = append(itemIDs, itemID)
 			}
-
 			builder.WithEntryIDs(itemIDs)
 		}
 	default:
@@ -358,9 +356,9 @@ func (h *handler) handleUnreadItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var itemIDs []string
-	for _, entryID := range rawEntryIDs {
-		itemIDs = append(itemIDs, strconv.FormatInt(entryID, 10))
+	itemIDs := make([]string, len(rawEntryIDs))
+	for i, entryID := range rawEntryIDs {
+		itemIDs[i] = strconv.FormatInt(entryID, 10)
 	}
 
 	var result unreadResponse
@@ -392,9 +390,9 @@ func (h *handler) handleSavedItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var itemsIDs []string
-	for _, entryID := range entryIDs {
-		itemsIDs = append(itemsIDs, strconv.FormatInt(entryID, 10))
+	itemsIDs := make([]string, len(entryIDs))
+	for i, entryID := range entryIDs {
+		itemsIDs[i] = strconv.FormatInt(entryID, 10)
 	}
 
 	result := &savedResponse{ItemIDs: strings.Join(itemsIDs, ",")}
@@ -443,13 +441,15 @@ func (h *handler) handleWriteItems(w http.ResponseWriter, r *http.Request) {
 			slog.Int64("user_id", userID),
 			slog.Int64("entry_id", entryID),
 		)
-		h.store.SetEntriesStatus(userID, []int64{entryID}, model.EntryStatusRead)
+		err = h.store.SetEntriesStatus(userID, []int64{entryID},
+			model.EntryStatusRead)
 	case "unread":
 		slog.Debug("[Fever] Mark entry as unread",
 			slog.Int64("user_id", userID),
 			slog.Int64("entry_id", entryID),
 		)
-		h.store.SetEntriesStatus(userID, []int64{entryID}, model.EntryStatusUnread)
+		err = h.store.SetEntriesStatus(userID, []int64{entryID},
+			model.EntryStatusUnread)
 	case "saved":
 		slog.Debug("[Fever] Mark entry as saved",
 			slog.Int64("user_id", userID),
@@ -459,25 +459,22 @@ func (h *handler) handleWriteItems(w http.ResponseWriter, r *http.Request) {
 			json.ServerError(w, r, err)
 			return
 		}
-
 		settings, err := h.store.Integration(userID)
 		if err != nil {
 			json.ServerError(w, r, err)
 			return
 		}
-
-		go func() {
-			integration.SendEntry(entry, settings)
-		}()
+		go func() { integration.SendEntry(entry, settings) }()
 	case "unsaved":
 		slog.Debug("[Fever] Mark entry as unsaved",
 			slog.Int64("user_id", userID),
 			slog.Int64("entry_id", entryID),
 		)
-		if err := h.store.ToggleBookmark(userID, entryID); err != nil {
-			json.ServerError(w, r, err)
-			return
-		}
+		err = h.store.ToggleBookmark(userID, entryID)
+	}
+	if err != nil {
+		json.ServerError(w, r, err)
+		return
 	}
 
 	json.OK(w, r, newBaseResponse())

@@ -6,6 +6,7 @@ package espial // import "miniflux.app/v2/internal/integration/espial"
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -27,12 +28,12 @@ func NewClient(baseURL, apiKey string) *Client {
 
 func (c *Client) CreateLink(entryURL, entryTitle, espialTags string) error {
 	if c.baseURL == "" || c.apiKey == "" {
-		return fmt.Errorf("espial: missing base URL or API key")
+		return errors.New("espial: missing base URL or API key")
 	}
 
 	apiEndpoint, err := urllib.JoinBaseURLAndPath(c.baseURL, "/api/add")
 	if err != nil {
-		return fmt.Errorf("espial: invalid API endpoint: %v", err)
+		return fmt.Errorf("espial: invalid API endpoint: %w", err)
 	}
 
 	requestBody, err := json.Marshal(&espialDocument{
@@ -41,14 +42,13 @@ func (c *Client) CreateLink(entryURL, entryTitle, espialTags string) error {
 		ToRead: true,
 		Tags:   espialTags,
 	})
-
 	if err != nil {
-		return fmt.Errorf("espial: unable to encode request body: %v", err)
+		return fmt.Errorf("espial: unable to encode request body: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBody))
 	if err != nil {
-		return fmt.Errorf("espial: unable to create request: %v", err)
+		return fmt.Errorf("espial: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -58,14 +58,13 @@ func (c *Client) CreateLink(entryURL, entryTitle, espialTags string) error {
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("espial: unable to send request: %v", err)
+		return fmt.Errorf("espial: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusCreated {
 		responseBody := new(bytes.Buffer)
-		responseBody.ReadFrom(response.Body)
-
+		_, _ = responseBody.ReadFrom(response.Body)
 		return fmt.Errorf("espial: unable to create link: url=%s status=%d body=%s", apiEndpoint, response.StatusCode, responseBody.String())
 	}
 

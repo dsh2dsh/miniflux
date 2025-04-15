@@ -9,6 +9,7 @@ import (
 	"crypto/sha512"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -30,12 +31,12 @@ func NewClient(baseURL, apiSecret string) *Client {
 
 func (c *Client) CreateLink(entryURL, entryTitle string) error {
 	if c.baseURL == "" || c.apiSecret == "" {
-		return fmt.Errorf("shaarli: missing base URL or API secret")
+		return errors.New("shaarli: missing base URL or API secret")
 	}
 
 	apiEndpoint, err := urllib.JoinBaseURLAndPath(c.baseURL, "/api/v1/links")
 	if err != nil {
-		return fmt.Errorf("shaarli: invalid API endpoint: %v", err)
+		return fmt.Errorf("shaarli: invalid API endpoint: %w", err)
 	}
 
 	requestBody, err := json.Marshal(&addLinkRequest{
@@ -43,14 +44,13 @@ func (c *Client) CreateLink(entryURL, entryTitle string) error {
 		Title:   entryTitle,
 		Private: true,
 	})
-
 	if err != nil {
-		return fmt.Errorf("shaarli: unable to encode request body: %v", err)
+		return fmt.Errorf("shaarli: unable to encode request body: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBody))
 	if err != nil {
-		return fmt.Errorf("shaarli: unable to create request: %v", err)
+		return fmt.Errorf("shaarli: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -61,7 +61,7 @@ func (c *Client) CreateLink(entryURL, entryTitle string) error {
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("shaarli: unable to send request: %v", err)
+		return fmt.Errorf("shaarli: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -74,7 +74,8 @@ func (c *Client) CreateLink(entryURL, entryTitle string) error {
 
 func (c *Client) generateBearerToken() string {
 	header := base64.RawURLEncoding.EncodeToString([]byte(`{"typ":"JWT","alg":"HS512"}`))
-	payload := base64.RawURLEncoding.EncodeToString([]byte(fmt.Sprintf(`{"iat":%d}`, time.Now().Unix())))
+	payload := base64.RawURLEncoding.EncodeToString(
+		fmt.Appendf(nil, `{"iat":%d}`, time.Now().Unix()))
 	data := header + "." + payload
 
 	mac := hmac.New(sha512.New, []byte(c.apiSecret))

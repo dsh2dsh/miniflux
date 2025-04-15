@@ -142,7 +142,7 @@ func TestInvalidCredentials(t *testing.T) {
 		t.Fatal(`Using bad credentials should raise an error`)
 	}
 
-	if err != miniflux.ErrNotAuthorized {
+	if errors.Is(err, miniflux.ErrNotAuthorized) {
 		t.Fatal(`A "Not Authorized" error should be raised`)
 	}
 }
@@ -917,6 +917,7 @@ func TestUpdateInexistingCategory(t *testing.T) {
 		t.Fatalf(`Updating an inexisting category should raise an error`)
 	}
 }
+
 func TestDeleteCategoryEndpoint(t *testing.T) {
 	testConfig := newIntegrationTestConfig()
 	if !testConfig.isConfigured() {
@@ -1876,7 +1877,8 @@ func TestDiscoverSubscriptionsWithNoSubscription(t *testing.T) {
 	}
 
 	client := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	if _, err := client.Discover(testConfig.testBaseURL); err != miniflux.ErrNotFound {
+	_, err := client.Discover(testConfig.testBaseURL)
+	if errors.Is(err, miniflux.ErrNotFound) {
 		t.Fatalf(`Discovering subscriptions with no subscription should raise a 404 error`)
 	}
 }
@@ -2092,13 +2094,11 @@ func TestGetGlobalEntriesEndpoint(t *testing.T) {
 		FeedURL:      testConfig.testFeedURL,
 		HideGlobally: true,
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	feedIDEntry, err := regularUserClient.Feed(feedID)
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2109,7 +2109,6 @@ func TestGetGlobalEntriesEndpoint(t *testing.T) {
 
 	/* Not filtering on GloballyVisible should return all entries */
 	feedEntries, err := regularUserClient.Entries(&miniflux.Filter{FeedID: feedID})
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2120,7 +2119,6 @@ func TestGetGlobalEntriesEndpoint(t *testing.T) {
 
 	/* Feed is hidden globally, so this should be empty */
 	globallyVisibleEntries, err := regularUserClient.Entries(&miniflux.Filter{GloballyVisible: true})
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2149,7 +2147,6 @@ func TestUpdateEnclosureEndpoint(t *testing.T) {
 	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
 		FeedURL: testConfig.testFeedURL,
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}

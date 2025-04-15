@@ -199,9 +199,9 @@ func (r *RequestBuilder) ExecuteRequest(requestURL string) (*http.Response, erro
 
 	client.Transport = transport
 
-	req, err := http.NewRequest("GET", requestURL, nil)
+	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("reader/fetcher: %w", err)
 	}
 
 	req.Header = r.headers
@@ -220,5 +220,9 @@ func (r *RequestBuilder) ExecuteRequest(requestURL string) (*http.Response, erro
 		slog.Bool("disable_http2", r.disableHTTP2),
 	))
 
-	return client.Do(req)
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("reader/fetcher: %w", err)
+	}
+	return resp, nil
 }

@@ -8,6 +8,7 @@ package readwise // import "miniflux.app/v2/internal/integration/readwise"
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -30,20 +31,19 @@ func NewClient(apiKey string) *Client {
 
 func (c *Client) CreateDocument(entryURL string) error {
 	if c.apiKey == "" {
-		return fmt.Errorf("readwise: missing API key")
+		return errors.New("readwise: missing API key")
 	}
 
 	requestBody, err := json.Marshal(&readwiseDocument{
 		URL: entryURL,
 	})
-
 	if err != nil {
-		return fmt.Errorf("readwise: unable to encode request body: %v", err)
+		return fmt.Errorf("readwise: unable to encode request body: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, readwiseApiEndpoint, bytes.NewReader(requestBody))
 	if err != nil {
-		return fmt.Errorf("readwise: unable to create request: %v", err)
+		return fmt.Errorf("readwise: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -53,7 +53,7 @@ func (c *Client) CreateDocument(entryURL string) error {
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("readwise: unable to send request: %v", err)
+		return fmt.Errorf("readwise: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 

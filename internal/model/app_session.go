@@ -41,23 +41,24 @@ func (s *SessionData) String() string {
 
 // Value converts the session data to JSON.
 func (s *SessionData) Value() (driver.Value, error) {
-	j, err := json.Marshal(s)
-	return j, err
+	b, err := json.Marshal(s)
+	if err != nil {
+		return nil, fmt.Errorf("model: failed marshal: %w", err)
+	}
+	return b, nil
 }
 
 // Scan converts raw JSON data.
-func (s *SessionData) Scan(src interface{}) error {
+func (s *SessionData) Scan(src any) error {
 	source, ok := src.([]byte)
 	if !ok {
 		return errors.New("session: unable to assert type of src")
 	}
 
-	err := json.Unmarshal(source, s)
-	if err != nil {
-		return fmt.Errorf("session: %v", err)
+	if err := json.Unmarshal(source, s); err != nil {
+		return fmt.Errorf("session: %w", err)
 	}
-
-	return err
+	return nil
 }
 
 // Session represents a session in the system.

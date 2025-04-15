@@ -6,6 +6,7 @@ package template // import "miniflux.app/v2/internal/template"
 import (
 	"bytes"
 	"embed"
+	"fmt"
 	"html/template"
 	"log/slog"
 	"strings"
@@ -45,27 +46,29 @@ func (e *Engine) ParseTemplates() error {
 
 	dirEntries, err := commonTemplateFiles.ReadDir("templates/common")
 	if err != nil {
-		return err
+		return fmt.Errorf("template: filed read templates/common/: %w", err)
 	}
 
 	for _, dirEntry := range dirEntries {
-		fileData, err := commonTemplateFiles.ReadFile("templates/common/" + dirEntry.Name())
+		fullName := "templates/common/" + dirEntry.Name()
+		fileData, err := commonTemplateFiles.ReadFile(fullName)
 		if err != nil {
-			return err
+			return fmt.Errorf("template: failed read %q: %w", fullName, err)
 		}
 		commonTemplateContents.Write(fileData)
 	}
 
 	dirEntries, err = viewTemplateFiles.ReadDir("templates/views")
 	if err != nil {
-		return err
+		return fmt.Errorf("template: failed read templates/views/: %w", err)
 	}
 
 	for _, dirEntry := range dirEntries {
 		templateName := dirEntry.Name()
-		fileData, err := viewTemplateFiles.ReadFile("templates/views/" + dirEntry.Name())
+		fullName := "templates/views/" + templateName
+		fileData, err := viewTemplateFiles.ReadFile(fullName)
 		if err != nil {
-			return err
+			return fmt.Errorf("template: failed read %q: %w", fullName, err)
 		}
 
 		var templateContents strings.Builder
@@ -81,14 +84,15 @@ func (e *Engine) ParseTemplates() error {
 
 	dirEntries, err = standaloneTemplateFiles.ReadDir("templates/standalone")
 	if err != nil {
-		return err
+		return fmt.Errorf("template: failed read templates/standalone/: %w", err)
 	}
 
 	for _, dirEntry := range dirEntries {
 		templateName := dirEntry.Name()
-		fileData, err := standaloneTemplateFiles.ReadFile("templates/standalone/" + dirEntry.Name())
+		fullName := "templates/standalone/" + templateName
+		fileData, err := standaloneTemplateFiles.ReadFile(fullName)
 		if err != nil {
-			return err
+			return fmt.Errorf("template: failed read %q: %w", fullName, err)
 		}
 
 		slog.Debug("Parsing template",
@@ -96,12 +100,11 @@ func (e *Engine) ParseTemplates() error {
 		)
 		e.templates[templateName] = template.Must(template.New("base").Funcs(e.funcMap.Map()).Parse(string(fileData)))
 	}
-
 	return nil
 }
 
 // Render process a template.
-func (e *Engine) Render(name string, data map[string]interface{}) []byte {
+func (e *Engine) Render(name string, data map[string]any) []byte {
 	tpl, ok := e.templates[name]
 	if !ok {
 		panic("This template does not exists: " + name)
@@ -114,7 +117,7 @@ func (e *Engine) Render(name string, data map[string]interface{}) []byte {
 		"elapsed": func(timezone string, t time.Time) string {
 			return elapsedTime(printer, timezone, t)
 		},
-		"t": func(key interface{}, args ...interface{}) string {
+		"t": func(key any, args ...any) string {
 			switch k := key.(type) {
 			case string:
 				return printer.Printf(k, args...)
@@ -124,7 +127,7 @@ func (e *Engine) Render(name string, data map[string]interface{}) []byte {
 				return ""
 			}
 		},
-		"plural": func(key string, n int, args ...interface{}) string {
+		"plural": func(key string, n int, args ...any) string {
 			return printer.Plural(key, n, args...)
 		},
 	})

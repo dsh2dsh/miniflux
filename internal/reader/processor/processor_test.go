@@ -12,7 +12,7 @@ import (
 )
 
 func TestBlockingEntries(t *testing.T) {
-	var scenarios = []struct {
+	scenarios := []struct {
 		feed     *model.Feed
 		entry    *model.Entry
 		user     *model.User
@@ -49,7 +49,7 @@ func TestBlockingEntries(t *testing.T) {
 }
 
 func TestAllowEntries(t *testing.T) {
-	var scenarios = []struct {
+	scenarios := []struct {
 		feed     *model.Feed
 		entry    *model.Entry
 		user     *model.User
@@ -98,14 +98,14 @@ func TestIsRecentEntry(t *testing.T) {
 	if err != nil {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
-	var scenarios = []struct {
+	scenarios := []struct {
 		entry    *model.Entry
 		expected bool
 	}{
-		{&model.Entry{Title: "Example1", Date: time.Date(2005, 5, 1, 05, 05, 05, 05, time.UTC)}, true},
-		{&model.Entry{Title: "Example2", Date: time.Date(2010, 5, 1, 05, 05, 05, 05, time.UTC)}, true},
-		{&model.Entry{Title: "Example3", Date: time.Date(2020, 5, 1, 05, 05, 05, 05, time.UTC)}, true},
-		{&model.Entry{Title: "Example4", Date: time.Date(2024, 3, 15, 05, 05, 05, 05, time.UTC)}, true},
+		{&model.Entry{Title: "Example1", Date: time.Date(2005, 5, 1, 0o5, 0o5, 0o5, 0o5, time.UTC)}, true},
+		{&model.Entry{Title: "Example2", Date: time.Date(2010, 5, 1, 0o5, 0o5, 0o5, 0o5, time.UTC)}, true},
+		{&model.Entry{Title: "Example3", Date: time.Date(2020, 5, 1, 0o5, 0o5, 0o5, 0o5, time.UTC)}, true},
+		{&model.Entry{Title: "Example4", Date: time.Date(2024, 3, 15, 0o5, 0o5, 0o5, 0o5, time.UTC)}, true},
 	}
 	for _, tc := range scenarios {
 		result := isRecentEntry(tc.entry)

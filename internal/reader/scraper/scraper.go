@@ -43,28 +43,31 @@ func ScrapeWebsite(requestBuilder *fetcher.RequestBuilder, pageURL, rules string
 		responseHandler.Body(config.Opts.HTTPClientMaxBodySize()),
 		responseHandler.ContentType(),
 	)
-
 	if err != nil {
-		return "", "", fmt.Errorf("scraper: unable to read HTML document with charset reader: %v", err)
+		return "", "", fmt.Errorf(
+			"scraper: unable to read HTML document with charset reader: %w", err)
 	}
 
 	if sameSite && rules != "" {
 		slog.Debug("Extracting content with custom rules",
-			"url", pageURL,
-			"rules", rules,
-		)
-		baseURL, extractedContent, err = findContentUsingCustomRules(htmlDocumentReader, rules)
+			slog.String("url", pageURL), slog.String("rules", rules))
+		baseURL, extractedContent, err = findContentUsingCustomRules(
+			htmlDocumentReader, rules)
 	} else {
 		slog.Debug("Extracting content with readability",
-			"url", pageURL,
-		)
-		baseURL, extractedContent, err = readability.ExtractContent(htmlDocumentReader)
+			slog.String("url", pageURL))
+		baseURL, extractedContent, err = readability.ExtractContent(
+			htmlDocumentReader)
+	}
+	if err != nil {
+		return "", "", fmt.Errorf("scraper: extract content: %w", err)
 	}
 
 	if baseURL == "" {
 		baseURL = pageURL
 	} else {
-		slog.Debug("Using base URL from HTML document", "base_url", baseURL)
+		slog.Debug("Using base URL from HTML document",
+			slog.String("base_url", baseURL))
 	}
 
 	return baseURL, extractedContent, nil
@@ -73,7 +76,7 @@ func ScrapeWebsite(requestBuilder *fetcher.RequestBuilder, pageURL, rules string
 func findContentUsingCustomRules(page io.Reader, rules string) (baseURL string, extractedContent string, err error) {
 	document, err := goquery.NewDocumentFromReader(page)
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("reader/scraper: %w", err)
 	}
 
 	if hrefValue, exists := document.FindMatcher(goquery.Single("head base")).Attr("href"); exists {

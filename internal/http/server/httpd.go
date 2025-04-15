@@ -78,7 +78,10 @@ func startSystemdSocketServer(server *http.Server) {
 }
 
 func startUnixSocketServer(server *http.Server, socketFile string) {
-	os.Remove(socketFile)
+	if err := os.Remove(socketFile); err != nil {
+		printErrorAndExit(`Server failed remove socket file %q: %v`,
+			socketFile, err)
+	}
 
 	go func(sock string) {
 		listener, err := net.Listen("unix", sock)
@@ -87,7 +90,7 @@ func startUnixSocketServer(server *http.Server, socketFile string) {
 		}
 		defer listener.Close()
 
-		if err := os.Chmod(sock, 0666); err != nil {
+		if err := os.Chmod(sock, 0o666); err != nil {
 			printErrorAndExit(`Unable to change socket permission: %v`, err)
 		}
 
@@ -134,7 +137,12 @@ func startAutoCertTLSServer(server *http.Server, certDomain string, store *stora
 		Handler: certManager.HTTPHandler(nil),
 		Addr:    ":http",
 	}
-	go s.ListenAndServe()
+
+	go func() {
+		if err := s.ListenAndServe(); err != http.ErrServerClosed {
+			printErrorAndExit(`Server failed to start: %v`, err)
+		}
+	}()
 
 	go func() {
 		slog.Info("Starting TLS server using automatic certificate management",
@@ -182,7 +190,7 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
 	if config.Opts.HasMaintenanceMode() {
 		router.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Write([]byte(config.Opts.MaintenanceMessage()))
+				_, _ = w.Write([]byte(config.Opts.MaintenanceMessage()))
 			})
 		})
 	}
@@ -199,12 +207,11 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
 			http.Error(w, "Database Connection Error", http.StatusInternalServerError)
 			return
 		}
-
-		w.Write([]byte("OK"))
+		_, _ = w.Write([]byte("OK"))
 	}).Name("healthcheck")
 
 	router.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(version.Version))
+		_, _ = w.Write([]byte(version.Version))
 	}).Name("version")
 
 	if config.Opts.HasMetricsCollector() {

@@ -14,8 +14,10 @@ import (
 	"miniflux.app/v2/internal/version"
 )
 
-var errPostNotFound = fmt.Errorf("pinboard: post not found")
-var errMissingCredentials = fmt.Errorf("pinboard: missing auth token")
+var (
+	errPostNotFound       = errors.New("pinboard: post not found")
+	errMissingCredentials = errors.New("pinboard: missing auth token")
+)
 
 const defaultClientTimeout = 10 * time.Second
 
@@ -54,7 +56,7 @@ func (c *Client) CreateBookmark(entryURL, entryTitle, pinboardTags string, markA
 	apiEndpoint := "https://api.pinboard.in/v1/posts/add?" + values.Encode()
 	request, err := http.NewRequest(http.MethodGet, apiEndpoint, nil)
 	if err != nil {
-		return fmt.Errorf("pinboard: unable to create request: %v", err)
+		return fmt.Errorf("pinboard: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -63,7 +65,7 @@ func (c *Client) CreateBookmark(entryURL, entryTitle, pinboardTags string, markA
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("pinboard: unable to send request: %v", err)
+		return fmt.Errorf("pinboard: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -87,7 +89,7 @@ func (c *Client) getBookmark(entryURL string) (*Post, error) {
 	apiEndpoint := "https://api.pinboard.in/v1/posts/get?" + values.Encode()
 	request, err := http.NewRequest(http.MethodGet, apiEndpoint, nil)
 	if err != nil {
-		return nil, fmt.Errorf("pinboard: unable to create request: %v", err)
+		return nil, fmt.Errorf("pinboard: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -96,7 +98,7 @@ func (c *Client) getBookmark(entryURL string) (*Post, error) {
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("pinboard: unable fetch bookmark: %v", err)
+		return nil, fmt.Errorf("pinboard: unable fetch bookmark: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -107,7 +109,7 @@ func (c *Client) getBookmark(entryURL string) (*Post, error) {
 	var results posts
 	err = xml.NewDecoder(response.Body).Decode(&results)
 	if err != nil {
-		return nil, fmt.Errorf("pinboard: unable to decode XML: %v", err)
+		return nil, fmt.Errorf("pinboard: unable to decode XML: %w", err)
 	}
 
 	if len(results.Posts) == 0 {

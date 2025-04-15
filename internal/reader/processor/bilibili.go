@@ -5,6 +5,7 @@ package processor // import "miniflux.app/v2/internal/reader/processor"
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -68,22 +69,23 @@ func fetchBilibiliWatchTime(websiteURL string) (int, error) {
 	var result map[string]interface{}
 	doc := json.NewDecoder(responseHandler.Body(config.Opts.HTTPClientMaxBodySize()))
 	if docErr := doc.Decode(&result); docErr != nil {
-		return 0, fmt.Errorf("failed to decode API response: %v", docErr)
+		return 0, fmt.Errorf("failed to decode API response: %w", docErr)
 	}
 
 	if code, ok := result["code"].(float64); !ok || code != 0 {
 		return 0, fmt.Errorf("API returned error code: %v", result["code"])
 	}
 
-	data, ok := result["data"].(map[string]interface{})
+	data, ok := result["data"].(map[string]any)
 	if !ok {
-		return 0, fmt.Errorf("data field not found or not an object")
+		return 0, errors.New("data field not found or not an object")
 	}
 
 	duration, ok := data["duration"].(float64)
 	if !ok {
-		return 0, fmt.Errorf("duration not found or not a number")
+		return 0, errors.New("duration not found or not a number")
 	}
+
 	intDuration := int(duration)
 	durationMin := intDuration / 60
 	if intDuration%60 != 0 {

@@ -97,7 +97,7 @@ func TestIsEmail(t *testing.T) {
 
 func TestDuration(t *testing.T) {
 	now := time.Now()
-	var dt = []struct {
+	dt := []struct {
 		in  time.Time
 		out string
 	}{
@@ -123,7 +123,7 @@ func TestDuration(t *testing.T) {
 
 func TestElapsedTime(t *testing.T) {
 	printer := locale.NewPrinter("en_US")
-	var dt = []struct {
+	dt := []struct {
 		in  time.Time
 		out string
 	}{

@@ -23,12 +23,14 @@ func PushEntries(feed *model.Feed, entries model.Entries, matrixBaseURL, matrixU
 		return err
 	}
 
-	var textMessages []string
-	var formattedTextMessages []string
-
-	for _, entry := range entries {
-		textMessages = append(textMessages, fmt.Sprintf(`[%s] %s - %s`, feed.Title, entry.Title, entry.URL))
-		formattedTextMessages = append(formattedTextMessages, fmt.Sprintf(`<li><strong>%s</strong>: <a href=%q>%s</a></li>`, feed.Title, entry.URL, entry.Title))
+	textMessages := make([]string, len(entries))
+	formattedTextMessages := make([]string, len(entries))
+	for i, entry := range entries {
+		textMessages[i] = fmt.Sprintf(`[%s] %s - %s`,
+			feed.Title, entry.Title, entry.URL)
+		formattedTextMessages[i] = fmt.Sprintf(
+			`<li><strong>%s</strong>: <a href=%q>%s</a></li>`,
+			feed.Title, entry.URL, entry.Title)
 	}
 
 	_, err = client.SendFormattedTextMessage(
@@ -38,6 +40,5 @@ func PushEntries(feed *model.Feed, entries model.Entries, matrixBaseURL, matrixU
 		strings.Join(textMessages, "\n"),
 		"<ul>"+strings.Join(formattedTextMessages, "\n")+"</ul>",
 	)
-
 	return err
 }

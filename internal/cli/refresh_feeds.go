@@ -39,7 +39,7 @@ func refreshFeeds(store *storage.Storage) {
 		slog.Int("batch_size", config.Opts.BatchSize()),
 	)
 
-	var jobQueue = make(chan model.Job, nbJobs)
+	jobQueue := make(chan model.Job, nbJobs)
 
 	slog.Info("Starting a pool of workers",
 		slog.Int("nb_workers", config.Opts.WorkerPoolSize()),

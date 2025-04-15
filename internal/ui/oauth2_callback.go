@@ -138,7 +138,11 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 		slog.String("username", user.Username),
 	)
 
-	h.store.SetLastLogin(user.ID)
+	if err := h.store.SetLastLogin(user.ID); err != nil {
+		html.ServerError(w, r, err)
+		return
+	}
+
 	sess.SetLanguage(user.Language)
 	sess.SetTheme(user.Theme)
 

@@ -253,7 +253,10 @@ func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
 			slog.String("username", user.Username),
 		)
 
-		m.store.SetLastLogin(user.ID)
+		if err := m.store.SetLastLogin(user.ID); err != nil {
+			html.ServerError(w, r, err)
+			return
+		}
 
 		sess := session.New(m.store, request.SessionID(r))
 		sess.SetLanguage(user.Language)

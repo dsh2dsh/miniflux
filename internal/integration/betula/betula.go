@@ -25,7 +25,7 @@ func NewClient(url, token string) *Client {
 func (c *Client) CreateBookmark(entryURL, entryTitle string, tags []string) error {
 	apiEndpoint, err := urllib.JoinBaseURLAndPath(c.url, "/save-link")
 	if err != nil {
-		return fmt.Errorf("betula: unable to generate save-link endpoint: %v", err)
+		return fmt.Errorf("betula: unable to generate save-link endpoint: %w", err)
 	}
 
 	values := url.Values{}
@@ -35,7 +35,7 @@ func (c *Client) CreateBookmark(entryURL, entryTitle string, tags []string) erro
 
 	request, err := http.NewRequest(http.MethodPost, apiEndpoint+"?"+values.Encode(), nil)
 	if err != nil {
-		return fmt.Errorf("betula: unable to create request: %v", err)
+		return fmt.Errorf("betula: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -45,7 +45,7 @@ func (c *Client) CreateBookmark(entryURL, entryTitle string, tags []string) erro
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("betula: unable to send request: %v", err)
+		return fmt.Errorf("betula: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 

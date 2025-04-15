@@ -10,7 +10,7 @@ import (
 )
 
 func BenchmarkParse(b *testing.B) {
-	var testCases = map[string][]string{
+	testCases := map[string][]string{
 		"large_atom.xml": {"https://dustri.org/b", ""},
 		"large_rss.xml":  {"https://dustri.org/b", ""},
 		"small_atom.xml": {"https://github.com/miniflux/v2/commits/main", ""},
@@ -22,7 +22,7 @@ func BenchmarkParse(b *testing.B) {
 		}
 		testCases[filename][1] = string(data)
 	}
-	for range b.N {
+	for b.Loop() {
 		for _, v := range testCases {
 			ParseFeed(v[0], strings.NewReader(v[1]))
 		}

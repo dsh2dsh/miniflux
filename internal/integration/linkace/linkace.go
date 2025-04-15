@@ -3,6 +3,7 @@ package linkace
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -28,7 +29,7 @@ func NewClient(baseURL, apiKey, tags string, private bool, checkDisabled bool) *
 
 func (c *Client) AddURL(entryURL, entryTitle string) error {
 	if c.baseURL == "" || c.apiKey == "" {
-		return fmt.Errorf("linkace: missing base URL or API key")
+		return errors.New("linkace: missing base URL or API key")
 	}
 
 	tagsSplitFn := func(c rune) bool {
@@ -37,7 +38,7 @@ func (c *Client) AddURL(entryURL, entryTitle string) error {
 
 	apiEndpoint, err := urllib.JoinBaseURLAndPath(c.baseURL, "/api/v2/links")
 	if err != nil {
-		return fmt.Errorf("linkace: invalid API endpoint: %v", err)
+		return fmt.Errorf("linkace: invalid API endpoint: %w", err)
 	}
 	requestBody, err := json.Marshal(&createItemRequest{
 		Url:           entryURL,
@@ -47,12 +48,12 @@ func (c *Client) AddURL(entryURL, entryTitle string) error {
 		CheckDisabled: c.checkDisabled,
 	})
 	if err != nil {
-		return fmt.Errorf("linkace: unable to encode request body: %v", err)
+		return fmt.Errorf("linkace: unable to encode request body: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBody))
 	if err != nil {
-		return fmt.Errorf("linkace: unable to create request: %v", err)
+		return fmt.Errorf("linkace: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -63,7 +64,7 @@ func (c *Client) AddURL(entryURL, entryTitle string) error {
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("linkace: unable to send request: %v", err)
+		return fmt.Errorf("linkace: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 

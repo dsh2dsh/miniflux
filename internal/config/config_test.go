@@ -25,7 +25,7 @@ func TestLogFileDefaultValue(t *testing.T) {
 
 func TestLogFileWithCustomFilename(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("LOG_FILE", "foobar.log")
+	t.Setenv("LOG_FILE", "foobar.log")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -39,7 +39,7 @@ func TestLogFileWithCustomFilename(t *testing.T) {
 
 func TestLogFileWithEmptyValue(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("LOG_FILE", "")
+	t.Setenv("LOG_FILE", "")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -68,7 +68,7 @@ func TestLogLevelDefaultValue(t *testing.T) {
 
 func TestLogLevelWithCustomValue(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("LOG_LEVEL", "warning")
+	t.Setenv("LOG_LEVEL", "warning")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -83,7 +83,7 @@ func TestLogLevelWithCustomValue(t *testing.T) {
 
 func TestLogLevelWithInvalidValue(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("LOG_LEVEL", "invalid")
+	t.Setenv("LOG_LEVEL", "invalid")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -112,7 +112,7 @@ func TestLogDateTimeDefaultValue(t *testing.T) {
 
 func TestLogDateTimeWithCustomValue(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("LOG_DATETIME", "false")
+	t.Setenv("LOG_DATETIME", "false")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -127,7 +127,7 @@ func TestLogDateTimeWithCustomValue(t *testing.T) {
 
 func TestLogDateTimeWithInvalidValue(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("LOG_DATETIME", "invalid")
+	t.Setenv("LOG_DATETIME", "invalid")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -156,7 +156,7 @@ func TestLogFormatDefaultValue(t *testing.T) {
 
 func TestLogFormatWithCustomValue(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("LOG_FORMAT", "json")
+	t.Setenv("LOG_FORMAT", "json")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -171,7 +171,7 @@ func TestLogFormatWithCustomValue(t *testing.T) {
 
 func TestLogFormatWithInvalidValue(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("LOG_FORMAT", "invalid")
+	t.Setenv("LOG_FORMAT", "invalid")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -186,7 +186,7 @@ func TestLogFormatWithInvalidValue(t *testing.T) {
 
 func TestDebugModeOn(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("DEBUG", "1")
+	t.Setenv("DEBUG", "1")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -215,7 +215,7 @@ func TestDebugModeOff(t *testing.T) {
 
 func TestCustomBaseURL(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("BASE_URL", "http://example.org")
+	t.Setenv("BASE_URL", "http://example.org")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -238,7 +238,7 @@ func TestCustomBaseURL(t *testing.T) {
 
 func TestCustomBaseURLWithTrailingSlash(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("BASE_URL", "http://example.org/folder/")
+	t.Setenv("BASE_URL", "http://example.org/folder/")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -261,7 +261,7 @@ func TestCustomBaseURLWithTrailingSlash(t *testing.T) {
 
 func TestCustomBaseURLWithCustomPort(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("BASE_URL", "http://example.org:88/folder/")
+	t.Setenv("BASE_URL", "http://example.org:88/folder/")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -284,7 +284,7 @@ func TestCustomBaseURLWithCustomPort(t *testing.T) {
 
 func TestBaseURLWithoutScheme(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("BASE_URL", "example.org/folder/")
+	t.Setenv("BASE_URL", "example.org/folder/")
 
 	_, err := NewParser().ParseEnvironmentVariables()
 	if err == nil {
@@ -294,7 +294,7 @@ func TestBaseURLWithoutScheme(t *testing.T) {
 
 func TestBaseURLWithInvalidScheme(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("BASE_URL", "ftp://example.org/folder/")
+	t.Setenv("BASE_URL", "ftp://example.org/folder/")
 
 	_, err := NewParser().ParseEnvironmentVariables()
 	if err == nil {
@@ -304,7 +304,7 @@ func TestBaseURLWithInvalidScheme(t *testing.T) {
 
 func TestInvalidBaseURL(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("BASE_URL", "http://example|org")
+	t.Setenv("BASE_URL", "http://example|org")
 
 	_, err := NewParser().ParseEnvironmentVariables()
 	if err == nil {
@@ -336,7 +336,7 @@ func TestDefaultBaseURL(t *testing.T) {
 
 func TestDatabaseURL(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("DATABASE_URL", "foobar")
+	t.Setenv("DATABASE_URL", "foobar")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -396,7 +396,7 @@ func TestDefaultDatabaseMaxConnsValue(t *testing.T) {
 
 func TestDatabaseMaxConns(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("DATABASE_MAX_CONNS", "42")
+	t.Setenv("DATABASE_MAX_CONNS", "42")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -431,7 +431,7 @@ func TestDefaultDatabaseMinConnsValue(t *testing.T) {
 
 func TestDatabaseMinConns(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("DATABASE_MIN_CONNS", "42")
+	t.Setenv("DATABASE_MIN_CONNS", "42")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -449,7 +449,7 @@ func TestDatabaseMinConns(t *testing.T) {
 
 func TestListenAddr(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("LISTEN_ADDR", "foobar")
+	t.Setenv("LISTEN_ADDR", "foobar")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -467,8 +467,8 @@ func TestListenAddr(t *testing.T) {
 
 func TestListenAddrWithPortDefined(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("PORT", "3000")
-	os.Setenv("LISTEN_ADDR", "foobar")
+	t.Setenv("PORT", "3000")
+	t.Setenv("LISTEN_ADDR", "foobar")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -503,7 +503,7 @@ func TestDefaultListenAddrValue(t *testing.T) {
 
 func TestCertFile(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("CERT_FILE", "foobar")
+	t.Setenv("CERT_FILE", "foobar")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -538,7 +538,7 @@ func TestDefaultCertFileValue(t *testing.T) {
 
 func TestKeyFile(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("KEY_FILE", "foobar")
+	t.Setenv("KEY_FILE", "foobar")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -573,7 +573,7 @@ func TestDefaultKeyFileValue(t *testing.T) {
 
 func TestCertDomain(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("CERT_DOMAIN", "example.org")
+	t.Setenv("CERT_DOMAIN", "example.org")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -625,8 +625,8 @@ func TestDefaultCleanupFrequencyHoursValue(t *testing.T) {
 
 func TestCleanupFrequencyHours(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("CLEANUP_FREQUENCY_HOURS", "42")
-	os.Setenv("CLEANUP_FREQUENCY", "19")
+	t.Setenv("CLEANUP_FREQUENCY_HOURS", "42")
+	t.Setenv("CLEANUP_FREQUENCY", "19")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -661,8 +661,8 @@ func TestDefaultCleanupArchiveReadDaysValue(t *testing.T) {
 
 func TestCleanupArchiveReadDays(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("CLEANUP_ARCHIVE_READ_DAYS", "7")
-	os.Setenv("ARCHIVE_READ_DAYS", "19")
+	t.Setenv("CLEANUP_ARCHIVE_READ_DAYS", "7")
+	t.Setenv("ARCHIVE_READ_DAYS", "19")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -697,7 +697,7 @@ func TestDefaultCleanupRemoveSessionsDaysValue(t *testing.T) {
 
 func TestCleanupRemoveSessionsDays(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("CLEANUP_REMOVE_SESSIONS_DAYS", "7")
+	t.Setenv("CLEANUP_REMOVE_SESSIONS_DAYS", "7")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -732,7 +732,7 @@ func TestDefaultWorkerPoolSizeValue(t *testing.T) {
 
 func TestWorkerPoolSize(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("WORKER_POOL_SIZE", "42")
+	t.Setenv("WORKER_POOL_SIZE", "42")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -767,7 +767,7 @@ func TestDefautPollingFrequencyValue(t *testing.T) {
 
 func TestPollingFrequency(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("POLLING_FREQUENCY", "42")
+	t.Setenv("POLLING_FREQUENCY", "42")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -802,7 +802,7 @@ func TestDefautForceRefreshInterval(t *testing.T) {
 
 func TestForceRefreshInterval(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("FORCE_REFRESH_INTERVAL", "42")
+	t.Setenv("FORCE_REFRESH_INTERVAL", "42")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -837,7 +837,7 @@ func TestDefaultBatchSizeValue(t *testing.T) {
 
 func TestBatchSize(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("BATCH_SIZE", "42")
+	t.Setenv("BATCH_SIZE", "42")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -872,7 +872,7 @@ func TestDefautPollingSchedulerValue(t *testing.T) {
 
 func TestPollingScheduler(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("POLLING_SCHEDULER", "entry_count_based")
+	t.Setenv("POLLING_SCHEDULER", "entry_count_based")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -907,7 +907,7 @@ func TestDefautSchedulerEntryFrequencyMaxIntervalValue(t *testing.T) {
 
 func TestSchedulerEntryFrequencyMaxInterval(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("SCHEDULER_ENTRY_FREQUENCY_MAX_INTERVAL", "30")
+	t.Setenv("SCHEDULER_ENTRY_FREQUENCY_MAX_INTERVAL", "30")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -942,7 +942,7 @@ func TestDefautSchedulerEntryFrequencyMinIntervalValue(t *testing.T) {
 
 func TestSchedulerEntryFrequencyMinInterval(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("SCHEDULER_ENTRY_FREQUENCY_MIN_INTERVAL", "30")
+	t.Setenv("SCHEDULER_ENTRY_FREQUENCY_MIN_INTERVAL", "30")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -977,7 +977,7 @@ func TestDefautSchedulerEntryFrequencyFactorValue(t *testing.T) {
 
 func TestSchedulerEntryFrequencyFactor(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("SCHEDULER_ENTRY_FREQUENCY_FACTOR", "2")
+	t.Setenv("SCHEDULER_ENTRY_FREQUENCY_FACTOR", "2")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1012,7 +1012,7 @@ func TestDefaultSchedulerRoundRobinValue(t *testing.T) {
 
 func TestSchedulerRoundRobin(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("SCHEDULER_ROUND_ROBIN_MIN_INTERVAL", "15")
+	t.Setenv("SCHEDULER_ROUND_ROBIN_MIN_INTERVAL", "15")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1047,7 +1047,7 @@ func TestDefaultSchedulerRoundRobinMaxIntervalValue(t *testing.T) {
 
 func TestSchedulerRoundRobinMaxInterval(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("SCHEDULER_ROUND_ROBIN_MAX_INTERVAL", "150")
+	t.Setenv("SCHEDULER_ROUND_ROBIN_MAX_INTERVAL", "150")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1065,7 +1065,7 @@ func TestSchedulerRoundRobinMaxInterval(t *testing.T) {
 
 func TestPollingParsingErrorLimit(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("POLLING_PARSING_ERROR_LIMIT", "100")
+	t.Setenv("POLLING_PARSING_ERROR_LIMIT", "100")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1100,7 +1100,7 @@ func TestOAuth2UserCreationWhenUnset(t *testing.T) {
 
 func TestOAuth2UserCreationAdmin(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("OAUTH2_USER_CREATION", "1")
+	t.Setenv("OAUTH2_USER_CREATION", "1")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1118,7 +1118,7 @@ func TestOAuth2UserCreationAdmin(t *testing.T) {
 
 func TestOAuth2ClientID(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("OAUTH2_CLIENT_ID", "foobar")
+	t.Setenv("OAUTH2_CLIENT_ID", "foobar")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1153,7 +1153,7 @@ func TestDefaultOAuth2ClientIDValue(t *testing.T) {
 
 func TestOAuth2ClientSecret(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("OAUTH2_CLIENT_SECRET", "secret")
+	t.Setenv("OAUTH2_CLIENT_SECRET", "secret")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1188,7 +1188,7 @@ func TestDefaultOAuth2ClientSecretValue(t *testing.T) {
 
 func TestOAuth2RedirectURL(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("OAUTH2_REDIRECT_URL", "http://example.org")
+	t.Setenv("OAUTH2_REDIRECT_URL", "http://example.org")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1223,7 +1223,7 @@ func TestDefaultOAuth2RedirectURLValue(t *testing.T) {
 
 func TestOAuth2OIDCDiscoveryEndpoint(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("OAUTH2_OIDC_DISCOVERY_ENDPOINT", "http://example.org")
+	t.Setenv("OAUTH2_OIDC_DISCOVERY_ENDPOINT", "http://example.org")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1258,7 +1258,7 @@ func TestDefaultOIDCDiscoveryEndpointValue(t *testing.T) {
 
 func TestOAuth2Provider(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("OAUTH2_PROVIDER", "google")
+	t.Setenv("OAUTH2_PROVIDER", "google")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1310,7 +1310,7 @@ func TestHSTSWhenUnset(t *testing.T) {
 
 func TestHSTS(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("DISABLE_HSTS", "1")
+	t.Setenv("DISABLE_HSTS", "1")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1345,7 +1345,7 @@ func TestDisableHTTPServiceWhenUnset(t *testing.T) {
 
 func TestDisableHTTPService(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("DISABLE_HTTP_SERVICE", "1")
+	t.Setenv("DISABLE_HTTP_SERVICE", "1")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1380,7 +1380,7 @@ func TestDisableSchedulerServiceWhenUnset(t *testing.T) {
 
 func TestDisableSchedulerService(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("DISABLE_SCHEDULER_SERVICE", "1")
+	t.Setenv("DISABLE_SCHEDULER_SERVICE", "1")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1415,7 +1415,7 @@ func TestRunMigrationsWhenUnset(t *testing.T) {
 
 func TestRunMigrations(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("RUN_MIGRATIONS", "yes")
+	t.Setenv("RUN_MIGRATIONS", "yes")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1450,7 +1450,7 @@ func TestCreateAdminWhenUnset(t *testing.T) {
 
 func TestCreateAdmin(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("CREATE_ADMIN", "true")
+	t.Setenv("CREATE_ADMIN", "true")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1468,7 +1468,7 @@ func TestCreateAdmin(t *testing.T) {
 
 func TestPocketConsumerKeyFromEnvVariable(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("POCKET_CONSUMER_KEY", "something")
+	t.Setenv("POCKET_CONSUMER_KEY", "something")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1503,7 +1503,7 @@ func TestPocketConsumerKeyFromUserPrefs(t *testing.T) {
 
 func TestMediaProxyMode(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("MEDIA_PROXY_MODE", "all")
+	t.Setenv("MEDIA_PROXY_MODE", "all")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1538,7 +1538,7 @@ func TestDefaultMediaProxyModeValue(t *testing.T) {
 
 func TestMediaProxyResourceTypes(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("MEDIA_PROXY_RESOURCE_TYPES", "image,audio")
+	t.Setenv("MEDIA_PROXY_RESOURCE_TYPES", "image,audio")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1566,7 +1566,7 @@ func TestMediaProxyResourceTypes(t *testing.T) {
 
 func TestMediaProxyResourceTypesWithDuplicatedValues(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("MEDIA_PROXY_RESOURCE_TYPES", "image,audio, image")
+	t.Setenv("MEDIA_PROXY_RESOURCE_TYPES", "image,audio, image")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1620,7 +1620,7 @@ func TestDefaultMediaProxyResourceTypes(t *testing.T) {
 
 func TestMediaProxyHTTPClientTimeout(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("MEDIA_PROXY_HTTP_CLIENT_TIMEOUT", "24")
+	t.Setenv("MEDIA_PROXY_HTTP_CLIENT_TIMEOUT", "24")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1655,7 +1655,7 @@ func TestDefaultMediaProxyHTTPClientTimeoutValue(t *testing.T) {
 
 func TestMediaProxyCustomURL(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("MEDIA_PROXY_CUSTOM_URL", "http://example.org/proxy")
+	t.Setenv("MEDIA_PROXY_CUSTOM_URL", "http://example.org/proxy")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1671,7 +1671,7 @@ func TestMediaProxyCustomURL(t *testing.T) {
 
 func TestMediaProxyPrivateKey(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("MEDIA_PROXY_PRIVATE_KEY", "foobar")
+	t.Setenv("MEDIA_PROXY_PRIVATE_KEY", "foobar")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1689,7 +1689,7 @@ func TestMediaProxyPrivateKey(t *testing.T) {
 
 func TestProxyImagesOptionForBackwardCompatibility(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("PROXY_IMAGES", "all")
+	t.Setenv("PROXY_IMAGES", "all")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1722,7 +1722,7 @@ func TestProxyImagesOptionForBackwardCompatibility(t *testing.T) {
 
 func TestProxyImageURLForBackwardCompatibility(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("PROXY_IMAGE_URL", "http://example.org/proxy")
+	t.Setenv("PROXY_IMAGE_URL", "http://example.org/proxy")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1739,7 +1739,7 @@ func TestProxyImageURLForBackwardCompatibility(t *testing.T) {
 
 func TestProxyURLOptionForBackwardCompatibility(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("PROXY_URL", "http://example.org/proxy")
+	t.Setenv("PROXY_URL", "http://example.org/proxy")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1756,7 +1756,7 @@ func TestProxyURLOptionForBackwardCompatibility(t *testing.T) {
 
 func TestProxyMediaTypesOptionForBackwardCompatibility(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("PROXY_MEDIA_TYPES", "image,audio")
+	t.Setenv("PROXY_MEDIA_TYPES", "image,audio")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1782,7 +1782,7 @@ func TestProxyMediaTypesOptionForBackwardCompatibility(t *testing.T) {
 
 func TestProxyOptionForBackwardCompatibility(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("PROXY_OPTION", "all")
+	t.Setenv("PROXY_OPTION", "all")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1798,7 +1798,7 @@ func TestProxyOptionForBackwardCompatibility(t *testing.T) {
 
 func TestProxyHTTPClientTimeoutOptionForBackwardCompatibility(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("PROXY_HTTP_CLIENT_TIMEOUT", "24")
+	t.Setenv("PROXY_HTTP_CLIENT_TIMEOUT", "24")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1814,7 +1814,7 @@ func TestProxyHTTPClientTimeoutOptionForBackwardCompatibility(t *testing.T) {
 
 func TestProxyPrivateKeyOptionForBackwardCompatibility(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("PROXY_PRIVATE_KEY", "foobar")
+	t.Setenv("PROXY_PRIVATE_KEY", "foobar")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1844,7 +1844,7 @@ func TestHTTPSOff(t *testing.T) {
 
 func TestHTTPSOn(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("HTTPS", "on")
+	t.Setenv("HTTPS", "on")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1859,7 +1859,7 @@ func TestHTTPSOn(t *testing.T) {
 
 func TestHTTPClientTimeout(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("HTTP_CLIENT_TIMEOUT", "42")
+	t.Setenv("HTTP_CLIENT_TIMEOUT", "42")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1894,7 +1894,7 @@ func TestDefaultHTTPClientTimeoutValue(t *testing.T) {
 
 func TestHTTPClientMaxBodySize(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("HTTP_CLIENT_MAX_BODY_SIZE", "42")
+	t.Setenv("HTTP_CLIENT_MAX_BODY_SIZE", "42")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -1929,7 +1929,7 @@ func TestDefaultHTTPClientMaxBodySizeValue(t *testing.T) {
 
 func TestHTTPServerTimeout(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("HTTP_SERVER_TIMEOUT", "342")
+	t.Setenv("HTTP_SERVER_TIMEOUT", "342")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -2011,7 +2011,7 @@ Invalid text
 
 func TestAuthProxyHeader(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("AUTH_PROXY_HEADER", "X-Forwarded-User")
+	t.Setenv("AUTH_PROXY_HEADER", "X-Forwarded-User")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -2063,7 +2063,7 @@ func TestAuthProxyUserCreationWhenUnset(t *testing.T) {
 
 func TestAuthProxyUserCreationAdmin(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("AUTH_PROXY_USER_CREATION", "1")
+	t.Setenv("AUTH_PROXY_USER_CREATION", "1")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -2081,7 +2081,7 @@ func TestAuthProxyUserCreationAdmin(t *testing.T) {
 
 func TestFetchBilibiliWatchTime(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("FETCH_BILIBILI_WATCH_TIME", "1")
+	t.Setenv("FETCH_BILIBILI_WATCH_TIME", "1")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -2099,7 +2099,7 @@ func TestFetchBilibiliWatchTime(t *testing.T) {
 
 func TestFetchNebulaWatchTime(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("FETCH_NEBULA_WATCH_TIME", "1")
+	t.Setenv("FETCH_NEBULA_WATCH_TIME", "1")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -2117,7 +2117,7 @@ func TestFetchNebulaWatchTime(t *testing.T) {
 
 func TestFetchOdyseeWatchTime(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("FETCH_ODYSEE_WATCH_TIME", "1")
+	t.Setenv("FETCH_ODYSEE_WATCH_TIME", "1")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -2135,7 +2135,7 @@ func TestFetchOdyseeWatchTime(t *testing.T) {
 
 func TestFetchYouTubeWatchTime(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("FETCH_YOUTUBE_WATCH_TIME", "1")
+	t.Setenv("FETCH_YOUTUBE_WATCH_TIME", "1")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -2153,7 +2153,7 @@ func TestFetchYouTubeWatchTime(t *testing.T) {
 
 func TestYouTubeApiKey(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("YOUTUBE_API_KEY", "AAAAAAAAAAAAAaaaaaaaaaaaaa0000000000000")
+	t.Setenv("YOUTUBE_API_KEY", "AAAAAAAAAAAAAaaaaaaaaaaaaa0000000000000")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -2171,7 +2171,7 @@ func TestYouTubeApiKey(t *testing.T) {
 
 func TestYouTubeEmbedUrlOverride(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("YOUTUBE_EMBED_URL_OVERRIDE", "https://invidious.custom/embed/")
+	t.Setenv("YOUTUBE_EMBED_URL_OVERRIDE", "https://invidious.custom/embed/")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -2224,7 +2224,7 @@ func TestParseConfigDumpOutput(t *testing.T) {
 
 func TestHTTPClientProxies(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("HTTP_CLIENT_PROXIES", "http://proxy1.example.com,http://proxy2.example.com")
+	t.Setenv("HTTP_CLIENT_PROXIES", "http://proxy1.example.com,http://proxy2.example.com")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -2265,7 +2265,7 @@ func TestDefaultHTTPClientProxiesValue(t *testing.T) {
 
 func TestHTTPClientProxy(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("HTTP_CLIENT_PROXY", "http://proxy.example.com")
+	t.Setenv("HTTP_CLIENT_PROXY", "http://proxy.example.com")
 
 	parser := NewParser()
 	opts, err := parser.ParseEnvironmentVariables()
@@ -2281,7 +2281,7 @@ func TestHTTPClientProxy(t *testing.T) {
 
 func TestInvalidHTTPClientProxy(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("HTTP_CLIENT_PROXY", "sche|me://invalid-proxy-url")
+	t.Setenv("HTTP_CLIENT_PROXY", "sche|me://invalid-proxy-url")
 
 	parser := NewParser()
 	_, err := parser.ParseEnvironmentVariables()

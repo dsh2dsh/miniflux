@@ -44,7 +44,7 @@ func (c *Client) GetMe() (*User, error) {
 
 	request, err := http.NewRequest(http.MethodGet, endpointURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("telegram: unable to create request: %v", err)
+		return nil, fmt.Errorf("telegram: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Accept", "application/json")
@@ -53,7 +53,7 @@ func (c *Client) GetMe() (*User, error) {
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("telegram: unable to send request: %v", err)
+		return nil, fmt.Errorf("telegram: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -78,12 +78,12 @@ func (c *Client) SendMessage(message *MessageRequest) (*Message, error) {
 
 	requestBody, err := json.Marshal(message)
 	if err != nil {
-		return nil, fmt.Errorf("telegram: unable to encode request body: %v", err)
+		return nil, fmt.Errorf("telegram: unable to encode request body: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, endpointURL, bytes.NewReader(requestBody))
 	if err != nil {
-		return nil, fmt.Errorf("telegram: unable to create request: %v", err)
+		return nil, fmt.Errorf("telegram: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -93,7 +93,7 @@ func (c *Client) SendMessage(message *MessageRequest) (*Message, error) {
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("telegram: unable to send request: %v", err)
+		return nil, fmt.Errorf("telegram: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 

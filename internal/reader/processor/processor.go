@@ -187,7 +187,7 @@ func ProcessEntryWebPage(feed *model.Feed, entry *model.Entry, user *model.User)
 }
 
 func rewriteEntryURL(feed *model.Feed, entry *model.Entry) string {
-	var rewrittenURL = entry.URL
+	rewrittenURL := entry.URL
 	if feed.UrlRewriteRules != "" {
 		parts := customReplaceRuleRegex.FindStringSubmatch(feed.UrlRewriteRules)
 

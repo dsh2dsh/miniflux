@@ -40,7 +40,7 @@ func CalculateBinaryFileChecksums() error {
 
 	dirEntries, err := binaryFiles.ReadDir("bin")
 	if err != nil {
-		return err
+		return fmt.Errorf("ui/static: failed read bin/: %w", err)
 	}
 
 	for _, dirEntry := range dirEntries {
@@ -57,7 +57,12 @@ func CalculateBinaryFileChecksums() error {
 
 // LoadBinaryFile loads an embed binary file.
 func LoadBinaryFile(filename string) ([]byte, error) {
-	return binaryFiles.ReadFile(fmt.Sprintf(`bin/%s`, filename))
+	fullName := `bin/` + filename
+	b, err := binaryFiles.ReadFile(fullName)
+	if err != nil {
+		return nil, fmt.Errorf("ui/static: failed read %q: %w", fullName, err)
+	}
+	return b, nil
 }
 
 // GetBinaryFileChecksum returns a binary file checksum.
@@ -70,7 +75,7 @@ func GetBinaryFileChecksum(filename string) (string, error) {
 
 // GenerateStylesheetsBundles creates CSS bundles.
 func GenerateStylesheetsBundles() error {
-	var bundles = map[string][]string{
+	bundles := map[string][]string{
 		"light_serif":       {"css/light.css", "css/serif.css", "css/common.css"},
 		"light_sans_serif":  {"css/light.css", "css/sans_serif.css", "css/common.css"},
 		"dark_serif":        {"css/dark.css", "css/serif.css", "css/common.css"},
@@ -87,31 +92,28 @@ func GenerateStylesheetsBundles() error {
 
 	for bundle, srcFiles := range bundles {
 		var buffer bytes.Buffer
-
 		for _, srcFile := range srcFiles {
 			fileData, err := stylesheetFiles.ReadFile(srcFile)
 			if err != nil {
-				return err
+				return fmt.Errorf("ui/static: failed read %q: %w", srcFile, err)
 			}
-
 			buffer.Write(fileData)
 		}
 
 		minifiedData, err := minifier.Bytes("text/css", buffer.Bytes())
 		if err != nil {
-			return err
+			return fmt.Errorf("ui/static: failed minify css: %w", err)
 		}
 
 		StylesheetBundles[bundle] = minifiedData
 		StylesheetBundleChecksums[bundle] = crypto.HashFromBytes(minifiedData)
 	}
-
 	return nil
 }
 
 // GenerateJavascriptBundles creates JS bundles.
 func GenerateJavascriptBundles() error {
-	var bundles = map[string][]string{
+	bundles := map[string][]string{
 		"app": {
 			"js/tt.js", // has to be first
 			"js/dom_helper.js",
@@ -128,11 +130,11 @@ func GenerateJavascriptBundles() error {
 		},
 	}
 
-	var prefixes = map[string]string{
+	prefixes := map[string]string{
 		"app": "(function(){'use strict';",
 	}
 
-	var suffixes = map[string]string{
+	suffixes := map[string]string{
 		"app": "})();",
 	}
 
@@ -154,7 +156,7 @@ func GenerateJavascriptBundles() error {
 		for _, srcFile := range srcFiles {
 			fileData, err := javascriptFiles.ReadFile(srcFile)
 			if err != nil {
-				return err
+				return fmt.Errorf("ui/static: failed read %q: %w", srcFile, err)
 			}
 
 			buffer.Write(fileData)
@@ -166,12 +168,11 @@ func GenerateJavascriptBundles() error {
 
 		minifiedData, err := minifier.Bytes("text/javascript", buffer.Bytes())
 		if err != nil {
-			return err
+			return fmt.Errorf("ui/static: failed minify js: %w", err)
 		}
 
 		JavascriptBundles[bundle] = minifiedData
 		JavascriptBundleChecksums[bundle] = crypto.HashFromBytes(minifiedData)
 	}
-
 	return nil
 }

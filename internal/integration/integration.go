@@ -51,7 +51,6 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 			entry.Title,
 			entry.Tags,
 		)
-
 		if err != nil {
 			slog.Error("Unable to send entry to Betula",
 				slog.Int64("user_id", userIntegrations.UserID),
@@ -76,7 +75,6 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 			userIntegrations.PinboardTags,
 			userIntegrations.PinboardMarkAsUnread,
 		)
-
 		if err != nil {
 			slog.Error("Unable to send entry to Pinboard",
 				slog.Int64("user_id", userIntegrations.UserID),

@@ -33,7 +33,7 @@ func (s *Storage) GetEnclosures(entryID int64) (model.EnclosureList, error) {
 
 	rows, err := s.db.Query(query, entryID)
 	if err != nil {
-		return nil, fmt.Errorf(`store: unable to fetch enclosures: %v`, err)
+		return nil, fmt.Errorf(`store: unable to fetch enclosures: %w`, err)
 	}
 	defer rows.Close()
 
@@ -49,9 +49,8 @@ func (s *Storage) GetEnclosures(entryID int64) (model.EnclosureList, error) {
 			&enclosure.MimeType,
 			&enclosure.MediaProgression,
 		)
-
 		if err != nil {
-			return nil, fmt.Errorf(`store: unable to fetch enclosure row: %v`, err)
+			return nil, fmt.Errorf(`store: unable to fetch enclosure row: %w`, err)
 		}
 
 		enclosures = append(enclosures, &enclosure)
@@ -138,7 +137,7 @@ func (s *Storage) GetEnclosure(enclosureID int64) (*model.Enclosure, error) {
 	if err == sql.ErrNoRows {
 		return nil, nil
 	} else if err != nil {
-		return nil, fmt.Errorf(`store: unable to fetch enclosure row: %v`, err)
+		return nil, fmt.Errorf(`store: unable to fetch enclosure row: %w`, err)
 	}
 
 	return &enclosure, nil
@@ -197,7 +196,7 @@ func (s *Storage) updateEnclosures(tx *sql.Tx, entry *model.Entry) error {
 
 	_, err := tx.Exec(query, entry.UserID, entry.ID, pq.Array(sqlValues))
 	if err != nil {
-		return fmt.Errorf(`store: unable to delete old enclosures: %v`, err)
+		return fmt.Errorf(`store: unable to delete old enclosures: %w`, err)
 	}
 
 	return nil
@@ -226,10 +225,9 @@ func (s *Storage) UpdateEnclosure(enclosure *model.Enclosure) error {
 		enclosure.MediaProgression,
 		enclosure.ID,
 	)
-
 	if err != nil {
-		return fmt.Errorf(`store: unable to update enclosure #%d : %v`, enclosure.ID, err)
+		return fmt.Errorf(`store: unable to update enclosure #%d : %w`,
+			enclosure.ID, err)
 	}
-
 	return nil
 }

@@ -58,11 +58,10 @@ func (c *candidate) String() string {
 type candidateList map[*html.Node]*candidate
 
 func (c candidateList) String() string {
-	var output []string
+	output := make([]string, 0, len(c))
 	for _, candidate := range c {
 		output = append(output, candidate.String())
 	}
-
 	return strings.Join(output, ", ")
 }
 
@@ -70,7 +69,7 @@ func (c candidateList) String() string {
 func ExtractContent(page io.Reader) (baseURL string, extractedContent string, err error) {
 	document, err := goquery.NewDocumentFromReader(page)
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("reader/readability: %w", err)
 	}
 
 	if hrefValue, exists := document.FindMatcher(goquery.Single("head base")).Attr("href"); exists {
@@ -106,13 +105,13 @@ func getArticle(topCandidate *candidate, candidates candidateList) string {
 	siblingScoreThreshold := max(10, topCandidate.score*.2)
 
 	topCandidate.selection.Siblings().Union(topCandidate.selection).Each(func(i int, s *goquery.Selection) {
-		append := false
+		var needAppend bool
 		node := s.Get(0)
 
 		if node == topCandidate.Node() {
-			append = true
+			needAppend = true
 		} else if c, ok := candidates[node]; ok && c.score >= siblingScoreThreshold {
-			append = true
+			needAppend = true
 		}
 
 		if s.Is("p") {
@@ -122,21 +121,20 @@ func getArticle(topCandidate *candidate, candidates candidateList) string {
 
 			if contentLength >= 80 {
 				if linkDensity < .25 {
-					append = true
+					needAppend = true
 				}
 			} else {
 				if linkDensity == 0 && containsSentence(content) {
-					append = true
+					needAppend = true
 				}
 			}
 		}
 
-		if append {
+		if needAppend {
 			tag := "div"
 			if s.Is("p") {
 				tag = node.Data
 			}
-
 			html, _ := s.Html()
 			output.WriteString("<" + tag + ">" + html + "</" + tag + ">")
 		}
@@ -147,7 +145,7 @@ func getArticle(topCandidate *candidate, candidates candidateList) string {
 }
 
 func removeUnlikelyCandidates(document *goquery.Document) {
-	var shouldRemove = func(str string) bool {
+	shouldRemove := func(str string) bool {
 		str = strings.ToLower(str)
 		if strings.Contains(str, "popupbody") || strings.Contains(str, "-ad") || strings.Contains(str, "g-plus") {
 			return true

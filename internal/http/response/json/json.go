@@ -6,6 +6,7 @@ package json // import "miniflux.app/v2/internal/http/response/json"
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -205,11 +206,10 @@ func generateJSONError(err error) ([]byte, error) {
 	type errorMsg struct {
 		ErrorMessage string `json:"error_message"`
 	}
-
 	encodedBody, err := json.Marshal(errorMsg{ErrorMessage: err.Error()})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf(
+			"http/response/json: failed marshal error message: %w", err)
 	}
-
 	return encodedBody, nil
 }

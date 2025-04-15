@@ -45,7 +45,7 @@ func (r *request) Get(path string) (io.ReadCloser, error) {
 	return r.execute(http.MethodGet, path, nil)
 }
 
-func (r *request) Post(path string, data interface{}) (io.ReadCloser, error) {
+func (r *request) Post(path string, data any) (io.ReadCloser, error) {
 	return r.execute(http.MethodPost, path, data)
 }
 
@@ -53,7 +53,7 @@ func (r *request) PostFile(path string, f io.ReadCloser) (io.ReadCloser, error) 
 	return r.execute(http.MethodPost, path, f)
 }
 
-func (r *request) Put(path string, data interface{}) (io.ReadCloser, error) {
+func (r *request) Put(path string, data any) (io.ReadCloser, error) {
 	return r.execute(http.MethodPut, path, data)
 }
 
@@ -62,7 +62,7 @@ func (r *request) Delete(path string) error {
 	return err
 }
 
-func (r *request) execute(method, path string, data interface{}) (io.ReadCloser, error) {
+func (r *request) execute(method, path string, data any) (io.ReadCloser, error) {
 	if r.endpoint == "" {
 		return nil, ErrEmptyEndpoint
 	}
@@ -72,7 +72,7 @@ func (r *request) execute(method, path string, data interface{}) (io.ReadCloser,
 
 	u, err := url.Parse(r.endpoint + path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: failed parse: %w", err)
 	}
 
 	request := &http.Request{
@@ -97,7 +97,7 @@ func (r *request) execute(method, path string, data interface{}) (io.ReadCloser,
 	client := r.buildClient()
 	response, err := client.Do(request)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client: %w", err)
 	}
 
 	switch response.StatusCode {
@@ -129,7 +129,7 @@ func (r *request) execute(method, path string, data interface{}) (io.ReadCloser,
 		var resp errorResponse
 		decoder := json.NewDecoder(response.Body)
 		if err := decoder.Decode(&resp); err != nil {
-			return nil, fmt.Errorf("%w (%v)", ErrBadRequest, err)
+			return nil, fmt.Errorf("%w (%w)", ErrBadRequest, err)
 		}
 
 		return nil, fmt.Errorf("%w (%s)", ErrBadRequest, resp.ErrorMessage)
@@ -160,7 +160,7 @@ func (r *request) buildHeaders() http.Header {
 	return headers
 }
 
-func (r *request) toJSON(v interface{}) []byte {
+func (r *request) toJSON(v any) []byte {
 	b, err := json.Marshal(v)
 	if err != nil {
 		log.Println("Unable to convert interface to JSON:", err)

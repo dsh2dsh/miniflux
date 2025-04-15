@@ -94,7 +94,7 @@ func (f *FeedQueryBuilder) buildSorting() string {
 	var parts string
 
 	if len(f.sortExpressions) > 0 {
-		parts += fmt.Sprintf(" ORDER BY %s", strings.Join(f.sortExpressions, ", "))
+		parts += " ORDER BY " + strings.Join(f.sortExpressions, ", ")
 	}
 
 	if len(parts) > 0 {
@@ -129,7 +129,7 @@ func (f *FeedQueryBuilder) GetFeed() (*model.Feed, error) {
 
 // GetFeeds returns a list of feeds that match the condition.
 func (f *FeedQueryBuilder) GetFeeds() (model.Feeds, error) {
-	var query = `
+	query := `
 		SELECT
 			f.id,
 			f.feed_url,
@@ -254,7 +254,6 @@ func (f *FeedQueryBuilder) GetFeeds() (model.Feeds, error) {
 			&feed.PushoverPriority,
 			&feed.ProxyURL,
 		)
-
 		if err != nil {
 			return nil, fmt.Errorf(`store: unable to fetch feeds row: %w`, err)
 		}

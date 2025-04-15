@@ -46,7 +46,7 @@ func fetchOdyseeWatchTime(websiteURL string) (int, error) {
 
 	doc, docErr := goquery.NewDocumentFromReader(responseHandler.Body(config.Opts.HTTPClientMaxBodySize()))
 	if docErr != nil {
-		return 0, docErr
+		return 0, fmt.Errorf("reader/processor: %w", docErr)
 	}
 
 	durs, exists := doc.FindMatcher(goquery.Single(`meta[property="og:video:duration"]`)).Attr("content")
@@ -57,8 +57,7 @@ func fetchOdyseeWatchTime(websiteURL string) (int, error) {
 
 	dur, err := strconv.ParseInt(durs, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("unable to parse duration %s: %v", durs, err)
+		return 0, fmt.Errorf("unable to parse duration %s: %w", durs, err)
 	}
-
 	return int(dur / 60), nil
 }

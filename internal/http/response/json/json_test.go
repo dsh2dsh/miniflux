@@ -11,7 +11,7 @@ import (
 )
 
 func TestOKResponse(t *testing.T) {
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestOKResponse(t *testing.T) {
 }
 
 func TestCreatedResponse(t *testing.T) {
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestCreatedResponse(t *testing.T) {
 }
 
 func TestNoContentResponse(t *testing.T) {
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestNoContentResponse(t *testing.T) {
 }
 
 func TestServerErrorResponse(t *testing.T) {
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +147,7 @@ func TestServerErrorResponse(t *testing.T) {
 }
 
 func TestBadRequestResponse(t *testing.T) {
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +180,7 @@ func TestBadRequestResponse(t *testing.T) {
 }
 
 func TestUnauthorizedResponse(t *testing.T) {
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +213,7 @@ func TestUnauthorizedResponse(t *testing.T) {
 }
 
 func TestForbiddenResponse(t *testing.T) {
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -246,7 +246,7 @@ func TestForbiddenResponse(t *testing.T) {
 }
 
 func TestNotFoundResponse(t *testing.T) {
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -279,7 +279,7 @@ func TestNotFoundResponse(t *testing.T) {
 }
 
 func TestBuildInvalidJSONResponse(t *testing.T) {
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

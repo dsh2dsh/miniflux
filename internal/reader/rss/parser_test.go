@@ -1019,7 +1019,7 @@ func TestParseEntryWithDublinCoreDate(t *testing.T) {
 	}
 
 	location, _ := time.LoadLocation("EST")
-	expectedDate := time.Date(2002, time.September, 29, 23, 40, 06, 0, location)
+	expectedDate := time.Date(2002, time.September, 29, 23, 40, 0o6, 0, location)
 	if !feed.Entries[0].Date.Equal(expectedDate) {
 		t.Errorf("Incorrect entry date, got: %v, want: %v", feed.Entries[0].Date, expectedDate)
 	}

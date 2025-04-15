@@ -22,11 +22,11 @@ func doHealthCheck(healthCheckEndpoint string) {
 	client := &http.Client{Timeout: 3 * time.Second}
 	resp, err := client.Get(healthCheckEndpoint)
 	if err != nil {
-		printErrorAndExit(fmt.Errorf(`health check failure: %v`, err))
+		printErrorAndExit(fmt.Errorf(`health check failure: %w`, err))
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		printErrorAndExit(fmt.Errorf(`health check failed with status code %d`, resp.StatusCode))
 	}
 

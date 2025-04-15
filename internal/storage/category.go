@@ -16,7 +16,7 @@ import (
 func (s *Storage) AnotherCategoryExists(userID, categoryID int64, title string) bool {
 	var result bool
 	query := `SELECT true FROM categories WHERE user_id=$1 AND id != $2 AND lower(title)=lower($3) LIMIT 1`
-	s.db.QueryRow(query, userID, categoryID, title).Scan(&result)
+	_ = s.db.QueryRow(query, userID, categoryID, title).Scan(&result)
 	return result
 }
 
@@ -24,7 +24,7 @@ func (s *Storage) AnotherCategoryExists(userID, categoryID int64, title string) 
 func (s *Storage) CategoryTitleExists(userID int64, title string) bool {
 	var result bool
 	query := `SELECT true FROM categories WHERE user_id=$1 AND lower(title)=lower($2) LIMIT 1`
-	s.db.QueryRow(query, userID, title).Scan(&result)
+	_ = s.db.QueryRow(query, userID, title).Scan(&result)
 	return result
 }
 
@@ -32,7 +32,7 @@ func (s *Storage) CategoryTitleExists(userID int64, title string) bool {
 func (s *Storage) CategoryIDExists(userID, categoryID int64) bool {
 	var result bool
 	query := `SELECT true FROM categories WHERE user_id=$1 AND id=$2`
-	s.db.QueryRow(query, userID, categoryID).Scan(&result)
+	_ = s.db.QueryRow(query, userID, categoryID).Scan(&result)
 	return result
 }
 
@@ -47,7 +47,7 @@ func (s *Storage) Category(userID, categoryID int64) (*model.Category, error) {
 	case err == sql.ErrNoRows:
 		return nil, nil
 	case err != nil:
-		return nil, fmt.Errorf(`store: unable to fetch category: %v`, err)
+		return nil, fmt.Errorf(`store: unable to fetch category: %w`, err)
 	default:
 		return &category, nil
 	}
@@ -64,7 +64,7 @@ func (s *Storage) FirstCategory(userID int64) (*model.Category, error) {
 	case err == sql.ErrNoRows:
 		return nil, nil
 	case err != nil:
-		return nil, fmt.Errorf(`store: unable to fetch category: %v`, err)
+		return nil, fmt.Errorf(`store: unable to fetch category: %w`, err)
 	default:
 		return &category, nil
 	}
@@ -81,7 +81,7 @@ func (s *Storage) CategoryByTitle(userID int64, title string) (*model.Category, 
 	case err == sql.ErrNoRows:
 		return nil, nil
 	case err != nil:
-		return nil, fmt.Errorf(`store: unable to fetch category: %v`, err)
+		return nil, fmt.Errorf(`store: unable to fetch category: %w`, err)
 	default:
 		return &category, nil
 	}
@@ -92,7 +92,7 @@ func (s *Storage) Categories(userID int64) (model.Categories, error) {
 	query := `SELECT id, user_id, title, hide_globally FROM categories WHERE user_id=$1 ORDER BY title ASC`
 	rows, err := s.db.Query(query, userID)
 	if err != nil {
-		return nil, fmt.Errorf(`store: unable to fetch categories: %v`, err)
+		return nil, fmt.Errorf(`store: unable to fetch categories: %w`, err)
 	}
 	defer rows.Close()
 
@@ -100,7 +100,7 @@ func (s *Storage) Categories(userID int64) (model.Categories, error) {
 	for rows.Next() {
 		var category model.Category
 		if err := rows.Scan(&category.ID, &category.UserID, &category.Title, &category.HideGlobally); err != nil {
-			return nil, fmt.Errorf(`store: unable to fetch category row: %v`, err)
+			return nil, fmt.Errorf(`store: unable to fetch category row: %w`, err)
 		}
 
 		categories = append(categories, &category)
@@ -147,7 +147,7 @@ func (s *Storage) CategoriesWithFeedCount(userID int64) (model.Categories, error
 
 	rows, err := s.db.Query(query, model.EntryStatusUnread, userID)
 	if err != nil {
-		return nil, fmt.Errorf(`store: unable to fetch categories: %v`, err)
+		return nil, fmt.Errorf(`store: unable to fetch categories: %w`, err)
 	}
 	defer rows.Close()
 
@@ -155,7 +155,7 @@ func (s *Storage) CategoriesWithFeedCount(userID int64) (model.Categories, error
 	for rows.Next() {
 		var category model.Category
 		if err := rows.Scan(&category.ID, &category.UserID, &category.Title, &category.HideGlobally, &category.FeedCount, &category.TotalUnread); err != nil {
-			return nil, fmt.Errorf(`store: unable to fetch category row: %v`, err)
+			return nil, fmt.Errorf(`store: unable to fetch category row: %w`, err)
 		}
 
 		categories = append(categories, &category)
@@ -187,9 +187,9 @@ func (s *Storage) CreateCategory(userID int64, request *model.CategoryRequest) (
 		&category.UserID,
 		&category.Title,
 	)
-
 	if err != nil {
-		return nil, fmt.Errorf(`store: unable to create category %q: %v`, request.Title, err)
+		return nil, fmt.Errorf(`store: unable to create category %q: %w`,
+			request.Title, err)
 	}
 
 	return &category, nil
@@ -205,9 +205,8 @@ func (s *Storage) UpdateCategory(category *model.Category) error {
 		category.ID,
 		category.UserID,
 	)
-
 	if err != nil {
-		return fmt.Errorf(`store: unable to update category: %v`, err)
+		return fmt.Errorf(`store: unable to update category: %w`, err)
 	}
 
 	return nil
@@ -218,12 +217,12 @@ func (s *Storage) RemoveCategory(userID, categoryID int64) error {
 	query := `DELETE FROM categories WHERE id = $1 AND user_id = $2`
 	result, err := s.db.Exec(query, categoryID, userID)
 	if err != nil {
-		return fmt.Errorf(`store: unable to remove this category: %v`, err)
+		return fmt.Errorf(`store: unable to remove this category: %w`, err)
 	}
 
 	count, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf(`store: unable to remove this category: %v`, err)
+		return fmt.Errorf(`store: unable to remove this category: %w`, err)
 	}
 
 	if count == 0 {
@@ -268,15 +267,19 @@ func (s *Storage) RemoveAndReplaceCategoriesByName(userid int64, titles []string
 	_, err = tx.Exec(query, userid, titleParam)
 	if err != nil {
 		tx.Rollback()
-		return fmt.Errorf("store: unable to replace categories: %v", err)
+		return fmt.Errorf("store: unable to replace categories: %w", err)
 	}
 
 	query = "DELETE FROM categories WHERE user_id = $1 AND title = ANY($2)"
 	_, err = tx.Exec(query, userid, titleParam)
 	if err != nil {
 		tx.Rollback()
-		return fmt.Errorf("store: unable to delete categories: %v", err)
+		return fmt.Errorf("store: unable to delete categories: %w", err)
 	}
-	tx.Commit()
+
+	if err := tx.Commit(); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("storage: failed commit categories: %w", err)
+	}
 	return nil
 }

@@ -10,10 +10,10 @@ import (
 )
 
 func TestIsModified(t *testing.T) {
-	var cachedEtag = "abc123"
-	var cachedLastModified = "Wed, 21 Oct 2015 07:28:00 GMT"
+	cachedEtag := "abc123"
+	cachedLastModified := "Wed, 21 Oct 2015 07:28:00 GMT"
 
-	var testCases = map[string]struct {
+	testCases := map[string]struct {
 		Status       int
 		LastModified string
 		ETag         string
@@ -70,7 +70,7 @@ func TestIsModified(t *testing.T) {
 }
 
 func TestRetryDelay(t *testing.T) {
-	var testCases = map[string]struct {
+	testCases := map[string]struct {
 		RetryAfterHeader string
 		ExpectedDelay    int
 	}{
@@ -104,7 +104,7 @@ func TestRetryDelay(t *testing.T) {
 }
 
 func TestExpiresInMinutes(t *testing.T) {
-	var testCases = map[string]struct {
+	testCases := map[string]struct {
 		ExpiresHeader   string
 		ExpectedMinutes int
 	}{
@@ -138,7 +138,7 @@ func TestExpiresInMinutes(t *testing.T) {
 }
 
 func TestCacheControlMaxAgeInMinutes(t *testing.T) {
-	var testCases = map[string]struct {
+	testCases := map[string]struct {
 		CacheControlHeader string
 		ExpectedMinutes    int
 	}{

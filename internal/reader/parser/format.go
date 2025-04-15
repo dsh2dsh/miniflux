@@ -23,13 +23,17 @@ const (
 // DetectFeedFormat tries to guess the feed format from input data.
 func DetectFeedFormat(r io.ReadSeeker) (string, string) {
 	data := make([]byte, 512)
-	r.Read(data)
+	if _, err := r.Read(data); err != nil {
+		return "", ""
+	}
 
 	if bytes.HasPrefix(bytes.TrimSpace(data), []byte("{")) {
 		return FormatJSON, ""
 	}
 
-	r.Seek(0, io.SeekStart)
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		return "", ""
+	}
 	decoder := rxml.NewXMLDecoder(r)
 
 	for {

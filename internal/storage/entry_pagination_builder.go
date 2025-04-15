@@ -5,6 +5,7 @@ package storage // import "miniflux.app/v2/internal/storage"
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -77,7 +78,8 @@ func (e *EntryPaginationBuilder) WithGloballyVisible() {
 func (e *EntryPaginationBuilder) Entries() (*model.Entry, *model.Entry, error) {
 	tx, err := e.store.db.Begin()
 	if err != nil {
-		return nil, nil, fmt.Errorf("begin transaction for entry pagination: %v", err)
+		return nil, nil, fmt.Errorf(
+			"begin transaction for entry pagination: %w", err)
 	}
 
 	prevID, nextID, err := e.getPrevNextID(tx)
@@ -98,12 +100,15 @@ func (e *EntryPaginationBuilder) Entries() (*model.Entry, *model.Entry, error) {
 		return nil, nil, err
 	}
 
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		tx.Rollback()
+		return nil, nil, fmt.Errorf(
+			"storage: failed commit transaction for entry pagination: %w", err)
+	}
 
 	if e.direction == "desc" {
 		return nextEntry, prevEntry, nil
 	}
-
 	return prevEntry, nextEntry, nil
 }
 
@@ -131,20 +136,18 @@ func (e *EntryPaginationBuilder) getPrevNextID(tx *sql.Tx) (prevID int64, nextID
 	var pID, nID sql.NullInt64
 	err = tx.QueryRow(query, e.args...).Scan(&pID, &nID)
 	switch {
-	case err == sql.ErrNoRows:
+	case errors.Is(err, sql.ErrNoRows):
 		return 0, 0, nil
 	case err != nil:
-		return 0, 0, fmt.Errorf("entry pagination: %v", err)
+		return 0, 0, fmt.Errorf("entry pagination: %w", err)
 	}
 
 	if pID.Valid {
 		prevID = pID.Int64
 	}
-
 	if nID.Valid {
 		nextID = nID.Int64
 	}
-
 	return prevID, nextID, nil
 }
 
@@ -160,7 +163,7 @@ func (e *EntryPaginationBuilder) getEntry(tx *sql.Tx, entryID int64) (*model.Ent
 	case err == sql.ErrNoRows:
 		return nil, nil
 	case err != nil:
-		return nil, fmt.Errorf("fetching sibling entry: %v", err)
+		return nil, fmt.Errorf("fetching sibling entry: %w", err)
 	}
 
 	return &entry, nil

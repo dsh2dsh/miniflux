@@ -115,7 +115,6 @@ func QueryBoolParam(r *http.Request, param string, defaultValue bool) bool {
 	}
 
 	val, err := strconv.ParseBool(value)
-
 	if err != nil {
 		return defaultValue
 	}

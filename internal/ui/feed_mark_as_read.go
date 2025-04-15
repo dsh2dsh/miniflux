@@ -16,7 +16,6 @@ func (h *handler) markFeedAsRead(w http.ResponseWriter, r *http.Request) {
 	userID := request.UserID(r)
 
 	feed, err := h.store.FeedByID(userID, feedID)
-
 	if err != nil {
 		html.ServerError(w, r, err)
 		return

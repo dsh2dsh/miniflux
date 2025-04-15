@@ -20,16 +20,23 @@ type WebAuthnSession struct {
 }
 
 func (s WebAuthnSession) Value() (driver.Value, error) {
-	return json.Marshal(s)
+	b, err := json.Marshal(s)
+	if err != nil {
+		return nil, fmt.Errorf("model: failed marshal: %w", err)
+	}
+	return b, nil
 }
 
-func (s *WebAuthnSession) Scan(value interface{}) error {
+func (s *WebAuthnSession) Scan(value any) error {
 	b, ok := value.([]byte)
 	if !ok {
 		return errors.New("type assertion to []byte failed")
 	}
 
-	return json.Unmarshal(b, &s)
+	if err := json.Unmarshal(b, &s); err != nil {
+		return fmt.Errorf("model: failed unmarshal: %w", err)
+	}
+	return nil
 }
 
 func (s WebAuthnSession) String() string {

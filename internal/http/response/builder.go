@@ -6,7 +6,6 @@ package response // import "miniflux.app/v2/internal/http/response"
 import (
 	"compress/flate"
 	"compress/gzip"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -48,7 +47,7 @@ func (b *Builder) WithBody(body any) *Builder {
 
 // WithAttachment forces the document to be downloaded by the web browser.
 func (b *Builder) WithAttachment(filename string) *Builder {
-	b.headers["Content-Disposition"] = fmt.Sprintf("attachment; filename=%s", filename)
+	b.headers["Content-Disposition"] = "attachment; filename=" + filename
 	return b
 }
 
@@ -119,7 +118,10 @@ func (b *Builder) compress(data []byte) {
 
 			brotliWriter := brotli.NewWriterV2(b.w, brotli.DefaultCompression)
 			defer brotliWriter.Close()
-			brotliWriter.Write(data)
+			if _, err := brotliWriter.Write(data); err != nil {
+				slog.Error("http/response: unable to write brotli",
+					slog.Any("error", err))
+			}
 			return
 		case strings.Contains(acceptEncoding, "gzip"):
 			b.headers["Content-Encoding"] = "gzip"
@@ -127,7 +129,10 @@ func (b *Builder) compress(data []byte) {
 
 			gzipWriter := gzip.NewWriter(b.w)
 			defer gzipWriter.Close()
-			gzipWriter.Write(data)
+			if _, err := gzipWriter.Write(data); err != nil {
+				slog.Error("http/response: unable to write gzip",
+					slog.Any("error", err))
+			}
 			return
 		case strings.Contains(acceptEncoding, "deflate"):
 			b.headers["Content-Encoding"] = "deflate"
@@ -135,16 +140,28 @@ func (b *Builder) compress(data []byte) {
 
 			flateWriter, _ := flate.NewWriter(b.w, -1)
 			defer flateWriter.Close()
-			flateWriter.Write(data)
+			if _, err := flateWriter.Write(data); err != nil {
+				slog.Error("http/response: unable to write flate",
+					slog.Any("error", err))
+			}
 			return
 		}
 	}
 
 	b.writeHeaders()
-	b.w.Write(data)
+	if _, err := b.w.Write(data); err != nil {
+		slog.Error("http/response: unable to write response",
+			slog.Any("error", err))
+	}
 }
 
 // New creates a new response builder.
 func New(w http.ResponseWriter, r *http.Request) *Builder {
-	return &Builder{w: w, r: r, statusCode: http.StatusOK, headers: make(map[string]string), enableCompression: true}
+	return &Builder{
+		w:                 w,
+		r:                 r,
+		statusCode:        http.StatusOK,
+		headers:           make(map[string]string),
+		enableCompression: true,
+	}
 }

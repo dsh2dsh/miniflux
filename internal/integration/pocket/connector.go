@@ -28,12 +28,12 @@ func (c *Connector) RequestToken(redirectURL string) (string, error) {
 	apiEndpoint := "https://getpocket.com/v3/oauth/request"
 	requestBody, err := json.Marshal(&createTokenRequest{ConsumerKey: c.consumerKey, RedirectURI: redirectURL})
 	if err != nil {
-		return "", fmt.Errorf("pocket: unable to encode request body: %v", err)
+		return "", fmt.Errorf("pocket: unable to encode request body: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBody))
 	if err != nil {
-		return "", fmt.Errorf("pocket: unable to create request: %v", err)
+		return "", fmt.Errorf("pocket: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -43,7 +43,7 @@ func (c *Connector) RequestToken(redirectURL string) (string, error) {
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return "", fmt.Errorf("pocket: unable to send request: %v", err)
+		return "", fmt.Errorf("pocket: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -53,7 +53,7 @@ func (c *Connector) RequestToken(redirectURL string) (string, error) {
 
 	var result createTokenResponse
 	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("pocket: unable to decode response: %v", err)
+		return "", fmt.Errorf("pocket: unable to decode response: %w", err)
 	}
 
 	if result.Code == "" {
@@ -68,12 +68,12 @@ func (c *Connector) AccessToken(requestToken string) (string, error) {
 	apiEndpoint := "https://getpocket.com/v3/oauth/authorize"
 	requestBody, err := json.Marshal(&authorizeRequest{ConsumerKey: c.consumerKey, Code: requestToken})
 	if err != nil {
-		return "", fmt.Errorf("pocket: unable to encode request body: %v", err)
+		return "", fmt.Errorf("pocket: unable to encode request body: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBody))
 	if err != nil {
-		return "", fmt.Errorf("pocket: unable to create request: %v", err)
+		return "", fmt.Errorf("pocket: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -83,7 +83,7 @@ func (c *Connector) AccessToken(requestToken string) (string, error) {
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return "", fmt.Errorf("pocket: unable to send request: %v", err)
+		return "", fmt.Errorf("pocket: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -93,7 +93,7 @@ func (c *Connector) AccessToken(requestToken string) (string, error) {
 
 	var result authorizeReponse
 	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("pocket: unable to decode response: %v", err)
+		return "", fmt.Errorf("pocket: unable to decode response: %w", err)
 	}
 
 	if result.AccessToken == "" {

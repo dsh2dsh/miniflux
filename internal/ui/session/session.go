@@ -22,58 +22,62 @@ func New(store *storage.Storage, sessionID string) *Session {
 }
 
 func (s *Session) SetLastForceRefresh() {
-	s.store.UpdateAppSessionField(s.sessionID, "last_force_refresh", time.Now().UTC().Unix())
+	_ = s.store.UpdateAppSessionField(s.sessionID, "last_force_refresh",
+		time.Now().UTC().Unix())
 }
 
 func (s *Session) SetOAuth2State(state string) {
-	s.store.UpdateAppSessionField(s.sessionID, "oauth2_state", state)
+	_ = s.store.UpdateAppSessionField(s.sessionID, "oauth2_state", state)
 }
 
 func (s *Session) SetOAuth2CodeVerifier(codeVerfier string) {
-	s.store.UpdateAppSessionField(s.sessionID, "oauth2_code_verifier", codeVerfier)
+	_ = s.store.UpdateAppSessionField(s.sessionID, "oauth2_code_verifier",
+		codeVerfier)
 }
 
 // NewFlashMessage creates a new flash message.
 func (s *Session) NewFlashMessage(message string) {
-	s.store.UpdateAppSessionField(s.sessionID, "flash_message", message)
+	_ = s.store.UpdateAppSessionField(s.sessionID, "flash_message", message)
 }
 
 // FlashMessage returns the current flash message if any.
 func (s *Session) FlashMessage(message string) string {
 	if message != "" {
-		s.store.UpdateAppSessionField(s.sessionID, "flash_message", "")
+		_ = s.store.UpdateAppSessionField(s.sessionID, "flash_message", "")
 	}
 	return message
 }
 
 // NewFlashErrorMessage creates a new flash error message.
 func (s *Session) NewFlashErrorMessage(message string) {
-	s.store.UpdateAppSessionField(s.sessionID, "flash_error_message", message)
+	_ = s.store.UpdateAppSessionField(s.sessionID, "flash_error_message", message)
 }
 
 // FlashErrorMessage returns the last flash error message if any.
 func (s *Session) FlashErrorMessage(message string) string {
 	if message != "" {
-		s.store.UpdateAppSessionField(s.sessionID, "flash_error_message", "")
+		_ = s.store.UpdateAppSessionField(s.sessionID, "flash_error_message", "")
 	}
 	return message
 }
 
 // SetLanguage updates the language field in session.
 func (s *Session) SetLanguage(language string) {
-	s.store.UpdateAppSessionField(s.sessionID, "language", language)
+	_ = s.store.UpdateAppSessionField(s.sessionID, "language", language)
 }
 
 // SetTheme updates the theme field in session.
 func (s *Session) SetTheme(theme string) {
-	s.store.UpdateAppSessionField(s.sessionID, "theme", theme)
+	_ = s.store.UpdateAppSessionField(s.sessionID, "theme", theme)
 }
 
 // SetPocketRequestToken updates Pocket Request Token.
 func (s *Session) SetPocketRequestToken(requestToken string) {
-	s.store.UpdateAppSessionField(s.sessionID, "pocket_request_token", requestToken)
+	_ = s.store.UpdateAppSessionField(s.sessionID, "pocket_request_token",
+		requestToken)
 }
 
 func (s *Session) SetWebAuthnSessionData(sessionData *model.WebAuthnSession) {
-	s.store.UpdateAppSessionObjectField(s.sessionID, "webauthn_session_data", sessionData)
+	_ = s.store.UpdateAppSessionObjectField(s.sessionID,
+		"webauthn_session_data", sessionData)
 }

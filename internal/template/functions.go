@@ -4,6 +4,7 @@
 package template // import "miniflux.app/v2/internal/template"
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"math"
@@ -47,7 +48,7 @@ func (f *funcMap) Map() template.FuncMap {
 		"hasAuthProxy": func() bool {
 			return config.Opts.AuthProxyHeader() != ""
 		},
-		"route": func(name string, args ...interface{}) string {
+		"route": func(name string, args ...any) string {
 			return route.Path(f.router, name, args...)
 		},
 		"safeURL": func(url string) template.URL {
@@ -80,8 +81,8 @@ func (f *funcMap) Map() template.FuncMap {
 		"domain":    urllib.Domain,
 		"hasPrefix": strings.HasPrefix,
 		"contains":  strings.Contains,
-		"replace": func(str, old, new string) string {
-			return strings.Replace(str, old, new, 1)
+		"replace": func(str, from, to string) string {
+			return strings.Replace(str, from, to, 1)
 		},
 		"isodate": func(ts time.Time) string {
 			return ts.Format("2006-01-02 15:04:05")
@@ -105,7 +106,7 @@ func (f *funcMap) Map() template.FuncMap {
 		"elapsed": func(timezone string, t time.Time) string {
 			return ""
 		},
-		"t": func(key interface{}, args ...interface{}) string {
+		"t": func(key any, args ...any) string {
 			return ""
 		},
 		"plural": func(key string, n int, args ...interface{}) string {
@@ -114,15 +115,15 @@ func (f *funcMap) Map() template.FuncMap {
 	}
 }
 
-func dict(values ...interface{}) (map[string]interface{}, error) {
+func dict(values ...interface{}) (map[string]any, error) {
 	if len(values)%2 != 0 {
-		return nil, fmt.Errorf("dict expects an even number of arguments")
+		return nil, errors.New("dict expects an even number of arguments")
 	}
 	dict := make(map[string]interface{}, len(values)/2)
 	for i := 0; i < len(values); i += 2 {
 		key, ok := values[i].(string)
 		if !ok {
-			return nil, fmt.Errorf("dict keys must be strings")
+			return nil, errors.New("dict keys must be strings")
 		}
 		dict[key] = values[i+1]
 	}
@@ -136,11 +137,11 @@ func hasKey(dict map[string]string, key string) bool {
 	return false
 }
 
-func truncate(str string, max int) string {
+func truncate(str string, maxLen int) string {
 	runes := 0
 	for i := range str {
 		runes++
-		if runes > max {
+		if runes > maxLen {
 			return str[:i] + "…"
 		}
 	}

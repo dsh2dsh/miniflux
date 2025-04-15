@@ -4,6 +4,7 @@
 package instapaper // import "miniflux.app/v2/internal/integration/instapaper"
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -25,7 +26,7 @@ func NewClient(username, password string) *Client {
 
 func (c *Client) AddURL(entryURL, entryTitle string) error {
 	if c.username == "" || c.password == "" {
-		return fmt.Errorf("instapaper: missing username or password")
+		return errors.New("instapaper: missing username or password")
 	}
 
 	values := url.Values{}
@@ -35,7 +36,7 @@ func (c *Client) AddURL(entryURL, entryTitle string) error {
 	apiEndpoint := "https://www.instapaper.com/api/add?" + values.Encode()
 	request, err := http.NewRequest(http.MethodGet, apiEndpoint, nil)
 	if err != nil {
-		return fmt.Errorf("instapaper: unable to create request: %v", err)
+		return fmt.Errorf("instapaper: unable to create request: %w", err)
 	}
 
 	request.SetBasicAuth(c.username, c.password)
@@ -45,7 +46,7 @@ func (c *Client) AddURL(entryURL, entryTitle string) error {
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("instapaper: unable to send request: %v", err)
+		return fmt.Errorf("instapaper: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 

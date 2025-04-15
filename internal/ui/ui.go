@@ -4,8 +4,10 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"log/slog"
 	"net/http"
 
+	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/template"
 	"miniflux.app/v2/internal/worker"
@@ -169,8 +171,21 @@ func Serve(router *mux.Router, store *storage.Storage, pool *worker.Pool) {
 	uiRouter.HandleFunc("/webauthn/{credentialHandle}/rename", handler.renameCredential).Name("webauthnRename").Methods(http.MethodGet)
 	uiRouter.HandleFunc("/webauthn/{credentialHandle}/save", handler.saveCredential).Name("webauthnSave").Methods(http.MethodPost)
 
-	router.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain")
-		w.Write([]byte("User-agent: *\nDisallow: /"))
-	}).Name("robots")
+	router.HandleFunc("/robots.txt",
+		func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/plain")
+			if _, err := w.Write([]byte("User-agent: *\nDisallow: /")); err != nil {
+				slog.Error(http.StatusText(http.StatusInternalServerError),
+					slog.Any("error", err),
+					slog.String("client_ip", request.ClientIP(r)),
+					slog.Group("request",
+						slog.String("method", r.Method),
+						slog.String("uri", r.RequestURI),
+						slog.String("user_agent", r.UserAgent()),
+					),
+					slog.Group("response",
+						slog.Int("status_code", http.StatusInternalServerError)),
+				)
+			}
+		}).Name("robots")
 }

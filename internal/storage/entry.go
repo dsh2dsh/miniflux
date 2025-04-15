@@ -84,7 +84,7 @@ func (s *Storage) UpdateEntryTitleAndContent(entry *model.Entry) error {
 	`
 
 	if _, err := s.db.Exec(query, entry.Title, entry.Content, entry.ReadingTime, entry.ID, entry.UserID); err != nil {
-		return fmt.Errorf(`store: unable to update entry #%d: %v`, entry.ID, err)
+		return fmt.Errorf(`store: unable to update entry #%d: %w`, entry.ID, err)
 	}
 
 	return nil
@@ -147,9 +147,9 @@ func (s *Storage) createEntry(tx *sql.Tx, entry *model.Entry) error {
 		&entry.CreatedAt,
 		&entry.ChangedAt,
 	)
-
 	if err != nil {
-		return fmt.Errorf(`store: unable to create entry %q (feed #%d): %v`, entry.URL, entry.FeedID, err)
+		return fmt.Errorf(`store: unable to create entry %q (feed #%d): %w`,
+			entry.URL, entry.FeedID, err)
 	}
 
 	for _, enclosure := range entry.Enclosures {
@@ -198,9 +198,8 @@ func (s *Storage) updateEntry(tx *sql.Tx, entry *model.Entry) error {
 		entry.Hash,
 		pq.Array(removeEmpty(removeDuplicates(entry.Tags))),
 	).Scan(&entry.ID)
-
 	if err != nil {
-		return fmt.Errorf(`store: unable to update entry %q: %v`, entry.URL, err)
+		return fmt.Errorf(`store: unable to update entry %q: %w`, entry.URL, err)
 	}
 
 	for _, enclosure := range entry.Enclosures {
@@ -219,7 +218,7 @@ func (s *Storage) entryExists(tx *sql.Tx, entry *model.Entry) (bool, error) {
 	err := tx.QueryRow(`SELECT true FROM entries WHERE feed_id=$1 AND hash=$2`, entry.FeedID, entry.Hash).Scan(&result)
 
 	if err != nil && err != sql.ErrNoRows {
-		return result, fmt.Errorf(`store: unable to check if entry exists: %v`, err)
+		return result, fmt.Errorf(`store: unable to check if entry exists: %w`, err)
 	}
 
 	return result, nil
@@ -227,7 +226,10 @@ func (s *Storage) entryExists(tx *sql.Tx, entry *model.Entry) (bool, error) {
 
 func (s *Storage) IsNewEntry(feedID int64, entryHash string) bool {
 	var result bool
-	s.db.QueryRow(`SELECT true FROM entries WHERE feed_id=$1 AND hash=$2`, feedID, entryHash).Scan(&result)
+	_ = s.db.QueryRow(
+		`SELECT true FROM entries WHERE feed_id=$1 AND hash=$2`,
+		feedID, entryHash,
+	).Scan(&result)
 	return !result
 }
 
@@ -235,7 +237,7 @@ func (s *Storage) GetReadTime(feedID int64, entryHash string) int {
 	var result int
 
 	// Note: This query uses entries_feed_id_hash_key index
-	s.db.QueryRow(
+	_ = s.db.QueryRow(
 		`SELECT
 			reading_time
 		FROM
@@ -244,8 +246,7 @@ func (s *Storage) GetReadTime(feedID int64, entryHash string) int {
 			feed_id=$1 AND
 			hash=$2
 		`,
-		feedID,
-		entryHash,
+		feedID, entryHash,
 	).Scan(&result)
 	return result
 }
@@ -260,30 +261,34 @@ func (s *Storage) cleanupEntries(feedID int64, entryHashes []string) error {
 			status=$2 AND
 			NOT (hash=ANY($3))
 	`
-	if _, err := s.db.Exec(query, feedID, model.EntryStatusRemoved, pq.Array(entryHashes)); err != nil {
-		return fmt.Errorf(`store: unable to cleanup entries: %v`, err)
+	_, err := s.db.Exec(query, feedID, model.EntryStatusRemoved,
+		pq.Array(entryHashes))
+	if err != nil {
+		return fmt.Errorf(`store: unable to cleanup entries: %w`, err)
 	}
-
 	return nil
 }
 
 // RefreshFeedEntries updates feed entries while refreshing a feed.
-func (s *Storage) RefreshFeedEntries(userID, feedID int64, entries model.Entries, updateExistingEntries bool) (newEntries model.Entries, err error) {
-	var entryHashes []string
-
+func (s *Storage) RefreshFeedEntries(userID, feedID int64,
+	entries model.Entries, updateExistingEntries bool,
+) (newEntries model.Entries, err error) {
+	entryHashes := make([]string, 0, len(entries))
 	for _, entry := range entries {
 		entry.UserID = userID
 		entry.FeedID = feedID
 
 		tx, err := s.db.Begin()
 		if err != nil {
-			return nil, fmt.Errorf(`store: unable to start transaction: %v`, err)
+			return nil, fmt.Errorf(`store: unable to start transaction: %w`, err)
 		}
 
 		entryExists, err := s.entryExists(tx, entry)
 		if err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				return nil, fmt.Errorf(`store: unable to rollback transaction: %v (rolled back due to: %v)`, rollbackErr, err)
+				return nil, fmt.Errorf(
+					`store: unable to rollback transaction: %w (rolled back due to: %w)`,
+					rollbackErr, err)
 			}
 			return nil, err
 		}
@@ -301,15 +306,16 @@ func (s *Storage) RefreshFeedEntries(userID, feedID int64, entries model.Entries
 
 		if err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				return nil, fmt.Errorf(`store: unable to rollback transaction: %v (rolled back due to: %v)`, rollbackErr, err)
+				return nil, fmt.Errorf(
+					`store: unable to rollback transaction: %w (rolled back due to: %w)`,
+					rollbackErr, err)
 			}
 			return nil, err
 		}
 
 		if err := tx.Commit(); err != nil {
-			return nil, fmt.Errorf(`store: unable to commit transaction: %v`, err)
+			return nil, fmt.Errorf(`store: unable to commit transaction: %w`, err)
 		}
-
 		entryHashes = append(entryHashes, entry.Hash)
 	}
 
@@ -355,12 +361,14 @@ func (s *Storage) ArchiveEntries(status string, days, limit int) (int64, error) 
 
 	result, err := s.db.Exec(query, model.EntryStatusRemoved, status, fmt.Sprintf("%d days", days), limit)
 	if err != nil {
-		return 0, fmt.Errorf(`store: unable to archive %s entries: %v`, status, err)
+		return 0, fmt.Errorf(
+			`store: unable to archive %s entries: %w`, status, err)
 	}
 
 	count, err := result.RowsAffected()
 	if err != nil {
-		return 0, fmt.Errorf(`store: unable to get the number of rows affected: %v`, err)
+		return 0, fmt.Errorf(
+			`store: unable to get the number of rows affected: %w`, err)
 	}
 
 	return count, nil
@@ -370,7 +378,8 @@ func (s *Storage) ArchiveEntries(status string, days, limit int) (int64, error) 
 func (s *Storage) SetEntriesStatus(userID int64, entryIDs []int64, status string) error {
 	query := `UPDATE entries SET status=$1, changed_at=now() WHERE user_id=$2 AND id=ANY($3)`
 	if _, err := s.db.Exec(query, status, userID, pq.Array(entryIDs)); err != nil {
-		return fmt.Errorf(`store: unable to update entries statuses %v: %v`, entryIDs, err)
+		return fmt.Errorf(`store: unable to update entries statuses %v: %w`,
+			entryIDs, err)
 	}
 
 	return nil
@@ -394,7 +403,8 @@ func (s *Storage) SetEntriesStatusCount(userID int64, entryIDs []int64, status s
 	row := s.db.QueryRow(query, userID, pq.Array(entryIDs))
 	visible := 0
 	if err := row.Scan(&visible); err != nil {
-		return 0, fmt.Errorf(`store: unable to query entries visibility %v: %v`, entryIDs, err)
+		return 0, fmt.Errorf(`store: unable to query entries visibility %v: %w`,
+			entryIDs, err)
 	}
 
 	return visible, nil
@@ -405,12 +415,14 @@ func (s *Storage) SetEntriesBookmarkedState(userID int64, entryIDs []int64, star
 	query := `UPDATE entries SET starred=$1, changed_at=now() WHERE user_id=$2 AND id=ANY($3)`
 	result, err := s.db.Exec(query, starred, userID, pq.Array(entryIDs))
 	if err != nil {
-		return fmt.Errorf(`store: unable to update the bookmarked state %v: %v`, entryIDs, err)
+		return fmt.Errorf(`store: unable to update the bookmarked state %v: %w`,
+			entryIDs, err)
 	}
 
 	count, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf(`store: unable to update these entries %v: %v`, entryIDs, err)
+		return fmt.Errorf(`store: unable to update these entries %v: %w`,
+			entryIDs, err)
 	}
 
 	if count == 0 {
@@ -425,12 +437,14 @@ func (s *Storage) ToggleBookmark(userID int64, entryID int64) error {
 	query := `UPDATE entries SET starred = NOT starred, changed_at=now() WHERE user_id=$1 AND id=$2`
 	result, err := s.db.Exec(query, userID, entryID)
 	if err != nil {
-		return fmt.Errorf(`store: unable to toggle bookmark flag for entry #%d: %v`, entryID, err)
+		return fmt.Errorf(
+			`store: unable to toggle bookmark flag for entry #%d: %w`, entryID, err)
 	}
 
 	count, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf(`store: unable to toggle bookmark flag for entry #%d: %v`, entryID, err)
+		return fmt.Errorf(
+			`store: unable to toggle bookmark flag for entry #%d: %w`, entryID, err)
 	}
 
 	if count == 0 {
@@ -453,7 +467,7 @@ func (s *Storage) FlushHistory(userID int64) error {
 	`
 	_, err := s.db.Exec(query, model.EntryStatusRemoved, userID, model.EntryStatusRead)
 	if err != nil {
-		return fmt.Errorf(`store: unable to flush history: %v`, err)
+		return fmt.Errorf(`store: unable to flush history: %w`, err)
 	}
 
 	return nil
@@ -464,7 +478,7 @@ func (s *Storage) MarkAllAsRead(userID int64) error {
 	query := `UPDATE entries SET status=$1, changed_at=now() WHERE user_id=$2 AND status=$3`
 	result, err := s.db.Exec(query, model.EntryStatusRead, userID, model.EntryStatusUnread)
 	if err != nil {
-		return fmt.Errorf(`store: unable to mark all entries as read: %v`, err)
+		return fmt.Errorf(`store: unable to mark all entries as read: %w`, err)
 	}
 
 	count, _ := result.RowsAffected()
@@ -494,7 +508,8 @@ func (s *Storage) MarkGloballyVisibleFeedsAsRead(userID int64) error {
 	`
 	result, err := s.db.Exec(query, model.EntryStatusRead, userID, model.EntryStatusUnread, false)
 	if err != nil {
-		return fmt.Errorf(`store: unable to mark globally visible feeds as read: %v`, err)
+		return fmt.Errorf(
+			`store: unable to mark globally visible feeds as read: %w`, err)
 	}
 
 	count, _ := result.RowsAffected()
@@ -519,7 +534,7 @@ func (s *Storage) MarkFeedAsRead(userID, feedID int64, before time.Time) error {
 	`
 	result, err := s.db.Exec(query, model.EntryStatusRead, userID, feedID, model.EntryStatusUnread, before)
 	if err != nil {
-		return fmt.Errorf(`store: unable to mark feed entries as read: %v`, err)
+		return fmt.Errorf(`store: unable to mark feed entries as read: %w`, err)
 	}
 
 	count, _ := result.RowsAffected()
@@ -555,7 +570,8 @@ func (s *Storage) MarkCategoryAsRead(userID, categoryID int64, before time.Time)
 	`
 	result, err := s.db.Exec(query, model.EntryStatusRead, userID, model.EntryStatusUnread, before, categoryID)
 	if err != nil {
-		return fmt.Errorf(`store: unable to mark category entries as read: %v`, err)
+		return fmt.Errorf(
+			`store: unable to mark category entries as read: %w`, err)
 	}
 
 	count, _ := result.RowsAffected()
@@ -574,7 +590,8 @@ func (s *Storage) EntryShareCode(userID int64, entryID int64) (shareCode string,
 	query := `SELECT share_code FROM entries WHERE user_id=$1 AND id=$2`
 	err = s.db.QueryRow(query, userID, entryID).Scan(&shareCode)
 	if err != nil {
-		err = fmt.Errorf(`store: unable to get share code for entry #%d: %v`, entryID, err)
+		err = fmt.Errorf(`store: unable to get share code for entry #%d: %w`,
+			entryID, err)
 		return
 	}
 
@@ -584,7 +601,8 @@ func (s *Storage) EntryShareCode(userID int64, entryID int64) (shareCode string,
 		query = `UPDATE entries SET share_code = $1 WHERE user_id=$2 AND id=$3`
 		_, err = s.db.Exec(query, shareCode, userID, entryID)
 		if err != nil {
-			err = fmt.Errorf(`store: unable to set share code for entry #%d: %v`, entryID, err)
+			err = fmt.Errorf(`store: unable to set share code for entry #%d: %w`,
+				entryID, err)
 			return
 		}
 	}
@@ -597,7 +615,8 @@ func (s *Storage) UnshareEntry(userID int64, entryID int64) (err error) {
 	query := `UPDATE entries SET share_code='' WHERE user_id=$1 AND id=$2`
 	_, err = s.db.Exec(query, userID, entryID)
 	if err != nil {
-		err = fmt.Errorf(`store: unable to remove share code for entry #%d: %v`, entryID, err)
+		err = fmt.Errorf(
+			`store: unable to remove share code for entry #%d: %w`, entryID, err)
 	}
 	return
 }

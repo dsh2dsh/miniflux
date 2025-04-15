@@ -92,7 +92,7 @@ var trackingParams = map[string]bool{
 func RemoveTrackingParameters(inputURL string) (string, error) {
 	parsedURL, err := url.Parse(inputURL)
 	if err != nil {
-		return "", fmt.Errorf("urlcleaner: error parsing URL: %v", err)
+		return "", fmt.Errorf("urlcleaner: error parsing URL: %w", err)
 	}
 
 	if !strings.HasPrefix(parsedURL.Scheme, "http") {

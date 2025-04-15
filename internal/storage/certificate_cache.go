@@ -6,6 +6,8 @@ package storage // import "miniflux.app/v2/internal/storage"
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -32,11 +34,12 @@ func (c *CertificateCache) Get(ctx context.Context, key string) ([]byte, error) 
 	query := `SELECT data::bytea FROM acme_cache WHERE key = $1`
 	var data []byte
 	err := c.storage.db.QueryRowContext(ctx, query, key).Scan(&data)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, autocert.ErrCacheMiss
+	} else if err != nil {
+		return nil, fmt.Errorf("storage: %w", err)
 	}
-
-	return data, err
+	return data, nil
 }
 
 // Put stores the data in the cache under the specified key.
@@ -45,7 +48,7 @@ func (c *CertificateCache) Put(ctx context.Context, key string, data []byte) err
 	          ON CONFLICT (key) DO UPDATE SET data = $2::bytea, updated_at = now()`
 	_, err := c.storage.db.ExecContext(ctx, query, key, data)
 	if err != nil {
-		return err
+		return fmt.Errorf("storage: %w", err)
 	}
 	return nil
 }
@@ -56,7 +59,7 @@ func (c *CertificateCache) Delete(ctx context.Context, key string) error {
 	query := `DELETE FROM acme_cache WHERE key = $1`
 	_, err := c.storage.db.ExecContext(ctx, query, key)
 	if err != nil {
-		return err
+		return fmt.Errorf("storage: %w", err)
 	}
 	return nil
 }

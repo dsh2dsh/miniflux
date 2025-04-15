@@ -75,7 +75,10 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 		slog.String("username", authForm.Username),
 	)
 
-	h.store.SetLastLogin(userID)
+	if err := h.store.SetLastLogin(userID); err != nil {
+		html.ServerError(w, r, err)
+		return
+	}
 
 	user, err := h.store.UserByID(userID)
 	if err != nil {

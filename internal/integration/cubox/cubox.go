@@ -57,8 +57,9 @@ func (c *Client) SaveLink(entryURL string) error {
 	}
 	defer response.Body.Close()
 
-	if response.StatusCode != 200 {
-		return fmt.Errorf("cubox: unable to save link: status=%d", response.StatusCode)
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("cubox: unable to save link: status=%d",
+			response.StatusCode)
 	}
 
 	return nil

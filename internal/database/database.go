@@ -12,7 +12,10 @@ import (
 // Migrate executes database migrations.
 func Migrate(db *sql.DB) error {
 	var currentVersion int
-	db.QueryRow(`SELECT version FROM schema_version`).Scan(&currentVersion)
+	err := db.QueryRow(`SELECT version FROM schema_version`).Scan(&currentVersion)
+	if err != nil {
+		return fmt.Errorf("database: failed select version: %w", err)
+	}
 
 	driver := getDriverStr()
 	slog.Info("Running database migrations",
@@ -26,26 +29,26 @@ func Migrate(db *sql.DB) error {
 
 		tx, err := db.Begin()
 		if err != nil {
-			return fmt.Errorf("[Migration v%d] %v", newVersion, err)
+			return fmt.Errorf("[Migration v%d] %w", newVersion, err)
 		}
 
 		if err := migrations[version](tx, driver); err != nil {
 			tx.Rollback()
-			return fmt.Errorf("[Migration v%d] %v", newVersion, err)
+			return fmt.Errorf("[Migration v%d] %w", newVersion, err)
 		}
 
 		if _, err := tx.Exec(`DELETE FROM schema_version`); err != nil {
 			tx.Rollback()
-			return fmt.Errorf("[Migration v%d] %v", newVersion, err)
+			return fmt.Errorf("[Migration v%d] %w", newVersion, err)
 		}
 
 		if _, err := tx.Exec(`INSERT INTO schema_version (version) VALUES ($1)`, newVersion); err != nil {
 			tx.Rollback()
-			return fmt.Errorf("[Migration v%d] %v", newVersion, err)
+			return fmt.Errorf("[Migration v%d] %w", newVersion, err)
 		}
 
 		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("[Migration v%d] %v", newVersion, err)
+			return fmt.Errorf("[Migration v%d] %w", newVersion, err)
 		}
 	}
 
@@ -55,7 +58,11 @@ func Migrate(db *sql.DB) error {
 // IsSchemaUpToDate checks if the database schema is up to date.
 func IsSchemaUpToDate(db *sql.DB) error {
 	var currentVersion int
-	db.QueryRow(`SELECT version FROM schema_version`).Scan(&currentVersion)
+	err := db.QueryRow(`SELECT version FROM schema_version`).
+		Scan(&currentVersion)
+	if err != nil {
+		return fmt.Errorf("database: failed select version: %w", err)
+	}
 	if currentVersion < schemaVersion {
 		return fmt.Errorf(`the database schema is not up to date: current=v%d expected=v%d`, currentVersion, schemaVersion)
 	}

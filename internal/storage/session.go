@@ -46,7 +46,7 @@ func (s *Storage) createAppSession(session *model.Session) (*model.Session, erro
 	query := `INSERT INTO sessions (id, data) VALUES ($1, $2)`
 	_, err := s.db.Exec(query, session.ID, session.Data)
 	if err != nil {
-		return nil, fmt.Errorf(`store: unable to create app session: %v`, err)
+		return nil, fmt.Errorf(`store: unable to create app session: %w`, err)
 	}
 
 	return session, nil
@@ -64,7 +64,7 @@ func (s *Storage) UpdateAppSessionField(sessionID, field string, value any) erro
 	`
 	_, err := s.db.Exec(fmt.Sprintf(query, field), value, sessionID)
 	if err != nil {
-		return fmt.Errorf(`store: unable to update session field: %v`, err)
+		return fmt.Errorf(`store: unable to update session field: %w`, err)
 	}
 
 	return nil
@@ -81,7 +81,7 @@ func (s *Storage) UpdateAppSessionObjectField(sessionID, field string, value int
 	`
 	_, err := s.db.Exec(fmt.Sprintf(query, field), value, sessionID)
 	if err != nil {
-		return fmt.Errorf(`store: unable to update session field: %v`, err)
+		return fmt.Errorf(`store: unable to update session field: %w`, err)
 	}
 
 	return nil
@@ -101,7 +101,7 @@ func (s *Storage) AppSession(id string) (*model.Session, error) {
 	case err == sql.ErrNoRows:
 		return nil, fmt.Errorf(`store: session not found: %s`, id)
 	case err != nil:
-		return nil, fmt.Errorf(`store: unable to fetch session: %v`, err)
+		return nil, fmt.Errorf(`store: unable to fetch session: %w`, err)
 	default:
 		return &session, nil
 	}
@@ -111,12 +111,12 @@ func (s *Storage) AppSession(id string) (*model.Session, error) {
 func (s *Storage) FlushAllSessions() (err error) {
 	_, err = s.db.Exec(`DELETE FROM user_sessions`)
 	if err != nil {
-		return err
+		return fmt.Errorf("storage: failed full all sessions: %w", err)
 	}
 
 	_, err = s.db.Exec(`DELETE FROM sessions`)
 	if err != nil {
-		return err
+		return fmt.Errorf("storage: failed full all sessions: %w", err)
 	}
 
 	return nil

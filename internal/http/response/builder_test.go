@@ -13,7 +13,7 @@ import (
 )
 
 func TestResponseHasCommonHeaders(t *testing.T) {
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestResponseHasCommonHeaders(t *testing.T) {
 }
 
 func TestBuildResponseWithCustomStatusCode(t *testing.T) {
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestBuildResponseWithCustomStatusCode(t *testing.T) {
 }
 
 func TestBuildResponseWithCustomHeader(t *testing.T) {
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestBuildResponseWithCustomHeader(t *testing.T) {
 }
 
 func TestBuildResponseWithAttachment(t *testing.T) {
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ func TestBuildResponseWithAttachment(t *testing.T) {
 }
 
 func TestBuildResponseWithError(t *testing.T) {
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func TestBuildResponseWithError(t *testing.T) {
 }
 
 func TestBuildResponseWithByteBody(t *testing.T) {
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +148,7 @@ func TestBuildResponseWithByteBody(t *testing.T) {
 }
 
 func TestBuildResponseWithCachingEnabled(t *testing.T) {
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestBuildResponseWithCachingEnabled(t *testing.T) {
 }
 
 func TestBuildResponseWithCachingAndEtag(t *testing.T) {
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Set("If-None-Match", "etag")
 	if err != nil {
 		t.Fatal(err)
@@ -230,7 +230,7 @@ func TestBuildResponseWithCachingAndEtag(t *testing.T) {
 
 func TestBuildResponseWithBrotliCompression(t *testing.T) {
 	body := strings.Repeat("a", compressionThreshold+1)
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Set("Accept-Encoding", "gzip, deflate, br")
 	if err != nil {
 		t.Fatal(err)
@@ -254,7 +254,7 @@ func TestBuildResponseWithBrotliCompression(t *testing.T) {
 
 func TestBuildResponseWithGzipCompression(t *testing.T) {
 	body := strings.Repeat("a", compressionThreshold+1)
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Set("Accept-Encoding", "gzip, deflate")
 	if err != nil {
 		t.Fatal(err)
@@ -278,7 +278,7 @@ func TestBuildResponseWithGzipCompression(t *testing.T) {
 
 func TestBuildResponseWithDeflateCompression(t *testing.T) {
 	body := strings.Repeat("a", compressionThreshold+1)
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Set("Accept-Encoding", "deflate")
 	if err != nil {
 		t.Fatal(err)
@@ -302,7 +302,7 @@ func TestBuildResponseWithDeflateCompression(t *testing.T) {
 
 func TestBuildResponseWithCompressionDisabled(t *testing.T) {
 	body := strings.Repeat("a", compressionThreshold+1)
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Set("Accept-Encoding", "deflate")
 	if err != nil {
 		t.Fatal(err)
@@ -326,7 +326,7 @@ func TestBuildResponseWithCompressionDisabled(t *testing.T) {
 
 func TestBuildResponseWithDeflateCompressionAndSmallPayload(t *testing.T) {
 	body := strings.Repeat("a", compressionThreshold)
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Set("Accept-Encoding", "deflate")
 	if err != nil {
 		t.Fatal(err)
@@ -350,7 +350,7 @@ func TestBuildResponseWithDeflateCompressionAndSmallPayload(t *testing.T) {
 
 func TestBuildResponseWithoutCompressionHeader(t *testing.T) {
 	body := strings.Repeat("a", compressionThreshold+1)
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

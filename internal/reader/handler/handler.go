@@ -263,7 +263,9 @@ func RefreshFeed(store *storage.Storage, userID, feedID int64, forceRefresh bool
 			return locale.NewLocalizedErrorWrapper(storeErr, "error.database_error", storeErr)
 		}
 		originalFeed.WithTranslatedErrorMessage(localizedError.Translate(user.Language))
-		store.UpdateFeedError(originalFeed)
+		if err := store.UpdateFeedError(originalFeed); err != nil {
+			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
+		}
 		return localizedError
 	}
 
@@ -274,7 +276,9 @@ func RefreshFeed(store *storage.Storage, userID, feedID int64, forceRefresh bool
 			return locale.NewLocalizedErrorWrapper(storeErr, "error.database_error", storeErr)
 		}
 		originalFeed.WithTranslatedErrorMessage(localizedError.Translate(user.Language))
-		store.UpdateFeedError(originalFeed)
+		if err := store.UpdateFeedError(originalFeed); err != nil {
+			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
+		}
 		return localizedError
 	}
 
@@ -305,7 +309,9 @@ func RefreshFeed(store *storage.Storage, userID, feedID int64, forceRefresh bool
 			}
 
 			originalFeed.WithTranslatedErrorMessage(localizedError.Translate(user.Language))
-			store.UpdateFeedError(originalFeed)
+			if err := store.UpdateFeedError(originalFeed); err != nil {
+				return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
+			}
 			return localizedError
 		}
 
@@ -344,7 +350,9 @@ func RefreshFeed(store *storage.Storage, userID, feedID int64, forceRefresh bool
 				return locale.NewLocalizedErrorWrapper(storeErr, "error.database_error", storeErr)
 			}
 			originalFeed.WithTranslatedErrorMessage(localizedError.Translate(user.Language))
-			store.UpdateFeedError(originalFeed)
+			if err := store.UpdateFeedError(originalFeed); err != nil {
+				return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
+			}
 			return localizedError
 		}
 
@@ -391,7 +399,9 @@ func RefreshFeed(store *storage.Storage, userID, feedID int64, forceRefresh bool
 			return locale.NewLocalizedErrorWrapper(storeErr, "error.database_error", storeErr)
 		}
 		originalFeed.WithTranslatedErrorMessage(localizedError.Translate(user.Language))
-		store.UpdateFeedError(originalFeed)
+		if err := store.UpdateFeedError(originalFeed); err != nil {
+			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
+		}
 		return localizedError
 	}
 

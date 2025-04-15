@@ -6,6 +6,7 @@ package nunuxkeeper // import "miniflux.app/v2/internal/integration/nunuxkeeper"
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -27,12 +28,12 @@ func NewClient(baseURL, apiKey string) *Client {
 
 func (c *Client) AddEntry(entryURL, entryTitle, entryContent string) error {
 	if c.baseURL == "" || c.apiKey == "" {
-		return fmt.Errorf("nunux-keeper: missing base URL or API key")
+		return errors.New("nunux-keeper: missing base URL or API key")
 	}
 
 	apiEndpoint, err := urllib.JoinBaseURLAndPath(c.baseURL, "/v2/documents")
 	if err != nil {
-		return fmt.Errorf(`nunux-keeper: invalid API endpoint: %v`, err)
+		return fmt.Errorf(`nunux-keeper: invalid API endpoint: %w`, err)
 	}
 
 	requestBody, err := json.Marshal(&nunuxKeeperDocument{
@@ -42,12 +43,12 @@ func (c *Client) AddEntry(entryURL, entryTitle, entryContent string) error {
 		ContentType: "text/html",
 	})
 	if err != nil {
-		return fmt.Errorf("notion: unable to encode request body: %v", err)
+		return fmt.Errorf("notion: unable to encode request body: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBody))
 	if err != nil {
-		return fmt.Errorf("nunux-keeper: unable to create request: %v", err)
+		return fmt.Errorf("nunux-keeper: unable to create request: %w", err)
 	}
 
 	request.SetBasicAuth("api", c.apiKey)
@@ -57,7 +58,7 @@ func (c *Client) AddEntry(entryURL, entryTitle, entryContent string) error {
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("nunux-keeper: unable to send request: %v", err)
+		return fmt.Errorf("nunux-keeper: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 

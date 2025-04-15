@@ -9,8 +9,10 @@ import (
 	"fmt"
 )
 
-type translationDict map[string]interface{}
-type catalog map[string]translationDict
+type (
+	translationDict map[string]any
+	catalog         map[string]translationDict
+)
 
 var defaultCatalog = make(catalog, len(AvailableLanguages))
 
@@ -41,16 +43,16 @@ func LoadCatalogMessages() error {
 }
 
 func loadTranslationFile(language string) (translationDict, error) {
-	translationFileData, err := translationFiles.ReadFile(fmt.Sprintf("translations/%s.json", language))
+	fullName := "translations/" + language + ".json"
+	translationFileData, err := translationFiles.ReadFile(fullName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("locale: failed read %q: %w", fullName, err)
 	}
 
 	translationMessages, err := parseTranslationMessages(translationFileData)
 	if err != nil {
 		return nil, err
 	}
-
 	return translationMessages, nil
 }
 

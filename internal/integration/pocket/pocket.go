@@ -6,6 +6,7 @@ package pocket // import "miniflux.app/v2/internal/integration/pocket"
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -26,7 +27,7 @@ func NewClient(consumerKey, accessToken string) *Client {
 
 func (c *Client) AddURL(entryURL, entryTitle string) error {
 	if c.consumerKey == "" || c.accessToken == "" {
-		return fmt.Errorf("pocket: missing consumer key or access token")
+		return errors.New("pocket: missing consumer key or access token")
 	}
 
 	apiEndpoint := "https://getpocket.com/v3/add"
@@ -37,12 +38,12 @@ func (c *Client) AddURL(entryURL, entryTitle string) error {
 		URL:         entryURL,
 	})
 	if err != nil {
-		return fmt.Errorf("pocket: unable to encode request body: %v", err)
+		return fmt.Errorf("pocket: unable to encode request body: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBody))
 	if err != nil {
-		return fmt.Errorf("pocket: unable to create request: %v", err)
+		return fmt.Errorf("pocket: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -51,7 +52,7 @@ func (c *Client) AddURL(entryURL, entryTitle string) error {
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("pocket: unable to send request: %v", err)
+		return fmt.Errorf("pocket: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 

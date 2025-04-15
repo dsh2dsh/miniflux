@@ -160,6 +160,7 @@ func TestParseRSSDateEST(t *testing.T) {
 		t.Errorf(`The offset should be %v instead of %v`, expectedOffset, offset)
 	}
 }
+
 func TestParseRSSDateOffset(t *testing.T) {
 	date, err := Parse("Sun, 28 Oct 2018 13:48:00 +0100")
 	if err != nil {
@@ -242,7 +243,6 @@ func TestParseDateWithTimezoneOutOfRange(t *testing.T) {
 	}
 	for _, input := range inputs {
 		date, err := Parse(input)
-
 		if err != nil {
 			t.Errorf(`Unable to parse date: %v`, err)
 		}

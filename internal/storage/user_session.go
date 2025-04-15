@@ -5,6 +5,7 @@ package storage // import "miniflux.app/v2/internal/storage"
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"miniflux.app/v2/internal/crypto"
@@ -28,7 +29,7 @@ func (s *Storage) UserSessions(userID int64) (model.UserSessions, error) {
 	`
 	rows, err := s.db.Query(query, userID)
 	if err != nil {
-		return nil, fmt.Errorf(`store: unable to fetch user sessions: %v`, err)
+		return nil, fmt.Errorf(`store: unable to fetch user sessions: %w`, err)
 	}
 	defer rows.Close()
 
@@ -43,9 +44,9 @@ func (s *Storage) UserSessions(userID int64) (model.UserSessions, error) {
 			&session.UserAgent,
 			&session.IP,
 		)
-
 		if err != nil {
-			return nil, fmt.Errorf(`store: unable to fetch user session row: %v`, err)
+			return nil, fmt.Errorf(
+				`store: unable to fetch user session row: %w`, err)
 		}
 
 		sessions = append(sessions, &session)
@@ -60,13 +61,13 @@ func (s *Storage) CreateUserSessionFromUsername(username, userAgent, ip string) 
 
 	tx, err := s.db.Begin()
 	if err != nil {
-		return "", 0, fmt.Errorf(`store: unable to start transaction: %v`, err)
+		return "", 0, fmt.Errorf(`store: unable to start transaction: %w`, err)
 	}
 
 	err = tx.QueryRow(`SELECT id FROM users WHERE username = LOWER($1)`, username).Scan(&userID)
 	if err != nil {
 		tx.Rollback()
-		return "", 0, fmt.Errorf(`store: unable to fetch user ID: %v`, err)
+		return "", 0, fmt.Errorf(`store: unable to fetch user ID: %w`, err)
 	}
 
 	_, err = tx.Exec(
@@ -78,11 +79,11 @@ func (s *Storage) CreateUserSessionFromUsername(username, userAgent, ip string) 
 	)
 	if err != nil {
 		tx.Rollback()
-		return "", 0, fmt.Errorf(`store: unable to create user session: %v`, err)
+		return "", 0, fmt.Errorf(`store: unable to create user session: %w`, err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return "", 0, fmt.Errorf(`store: unable to commit transaction: %v`, err)
+		return "", 0, fmt.Errorf(`store: unable to commit transaction: %w`, err)
 	}
 
 	return token, userID, nil
@@ -118,7 +119,7 @@ func (s *Storage) UserSessionByToken(token string) (*model.UserSession, error) {
 	case err == sql.ErrNoRows:
 		return nil, nil
 	case err != nil:
-		return nil, fmt.Errorf(`store: unable to fetch user session: %v`, err)
+		return nil, fmt.Errorf(`store: unable to fetch user session: %w`, err)
 	default:
 		return &session, nil
 	}
@@ -129,16 +130,16 @@ func (s *Storage) RemoveUserSessionByToken(userID int64, token string) error {
 	query := `DELETE FROM user_sessions WHERE user_id=$1 AND token=$2`
 	result, err := s.db.Exec(query, userID, token)
 	if err != nil {
-		return fmt.Errorf(`store: unable to remove this user session: %v`, err)
+		return fmt.Errorf(`store: unable to remove this user session: %w`, err)
 	}
 
 	count, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf(`store: unable to remove this user session: %v`, err)
+		return fmt.Errorf(`store: unable to remove this user session: %w`, err)
 	}
 
 	if count != 1 {
-		return fmt.Errorf(`store: nothing has been removed`)
+		return errors.New(`store: nothing has been removed`)
 	}
 
 	return nil
@@ -149,16 +150,16 @@ func (s *Storage) RemoveUserSessionByID(userID, sessionID int64) error {
 	query := `DELETE FROM user_sessions WHERE user_id=$1 AND id=$2`
 	result, err := s.db.Exec(query, userID, sessionID)
 	if err != nil {
-		return fmt.Errorf(`store: unable to remove this user session: %v`, err)
+		return fmt.Errorf(`store: unable to remove this user session: %w`, err)
 	}
 
 	count, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf(`store: unable to remove this user session: %v`, err)
+		return fmt.Errorf(`store: unable to remove this user session: %w`, err)
 	}
 
 	if count != 1 {
-		return fmt.Errorf(`store: nothing has been removed`)
+		return errors.New(`store: nothing has been removed`)
 	}
 
 	return nil

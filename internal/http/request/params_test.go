@@ -59,7 +59,7 @@ func TestRouteStringParam(t *testing.T) {
 		}
 	})
 
-	r, err := http.NewRequest("GET", "/route/value/index", nil)
+	r, err := http.NewRequest(http.MethodGet, "/route/value/index", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func TestRouteInt64Param(t *testing.T) {
 		}
 	})
 
-	r, err := http.NewRequest("GET", "/a/42/b/not-int/c/-10", nil)
+	r, err := http.NewRequest(http.MethodGet, "/a/42/b/not-int/c/-10", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

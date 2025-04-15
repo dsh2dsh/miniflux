@@ -16,7 +16,7 @@ import (
 func (s *Storage) HasFeedIcon(feedID int64) bool {
 	var result bool
 	query := `SELECT true FROM feed_icons WHERE feed_id=$1`
-	s.db.QueryRow(query, feedID).Scan(&result)
+	_ = s.db.QueryRow(query, feedID).Scan(&result)
 	return result
 }
 
@@ -84,7 +84,7 @@ func (s *Storage) IconByFeedID(userID, feedID int64) (*model.Icon, error) {
 	var icon model.Icon
 	err := s.db.QueryRow(query, userID, feedID).Scan(&icon.ID, &icon.Hash, &icon.MimeType, &icon.Content, &icon.ExternalID)
 	if err != nil {
-		return nil, fmt.Errorf(`store: unable to fetch icon: %v`, err)
+		return nil, fmt.Errorf(`store: unable to fetch icon: %w`, err)
 	}
 
 	return &icon, nil
@@ -94,7 +94,7 @@ func (s *Storage) IconByFeedID(userID, feedID int64) (*model.Icon, error) {
 func (s *Storage) StoreFeedIcon(feedID int64, icon *model.Icon) error {
 	tx, err := s.db.Begin()
 	if err != nil {
-		return fmt.Errorf(`store: unable to start transaction: %v`, err)
+		return fmt.Errorf(`store: unable to start transaction: %w`, err)
 	}
 
 	if err := tx.QueryRow(`SELECT id FROM icons WHERE hash=$1`, icon.Hash).Scan(&icon.ID); err == sql.ErrNoRows {
@@ -113,28 +113,28 @@ func (s *Storage) StoreFeedIcon(feedID int64, icon *model.Icon) error {
 			icon.Content,
 			crypto.GenerateRandomStringHex(20),
 		).Scan(&icon.ID)
-
 		if err != nil {
 			tx.Rollback()
-			return fmt.Errorf(`store: unable to create icon: %v`, err)
+			return fmt.Errorf(`store: unable to create icon: %w`, err)
 		}
 	} else if err != nil {
 		tx.Rollback()
-		return fmt.Errorf(`store: unable to fetch icon by hash %q: %v`, icon.Hash, err)
+		return fmt.Errorf(`store: unable to fetch icon by hash %q: %w`,
+			icon.Hash, err)
 	}
 
 	if _, err := tx.Exec(`DELETE FROM feed_icons WHERE feed_id=$1`, feedID); err != nil {
 		tx.Rollback()
-		return fmt.Errorf(`store: unable to delete feed icon: %v`, err)
+		return fmt.Errorf(`store: unable to delete feed icon: %w`, err)
 	}
 
 	if _, err := tx.Exec(`INSERT INTO feed_icons (feed_id, icon_id) VALUES ($1, $2)`, feedID, icon.ID); err != nil {
 		tx.Rollback()
-		return fmt.Errorf(`store: unable to associate feed and icon: %v`, err)
+		return fmt.Errorf(`store: unable to associate feed and icon: %w`, err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf(`store: unable to commit transaction: %v`, err)
+		return fmt.Errorf(`store: unable to commit transaction: %w`, err)
 	}
 
 	return nil
@@ -157,7 +157,7 @@ func (s *Storage) Icons(userID int64) (model.Icons, error) {
 	`
 	rows, err := s.db.Query(query, userID)
 	if err != nil {
-		return nil, fmt.Errorf(`store: unable to fetch icons: %v`, err)
+		return nil, fmt.Errorf(`store: unable to fetch icons: %w`, err)
 	}
 	defer rows.Close()
 
@@ -166,7 +166,7 @@ func (s *Storage) Icons(userID int64) (model.Icons, error) {
 		var icon model.Icon
 		err := rows.Scan(&icon.ID, &icon.Hash, &icon.MimeType, &icon.Content, &icon.ExternalID)
 		if err != nil {
-			return nil, fmt.Errorf(`store: unable to fetch icons row: %v`, err)
+			return nil, fmt.Errorf(`store: unable to fetch icons row: %w`, err)
 		}
 		icons = append(icons, &icon)
 	}

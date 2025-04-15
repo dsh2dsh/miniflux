@@ -64,7 +64,10 @@ func startDaemon(store *storage.Storage) {
 					if err := store.Ping(); err != nil {
 						slog.Error("Unable to ping database", slog.Any("error", err))
 					} else {
-						systemd.SdNotify(systemd.SdNotifyWatchdog)
+						if err := systemd.SdNotify(systemd.SdNotifyWatchdog); err != nil {
+							slog.Error("cli: failed notify systemd watchdog",
+								slog.Any("error", err))
+						}
 					}
 
 					time.Sleep(interval / 3)
@@ -79,8 +82,10 @@ func startDaemon(store *storage.Storage) {
 	defer cancel()
 
 	if httpServer != nil {
-		httpServer.Shutdown(ctx)
+		if err := httpServer.Shutdown(ctx); err != nil {
+			slog.Error("cli: failed shutdown http server",
+				slog.Any("error", err))
+		}
 	}
-
 	slog.Debug("Process gracefully stopped")
 }

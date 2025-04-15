@@ -5,7 +5,7 @@ package sanitizer
 
 import "strings"
 
-func TruncateHTML(input string, max int) string {
+func TruncateHTML(input string, maxLen int) string {
 	text := StripTags(input)
 
 	// Collapse multiple spaces into a single space
@@ -13,8 +13,8 @@ func TruncateHTML(input string, max int) string {
 
 	// Convert to runes to be safe with unicode
 	runes := []rune(text)
-	if len(runes) > max {
-		return strings.TrimSpace(string(runes[:max])) + "…"
+	if len(runes) > maxLen {
+		return strings.TrimSpace(string(runes[:maxLen])) + "…"
 	}
 
 	return text

@@ -35,7 +35,6 @@ func TestAbsoluteURL(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		actual, err := AbsoluteURL(scenario[1], scenario[2])
-
 		if err != nil {
 			t.Errorf(`Got error for (%q, %q): %v`, scenario[1], scenario[2], err)
 		}

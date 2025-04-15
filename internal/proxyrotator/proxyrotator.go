@@ -4,6 +4,7 @@
 package proxyrotator // import "miniflux.app/v2/internal/proxyrotator"
 
 import (
+	"fmt"
 	"net/url"
 	"sync"
 )
@@ -24,7 +25,7 @@ func NewProxyRotator(proxyURLs []string) (*ProxyRotator, error) {
 	for _, p := range proxyURLs {
 		proxyURL, err := url.Parse(p)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("proxyrotator: failed parse %q: %w", p, err)
 		}
 		parsedProxies = append(parsedProxies, proxyURL)
 	}

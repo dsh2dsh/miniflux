@@ -42,7 +42,7 @@ func (p *Parser) ParseEnvironmentVariables() (*Options, error) {
 func (p *Parser) ParseFile(filename string) (*Options, error) {
 	fp, err := os.Open(filename)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("config: failed open file: %w", err)
 	}
 	defer fp.Close()
 
@@ -366,16 +366,13 @@ func parseStringList(value string, fallback []string) []string {
 	var strList []string
 	strMap := make(map[string]bool)
 
-	items := strings.Split(value, ",")
-	for _, item := range items {
+	for item := range strings.SplitSeq(value, ",") {
 		itemValue := strings.TrimSpace(item)
-
 		if _, found := strMap[itemValue]; !found {
 			strMap[itemValue] = true
 			strList = append(strList, itemValue)
 		}
 	}
-
 	return strList
 }
 

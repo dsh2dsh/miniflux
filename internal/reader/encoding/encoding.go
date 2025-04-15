@@ -38,7 +38,11 @@ func CharsetReader(charsetLabel string, input io.Reader) (io.Reader, error) {
 	}
 
 	// Transform document to UTF-8 from the specified encoding in XML prolog.
-	return charset.NewReaderLabel(charsetLabel, r)
+	reader, err := charset.NewReaderLabel(charsetLabel, r)
+	if err != nil {
+		return nil, fmt.Errorf("reader/encoding: %w", err)
+	}
+	return reader, nil
 }
 
 // NewCharsetReader returns an io.Reader that converts the content of r to UTF-8.
@@ -59,5 +63,9 @@ func NewCharsetReader(r io.Reader, contentType string) (io.Reader, error) {
 	// Note that only the first 1024 bytes are used to detect the encoding.
 	// If the <meta charset> tag is not found in the first 1024 bytes, charset.DetermineEncoding returns "windows-1252" resulting in encoding issues.
 	// See https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding
-	return charset.NewReader(internalReader, contentType)
+	reader, err := charset.NewReader(internalReader, contentType)
+	if err != nil {
+		return nil, fmt.Errorf("reader/encoding: %w", err)
+	}
+	return reader, nil
 }

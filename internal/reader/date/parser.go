@@ -348,7 +348,7 @@ func Parse(rawInput string) (t time.Time, err error) {
 // RFC822, RFC850, and RFC1123 formats should be applied only to local times.
 // Applying them to UTC times will use "UTC" as the time zone abbreviation,
 // while strictly speaking those RFCs require the use of "GMT" in that case.
-func parseLocalTimeDates(layout, ds string) (t time.Time, err error) {
+func parseLocalTimeDates(layout, ds string) (time.Time, error) {
 	loc := time.UTC
 
 	// Workaround for dates that don't use GMT.
@@ -358,7 +358,11 @@ func parseLocalTimeDates(layout, ds string) (t time.Time, err error) {
 		loc, _ = time.LoadLocation("America/New_York")
 	}
 
-	return time.ParseInLocation(layout, ds, loc)
+	t, err := time.ParseInLocation(layout, ds, loc)
+	if err != nil {
+		return t, fmt.Errorf("reader/date: %w", err)
+	}
+	return t, nil
 }
 
 // https://en.wikipedia.org/wiki/List_of_UTC_offsets

@@ -6,6 +6,7 @@ package linkwarden // import "miniflux.app/v2/internal/integration/linkwarden"
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -27,12 +28,12 @@ func NewClient(baseURL, apiKey string) *Client {
 
 func (c *Client) CreateBookmark(entryURL, entryTitle string) error {
 	if c.baseURL == "" || c.apiKey == "" {
-		return fmt.Errorf("linkwarden: missing base URL or API key")
+		return errors.New("linkwarden: missing base URL or API key")
 	}
 
 	apiEndpoint, err := urllib.JoinBaseURLAndPath(c.baseURL, "/api/v1/links")
 	if err != nil {
-		return fmt.Errorf(`linkwarden: invalid API endpoint: %v`, err)
+		return fmt.Errorf(`linkwarden: invalid API endpoint: %w`, err)
 	}
 
 	requestBody, err := json.Marshal(&linkwardenBookmark{
@@ -40,16 +41,15 @@ func (c *Client) CreateBookmark(entryURL, entryTitle string) error {
 		Name:        "",
 		Description: "",
 		Tags:        []string{},
-		Collection:  map[string]interface{}{},
+		Collection:  map[string]any{},
 	})
-
 	if err != nil {
-		return fmt.Errorf("linkwarden: unable to encode request body: %v", err)
+		return fmt.Errorf("linkwarden: unable to encode request body: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBody))
 	if err != nil {
-		return fmt.Errorf("linkwarden: unable to create request: %v", err)
+		return fmt.Errorf("linkwarden: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -60,7 +60,7 @@ func (c *Client) CreateBookmark(entryURL, entryTitle string) error {
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("linkwarden: unable to send request: %v", err)
+		return fmt.Errorf("linkwarden: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -72,9 +72,9 @@ func (c *Client) CreateBookmark(entryURL, entryTitle string) error {
 }
 
 type linkwardenBookmark struct {
-	Url         string                 `json:"url"`
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	Tags        []string               `json:"tags"`
-	Collection  map[string]interface{} `json:"collection"`
+	Url         string         `json:"url"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Tags        []string       `json:"tags"`
+	Collection  map[string]any `json:"collection"`
 }

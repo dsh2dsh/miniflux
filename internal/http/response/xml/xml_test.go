@@ -10,7 +10,7 @@ import (
 )
 
 func TestOKResponse(t *testing.T) {
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func TestOKResponse(t *testing.T) {
 }
 
 func TestAttachmentResponse(t *testing.T) {
-	r, err := http.NewRequest("GET", "/", nil)
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

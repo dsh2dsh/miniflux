@@ -65,7 +65,7 @@ func fetchYouTubeWatchTimeForSingleEntry(websiteURL string) (int, error) {
 
 	doc, docErr := goquery.NewDocumentFromReader(responseHandler.Body(config.Opts.HTTPClientMaxBodySize()))
 	if docErr != nil {
-		return 0, docErr
+		return 0, fmt.Errorf("reader/processor: %w", docErr)
 	}
 
 	htmlDuration, exists := doc.FindMatcher(goquery.Single(`meta[itemprop="duration"]`)).Attr("content")
@@ -75,15 +75,16 @@ func fetchYouTubeWatchTimeForSingleEntry(websiteURL string) (int, error) {
 
 	parsedDuration, err := parseISO8601(htmlDuration)
 	if err != nil {
-		return 0, fmt.Errorf("youtube: unable to parse duration %s: %v", htmlDuration, err)
+		return 0, fmt.Errorf(
+			"youtube: unable to parse duration %s: %w", htmlDuration, err)
 	}
 
 	return int(parsedDuration.Minutes()), nil
 }
 
 func fetchYouTubeWatchTimeInBulk(entries []*model.Entry) {
-	var videosEntriesMapping = make(map[string]*model.Entry)
-	var videoIDs []string
+	videosEntriesMapping := make(map[string]*model.Entry)
+	var videoIDs []string //nolint:prealloc // skips some entries
 
 	for _, entry := range entries {
 		if !isYouTubeVideoURL(entry.URL) {
@@ -145,7 +146,7 @@ func fetchYouTubeWatchTimeFromApiInBulk(videoIDs []string) (map[string]time.Dura
 
 	var videos youtubeVideoListResponse
 	if err := json.NewDecoder(responseHandler.Body(config.Opts.HTTPClientMaxBodySize())).Decode(&videos); err != nil {
-		return nil, fmt.Errorf("youtube: unable to decode JSON: %v", err)
+		return nil, fmt.Errorf("youtube: unable to decode JSON: %w", err)
 	}
 
 	watchTimeMap := make(map[string]time.Duration)
@@ -178,7 +179,7 @@ func parseISO8601(from string) (time.Duration, error) {
 
 		val, err := strconv.ParseInt(part, 10, 64)
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("reader/processor: %w", err)
 		}
 
 		switch name {

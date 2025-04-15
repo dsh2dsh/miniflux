@@ -5,6 +5,7 @@ package storage // import "miniflux.app/v2/internal/storage"
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
@@ -15,7 +16,7 @@ import (
 func (s *Storage) HasDuplicateFeverUsername(userID int64, feverUsername string) bool {
 	query := `SELECT true FROM integrations WHERE user_id != $1 AND fever_username=$2`
 	var result bool
-	s.db.QueryRow(query, userID, feverUsername).Scan(&result)
+	_ = s.db.QueryRow(query, userID, feverUsername).Scan(&result)
 	return result
 }
 
@@ -23,7 +24,7 @@ func (s *Storage) HasDuplicateFeverUsername(userID int64, feverUsername string) 
 func (s *Storage) HasDuplicateGoogleReaderUsername(userID int64, googleReaderUsername string) bool {
 	query := `SELECT true FROM integrations WHERE user_id != $1 AND googlereader_username=$2`
 	var result bool
-	s.db.QueryRow(query, userID, googleReaderUsername).Scan(&result)
+	_ = s.db.QueryRow(query, userID, googleReaderUsername).Scan(&result)
 	return result
 }
 
@@ -43,10 +44,10 @@ func (s *Storage) UserByFeverToken(token string) (*model.User, error) {
 	var user model.User
 	err := s.db.QueryRow(query, token).Scan(&user.ID, &user.Username, &user.IsAdmin, &user.Timezone)
 	switch {
-	case err == sql.ErrNoRows:
+	case errors.Is(err, sql.ErrNoRows):
 		return nil, nil
 	case err != nil:
-		return nil, fmt.Errorf("store: unable to fetch user: %v", err)
+		return nil, fmt.Errorf("store: unable to fetch user: %w", err)
 	default:
 		return &user, nil
 	}
@@ -66,14 +67,14 @@ func (s *Storage) GoogleReaderUserCheckPassword(username, password string) error
 	`
 
 	err := s.db.QueryRow(query, username).Scan(&hash)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf(`store: unable to find this user: %s`, username)
 	} else if err != nil {
-		return fmt.Errorf(`store: unable to fetch user: %v`, err)
+		return fmt.Errorf(`store: unable to fetch user: %w`, err)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
-		return fmt.Errorf(`store: invalid password for "%s" (%v)`, username, err)
+		return fmt.Errorf(`store: invalid password for "%s" (%w)`, username, err)
 	}
 
 	return nil
@@ -99,7 +100,7 @@ func (s *Storage) GoogleReaderUserGetIntegration(username string) (*model.Integr
 	if err == sql.ErrNoRows {
 		return &integration, fmt.Errorf(`store: unable to find this user: %s`, username)
 	} else if err != nil {
-		return &integration, fmt.Errorf(`store: unable to fetch user: %v`, err)
+		return &integration, fmt.Errorf(`store: unable to fetch user: %w`, err)
 	}
 
 	return &integration, nil
@@ -343,7 +344,8 @@ func (s *Storage) Integration(userID int64) (*model.Integration, error) {
 	case err == sql.ErrNoRows:
 		return &integration, nil
 	case err != nil:
-		return &integration, fmt.Errorf(`store: unable to fetch integration row: %v`, err)
+		return &integration, fmt.Errorf(
+			`store: unable to fetch integration row: %w`, err)
 	default:
 		return &integration, nil
 	}
@@ -582,9 +584,8 @@ func (s *Storage) UpdateIntegration(integration *model.Integration) error {
 		integration.PushoverPrefix,
 		integration.UserID,
 	)
-
 	if err != nil {
-		return fmt.Errorf(`store: unable to update integration record: %v`, err)
+		return fmt.Errorf(`store: unable to update integration record: %w`, err)
 	}
 
 	return nil

@@ -20,6 +20,7 @@ type middleware struct {
 func newMiddleware(s *storage.Storage) *middleware {
 	return &middleware{s}
 }
+
 func (m *middleware) handleCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -71,8 +72,23 @@ func (m *middleware) apiKeyAuth(next http.Handler) http.Handler {
 			slog.String("username", user.Username),
 		)
 
-		m.store.SetLastLogin(user.ID)
-		m.store.SetAPIKeyUsedTimestamp(user.ID, token)
+		if err := m.store.SetLastLogin(user.ID); err != nil {
+			slog.Error("[API] failed set last login",
+				slog.String("client_ip", clientIP),
+				slog.String("user_agent", r.UserAgent()),
+				slog.String("username", user.Username),
+				slog.Any("error", err),
+			)
+		}
+
+		if err := m.store.SetAPIKeyUsedTimestamp(user.ID, token); err != nil {
+			slog.Error("[API] failed set key used timestamp",
+				slog.String("client_ip", clientIP),
+				slog.String("user_agent", r.UserAgent()),
+				slog.String("username", user.Username),
+				slog.Any("error", err),
+			)
+		}
 
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, request.UserIDContextKey, user.ID)
@@ -150,7 +166,14 @@ func (m *middleware) basicAuth(next http.Handler) http.Handler {
 			slog.String("username", username),
 		)
 
-		m.store.SetLastLogin(user.ID)
+		if err := m.store.SetLastLogin(user.ID); err != nil {
+			slog.Error("[API] failed set last login",
+				slog.String("client_ip", clientIP),
+				slog.String("user_agent", r.UserAgent()),
+				slog.String("username", username),
+				slog.Any("error", err),
+			)
+		}
 
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, request.UserIDContextKey, user.ID)

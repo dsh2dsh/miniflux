@@ -230,7 +230,7 @@ func (e *EntryQueryBuilder) CountEntries() (count int, err error) {
 
 	err = e.store.db.QueryRow(fmt.Sprintf(query, condition), e.args...).Scan(&count)
 	if err != nil {
-		return 0, fmt.Errorf("store: unable to count entries: %v", err)
+		return 0, fmt.Errorf("store: unable to count entries: %w", err)
 	}
 
 	return count, nil
@@ -316,7 +316,7 @@ func (e *EntryQueryBuilder) GetEntries() (model.Entries, error) {
 
 	rows, err := e.store.db.Query(query, e.args...)
 	if err != nil {
-		return nil, fmt.Errorf("store: unable to get entries: %v", err)
+		return nil, fmt.Errorf("store: unable to get entries: %w", err)
 	}
 	defer rows.Close()
 
@@ -368,9 +368,8 @@ func (e *EntryQueryBuilder) GetEntries() (model.Entries, error) {
 			&externalIconID,
 			&tz,
 		)
-
 		if err != nil {
-			return nil, fmt.Errorf("store: unable to fetch entry row: %v", err)
+			return nil, fmt.Errorf("store: unable to fetch entry row: %w", err)
 		}
 
 		if iconID.Valid && externalIconID.Valid && externalIconID.String != "" {
@@ -433,7 +432,7 @@ func (e *EntryQueryBuilder) GetEntryIDs() ([]int64, error) {
 
 	rows, err := e.store.db.Query(query, e.args...)
 	if err != nil {
-		return nil, fmt.Errorf("store: unable to get entries: %v", err)
+		return nil, fmt.Errorf("store: unable to get entries: %w", err)
 	}
 	defer rows.Close()
 
@@ -443,7 +442,7 @@ func (e *EntryQueryBuilder) GetEntryIDs() ([]int64, error) {
 
 		err := rows.Scan(&entryID)
 		if err != nil {
-			return nil, fmt.Errorf("store: unable to fetch entry row: %v", err)
+			return nil, fmt.Errorf("store: unable to fetch entry row: %w", err)
 		}
 
 		entryIDs = append(entryIDs, entryID)
@@ -458,9 +457,8 @@ func (e *EntryQueryBuilder) buildCondition() string {
 
 func (e *EntryQueryBuilder) buildSorting() string {
 	var parts string
-
 	if len(e.sortExpressions) > 0 {
-		parts += fmt.Sprintf(" ORDER BY %s", strings.Join(e.sortExpressions, ", "))
+		parts += " ORDER BY " + strings.Join(e.sortExpressions, ", ")
 	}
 
 	if e.limit > 0 {

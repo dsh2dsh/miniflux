@@ -34,7 +34,7 @@ func (c *Client) DiscoverEndpoints() (*DiscoveryEndpointResponse, error) {
 
 	request, err := http.NewRequest(http.MethodGet, endpointURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("matrix: unable to create request: %v", err)
+		return nil, fmt.Errorf("matrix: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Accept", "application/json")
@@ -43,7 +43,7 @@ func (c *Client) DiscoverEndpoints() (*DiscoveryEndpointResponse, error) {
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("matrix: unable to send request: %v", err)
+		return nil, fmt.Errorf("matrix: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -77,12 +77,12 @@ func (c *Client) Login(homeServerURL, matrixUsername, matrixPassword string) (*L
 
 	requestBody, err := json.Marshal(loginRequest)
 	if err != nil {
-		return nil, fmt.Errorf("matrix: unable to encode request body: %v", err)
+		return nil, fmt.Errorf("matrix: unable to encode request body: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, endpointURL, bytes.NewReader(requestBody))
 	if err != nil {
-		return nil, fmt.Errorf("matrix: unable to create request: %v", err)
+		return nil, fmt.Errorf("matrix: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -92,7 +92,7 @@ func (c *Client) Login(homeServerURL, matrixUsername, matrixPassword string) (*L
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("matrix: unable to send request: %v", err)
+		return nil, fmt.Errorf("matrix: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -125,12 +125,12 @@ func (c *Client) SendFormattedTextMessage(homeServerURL, accessToken, roomID, te
 
 	requestBody, err := json.Marshal(messageEvent)
 	if err != nil {
-		return nil, fmt.Errorf("matrix: unable to encode request body: %v", err)
+		return nil, fmt.Errorf("matrix: unable to encode request body: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPut, endpointURL, bytes.NewReader(requestBody))
 	if err != nil {
-		return nil, fmt.Errorf("matrix: unable to create request: %v", err)
+		return nil, fmt.Errorf("matrix: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -141,7 +141,7 @@ func (c *Client) SendFormattedTextMessage(homeServerURL, accessToken, roomID, te
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("matrix: unable to send request: %v", err)
+		return nil, fmt.Errorf("matrix: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 

@@ -6,6 +6,7 @@ package apprise
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -29,14 +30,14 @@ func NewClient(serviceURL, baseURL string) *Client {
 
 func (c *Client) SendNotification(feed *model.Feed, entries model.Entries) error {
 	if c.baseURL == "" || c.servicesURL == "" {
-		return fmt.Errorf("apprise: missing base URL or services URL")
+		return errors.New("apprise: missing base URL or services URL")
 	}
 
 	for _, entry := range entries {
 		message := "[" + entry.Title + "]" + "(" + entry.URL + ")" + "\n\n"
 		apiEndpoint, err := urllib.JoinBaseURLAndPath(c.baseURL, "/notify")
 		if err != nil {
-			return fmt.Errorf(`apprise: invalid API endpoint: %v`, err)
+			return fmt.Errorf(`apprise: invalid API endpoint: %w`, err)
 		}
 
 		requestBody, err := json.Marshal(map[string]any{
@@ -45,12 +46,12 @@ func (c *Client) SendNotification(feed *model.Feed, entries model.Entries) error
 			"title": feed.Title,
 		})
 		if err != nil {
-			return fmt.Errorf("apprise: unable to encode request body: %v", err)
+			return fmt.Errorf("apprise: unable to encode request body: %w", err)
 		}
 
 		request, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBody))
 		if err != nil {
-			return fmt.Errorf("apprise: unable to create request: %v", err)
+			return fmt.Errorf("apprise: unable to create request: %w", err)
 		}
 
 		request.Header.Set("Content-Type", "application/json")
@@ -67,7 +68,7 @@ func (c *Client) SendNotification(feed *model.Feed, entries model.Entries) error
 		httpClient := &http.Client{Timeout: defaultClientTimeout}
 		response, err := httpClient.Do(request)
 		if err != nil {
-			return fmt.Errorf("apprise: unable to send request: %v", err)
+			return fmt.Errorf("apprise: unable to send request: %w", err)
 		}
 		response.Body.Close()
 

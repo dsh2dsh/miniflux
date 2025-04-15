@@ -77,12 +77,12 @@ func (c *Client) SendMessages(feed *model.Feed, entries model.Entries) error {
 func (c *Client) makeRequest(payload any) error {
 	requestBody, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("ntfy: unable to encode request body: %v", err)
+		return fmt.Errorf("ntfy: unable to encode request body: %w", err)
 	}
 
 	request, err := http.NewRequest(http.MethodPost, c.ntfyURL, bytes.NewReader(requestBody))
 	if err != nil {
-		return fmt.Errorf("ntfy: unable to create request: %v", err)
+		return fmt.Errorf("ntfy: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -90,7 +90,7 @@ func (c *Client) makeRequest(payload any) error {
 
 	// See https://docs.ntfy.sh/publish/#access-tokens
 	if c.ntfyApiToken != "" {
-		request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.ntfyApiToken))
+		request.Header.Set("Authorization", "Bearer "+c.ntfyApiToken)
 	}
 
 	// See https://docs.ntfy.sh/publish/#username-password
@@ -101,7 +101,7 @@ func (c *Client) makeRequest(payload any) error {
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("ntfy: unable to send request: %v", err)
+		return fmt.Errorf("ntfy: unable to send request: %w", err)
 	}
 	defer response.Body.Close()
 

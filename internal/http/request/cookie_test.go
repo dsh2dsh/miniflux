@@ -9,7 +9,7 @@ import (
 )
 
 func TestGetCookieValue(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 	r.AddCookie(&http.Cookie{Value: "cookie_value", Name: "my_cookie"})
 
 	result := CookieValue(r, "my_cookie")
@@ -21,7 +21,7 @@ func TestGetCookieValue(t *testing.T) {
 }
 
 func TestGetCookieValueWhenUnset(t *testing.T) {
-	r, _ := http.NewRequest("GET", "http://example.org", nil)
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
 	result := CookieValue(r, "my_cookie")
 	expected := ""

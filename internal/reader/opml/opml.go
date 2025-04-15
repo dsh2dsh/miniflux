@@ -5,6 +5,7 @@ package opml // import "miniflux.app/v2/internal/reader/opml"
 
 import (
 	"encoding/xml"
+	"fmt"
 	"strings"
 )
 
@@ -43,13 +44,17 @@ func (o opmlOutline) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 		outlineType = "rss"
 	}
 
-	return e.EncodeElement(struct {
+	err := e.EncodeElement(struct {
 		opmlOutlineXml
 		Type string `xml:"type,attr,omitempty"`
 	}{
 		opmlOutlineXml: opmlOutlineXml(o),
 		Type:           outlineType,
 	}, start)
+	if err != nil {
+		return fmt.Errorf("reader/opml: %w", err)
+	}
+	return nil
 }
 
 func (o opmlOutline) IsSubscription() bool {

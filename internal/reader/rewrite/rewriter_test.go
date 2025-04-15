@@ -84,12 +84,11 @@ func TestRewriteWithYoutubeLink(t *testing.T) {
 
 func TestRewriteWithYoutubeLinkAndCustomEmbedURL(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("YOUTUBE_EMBED_URL_OVERRIDE", "https://invidious.custom/embed/")
+	t.Setenv("YOUTUBE_EMBED_URL_OVERRIDE", "https://invidious.custom/embed/")
 
 	var err error
 	parser := config.NewParser()
 	config.Opts, err = parser.ParseEnvironmentVariables()
-
 	if err != nil {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
