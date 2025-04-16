@@ -8,6 +8,7 @@ on:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -60,5 +61,5 @@ jobs:
           PGPASSWORD: "postgres"
         run: |
           createuser -U postgres -e miniflux
-          make e2e || true
+          make e2e
           dropuser -U postgres -e miniflux || true
