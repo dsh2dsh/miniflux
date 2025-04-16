@@ -5,16 +5,22 @@ package database // import "miniflux.app/v2/internal/database"
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
+
+	"github.com/lib/pq"
 )
 
 // Migrate executes database migrations.
 func Migrate(db *sql.DB) error {
 	var currentVersion int
-	err := db.QueryRow(`SELECT version FROM schema_version`).Scan(&currentVersion)
+	err := db.QueryRow(`SELECT version FROM schema_version`).
+		Scan(&currentVersion)
 	if err != nil {
-		return fmt.Errorf("database: failed select version: %w", err)
+		if err = undefinedTable(err); err != nil {
+			return fmt.Errorf("database: failed select version: %w", err)
+		}
 	}
 
 	driver := getDriverStr()
@@ -53,6 +59,17 @@ func Migrate(db *sql.DB) error {
 	}
 
 	return nil
+}
+
+func undefinedTable(err error) error {
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		if pqErr.Code.Name() == "undefined_table" {
+			return nil
+		}
+		return fmt.Errorf("%s: %w", pqErr.Code.Name(), err)
+	}
+	return err
 }
 
 // IsSchemaUpToDate checks if the database schema is up to date.

@@ -8,6 +8,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.10.3
 	github.com/andybalholm/brotli v1.1.1
 	github.com/coreos/go-oidc/v3 v3.14.1
+	github.com/dsh2dsh/expx-dotenv v1.4.0
 	github.com/go-webauthn/webauthn v0.12.3
 	github.com/gorilla/mux v1.8.1
 	github.com/lib/pq v1.10.9
@@ -19,6 +20,7 @@ require (
 	golang.org/x/image v0.26.0
 	golang.org/x/net v0.39.0
 	golang.org/x/oauth2 v0.29.0
+	golang.org/x/sync v0.13.0
 	golang.org/x/term v0.31.0
 )
 
@@ -36,6 +38,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.8.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.5 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect

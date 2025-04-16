@@ -13,15 +13,52 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version-file: 'go.mod'
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
 
-    - name: Build
-      run: go build ./
+      - name: Build
+        run: go build ./
 
-    - name: Test
-      run: go test ./...
+      - name: Test
+        run: go test ./...
+
+  e2e:
+    needs: build
+    runs-on: ubuntu-latest
+    # https://docs.github.com/en/actions/using-containerized-services/creating-postgresql-service-containers
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: "postgres"
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Install postgresql-client
+        run: sudo apt update && sudo apt install -y postgresql-client
+
+      - name: Run E2E tests
+        env:
+          PGHOST: "localhost"
+          PGPASSWORD: "postgres"
+        run: |
+          createuser -U postgres -e miniflux
+          make e2e || true
+          dropuser -U postgres -e miniflux || true

@@ -5,3 +5,6 @@
 *.deb
 *.rpm
 miniflux-*
+
+/.env.local
+/e2e_api.*

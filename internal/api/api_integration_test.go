@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: Copyright The Miniflux Authors. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
+//go:build e2e
 
 package api // import "miniflux.app/v2/internal/api"
 
@@ -142,7 +143,7 @@ func TestInvalidCredentials(t *testing.T) {
 		t.Fatal(`Using bad credentials should raise an error`)
 	}
 
-	if errors.Is(err, miniflux.ErrNotAuthorized) {
+	if !errors.Is(err, miniflux.ErrNotAuthorized) {
 		t.Fatal(`A "Not Authorized" error should be raised`)
 	}
 }
@@ -1878,7 +1879,7 @@ func TestDiscoverSubscriptionsWithNoSubscription(t *testing.T) {
 
 	client := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
 	_, err := client.Discover(testConfig.testBaseURL)
-	if errors.Is(err, miniflux.ErrNotFound) {
+	if !errors.Is(err, miniflux.ErrNotFound) {
 		t.Fatalf(`Discovering subscriptions with no subscription should raise a 404 error`)
 	}
 }

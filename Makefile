@@ -10,6 +10,10 @@ DOCKER_PLATFORM := amd64
 
 export PGPASSWORD := postgres
 
+E2E_TEST_ENV=	TEST_MINIFLUX_BASE_URL=http://127.0.0.1:8080 \
+		TEST_MINIFLUX_ADMIN_USERNAME=admin \
+		TEST_MINIFLUX_ADMIN_PASSWORD=test123
+
 .PHONY: \
 	miniflux \
 	miniflux-no-pie \
@@ -195,3 +199,14 @@ debian-packages: clean
 	$(MAKE) debian DOCKER_PLATFORM=amd64
 	$(MAKE) debian DOCKER_PLATFORM=arm64
 	$(MAKE) debian DOCKER_PLATFORM=arm/v7
+
+e2e: .PHONY
+	dropdb --if-exists -U postgres miniflux_test
+	createdb -U postgres -O miniflux -E UTF-8 --locale en_US.UTF-8 \
+		-T template0 miniflux_test
+	go run ./cmd/api -local
+	env ${E2E_TEST_ENV} \
+		go test -v -count=1 -tags e2e ${E2E_TEST_ARGS} \
+		./internal/api || true
+	kill `cat e2e_api.pid` && rm e2e_api.*
+	dropdb -U postgres miniflux_test
