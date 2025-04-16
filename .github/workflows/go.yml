@@ -64,7 +64,8 @@ jobs:
           make e2e
           dropuser -U postgres -e miniflux || true
 
-      - name: "Save e2e_api.log"
+      - name: "Archive e2e_api.log"
+        if: "${{ !cancelled() }}"
         uses: "actions/upload-artifact@v4"
         with:
           name: "e2e_api.log"
