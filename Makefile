@@ -200,7 +200,7 @@ debian-packages: clean
 	$(MAKE) debian DOCKER_PLATFORM=arm64
 	$(MAKE) debian DOCKER_PLATFORM=arm/v7
 
-.PHONY: e2e
+.PHONY: e2e kill-e2e clean-e2e clean-e2e-error
 e2e:
 	dropdb --if-exists -U postgres miniflux_test
 	createdb -U postgres -O miniflux -E UTF-8 --locale en_US.UTF-8 \
@@ -208,6 +208,17 @@ e2e:
 	go run ./cmd/api -local
 	env ${E2E_TEST_ENV} \
 		go test -v -count=1 -tags e2e ${E2E_TEST_ARGS} \
-		./internal/api
-	kill `cat e2e_api.pid` && rm e2e_api.*
+		./internal/api || ${MAKE} clean-e2e-error
+	${MAKE} clean-e2e
+
+kill-e2e:
+	[ -f "e2e_api.pid" ]
+	kill `cat e2e_api.pid`
+	rm "e2e_api.pid"
+
+clean-e2e: kill-e2e
+	rm "e2e_api.log"
 	dropdb -U postgres miniflux_test
+
+clean-e2e-error: kill-e2e
+	false
