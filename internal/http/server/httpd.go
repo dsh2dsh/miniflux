@@ -48,10 +48,10 @@ func StartWebServer(store *storage.Storage, pool *worker.Pool) *http.Server {
 	case strings.HasPrefix(listenAddr, "/"):
 		startUnixSocketServer(server, listenAddr)
 	case certDomain != "":
-		config.Opts.HTTPS = true
+		config.Opts.EnableHTTPS()
 		startAutoCertTLSServer(server, certDomain, store)
 	case certFile != "" && keyFile != "":
-		config.Opts.HTTPS = true
+		config.Opts.EnableHTTPS()
 		server.Addr = listenAddr
 		startTLSServer(server, certFile, keyFile)
 	default:

@@ -16,6 +16,13 @@ Official website: <https://miniflux.app>
 
   [Read You]: https://github.com/Ashinch/ReadYou
 
+* Refactor and simplify config parser.
+
+  Use [env](https://github.com/caarlos0/env) and
+  [godotenv](https://github.com/joho/godotenv) for parsing config and env
+  variables. Validate it using
+  [validator](https//github.com/go-playground/validator).
+
 Features
 --------
 

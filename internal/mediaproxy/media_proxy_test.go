@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"github.com/stretchr/testify/require"
 	"miniflux.app/v2/internal/config"
 )
 
@@ -278,20 +279,7 @@ func TestProxyFilterWithHttpsAlwaysAndIncorrectCustomProxyServer(t *testing.T) {
 	var err error
 	parser := config.NewParser()
 	config.Opts, err = parser.ParseEnvironmentVariables()
-	if err != nil {
-		t.Fatalf(`Parsing failure: %v`, err)
-	}
-
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
-
-	input := `<p><img src="https://website/folder/image.png" alt="Test"/></p>`
-	output := RewriteDocumentWithRelativeProxyURL(r, input)
-	expected := `<p><img src="https://website/folder/image.png" alt="Test"/></p>`
-
-	if expected != output {
-		t.Errorf(`Not expected output: got %q instead of %q`, output, expected)
-	}
+	require.ErrorContains(t, err, "PROXY_URL")
 }
 
 func TestAbsoluteProxyFilterWithHttpsAlwaysAndCustomProxyServer(t *testing.T) {

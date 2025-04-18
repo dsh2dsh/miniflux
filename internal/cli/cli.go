@@ -78,17 +78,7 @@ func Parse() {
 	flag.StringVar(&flagExportUserFeeds, "export-user-feeds", "", flagExportUserFeedsHelp)
 	flag.Parse()
 
-	cfg := config.NewParser()
-
-	if flagConfigFile != "" {
-		config.Opts, err = cfg.ParseFile(flagConfigFile)
-		if err != nil {
-			printErrorAndExit(err)
-		}
-	}
-
-	config.Opts, err = cfg.ParseEnvironmentVariables()
-	if err != nil {
+	if err := config.Load(flagConfigFile); err != nil {
 		printErrorAndExit(err)
 	}
 
