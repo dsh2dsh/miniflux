@@ -116,7 +116,6 @@ func GenerateJavascriptBundles() error {
 	bundles := map[string][]string{
 		"app": {
 			"js/tt.js", // has to be first
-			"js/dom_helper.js",
 			"js/touch_handler.js",
 			"js/keyboard_handler.js",
 			"js/request_builder.js",
