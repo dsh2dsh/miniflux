@@ -13,7 +13,7 @@ import (
 )
 
 func runScheduler(store *storage.Storage, pool *worker.Pool) {
-	slog.Debug(`Starting background scheduler...`)
+	slog.Info(`Starting background scheduler...`)
 
 	go feedScheduler(
 		store,

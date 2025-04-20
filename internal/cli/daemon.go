@@ -21,7 +21,7 @@ import (
 )
 
 func startDaemon(store *storage.Storage) {
-	slog.Debug("Starting daemon...")
+	slog.Info("Starting daemon...")
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
@@ -77,15 +77,14 @@ func startDaemon(store *storage.Storage) {
 	}
 
 	<-stop
-	slog.Debug("Shutting down the process")
+	slog.Info("Shutting down the process")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if httpServer != nil {
 		if err := httpServer.Shutdown(ctx); err != nil {
-			slog.Error("cli: failed shutdown http server",
-				slog.Any("error", err))
+			slog.Error("cli: failed shutdown http server", slog.Any("error", err))
 		}
 	}
-	slog.Debug("Process gracefully stopped")
+	slog.Info("Process gracefully stopped")
 }
