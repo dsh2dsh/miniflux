@@ -50,7 +50,7 @@ type EnvOptions struct {
 	HTTPS                              bool     `env:"HTTPS"`
 	LogFile                            string   `env:"LOG_FILE" validate:"required"`
 	LogDateTime                        bool     `env:"LOG_DATE_TIME"`
-	LogFormat                          string   `env:"LOG_FORMAT" validate:"required,oneof=json text"`
+	LogFormat                          string   `env:"LOG_FORMAT" validate:"required,oneof=human json text"`
 	LogLevel                           string   `env:"LOG_LEVEL" validate:"required,oneof=debug info warning error"`
 	ServerTimingHeader                 bool     `env:"SERVER_TIMING_HEADER"`
 	BaseURL                            string   `env:"BASE_URL" validate:"required"`

@@ -23,6 +23,17 @@ Official website: <https://miniflux.app>
   variables. Validate it using
   [validator](https//github.com/go-playground/validator).
 
+* Add `LOG_FORMAT=human`
+
+  It logs something like:
+  ```
+  2025/04/20 16:02:00 INFO Starting HTTP server listen_address=127.0.0.1:8080
+  ```
+  instead of
+  ```
+  time=2025-04-20T16:02:00.561+02:00 level=INFO msg="Starting HTTP server" listen_address=127.0.0.1:8080
+  ```
+
 Features
 --------
 

@@ -70,16 +70,17 @@ func TestLogDateTimeDefaultValue(t *testing.T) {
 
 func TestLogDateTimeWithCustomValue(t *testing.T) {
 	os.Clearenv()
-	t.Setenv("LOG_DATETIME", "false")
+	t.Setenv("LOG_DATE_TIME", "true")
 	opts := parseEnvironmentVariables(t)
-	assert.False(t, opts.LogDateTime())
+	assert.True(t, opts.LogDateTime())
 }
 
 func TestLogDateTimeWithInvalidValue(t *testing.T) {
 	os.Clearenv()
-	t.Setenv("LOG_DATETIME", "invalid")
-	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, NewOptions().LogDateTime(), opts.LogDateTime())
+	t.Setenv("LOG_DATE_TIME", "invalid")
+	_, err := NewParser().ParseEnvironmentVariables()
+	t.Log(err)
+	require.ErrorContains(t, err, "invalid syntax")
 }
 
 func TestLogFormatDefaultValue(t *testing.T) {
@@ -101,7 +102,7 @@ func TestLogFormatWithInvalidValue(t *testing.T) {
 	t.Setenv("LOG_FORMAT", "invalid")
 	_, err := NewParser().ParseEnvironmentVariables()
 	t.Log(err)
-	require.ErrorContains(t, err, "oneof")
+	require.ErrorContains(t, err, "failed on the 'oneof' tag")
 }
 
 func TestDebugModeOn(t *testing.T) {

@@ -55,7 +55,7 @@ linters:
         - "(*database/sql.DB).Close"
         - "(*database/sql.Rows).Close"
         - "(*database/sql.Tx).Rollback"
-        - "(io.ReadCloser).Close"
+        - "(io.Closer).Close"
         - "(mime/multipart.File).Close"
         - "(net.Conn).Close"
         - "(net.Listener).Close"

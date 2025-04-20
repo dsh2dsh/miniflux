@@ -7,10 +7,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 
+	"miniflux.app/v2/internal/cli/logger"
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/database"
 	"miniflux.app/v2/internal/proxyrotator"
@@ -108,24 +108,11 @@ func Parse() {
 		config.Opts.SetLogLevel("debug")
 	}
 
-	logFile := config.Opts.LogFile()
-	var logFileHandler io.Writer
-	switch logFile {
-	case "stdout":
-		logFileHandler = os.Stdout
-	case "stderr":
-		logFileHandler = os.Stderr
-	default:
-		logFileHandler, err = os.OpenFile(logFile,
-			os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
-		if err != nil {
-			printErrorAndExit(fmt.Errorf("unable to open log file: %w", err))
-		}
-		defer logFileHandler.(*os.File).Close()
-	}
-
-	if err := InitializeDefaultLogger(config.Opts.LogLevel(), logFileHandler, config.Opts.LogFormat(), config.Opts.LogDateTime()); err != nil {
+	logCloser, err := logger.InitializeDefaultLogger()
+	if err != nil {
 		printErrorAndExit(err)
+	} else if logCloser != nil {
+		defer logCloser.Close()
 	}
 
 	if flagHealthCheck != "" {
