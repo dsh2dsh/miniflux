@@ -30,7 +30,7 @@ func parseLogFile(logFile string) (io.Writer, io.Closer, error) {
 		return os.Stderr, nil, nil
 	}
 
-	f, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	f, err := NewLogFile(logFile)
 	if err != nil {
 		return nil, nil, fmt.Errorf(
 			"unable to open log file %q: %w", logFile, err)
