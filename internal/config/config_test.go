@@ -974,3 +974,62 @@ func TestInvalidHTTPClientProxy(t *testing.T) {
 	t.Log(err)
 	require.ErrorContains(t, err, "HttpClientProxyURL")
 }
+
+func TestOptions_Logging_default(t *testing.T) {
+	os.Clearenv()
+	opts := parseEnvironmentVariables(t)
+	want := []Log{
+		{
+			LogFile:     opts.LogFile(),
+			LogDateTime: opts.LogDateTime(),
+			LogFormat:   opts.LogFormat(),
+			LogLevel:    opts.LogLevel(),
+		},
+	}
+	assert.Equal(t, want, opts.Logging())
+}
+
+func TestOptions_Logging_multiple(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("LOG_0_FILE", "stderr")
+	t.Setenv("LOG_0_FORMAT", "human")
+	t.Setenv("LOG_0_LEVEL", "warning")
+	t.Setenv("LOG_1_FILE", "/var/log/miniflux/miniflux.log")
+	t.Setenv("LOG_1_DATE_TIME", "true")
+	t.Setenv("LOG_1_FORMAT", "human")
+	t.Setenv("LOG_1_LEVEL", "info")
+	opts := parseEnvironmentVariables(t)
+	want := []Log{
+		{
+			LogFile:   "stderr",
+			LogFormat: "human",
+			LogLevel:  "warning",
+		},
+		{
+			LogFile:     "/var/log/miniflux/miniflux.log",
+			LogDateTime: true,
+			LogFormat:   "human",
+			LogLevel:    "info",
+		},
+	}
+	assert.Equal(t, want, opts.Logging())
+}
+
+func TestOptions_Logging_priority(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("LOG_FILE", "stdout")
+	t.Setenv("LOG_FORMAT", "json")
+	t.Setenv("LOG_LEVEL", "debug")
+	t.Setenv("LOG_0_FILE", "stderr")
+	t.Setenv("LOG_0_FORMAT", "human")
+	t.Setenv("LOG_0_LEVEL", "warning")
+	opts := parseEnvironmentVariables(t)
+	want := []Log{
+		{
+			LogFile:   "stderr",
+			LogFormat: "human",
+			LogLevel:  "warning",
+		},
+	}
+	assert.Equal(t, want, opts.Logging())
+}

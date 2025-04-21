@@ -8,7 +8,7 @@ Official website: <https://miniflux.app>
 
 ## Changes from [upstream](https://github.com/miniflux/v2):
 
-* Google Reader API applies user's `Entry sorting` as default sort direction
+* Google Reader API applies user's `Entry sorting` as default sort direction.
 
   The upstream uses hardcoded `desc`, if a reader didn't request specific sort
   direction, like [Read You] does at this moment. And entries always returned
@@ -23,7 +23,7 @@ Official website: <https://miniflux.app>
   variables. Validate it using
   [validator](https//github.com/go-playground/validator).
 
-* Add `LOG_FORMAT=human`
+* Add `LOG_FORMAT=human`.
 
   It logs something like:
   ```
@@ -34,7 +34,30 @@ Official website: <https://miniflux.app>
   time=2025-04-20T16:02:00.561+02:00 level=INFO msg="Starting HTTP server" listen_address=127.0.0.1:8080
   ```
 
-* Automatically reopen log file on rotation.
+* Automatically reopen log file(s) on rotation.
+
+* Multiple log files.
+
+  With configuration like this
+
+  ```
+  LOG_0_FILE=stderr
+  LOG_0_FORMAT=human
+  LOG_0_DATE_TIME=true
+  LOG_0_LEVEL=warning
+
+  LOG_1_FILE=/var/log/miniflux/miniflux.log
+  LOG_1_FORMAT=human
+  LOG_1_DATE_TIME=true
+  LOG_1_LEVEL=info
+  ```
+
+  all errors and warnings will be logged to both stderr and
+  `/var/log/miniflux/miniflux.log`. Info messages will be logged to
+  `miniflux.log` only.
+
+  Any error from second logger will be logged by first logger. Errors from first
+  logger are ignored.
 
 Features
 --------

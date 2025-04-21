@@ -52,6 +52,7 @@ type EnvOptions struct {
 	LogDateTime                        bool     `env:"LOG_DATE_TIME"`
 	LogFormat                          string   `env:"LOG_FORMAT" validate:"required,oneof=human json text"`
 	LogLevel                           string   `env:"LOG_LEVEL" validate:"required,oneof=debug info warning error"`
+	Logging                            []Log    `envPrefix:"LOG" validate:"dive,required"`
 	ServerTimingHeader                 bool     `env:"SERVER_TIMING_HEADER"`
 	BaseURL                            string   `env:"BASE_URL" validate:"required"`
 	DatabaseURL                        string   `env:"DATABASE_URL" validate:"required"`
@@ -140,6 +141,13 @@ type EnvOptions struct {
 	ProxyOption            *string  `env:"PROXY_OPTION"`
 	ProxyPrivateKey        string   `env:"PROXY_PRIVATE_KEY"`
 	ProxyURL               *string  `env:"PROXY_URL" validate:"omitnil,url"`
+}
+
+type Log struct {
+	LogFile     string `env:"FILE" validate:"required"`
+	LogDateTime bool   `env:"DATE_TIME"`
+	LogFormat   string `env:"FORMAT" validate:"required,oneof=human json text"`
+	LogLevel    string `env:"LEVEL" validate:"required,oneof=debug info warning error"`
 }
 
 // NewOptions returns Options with default values.
@@ -695,6 +703,18 @@ func (o *Options) WebAuthn() bool { return o.env.WebAuthn }
 // be retained.
 func (o *Options) FilterEntryMaxAgeDays() int {
 	return o.env.FilterEntryMaxAgeDays
+}
+
+func (o *Options) Logging() []Log {
+	if len(o.env.Logging) == 0 {
+		return []Log{{
+			LogFile:     o.LogFile(),
+			LogDateTime: o.LogDateTime(),
+			LogFormat:   o.LogFormat(),
+			LogLevel:    o.LogLevel(),
+		}}
+	}
+	return slices.Clone(o.env.Logging)
 }
 
 // SortedOptions returns options as a list of key value pairs, sorted by keys.

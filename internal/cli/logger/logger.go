@@ -13,13 +13,36 @@ import (
 )
 
 func InitializeDefaultLogger() (io.Closer, error) {
-	w, closer, err := parseLogFile(config.Opts.LogFile())
-	if err != nil {
-		return nil, err
+	logs := config.Opts.Logging()
+	closers := make([]io.Closer, len(logs))
+	handlers := make([]slog.Handler, len(logs))
+
+	for i := range logs {
+		h, closer, err := handlerFromConfig(&logs[i])
+		if err != nil {
+			return nil, err
+		}
+		closers[i] = closer
+		handlers[i] = h
 	}
-	h := parseFormat(w)
+
+	if len(logs) == 1 {
+		slog.SetDefault(slog.New(handlers[0]))
+		return closers[0], nil
+	}
+
+	h := NewMultiHandler(handlers).WithClosers(closers)
 	slog.SetDefault(slog.New(h))
-	return closer, nil
+	return h, nil
+}
+
+func handlerFromConfig(c *config.Log) (slog.Handler, io.Closer, error) {
+	w, closer, err := parseLogFile(c.LogFile)
+	if err != nil {
+		return nil, nil, err
+	}
+	h := parseFormat(w, c.LogLevel, c.LogDateTime)
+	return h, closer, nil
 }
 
 func parseLogFile(logFile string) (io.Writer, io.Closer, error) {
@@ -60,15 +83,15 @@ func hideTime(groups []string, a slog.Attr) slog.Attr {
 	return a
 }
 
-func parseFormat(w io.Writer) slog.Handler {
-	opts := &slog.HandlerOptions{Level: parseLogLevel(config.Opts.LogLevel())}
-	if !config.Opts.LogDateTime() {
+func parseFormat(w io.Writer, level string, logTime bool) slog.Handler {
+	opts := &slog.HandlerOptions{Level: parseLogLevel(level)}
+	if !logTime {
 		opts.ReplaceAttr = hideTime
 	}
 
 	switch config.Opts.LogFormat() {
 	case "human":
-		return NewHumanTextHandler(w, opts, config.Opts.LogDateTime())
+		return NewHumanTextHandler(w, opts, logTime)
 	case "json":
 		return slog.NewJSONHandler(w, opts)
 	}
