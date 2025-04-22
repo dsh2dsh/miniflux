@@ -4,149 +4,134 @@
 package cli // import "miniflux.app/v2/internal/cli"
 
 import (
-	"errors"
-	"flag"
+	"database/sql"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
+
+	"github.com/spf13/cobra"
 
 	"miniflux.app/v2/internal/cli/logger"
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/database"
-	"miniflux.app/v2/internal/proxyrotator"
 	"miniflux.app/v2/internal/storage"
-	"miniflux.app/v2/internal/ui/static"
 	"miniflux.app/v2/internal/version"
 )
 
-const (
-	flagInfoHelp             = "Show build information"
-	flagVersionHelp          = "Show application version"
-	flagMigrateHelp          = "Run SQL migrations"
-	flagFlushSessionsHelp    = "Flush all sessions (disconnect users)"
-	flagCreateAdminHelp      = "Create an admin user from an interactive terminal"
-	flagResetPasswordHelp    = "Reset user password"
-	flagResetFeedErrorsHelp  = "Clear all feed errors for all users"
-	flagDebugModeHelp        = "Show debug logs"
-	flagConfigFileHelp       = "Load configuration file"
-	flagConfigDumpHelp       = "Print parsed configuration values"
-	flagHealthCheckHelp      = `Perform a health check on the given endpoint (the value "auto" try to guess the health check endpoint).`
-	flagRefreshFeedsHelp     = "Refresh a batch of feeds and exit"
-	flagRunCleanupTasksHelp  = "Run cleanup tasks (delete old sessions and archives old entries)"
-	flagExportUserFeedsHelp  = "Export user feeds (provide the username as argument)"
-	flagResetNextCheckAtHelp = "Reset the next check time for all feeds"
+var (
+	flagConfigFile string
+	flagDebugMode  bool
+
+	logCloser io.Closer
 )
 
-// Parse parses command line arguments.
-func Parse() {
-	var (
-		err                      error
-		flagInfo                 bool
-		flagVersion              bool
-		flagMigrate              bool
-		flagFlushSessions        bool
-		flagCreateAdmin          bool
-		flagResetPassword        bool
-		flagResetFeedErrors      bool
-		flagResetFeedNextCheckAt bool
-		flagDebugMode            bool
-		flagConfigFile           string
-		flagConfigDump           bool
-		flagHealthCheck          string
-		flagRefreshFeeds         bool
-		flagRunCleanupTasks      bool
-		flagExportUserFeeds      string
-	)
+var Cmd = cobra.Command{
+	Use:     "miniflux",
+	Short:   "Miniflux is a minimalist and opinionated feed reader.",
+	Version: version.Version,
 
-	flag.BoolVar(&flagInfo, "info", false, flagInfoHelp)
-	flag.BoolVar(&flagInfo, "i", false, flagInfoHelp)
-	flag.BoolVar(&flagVersion, "version", false, flagVersionHelp)
-	flag.BoolVar(&flagVersion, "v", false, flagVersionHelp)
-	flag.BoolVar(&flagMigrate, "migrate", false, flagMigrateHelp)
-	flag.BoolVar(&flagFlushSessions, "flush-sessions", false, flagFlushSessionsHelp)
-	flag.BoolVar(&flagCreateAdmin, "create-admin", false, flagCreateAdminHelp)
-	flag.BoolVar(&flagResetPassword, "reset-password", false, flagResetPasswordHelp)
-	flag.BoolVar(&flagResetFeedErrors, "reset-feed-errors", false, flagResetFeedErrorsHelp)
-	flag.BoolVar(&flagResetFeedNextCheckAt, "reset-feed-next-check-at", false, flagResetNextCheckAtHelp)
-	flag.BoolVar(&flagDebugMode, "debug", false, flagDebugModeHelp)
-	flag.StringVar(&flagConfigFile, "config-file", "", flagConfigFileHelp)
-	flag.StringVar(&flagConfigFile, "c", "", flagConfigFileHelp)
-	flag.BoolVar(&flagConfigDump, "config-dump", false, flagConfigDumpHelp)
-	flag.StringVar(&flagHealthCheck, "healthcheck", "", flagHealthCheckHelp)
-	flag.BoolVar(&flagRefreshFeeds, "refresh-feeds", false, flagRefreshFeedsHelp)
-	flag.BoolVar(&flagRunCleanupTasks, "run-cleanup-tasks", false, flagRunCleanupTasksHelp)
-	flag.StringVar(&flagExportUserFeeds, "export-user-feeds", "", flagExportUserFeedsHelp)
-	flag.Parse()
+	PersistentPreRunE: persistentPreRunE,
+
+	RunE: func(cmd *cobra.Command, args []string) error { return RunDaemon() },
+
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		if logCloser != nil {
+			logCloser.Close()
+		}
+	},
+}
+
+var configDumpCmd = cobra.Command{
+	Use:   "config-dump",
+	Short: "Print parsed configuration values",
+	Args:  cobra.ExactArgs(0),
+	Run:   func(cmd *cobra.Command, args []string) { fmt.Print(config.Opts) },
+}
+
+var migrateCmd = cobra.Command{
+	Use:   "migrate",
+	Short: "Run SQL migrations",
+	Args:  cobra.ExactArgs(0),
+
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return withStorage(func(db *sql.DB, _ *storage.Storage) error {
+			return database.Migrate(db)
+		})
+	},
+}
+
+var resetFeedErrorsCmd = cobra.Command{
+	Use:   "reset-feed-errors",
+	Short: "Clear all feed errors for all users",
+	Args:  cobra.ExactArgs(0),
+
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return withStorage(func(_ *sql.DB, store *storage.Storage) error {
+			return store.ResetFeedErrors()
+		})
+	},
+}
+
+var resetFeedNextCmd = cobra.Command{
+	Use:   "reset-feed-next-check-at",
+	Short: "Reset the next check time for all feeds",
+	Args:  cobra.ExactArgs(0),
+
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return withStorage(func(_ *sql.DB, store *storage.Storage) error {
+			return store.ResetNextCheckAt()
+		})
+	},
+}
+
+func init() {
+	Cmd.PersistentFlags().StringVarP(&flagConfigFile, "config-file", "c", "",
+		"Path to configuration file")
+	Cmd.PersistentFlags().BoolVarP(&flagDebugMode, "debug", "d", false,
+		"Show debug logs")
+
+	Cmd.AddCommand(&cleanupTasksCmd)
+	Cmd.AddCommand(&configDumpCmd)
+	Cmd.AddCommand(&createAdminCmd)
+	Cmd.AddCommand(&exportUserFeedsCmd)
+	Cmd.AddCommand(&flushSessionsCmd)
+	Cmd.AddCommand(&healthCmd)
+	Cmd.AddCommand(&infoCmd)
+	Cmd.AddCommand(&migrateCmd)
+	Cmd.AddCommand(&refreshFeedsCmd)
+	Cmd.AddCommand(&resetFeedErrorsCmd)
+	Cmd.AddCommand(&resetFeedNextCmd)
+	Cmd.AddCommand(&resetPassCmd)
+}
+
+func persistentPreRunE(cmd *cobra.Command, args []string) error {
+	// Don't show usage on app errors.
+	// https://github.com/spf13/cobra/issues/340#issuecomment-378726225
+	cmd.SilenceUsage = true
 
 	if err := config.Load(flagConfigFile); err != nil {
-		printErrorAndExit(err)
-	}
-
-	if oauth2Provider := config.Opts.OAuth2Provider(); oauth2Provider != "" {
-		if oauth2Provider != "oidc" && oauth2Provider != "google" {
-			printErrorAndExit(fmt.Errorf(`unsupported OAuth2 provider: %q (Possible values are "google" or "oidc")`, oauth2Provider))
-		}
-	}
-
-	if config.Opts.DisableLocalAuth() {
-		switch {
-		case config.Opts.OAuth2Provider() == "" && config.Opts.AuthProxyHeader() == "":
-			printErrorAndExit(errors.New("DISABLE_LOCAL_AUTH is enabled but neither OAUTH2_PROVIDER nor AUTH_PROXY_HEADER is not set. Please enable at least one authentication source"))
-		case config.Opts.OAuth2Provider() != "" && !config.Opts.IsOAuth2UserCreationAllowed():
-			printErrorAndExit(errors.New("DISABLE_LOCAL_AUTH is enabled and an OAUTH2_PROVIDER is configured, but OAUTH2_USER_CREATION is not enabled"))
-		case config.Opts.AuthProxyHeader() != "" && !config.Opts.IsAuthProxyUserCreationAllowed():
-			printErrorAndExit(errors.New("DISABLE_LOCAL_AUTH is enabled and an AUTH_PROXY_HEADER is configured, but AUTH_PROXY_USER_CREATION is not enabled"))
-		}
-	}
-
-	if flagConfigDump {
-		fmt.Print(config.Opts)
-		return
-	}
-
-	if flagDebugMode {
+		return err
+	} else if flagDebugMode {
 		config.Opts.SetLogLevel("debug")
 	}
 
-	logCloser, err := logger.InitializeDefaultLogger()
+	closer, err := logger.InitializeDefaultLogger()
 	if err != nil {
-		printErrorAndExit(err)
-	} else if logCloser != nil {
-		defer logCloser.Close()
+		return err
 	}
+	logCloser = closer
+	return nil
+}
 
-	if flagHealthCheck != "" {
-		doHealthCheck(flagHealthCheck)
-		return
-	}
+func printErrorAndExit(err error) {
+	fmt.Fprintf(os.Stderr, "%v\n", err)
+	os.Exit(1)
+}
 
-	if flagInfo {
-		info()
-		return
-	}
-
-	if flagVersion {
-		fmt.Println(version.Version)
-		return
-	}
-
+func withStorage(fn func(db *sql.DB, store *storage.Storage) error) error {
 	if config.Opts.IsDefaultDatabaseURL() {
 		slog.Info("The default value for DATABASE_URL is used")
-	}
-
-	if err := static.CalculateBinaryFileChecksums(); err != nil {
-		printErrorAndExit(fmt.Errorf(
-			"unable to calculate binary file checksums: %w", err))
-	}
-
-	if err := static.GenerateStylesheetsBundles(); err != nil {
-		printErrorAndExit(fmt.Errorf(
-			"unable to generate stylesheets bundles: %w", err))
-	}
-
-	if err := static.GenerateJavascriptBundles(); err != nil {
-		printErrorAndExit(fmt.Errorf(
-			"unable to generate javascript bundles: %w", err))
 	}
 
 	db, err := database.NewConnectionPool(
@@ -156,95 +141,19 @@ func Parse() {
 		config.Opts.DatabaseConnectionLifetime(),
 	)
 	if err != nil {
-		printErrorAndExit(fmt.Errorf("unable to connect to database: %w", err))
+		return fmt.Errorf("unable to connect to database: %w", err)
 	}
 	defer db.Close()
 
 	store := storage.NewStorage(db)
-
 	if err := store.Ping(); err != nil {
-		printErrorAndExit(err)
+		return err
 	}
-
-	if flagMigrate {
-		if err := database.Migrate(db); err != nil {
-			printErrorAndExit(err)
-		}
-		return
-	}
-
-	if flagResetFeedErrors {
-		if err := store.ResetFeedErrors(); err != nil {
-			printErrorAndExit(err)
-		}
-		return
-	}
-
-	if flagResetFeedNextCheckAt {
-		if err := store.ResetNextCheckAt(); err != nil {
-			printErrorAndExit(err)
-		}
-		return
-	}
-
-	if flagExportUserFeeds != "" {
-		exportUserFeeds(store, flagExportUserFeeds)
-		return
-	}
-
-	if flagFlushSessions {
-		flushSessions(store)
-		return
-	}
-
-	if flagCreateAdmin {
-		createAdminUserFromInteractiveTerminal(store)
-		return
-	}
-
-	if flagResetPassword {
-		resetPassword(store)
-		return
-	}
-
-	// Run migrations and start the daemon.
-	if config.Opts.RunMigrations() {
-		if err := database.Migrate(db); err != nil {
-			printErrorAndExit(err)
-		}
-	}
-
-	if err := database.IsSchemaUpToDate(db); err != nil {
-		printErrorAndExit(err)
-	}
-
-	if config.Opts.CreateAdmin() {
-		createAdminUserFromEnvironmentVariables(store)
-	}
-
-	if config.Opts.HasHTTPClientProxiesConfigured() {
-		slog.Info("Initializing proxy rotation", slog.Int("proxies_count", len(config.Opts.HTTPClientProxies())))
-		proxyrotator.ProxyRotatorInstance, err = proxyrotator.NewProxyRotator(config.Opts.HTTPClientProxies())
-		if err != nil {
-			printErrorAndExit(fmt.Errorf(
-				"unable to initialize proxy rotator: %w", err))
-		}
-	}
-
-	if flagRefreshFeeds {
-		refreshFeeds(store)
-		return
-	}
-
-	if flagRunCleanupTasks {
-		runCleanupTasks(store)
-		return
-	}
-
-	startDaemon(store)
+	return fn(db, store)
 }
 
-func printErrorAndExit(err error) {
-	fmt.Fprintf(os.Stderr, "%v\n", err)
-	os.Exit(1)
+func Execute() {
+	if err := Cmd.Execute(); err != nil {
+		os.Exit(1)
+	}
 }

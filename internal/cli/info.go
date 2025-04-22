@@ -7,8 +7,16 @@ import (
 	"fmt"
 	"runtime"
 
+	"github.com/spf13/cobra"
 	"miniflux.app/v2/internal/version"
 )
+
+var infoCmd = cobra.Command{
+	Use:   "info",
+	Short: "Show build information",
+	Args:  cobra.ExactArgs(0),
+	Run:   func(cmd *cobra.Command, args []string) { info() },
+}
 
 func info() {
 	fmt.Println("Version:", version.Version)

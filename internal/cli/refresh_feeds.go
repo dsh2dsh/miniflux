@@ -4,15 +4,31 @@
 package cli // import "miniflux.app/v2/internal/cli"
 
 import (
+	"database/sql"
 	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/spf13/cobra"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/model"
 	feedHandler "miniflux.app/v2/internal/reader/handler"
 	"miniflux.app/v2/internal/storage"
 )
+
+var refreshFeedsCmd = cobra.Command{
+	Use:   "refresh-feeds",
+	Short: "Refresh a batch of feeds and exit",
+	Args:  cobra.ExactArgs(0),
+
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return withStorage(func(_ *sql.DB, store *storage.Storage) error {
+			refreshFeeds(store)
+			return nil
+		})
+	},
+}
 
 func refreshFeeds(store *storage.Storage) {
 	var wg sync.WaitGroup

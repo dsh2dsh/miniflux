@@ -7,6 +7,4 @@ import (
 	"miniflux.app/v2/internal/cli"
 )
 
-func main() {
-	cli.Parse()
-}
+func main() { cli.Execute() }

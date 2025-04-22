@@ -43,7 +43,6 @@ Official website: <https://miniflux.app>
   ```
   LOG_0_FILE=stderr
   LOG_0_FORMAT=human
-  LOG_0_DATE_TIME=true
   LOG_0_LEVEL=warning
 
   LOG_1_FILE=/var/log/miniflux/miniflux.log
@@ -58,6 +57,43 @@ Official website: <https://miniflux.app>
 
   Any error from second logger will be logged by first logger. Errors from first
   logger are ignored.
+
+* Refactor CLI.
+
+  Use [cobra](https://github.com/spf13/cobra) for parsing flags and args:
+
+  ```
+  $ miniflux -h
+  Miniflux is a minimalist and opinionated feed reader.
+
+  Usage:
+    miniflux [flags]
+    miniflux [command]
+
+  Available Commands:
+    completion               Generate the autocompletion script for the specified shell
+    config-dump              Print parsed configuration values
+    create-admin             Create an admin user from an interactive terminal
+    export-user-feeds        Export user feeds
+    flush-sessions           Flush all sessions (disconnect users)
+    healthcheck              Perform a health check on the given endpoint
+    help                     Help about any command
+    info                     Show build information
+    migrate                  Run SQL migrations
+    refresh-feeds            Refresh a batch of feeds and exit
+    reset-feed-errors        Clear all feed errors for all users
+    reset-feed-next-check-at Reset the next check time for all feeds
+    reset-password           Reset user password
+    run-cleanup-tasks        Run cleanup tasks (delete old sessions and archives old entries)
+
+  Flags:
+    -c, --config-file string   Path to configuration file
+    -d, --debug                Show debug logs
+    -h, --help                 help for miniflux
+    -v, --version              version for miniflux
+
+  Use "miniflux [command] --help" for more information about a command.
+  ```
 
 Features
 --------

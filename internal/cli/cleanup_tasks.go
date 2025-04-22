@@ -4,14 +4,30 @@
 package cli // import "miniflux.app/v2/internal/cli"
 
 import (
+	"database/sql"
 	"log/slog"
 	"time"
+
+	"github.com/spf13/cobra"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/metric"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/storage"
 )
+
+var cleanupTasksCmd = cobra.Command{
+	Use:   "run-cleanup-tasks",
+	Short: "Run cleanup tasks (delete old sessions and archives old entries)",
+	Args:  cobra.ExactArgs(0),
+
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return withStorage(func(_ *sql.DB, store *storage.Storage) error {
+			runCleanupTasks(store)
+			return nil
+		})
+	},
+}
 
 func runCleanupTasks(store *storage.Storage) {
 	nbSessions := store.CleanOldSessions(config.Opts.CleanupRemoveSessionsDays())

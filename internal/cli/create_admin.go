@@ -4,7 +4,10 @@
 package cli // import "miniflux.app/v2/internal/cli"
 
 import (
+	"database/sql"
 	"log/slog"
+
+	"github.com/spf13/cobra"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/model"
@@ -12,17 +15,30 @@ import (
 	"miniflux.app/v2/internal/validator"
 )
 
-func createAdminUserFromEnvironmentVariables(store *storage.Storage) {
-	createAdminUser(store, config.Opts.AdminUsername(), config.Opts.AdminPassword())
+var createAdminCmd = cobra.Command{
+	Use:   "create-admin",
+	Short: "Create an admin user from an interactive terminal",
+	Args:  cobra.ExactArgs(0),
+
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return withStorage(func(_ *sql.DB, store *storage.Storage) error {
+			return createAdminUserFromInteractiveTerminal(store)
+		})
+	},
 }
 
-func createAdminUserFromInteractiveTerminal(store *storage.Storage) {
+func createAdminUserFromEnvironmentVariables(store *storage.Storage) error {
+	return createAdminUser(store, config.Opts.AdminUsername(),
+		config.Opts.AdminPassword())
+}
+
+func createAdminUserFromInteractiveTerminal(store *storage.Storage) error {
 	username, password := askCredentials()
-	createAdminUser(store, username, password)
+	return createAdminUser(store, username, password)
 }
 
-func createAdminUser(store *storage.Storage, username, password string) {
-	userCreationRequest := &model.UserCreationRequest{
+func createAdminUser(store *storage.Storage, username, password string) error {
+	userCreationRequest := model.UserCreationRequest{
 		Username: username,
 		Password: password,
 		IsAdmin:  true,
@@ -32,19 +48,22 @@ func createAdminUser(store *storage.Storage, username, password string) {
 		slog.Info("Skipping admin user creation because it already exists",
 			slog.String("username", userCreationRequest.Username),
 		)
-		return
+		return nil
 	}
 
-	if validationErr := validator.ValidateUserCreationWithPassword(store, userCreationRequest); validationErr != nil {
-		printErrorAndExit(validationErr.Error())
+	validateErr := validator.ValidateUserCreationWithPassword(
+		store, &userCreationRequest)
+	if validateErr != nil {
+		return validateErr.Error()
 	}
 
-	if user, err := store.CreateUser(userCreationRequest); err != nil {
-		printErrorAndExit(err)
-	} else {
-		slog.Info("Created new admin user",
-			slog.String("username", user.Username),
-			slog.Int64("user_id", user.ID),
-		)
+	user, err := store.CreateUser(&userCreationRequest)
+	if err != nil {
+		return err
 	}
+
+	slog.Info("Created new admin user",
+		slog.String("username", user.Username),
+		slog.Int64("user_id", user.ID))
+	return nil
 }

@@ -5,6 +5,7 @@ package config // import "miniflux.app/v2/internal/config"
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -106,7 +107,7 @@ type EnvOptions struct {
 	Oauth2RedirectURL                  string   `env:"OAUTH2_REDIRECT_URL" validate:"omitempty,url"`
 	OidcDiscoveryEndpoint              string   `env:"OAUTH2_OIDC_DISCOVERY_ENDPOINT" validate:"omitempty,url"`
 	OidcProviderName                   string   `env:"OAUTH2_OIDC_PROVIDER_NAME"`
-	Oauth2Provider                     string   `env:"OAUTH2_PROVIDER"`
+	Oauth2Provider                     string   `env:"OAUTH2_PROVIDER" validate:"omitempty,oneof=oidc google"`
 	DisableLocalAuth                   bool     `env:"DISABLE_LOCAL_AUTH"`
 	PocketConsumerKey                  string   `env:"POCKET_CONSUMER_KEY"`
 	PocketConsumerKeyFile              *string  `env:"POCKET_CONSUMER_KEY_FILE,file"`
@@ -205,8 +206,8 @@ func (o *Options) init() (err error) {
 		o.env.ListenAddr = ":" + o.env.Port
 	}
 
-	if err := Validator().Struct(&o.env); err != nil {
-		return fmt.Errorf("config: failed validate: %w", err)
+	if err := o.validate(); err != nil {
+		return err
 	}
 
 	o.env.PollingScheduler = strings.ToLower(o.env.PollingScheduler)
@@ -229,6 +230,24 @@ func (o *Options) init() (err error) {
 
 	o.env.BaseURL, o.rootURL, o.basePath, err = parseBaseURL(o.env.BaseURL)
 	return
+}
+
+func (o *Options) validate() error {
+	if err := Validator().Struct(&o.env); err != nil {
+		return fmt.Errorf("config: failed validate: %w", err)
+	}
+
+	if o.DisableLocalAuth() {
+		switch {
+		case o.OAuth2Provider() == "" && o.AuthProxyHeader() == "":
+			return errors.New("DISABLE_LOCAL_AUTH is enabled but neither OAUTH2_PROVIDER nor AUTH_PROXY_HEADER is not set. Please enable at least one authentication source")
+		case o.OAuth2Provider() != "" && !o.IsOAuth2UserCreationAllowed():
+			return errors.New("DISABLE_LOCAL_AUTH is enabled and an OAUTH2_PROVIDER is configured, but OAUTH2_USER_CREATION is not enabled")
+		case o.AuthProxyHeader() != "" && !o.IsAuthProxyUserCreationAllowed():
+			return errors.New("DISABLE_LOCAL_AUTH is enabled and an AUTH_PROXY_HEADER is configured, but AUTH_PROXY_USER_CREATION is not enabled")
+		}
+	}
+	return nil
 }
 
 func uniqStringList(items []string) []string {

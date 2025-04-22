@@ -4,27 +4,41 @@
 package cli // import "miniflux.app/v2/internal/cli"
 
 import (
+	"database/sql"
 	"fmt"
+
+	"github.com/spf13/cobra"
 
 	"miniflux.app/v2/internal/reader/opml"
 	"miniflux.app/v2/internal/storage"
 )
 
-func exportUserFeeds(store *storage.Storage, username string) {
+var exportUserFeedsCmd = cobra.Command{
+	Use:   "export-user-feeds username",
+	Short: "Export user feeds",
+
+	Args: cobra.ExactArgs(1),
+
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return withStorage(func(_ *sql.DB, store *storage.Storage) error {
+			return exportUserFeeds(store, args[0])
+		})
+	},
+}
+
+func exportUserFeeds(store *storage.Storage, username string) error {
 	user, err := store.UserByUsername(username)
 	if err != nil {
-		printErrorAndExit(fmt.Errorf("unable to find user: %w", err))
+		return fmt.Errorf("unable to find user: %w", err)
+	} else if user == nil {
+		return fmt.Errorf("user %q not found", username)
 	}
 
-	if user == nil {
-		printErrorAndExit(fmt.Errorf("user %q not found", username))
-	}
-
-	opmlHandler := opml.NewHandler(store)
-	opmlExport, err := opmlHandler.Export(user.ID)
+	opmlExport, err := opml.NewHandler(store).Export(user.ID)
 	if err != nil {
-		printErrorAndExit(fmt.Errorf("unable to export feeds: %w", err))
+		return fmt.Errorf("unable to export feeds: %w", err)
 	}
 
 	fmt.Println(opmlExport)
+	return nil
 }

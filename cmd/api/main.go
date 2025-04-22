@@ -46,8 +46,7 @@ func main() {
 		}
 		os.Exit(0)
 	}
-
-	cli.Parse()
+	cli.Execute()
 }
 
 func execLocalServer() error {
