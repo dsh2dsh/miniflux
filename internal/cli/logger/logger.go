@@ -41,7 +41,7 @@ func handlerFromConfig(c *config.Log) (slog.Handler, io.Closer, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	h := parseFormat(w, c.LogLevel, c.LogDateTime)
+	h := parseFormat(w, c.LogFormat, c.LogLevel, c.LogDateTime)
 	return h, closer, nil
 }
 
@@ -83,13 +83,13 @@ func hideTime(groups []string, a slog.Attr) slog.Attr {
 	return a
 }
 
-func parseFormat(w io.Writer, level string, logTime bool) slog.Handler {
+func parseFormat(w io.Writer, format, level string, logTime bool) slog.Handler {
 	opts := &slog.HandlerOptions{Level: parseLogLevel(level)}
 	if !logTime {
 		opts.ReplaceAttr = hideTime
 	}
 
-	switch config.Opts.LogFormat() {
+	switch format {
 	case "human":
 		return NewHumanTextHandler(w, opts, logTime)
 	case "json":
