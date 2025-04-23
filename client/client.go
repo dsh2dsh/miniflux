@@ -265,7 +265,7 @@ func (c *Client) CreateCategoryWithOptions(createRequest *CategoryCreationReques
 
 	var category *Category
 	if err := json.NewDecoder(body).Decode(&category); err != nil {
-		return nil, fmt.Errorf("miniflux: response error (%v)", err)
+		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
 	return category, nil
 }
@@ -298,7 +298,7 @@ func (c *Client) UpdateCategoryWithOptions(categoryID int64, categoryChanges *Ca
 
 	var category *Category
 	if err := json.NewDecoder(body).Decode(&category); err != nil {
-		return nil, fmt.Errorf("miniflux: response error (%v)", err)
+		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
 
 	return category, nil
