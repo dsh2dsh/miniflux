@@ -17,7 +17,7 @@ import (
 )
 
 func (h *handler) currentUser(w http.ResponseWriter, r *http.Request) {
-	user, err := h.store.UserByID(request.UserID(r))
+	user, err := h.store.UserByID(r.Context(), request.UserID(r))
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -38,17 +38,18 @@ func (h *handler) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if validationErr := validator.ValidateUserCreationWithPassword(h.store, &userCreationRequest); validationErr != nil {
+	validationErr := validator.ValidateUserCreationWithPassword(
+		r.Context(), h.store, &userCreationRequest)
+	if validationErr != nil {
 		json.BadRequest(w, r, validationErr.Error())
 		return
 	}
 
-	user, err := h.store.CreateUser(&userCreationRequest)
+	user, err := h.store.CreateUser(r.Context(), &userCreationRequest)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
-
 	json.Created(w, r, user)
 }
 
@@ -61,7 +62,7 @@ func (h *handler) updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	originalUser, err := h.store.UserByID(userID)
+	originalUser, err := h.store.UserByID(r.Context(), userID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -96,13 +97,15 @@ func (h *handler) updateUser(w http.ResponseWriter, r *http.Request) {
 		*userModificationRequest.KeepFilterEntryRules = strings.ReplaceAll(*userModificationRequest.KeepFilterEntryRules, "\r\n", "\n")
 	}
 
-	if validationErr := validator.ValidateUserModification(h.store, originalUser.ID, &userModificationRequest); validationErr != nil {
+	validationErr := validator.ValidateUserModification(r.Context(),
+		h.store, originalUser.ID, &userModificationRequest)
+	if validationErr != nil {
 		json.BadRequest(w, r, validationErr.Error())
 		return
 	}
 
 	userModificationRequest.Patch(originalUser)
-	if err = h.store.UpdateUser(originalUser); err != nil {
+	if err = h.store.UpdateUser(r.Context(), originalUser); err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
@@ -117,28 +120,27 @@ func (h *handler) markUserAsRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := h.store.UserByID(userID); err != nil {
+	if _, err := h.store.UserByID(r.Context(), userID); err != nil {
 		json.NotFound(w, r)
 		return
 	}
 
-	if err := h.store.MarkAllAsRead(userID); err != nil {
+	if err := h.store.MarkAllAsRead(r.Context(), userID); err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
-
 	json.NoContent(w, r)
 }
 
 func (h *handler) getIntegrationsStatus(w http.ResponseWriter, r *http.Request) {
 	userID := request.UserID(r)
 
-	if _, err := h.store.UserByID(userID); err != nil {
+	if _, err := h.store.UserByID(r.Context(), userID); err != nil {
 		json.NotFound(w, r)
 		return
 	}
 
-	hasIntegrations := h.store.HasSaveEntry(userID)
+	hasIntegrations := h.store.HasSaveEntry(r.Context(), userID)
 
 	response := struct {
 		HasIntegrations bool `json:"has_integrations"`
@@ -155,7 +157,7 @@ func (h *handler) users(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	users, err := h.store.Users()
+	users, err := h.store.Users(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -172,7 +174,7 @@ func (h *handler) userByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := request.RouteInt64Param(r, "userID")
-	user, err := h.store.UserByID(userID)
+	user, err := h.store.UserByID(r.Context(), userID)
 	if err != nil {
 		json.BadRequest(w, r, errors.New("unable to fetch this user from the database"))
 		return
@@ -194,7 +196,7 @@ func (h *handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 	}
 
 	username := request.RouteStringParam(r, "username")
-	user, err := h.store.UserByUsername(username)
+	user, err := h.store.UserByUsername(r.Context(), username)
 	if err != nil {
 		json.BadRequest(w, r, errors.New("unable to fetch this user from the database"))
 		return
@@ -215,7 +217,7 @@ func (h *handler) removeUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := request.RouteInt64Param(r, "userID")
-	user, err := h.store.UserByID(userID)
+	user, err := h.store.UserByID(r.Context(), userID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -231,6 +233,8 @@ func (h *handler) removeUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.store.RemoveUserAsync(user.ID)
+	if err := h.store.RemoveUser(r.Context(), user.ID); err != nil {
+		json.ServerError(w, r, err)
+	}
 	json.NoContent(w, r)
 }

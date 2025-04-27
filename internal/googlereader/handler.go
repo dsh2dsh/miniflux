@@ -4,6 +4,7 @@
 package googlereader // import "miniflux.app/v2/internal/googlereader"
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -439,7 +440,7 @@ func (h *handler) clientLoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.store.GoogleReaderUserCheckPassword(username, password); err != nil {
+	if err := h.store.GoogleReaderUserCheckPassword(r.Context(), username, password); err != nil {
 		slog.Warn("[GoogleReader] Invalid username or password",
 			slog.Bool("authentication_failed", true),
 			slog.String("client_ip", clientIP),
@@ -458,13 +459,15 @@ func (h *handler) clientLoginHandler(w http.ResponseWriter, r *http.Request) {
 		slog.String("username", username),
 	)
 
-	integration, err := h.store.GoogleReaderUserGetIntegration(username)
+	integration, err := h.store.GoogleReaderUserGetIntegration(
+		r.Context(), username)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
 
-	if err := h.store.SetLastLogin(integration.UserID); err != nil {
+	err = h.store.SetLastLogin(r.Context(), integration.UserID)
+	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
@@ -587,7 +590,7 @@ func (h *handler) editTagHandler(w http.ResponseWriter, r *http.Request) {
 	builder.WithEntryIDs(itemIDs)
 	builder.WithoutStatus(model.EntryStatusRemoved)
 
-	entries, err := builder.GetEntries()
+	entries, err := builder.GetEntries(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -619,7 +622,8 @@ func (h *handler) editTagHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	entries = entries[:n]
 	if len(readEntryIDs) > 0 {
-		err = h.store.SetEntriesStatus(userID, readEntryIDs, model.EntryStatusRead)
+		err = h.store.SetEntriesStatus(r.Context(), userID, readEntryIDs,
+			model.EntryStatusRead)
 		if err != nil {
 			json.ServerError(w, r, err)
 			return
@@ -627,7 +631,8 @@ func (h *handler) editTagHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(unreadEntryIDs) > 0 {
-		err = h.store.SetEntriesStatus(userID, unreadEntryIDs, model.EntryStatusUnread)
+		err = h.store.SetEntriesStatus(r.Context(), userID, unreadEntryIDs,
+			model.EntryStatusUnread)
 		if err != nil {
 			json.ServerError(w, r, err)
 			return
@@ -635,7 +640,8 @@ func (h *handler) editTagHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(unstarredEntryIDs) > 0 {
-		err = h.store.SetEntriesBookmarkedState(userID, unstarredEntryIDs, false)
+		err = h.store.SetEntriesBookmarkedState(r.Context(), userID,
+			unstarredEntryIDs, false)
 		if err != nil {
 			json.ServerError(w, r, err)
 			return
@@ -643,7 +649,8 @@ func (h *handler) editTagHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(starredEntryIDs) > 0 {
-		err = h.store.SetEntriesBookmarkedState(userID, starredEntryIDs, true)
+		err = h.store.SetEntriesBookmarkedState(r.Context(), userID,
+			starredEntryIDs, true)
 		if err != nil {
 			json.ServerError(w, r, err)
 			return
@@ -651,7 +658,7 @@ func (h *handler) editTagHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(entries) > 0 {
-		settings, err := h.store.Integration(userID)
+		settings, err := h.store.Integration(r.Context(), userID)
 		if err != nil {
 			json.ServerError(w, r, err)
 			return
@@ -696,7 +703,8 @@ func (h *handler) quickAddHandler(w http.ResponseWriter, r *http.Request) {
 	requestBuilder.WithProxyRotator(proxyrotator.ProxyRotatorInstance)
 
 	var rssBridgeURL string
-	if intg, err := h.store.Integration(userID); err == nil && intg != nil && intg.RSSBridgeEnabled {
+	intg, err := h.store.Integration(r.Context(), userID)
+	if err == nil && intg != nil && intg.RSSBridgeEnabled {
 		rssBridgeURL = intg.RSSBridgeURL
 	}
 
@@ -715,7 +723,8 @@ func (h *handler) quickAddHandler(w http.ResponseWriter, r *http.Request) {
 
 	toSubscribe := Stream{FeedStream, subscriptions[0].URL}
 	category := Stream{NoStream, ""}
-	newFeed, err := subscribe(toSubscribe, category, "", h.store, userID)
+	newFeed, err := subscribe(r.Context(), toSubscribe, category, "", h.store,
+		userID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -737,29 +746,35 @@ func (h *handler) quickAddHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func getFeed(stream Stream, store *storage.Storage, userID int64) (*model.Feed, error) {
+func getFeed(ctx context.Context, stream Stream, store *storage.Storage,
+	userID int64,
+) (*model.Feed, error) {
 	feedID, err := strconv.ParseInt(stream.ID, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("googlereader: %w", err)
 	}
-	return store.FeedByID(userID, feedID)
+	return store.FeedByID(ctx, userID, feedID)
 }
 
-func getOrCreateCategory(streamCategory Stream, store *storage.Storage, userID int64) (*model.Category, error) {
+func getOrCreateCategory(ctx context.Context, streamCategory Stream,
+	store *storage.Storage, userID int64,
+) (*model.Category, error) {
 	switch {
 	case streamCategory.ID == "":
-		return store.FirstCategory(userID)
-	case store.CategoryTitleExists(userID, streamCategory.ID):
-		return store.CategoryByTitle(userID, streamCategory.ID)
+		return store.FirstCategory(ctx, userID)
+	case store.CategoryTitleExists(ctx, userID, streamCategory.ID):
+		return store.CategoryByTitle(ctx, userID, streamCategory.ID)
 	default:
-		return store.CreateCategory(userID, &model.CategoryCreationRequest{
+		return store.CreateCategory(ctx, userID, &model.CategoryCreationRequest{
 			Title: streamCategory.ID,
 		})
 	}
 }
 
-func subscribe(newFeed Stream, category Stream, title string, store *storage.Storage, userID int64) (*model.Feed, error) {
-	destCategory, err := getOrCreateCategory(category, store, userID)
+func subscribe(ctx context.Context, newFeed Stream, category Stream,
+	title string, store *storage.Storage, userID int64,
+) (*model.Feed, error) {
+	destCategory, err := getOrCreateCategory(ctx, category, store, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -768,12 +783,12 @@ func subscribe(newFeed Stream, category Stream, title string, store *storage.Sto
 		FeedURL:    newFeed.ID,
 		CategoryID: destCategory.ID,
 	}
-	verr := validator.ValidateFeedCreation(store, userID, &feedRequest)
+	verr := validator.ValidateFeedCreation(ctx, store, userID, &feedRequest)
 	if verr != nil {
 		return nil, verr.Error()
 	}
 
-	created, localizedError := mff.CreateFeed(store, userID, &feedRequest)
+	created, localizedError := mff.CreateFeed(ctx, store, userID, &feedRequest)
 	if localizedError != nil {
 		return nil, localizedError.Error()
 	}
@@ -783,7 +798,7 @@ func subscribe(newFeed Stream, category Stream, title string, store *storage.Sto
 			Title: &title,
 		}
 		feedModification.Patch(created)
-		if err := store.UpdateFeed(created); err != nil {
+		if err := store.UpdateFeed(ctx, created); err != nil {
 			return nil, err
 		}
 	}
@@ -791,25 +806,31 @@ func subscribe(newFeed Stream, category Stream, title string, store *storage.Sto
 	return created, nil
 }
 
-func unsubscribe(streams []Stream, store *storage.Storage, userID int64) error {
-	for _, stream := range streams {
+func unsubscribe(ctx context.Context, streams []Stream, store *storage.Storage,
+	userID int64,
+) error {
+	feedIDs := make([]int64, len(streams))
+	for i, stream := range streams {
 		feedID, err := strconv.ParseInt(stream.ID, 10, 64)
 		if err != nil {
-			return fmt.Errorf("googlereader: %w", err)
+			return fmt.Errorf("googlereader: parse stream ID %q: %w", stream.ID, err)
 		}
-		err = store.RemoveFeed(userID, feedID)
-		if err != nil {
-			return err
-		}
+		feedIDs[i] = feedID
+	}
+
+	if err := store.RemoveMultipleFeeds(ctx, userID, feedIDs); err != nil {
+		return err
 	}
 	return nil
 }
 
-func rename(stream Stream, title string, store *storage.Storage, userID int64) error {
+func rename(ctx context.Context, stream Stream, title string,
+	store *storage.Storage, userID int64,
+) error {
 	if title == "" {
 		return errors.New("empty title")
 	}
-	feed, err := getFeed(stream, store, userID)
+	feed, err := getFeed(ctx, stream, store, userID)
 	if err != nil {
 		return err
 	}
@@ -817,15 +838,17 @@ func rename(stream Stream, title string, store *storage.Storage, userID int64) e
 		Title: &title,
 	}
 	feedModification.Patch(feed)
-	return store.UpdateFeed(feed)
+	return store.UpdateFeed(ctx, feed)
 }
 
-func move(stream Stream, destination Stream, store *storage.Storage, userID int64) error {
-	feed, err := getFeed(stream, store, userID)
+func move(ctx context.Context, stream Stream, destination Stream,
+	store *storage.Storage, userID int64,
+) error {
+	feed, err := getFeed(ctx, stream, store, userID)
 	if err != nil {
 		return err
 	}
-	category, err := getOrCreateCategory(destination, store, userID)
+	category, err := getOrCreateCategory(ctx, destination, store, userID)
 	if err != nil {
 		return err
 	}
@@ -833,7 +856,7 @@ func move(stream Stream, destination Stream, store *storage.Storage, userID int6
 		CategoryID: &category.ID,
 	}
 	feedModification.Patch(feed)
-	return store.UpdateFeed(feed)
+	return store.UpdateFeed(ctx, feed)
 }
 
 func (h *handler) feedIconURL(f *model.Feed) string {
@@ -877,20 +900,21 @@ func (h *handler) editSubscriptionHandler(w http.ResponseWriter, r *http.Request
 
 	switch action {
 	case "subscribe":
-		_, err := subscribe(streamIds[0], newLabel, title, h.store, userID)
+		_, err := subscribe(r.Context(), streamIds[0], newLabel, title, h.store, userID)
 		if err != nil {
 			json.ServerError(w, r, err)
 			return
 		}
 	case "unsubscribe":
-		err := unsubscribe(streamIds, h.store, userID)
+		err := unsubscribe(r.Context(), streamIds, h.store, userID)
 		if err != nil {
 			json.ServerError(w, r, err)
 			return
 		}
 	case "edit":
 		if title != "" {
-			if err := rename(streamIds[0], title, h.store, userID); err != nil {
+			err := rename(r.Context(), streamIds[0], title, h.store, userID)
+			if err != nil {
 				json.ServerError(w, r, err)
 				return
 			}
@@ -902,7 +926,8 @@ func (h *handler) editSubscriptionHandler(w http.ResponseWriter, r *http.Request
 				return
 			}
 
-			if err := move(streamIds[0], newLabel, h.store, userID); err != nil {
+			err := move(r.Context(), streamIds[0], newLabel, h.store, userID)
+			if err != nil {
 				json.ServerError(w, r, err)
 				return
 			}
@@ -937,7 +962,7 @@ func (h *handler) streamItemContentsHandler(w http.ResponseWriter,
 		return
 	}
 
-	user, err := h.store.UserByID(userID)
+	user, err := h.store.UserByID(r.Context(), userID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -980,7 +1005,7 @@ func (h *handler) streamItemContentsHandler(w http.ResponseWriter,
 		WithEntryIDs(itemIDs).
 		WithSorting(model.DefaultSortingOrder, requestModifiers.SortDirection)
 
-	entries, err := builder.GetEntries()
+	entries, err := builder.GetEntries(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -1089,7 +1114,7 @@ func (h *handler) disableTagHandler(w http.ResponseWriter, r *http.Request) {
 		titles[i] = stream.ID
 	}
 
-	err = h.store.RemoveAndReplaceCategoriesByName(userID, titles)
+	err = h.store.RemoveAndReplaceCategoriesByName(r.Context(), userID, titles)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -1136,7 +1161,7 @@ func (h *handler) renameTagHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	category, err := h.store.CategoryByTitle(userID, source.ID)
+	category, err := h.store.CategoryByTitle(r.Context(), userID, source.ID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -1150,14 +1175,16 @@ func (h *handler) renameTagHandler(w http.ResponseWriter, r *http.Request) {
 		Title: model.SetOptionalField(destination.ID),
 	}
 
-	if validationError := validator.ValidateCategoryModification(h.store, userID, category.ID, &categoryModificationRequest); validationError != nil {
+	validationError := validator.ValidateCategoryModification(r.Context(),
+		h.store, userID, category.ID, &categoryModificationRequest)
+	if validationError != nil {
 		json.BadRequest(w, r, validationError.Error())
 		return
 	}
 
 	categoryModificationRequest.Patch(category)
 
-	if err := h.store.UpdateCategory(category); err != nil {
+	if err := h.store.UpdateCategory(r.Context(), category); err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
@@ -1181,7 +1208,7 @@ func (h *handler) tagListHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var result tagsResponse
-	categories, err := h.store.Categories(userID)
+	categories, err := h.store.Categories(r.Context(), userID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -1216,7 +1243,7 @@ func (h *handler) subscriptionListHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	var result subscriptionsResponse
-	feeds, err := h.store.Feeds(userID)
+	feeds, err := h.store.Feeds(r.Context(), userID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -1262,7 +1289,7 @@ func (h *handler) userInfoHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.store.UserByID(request.UserID(r))
+	user, err := h.store.UserByID(r.Context(), request.UserID(r))
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -1293,7 +1320,7 @@ func (h *handler) streamItemIDsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.store.UserByID(userID)
+	user, err := h.store.UserByID(r.Context(), userID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -1366,7 +1393,7 @@ func (h *handler) handleReadingListStreamHandler(w http.ResponseWriter,
 	}
 
 	builder.WithoutStatus(model.EntryStatusRemoved)
-	streamId, err := makeStreamIDResp(builder, &rm)
+	streamId, err := makeStreamIDResp(r.Context(), builder, &rm)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -1374,7 +1401,8 @@ func (h *handler) handleReadingListStreamHandler(w http.ResponseWriter,
 	json.OK(w, r, streamId)
 }
 
-func makeStreamIDResp(builder *storage.EntryQueryBuilder, rm *RequestModifiers,
+func makeStreamIDResp(ctx context.Context, builder *storage.EntryQueryBuilder,
+	rm *RequestModifiers,
 ) (streamIDResponse, error) {
 	builder.WithLimit(rm.Count).WithOffset(rm.Offset).
 		WithSorting(model.DefaultSortingOrder, rm.SortDirection)
@@ -1385,7 +1413,7 @@ func makeStreamIDResp(builder *storage.EntryQueryBuilder, rm *RequestModifiers,
 		builder.BeforePublishedDate(time.Unix(rm.StopTime, 0))
 	}
 
-	rawEntryIDs, err := builder.GetEntryIDs()
+	rawEntryIDs, err := builder.GetEntryIDs(ctx)
 	if err != nil {
 		return streamIDResponse{}, err
 	}
@@ -1395,7 +1423,7 @@ func makeStreamIDResp(builder *storage.EntryQueryBuilder, rm *RequestModifiers,
 		itemRefs[i] = itemRef{ID: strconv.FormatInt(entryID, 10)}
 	}
 
-	totalEntries, err := builder.CountEntries()
+	totalEntries, err := builder.CountEntries(ctx)
 	if err != nil {
 		return streamIDResponse{}, err
 	}
@@ -1414,7 +1442,7 @@ func (h *handler) handleStarredStreamHandler(w http.ResponseWriter,
 		WithoutStatus(model.EntryStatusRemoved).
 		WithStarred(true)
 
-	streamId, err := makeStreamIDResp(builder, &rm)
+	streamId, err := makeStreamIDResp(r.Context(), builder, &rm)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -1429,7 +1457,7 @@ func (h *handler) handleReadStreamHandler(w http.ResponseWriter,
 		WithoutStatus(model.EntryStatusRemoved).
 		WithStatus(model.EntryStatusRead)
 
-	streamId, err := makeStreamIDResp(builder, &rm)
+	streamId, err := makeStreamIDResp(r.Context(), builder, &rm)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -1458,7 +1486,7 @@ func (h *handler) handleFeedStreamHandler(w http.ResponseWriter,
 		}
 	}
 
-	streamId, err := makeStreamIDResp(builder, &rm)
+	streamId, err := makeStreamIDResp(r.Context(), builder, &rm)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return

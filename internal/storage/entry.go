@@ -4,132 +4,113 @@
 package storage // import "miniflux.app/v2/internal/storage"
 
 import (
-	"database/sql"
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
-	"miniflux.app/v2/internal/crypto"
-	"miniflux.app/v2/internal/model"
+	"github.com/jackc/pgx/v5"
 
-	"github.com/lib/pq"
+	"miniflux.app/v2/internal/crypto"
+	"miniflux.app/v2/internal/logging"
+	"miniflux.app/v2/internal/model"
 )
 
-// CountAllEntries returns the number of entries for each status in the database.
-func (s *Storage) CountAllEntries() map[string]int64 {
-	rows, err := s.db.Query(`SELECT status, count(*) FROM entries GROUP BY status`)
+// CountAllEntries returns the number of entries for each status in the
+// database.
+func (s *Storage) CountAllEntries(ctx context.Context) (map[string]int64,
+	error,
+) {
+	rows, _ := s.db.Query(ctx,
+		`SELECT status, count(*) AS count FROM entries GROUP BY status`)
+
+	const total = "total"
+	results := map[string]int64{
+		model.EntryStatusUnread:  0,
+		model.EntryStatusRead:    0,
+		model.EntryStatusRemoved: 0,
+		total:                    0,
+	}
+
+	type statusCount struct {
+		status string
+		count  int64
+	}
+
+	counts, err := pgx.CollectRows(rows, pgx.RowToStructByName[statusCount])
 	if err != nil {
-		return nil
-	}
-	defer rows.Close()
-
-	results := make(map[string]int64)
-	results[model.EntryStatusUnread] = 0
-	results[model.EntryStatusRead] = 0
-	results[model.EntryStatusRemoved] = 0
-
-	for rows.Next() {
-		var status string
-		var count int64
-
-		if err := rows.Scan(&status, &count); err != nil {
-			continue
-		}
-
-		results[status] = count
+		return nil, fmt.Errorf("storage: count entries by status: %w", err)
 	}
 
-	results["total"] = results[model.EntryStatusUnread] + results[model.EntryStatusRead] + results[model.EntryStatusRemoved]
-	return results
+	for _, s := range counts {
+		results[s.status] = s.count
+		results[total] = s.count
+	}
+	return results, nil
 }
 
 // CountUnreadEntries returns the number of unread entries.
-func (s *Storage) CountUnreadEntries(userID int64) int {
-	builder := s.NewEntryQueryBuilder(userID)
-	builder.WithStatus(model.EntryStatusUnread)
-	builder.WithGloballyVisible()
+func (s *Storage) CountUnreadEntries(ctx context.Context, userID int64) int {
+	builder := s.NewEntryQueryBuilder(userID).
+		WithStatus(model.EntryStatusUnread).
+		WithGloballyVisible()
 
-	n, err := builder.CountEntries()
+	n, err := builder.CountEntries(ctx)
 	if err != nil {
-		slog.Error("Unable to count unread entries",
-			slog.Int64("user_id", userID),
-			slog.Any("error", err),
-		)
+		logging.FromContext(ctx).Error("Unable to count unread entries",
+			slog.Int64("user_id", userID), slog.Any("error", err))
 		return 0
 	}
-
 	return n
 }
 
-// NewEntryQueryBuilder returns a new EntryQueryBuilder
-func (s *Storage) NewEntryQueryBuilder(userID int64) *EntryQueryBuilder {
-	return NewEntryQueryBuilder(s, userID)
-}
-
 // UpdateEntryTitleAndContent updates entry title and content.
-func (s *Storage) UpdateEntryTitleAndContent(entry *model.Entry) error {
-	query := `
-		UPDATE
-			entries
-		SET
-			title=$1,
-			content=$2,
-			reading_time=$3,
-			document_vectors = setweight(to_tsvector(left(coalesce($1, ''), 500000)), 'A') || setweight(to_tsvector(left(coalesce($2, ''), 500000)), 'B')
-		WHERE
-			id=$4 AND user_id=$5
-	`
-
-	if _, err := s.db.Exec(query, entry.Title, entry.Content, entry.ReadingTime, entry.ID, entry.UserID); err != nil {
+func (s *Storage) UpdateEntryTitleAndContent(ctx context.Context,
+	entry *model.Entry,
+) error {
+	_, err := s.db.Exec(ctx, `
+UPDATE entries
+   SET title=$1,
+       content=$2,
+       reading_time=$3,
+	     document_vectors = setweight(to_tsvector(left(coalesce($1, ''), 500000)), 'A') || setweight(to_tsvector(left(coalesce($2, ''), 500000)), 'B')
+ WHERE id=$4 AND user_id=$5`,
+		entry.Title,
+		entry.Content,
+		entry.ReadingTime,
+		entry.ID, entry.UserID)
+	if err != nil {
 		return fmt.Errorf(`store: unable to update entry #%d: %w`, entry.ID, err)
 	}
-
 	return nil
 }
 
 // createEntry add a new entry.
-func (s *Storage) createEntry(tx *sql.Tx, entry *model.Entry) error {
-	query := `
-		INSERT INTO entries
-			(
-				title,
-				hash,
-				url,
-				comments_url,
-				published_at,
-				content,
-				author,
-				user_id,
-				feed_id,
-				reading_time,
-				changed_at,
-				document_vectors,
-				tags
-			)
-		VALUES
-			(
-				$1,
-				$2,
-				$3,
-				$4,
-				$5,
-				$6,
-				$7,
-				$8,
-				$9,
-				$10,
-				now(),
-				setweight(to_tsvector(left(coalesce($1, ''), 500000)), 'A') || setweight(to_tsvector(left(coalesce($6, ''), 500000)), 'B'),
-				$11
-			)
-		RETURNING
-			id, status, created_at, changed_at
-	`
-	err := tx.QueryRow(
-		query,
+func (s *Storage) createEntry(ctx context.Context, tx pgx.Tx,
+	entry *model.Entry,
+) error {
+	rows, _ := tx.Query(ctx, `
+INSERT INTO entries (
+  title,
+  hash,
+  url,
+  comments_url,
+  published_at,
+  content,
+  author,
+  user_id,
+  feed_id,
+  reading_time,
+  tags,
+  changed_at,
+  document_vectors)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now(),
+        setweight(to_tsvector(left(coalesce($1, ''), 500000)), 'A') || setweight(to_tsvector(left(coalesce($6, ''), 500000)), 'B'))
+RETURNING id, status, created_at, changed_at`,
 		entry.Title,
 		entry.Hash,
 		entry.URL,
@@ -140,129 +121,136 @@ func (s *Storage) createEntry(tx *sql.Tx, entry *model.Entry) error {
 		entry.UserID,
 		entry.FeedID,
 		entry.ReadingTime,
-		pq.Array(removeEmpty(removeDuplicates(entry.Tags))),
-	).Scan(
-		&entry.ID,
-		&entry.Status,
-		&entry.CreatedAt,
-		&entry.ChangedAt,
-	)
+		removeEmpty(removeDuplicates(entry.Tags)))
+
+	created, err := pgx.CollectExactlyOneRow(rows,
+		pgx.RowToStructByNameLax[model.Entry])
 	if err != nil {
-		return fmt.Errorf(`store: unable to create entry %q (feed #%d): %w`,
+		return fmt.Errorf(`unable to create entry %q (feed #%d): %w`,
 			entry.URL, entry.FeedID, err)
 	}
+
+	entry.ID = created.ID
+	entry.Status = created.Status
+	entry.CreatedAt = created.CreatedAt
+	entry.ChangedAt = created.ChangedAt
 
 	for _, enclosure := range entry.Enclosures {
 		enclosure.EntryID = entry.ID
 		enclosure.UserID = entry.UserID
-		err := s.createEnclosure(tx, enclosure)
-		if err != nil {
+		if err := s.createEnclosure(ctx, tx, enclosure); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
 // updateEntry updates an entry when a feed is refreshed.
-// Note: we do not update the published date because some feeds do not contains any date,
-// it default to time.Now() which could change the order of items on the history page.
-func (s *Storage) updateEntry(tx *sql.Tx, entry *model.Entry) error {
-	query := `
-		UPDATE
-			entries
-		SET
-			title=$1,
-			url=$2,
-			comments_url=$3,
-			content=$4,
-			author=$5,
-			reading_time=$6,
-			document_vectors = setweight(to_tsvector(left(coalesce($1, ''), 500000)), 'A') || setweight(to_tsvector(left(coalesce($4, ''), 500000)), 'B'),
-			tags=$10
-		WHERE
-			user_id=$7 AND feed_id=$8 AND hash=$9
-		RETURNING
-			id
-	`
-	err := tx.QueryRow(
-		query,
+//
+// Note: we do not update the published date because some feeds do not contains
+// any date, it default to time.Now() which could change the order of items on
+// the history page.
+func (s *Storage) updateEntry(ctx context.Context, tx pgx.Tx,
+	entry *model.Entry,
+) error {
+	rows, _ := tx.Query(ctx, `
+UPDATE entries
+   SET title=$1,
+       url=$2,
+       comments_url=$3,
+       content=$4,
+       author=$5,
+       reading_time=$6,
+       tags=$10,
+       document_vectors = setweight(to_tsvector(left(coalesce($1, ''), 500000)), 'A') || setweight(to_tsvector(left(coalesce($4, ''), 500000)), 'B')
+ WHERE user_id=$7 AND feed_id=$8 AND hash=$9
+RETURNING id`,
 		entry.Title,
 		entry.URL,
 		entry.CommentsURL,
 		entry.Content,
 		entry.Author,
 		entry.ReadingTime,
-		entry.UserID,
-		entry.FeedID,
-		entry.Hash,
-		pq.Array(removeEmpty(removeDuplicates(entry.Tags))),
-	).Scan(&entry.ID)
+		entry.UserID, entry.FeedID, entry.Hash,
+		removeEmpty(removeDuplicates(entry.Tags)))
+
+	updated, err := pgx.CollectExactlyOneRow(rows,
+		pgx.RowToStructByNameLax[model.Entry])
 	if err != nil {
-		return fmt.Errorf(`store: unable to update entry %q: %w`, entry.URL, err)
+		return fmt.Errorf(`unable to update entry %q: %w`, entry.URL, err)
 	}
+	entry.ID = updated.ID
 
 	for _, enclosure := range entry.Enclosures {
 		enclosure.UserID = entry.UserID
 		enclosure.EntryID = entry.ID
 	}
-
-	return s.updateEnclosures(tx, entry)
+	return s.updateEnclosures(ctx, tx, entry)
 }
 
-// entryExists checks if an entry already exists based on its hash when refreshing a feed.
-func (s *Storage) entryExists(tx *sql.Tx, entry *model.Entry) (bool, error) {
-	var result bool
+// entryExists checks if an entry already exists based on its hash when
+// refreshing a feed.
+func (s *Storage) entryExists(ctx context.Context, tx pgx.Tx,
+	entry *model.Entry,
+) (bool, error) {
+	// Note: This query uses entries_feed_id_hash_key index (filtering on user_id
+	// is not necessary).
+	rows, _ := tx.Query(ctx,
+		`SELECT EXISTS(SELECT FROM entries WHERE feed_id=$1 AND hash=$2)`,
+		entry.FeedID, entry.Hash)
 
-	// Note: This query uses entries_feed_id_hash_key index (filtering on user_id is not necessary).
-	err := tx.QueryRow(`SELECT true FROM entries WHERE feed_id=$1 AND hash=$2`, entry.FeedID, entry.Hash).Scan(&result)
-
-	if err != nil && err != sql.ErrNoRows {
-		return result, fmt.Errorf(`store: unable to check if entry exists: %w`, err)
+	result, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[bool])
+	if err != nil {
+		return false, fmt.Errorf(`unable to check if entry exists: %w`, err)
 	}
-
 	return result, nil
 }
 
-func (s *Storage) IsNewEntry(feedID int64, entryHash string) bool {
-	var result bool
-	_ = s.db.QueryRow(
-		`SELECT true FROM entries WHERE feed_id=$1 AND hash=$2`,
-		feedID, entryHash,
-	).Scan(&result)
+func (s *Storage) IsNewEntry(ctx context.Context, feedID int64,
+	entryHash string,
+) bool {
+	rows, _ := s.db.Query(ctx,
+		`SELECT EXISTS(SELECT FROM entries WHERE feed_id=$1 AND hash=$2)`,
+		feedID, entryHash)
+
+	result, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[bool])
+	if err != nil {
+		logging.FromContext(ctx).Error("store: unable to check if entry is new",
+			slog.Int64("feed_id", feedID),
+			slog.String("hash", entryHash),
+			slog.Any("error", err))
+		return false
+	}
 	return !result
 }
 
-func (s *Storage) GetReadTime(feedID int64, entryHash string) int {
-	var result int
-
+func (s *Storage) GetReadTime(ctx context.Context, feedID int64,
+	entryHash string,
+) int {
 	// Note: This query uses entries_feed_id_hash_key index
-	_ = s.db.QueryRow(
-		`SELECT
-			reading_time
-		FROM
-			entries
-		WHERE
-			feed_id=$1 AND
-			hash=$2
-		`,
-		feedID, entryHash,
-	).Scan(&result)
-	return result
+	rows, _ := s.db.Query(ctx,
+		`SELECT reading_time FROM entries WHERE feed_id=$1 AND hash=$2`,
+		feedID, entryHash)
+
+	readingTime, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[int])
+	if err != nil {
+		logging.FromContext(ctx).Error("store: unable to fetch entry reading_time",
+			slog.Int64("feed_id", feedID),
+			slog.String("hash", entryHash),
+			slog.Any("error", err))
+		return 0
+	}
+	return readingTime
 }
 
-// cleanupEntries deletes from the database entries marked as "removed" and not visible anymore in the feed.
-func (s *Storage) cleanupEntries(feedID int64, entryHashes []string) error {
-	query := `
-		DELETE FROM
-			entries
-		WHERE
-			feed_id=$1 AND
-			status=$2 AND
-			NOT (hash=ANY($3))
-	`
-	_, err := s.db.Exec(query, feedID, model.EntryStatusRemoved,
-		pq.Array(entryHashes))
+// cleanupEntries deletes from the database entries marked as "removed" and not
+// visible anymore in the feed.
+func (s *Storage) cleanupEntries(ctx context.Context, feedID int64,
+	entryHashes []string,
+) error {
+	_, err := s.db.Exec(ctx, `
+DELETE FROM entries WHERE feed_id=$1 AND status=$2 AND NOT (hash=ANY($3))`,
+		feedID, model.EntryStatusRemoved, entryHashes)
 	if err != nil {
 		return fmt.Errorf(`store: unable to cleanup entries: %w`, err)
 	}
@@ -270,355 +258,291 @@ func (s *Storage) cleanupEntries(feedID int64, entryHashes []string) error {
 }
 
 // RefreshFeedEntries updates feed entries while refreshing a feed.
-func (s *Storage) RefreshFeedEntries(userID, feedID int64,
-	entries model.Entries, updateExistingEntries bool,
-) (newEntries model.Entries, err error) {
-	entryHashes := make([]string, 0, len(entries))
-	for _, entry := range entries {
+func (s *Storage) RefreshFeedEntries(ctx context.Context, userID, feedID int64,
+	entries []*model.Entry, updateExistingEntries bool,
+) (newEntries []*model.Entry, err error) {
+	entryHashes := make([]string, len(entries))
+	for i, entry := range entries {
 		entry.UserID = userID
 		entry.FeedID = feedID
 
-		tx, err := s.db.Begin()
+		err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+			entryExists, err := s.entryExists(ctx, tx, entry)
+			if err != nil {
+				return err
+			}
+
+			if entryExists {
+				if updateExistingEntries {
+					if err := s.updateEntry(ctx, tx, entry); err != nil {
+						return err
+					}
+				}
+				return nil
+			}
+
+			if err := s.createEntry(ctx, tx, entry); err != nil {
+				return err
+			}
+			newEntries = append(newEntries, entry)
+			return nil
+		})
 		if err != nil {
-			return nil, fmt.Errorf(`store: unable to start transaction: %w`, err)
+			return nil, fmt.Errorf(`store: unable to refresh feed entries: %w`, err)
 		}
-
-		entryExists, err := s.entryExists(tx, entry)
-		if err != nil {
-			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				return nil, fmt.Errorf(
-					`store: unable to rollback transaction: %w (rolled back due to: %w)`,
-					rollbackErr, err)
-			}
-			return nil, err
-		}
-
-		if entryExists {
-			if updateExistingEntries {
-				err = s.updateEntry(tx, entry)
-			}
-		} else {
-			err = s.createEntry(tx, entry)
-			if err == nil {
-				newEntries = append(newEntries, entry)
-			}
-		}
-
-		if err != nil {
-			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				return nil, fmt.Errorf(
-					`store: unable to rollback transaction: %w (rolled back due to: %w)`,
-					rollbackErr, err)
-			}
-			return nil, err
-		}
-
-		if err := tx.Commit(); err != nil {
-			return nil, fmt.Errorf(`store: unable to commit transaction: %w`, err)
-		}
-		entryHashes = append(entryHashes, entry.Hash)
+		entryHashes[i] = entry.Hash
 	}
 
-	go func() {
-		if err := s.cleanupEntries(feedID, entryHashes); err != nil {
-			slog.Error("Unable to cleanup entries",
-				slog.Int64("user_id", userID),
-				slog.Int64("feed_id", feedID),
-				slog.Any("error", err),
-			)
-		}
-	}()
-
+	if err := s.cleanupEntries(ctx, feedID, entryHashes); err != nil {
+		return nil, err
+	}
 	return newEntries, nil
 }
 
-// ArchiveEntries changes the status of entries to "removed" after the given number of days.
-func (s *Storage) ArchiveEntries(status string, days, limit int) (int64, error) {
+// ArchiveEntries changes the status of entries to "removed" after the given
+// number of days.
+func (s *Storage) ArchiveEntries(ctx context.Context, status string,
+	days, limit int,
+) (int64, error) {
 	if days < 0 || limit <= 0 {
 		return 0, nil
 	}
 
-	query := `
-		UPDATE
-			entries
-		SET
-			status=$1
-		WHERE
-			id IN (
-				SELECT
-					id
-				FROM
-					entries
-				WHERE
-					status=$2 AND
-					starred is false AND
-					share_code='' AND
-					created_at < now () - $3::interval
-				ORDER BY
-					created_at ASC LIMIT $4
-				)
-	`
-
-	result, err := s.db.Exec(query, model.EntryStatusRemoved, status, fmt.Sprintf("%d days", days), limit)
+	result, err := s.db.Exec(ctx, `
+UPDATE entries
+   SET status=$1
+ WHERE id IN (
+   SELECT id
+     FROM entries
+    WHERE status=$2 AND starred is false AND share_code=''
+          AND created_at < now () - $3::interval
+    ORDER BY created_at ASC LIMIT $4)`,
+		model.EntryStatusRemoved, status,
+		strconv.FormatInt(int64(days), 10)+" days", limit)
 	if err != nil {
-		return 0, fmt.Errorf(
-			`store: unable to archive %s entries: %w`, status, err)
+		return 0, fmt.Errorf(`store: unable to archive %s entries: %w`,
+			status, err)
 	}
-
-	count, err := result.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf(
-			`store: unable to get the number of rows affected: %w`, err)
-	}
-
-	return count, nil
+	return result.RowsAffected(), nil
 }
 
 // SetEntriesStatus update the status of the given list of entries.
-func (s *Storage) SetEntriesStatus(userID int64, entryIDs []int64, status string) error {
-	query := `UPDATE entries SET status=$1, changed_at=now() WHERE user_id=$2 AND id=ANY($3)`
-	if _, err := s.db.Exec(query, status, userID, pq.Array(entryIDs)); err != nil {
+func (s *Storage) SetEntriesStatus(ctx context.Context, userID int64,
+	entryIDs []int64, status string,
+) error {
+	_, err := s.db.Exec(ctx, `
+UPDATE entries
+   SET status=$1, changed_at=now()
+ WHERE user_id=$2 AND id=ANY($3)`,
+		status, userID, entryIDs)
+	if err != nil {
 		return fmt.Errorf(`store: unable to update entries statuses %v: %w`,
 			entryIDs, err)
 	}
-
 	return nil
 }
 
-func (s *Storage) SetEntriesStatusCount(userID int64, entryIDs []int64, status string) (int, error) {
-	if err := s.SetEntriesStatus(userID, entryIDs, status); err != nil {
+func (s *Storage) SetEntriesStatusCount(ctx context.Context, userID int64,
+	entryIDs []int64, status string,
+) (int, error) {
+	err := s.SetEntriesStatus(ctx, userID, entryIDs, status)
+	if err != nil {
 		return 0, err
 	}
 
-	query := `
-		SELECT count(*)
-		FROM entries e
-		    JOIN feeds f ON (f.id = e.feed_id)
-		    JOIN categories c ON (c.id = f.category_id)
-		WHERE e.user_id = $1
-			AND e.id = ANY($2)
-			AND NOT f.hide_globally
-			AND NOT c.hide_globally
-	`
-	row := s.db.QueryRow(query, userID, pq.Array(entryIDs))
-	visible := 0
-	if err := row.Scan(&visible); err != nil {
+	rows, _ := s.db.Query(ctx, `
+SELECT count(*)
+  FROM entries e
+		   JOIN feeds f ON (f.id = e.feed_id)
+		   JOIN categories c ON (c.id = f.category_id)
+ WHERE e.user_id = $1 AND e.id = ANY($2) AND NOT f.hide_globally
+	     AND NOT c.hide_globally`,
+		userID, entryIDs)
+
+	visible, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[int])
+	if err != nil {
 		return 0, fmt.Errorf(`store: unable to query entries visibility %v: %w`,
 			entryIDs, err)
 	}
-
 	return visible, nil
 }
 
-// SetEntriesBookmarked update the bookmarked state for the given list of entries.
-func (s *Storage) SetEntriesBookmarkedState(userID int64, entryIDs []int64, starred bool) error {
-	query := `UPDATE entries SET starred=$1, changed_at=now() WHERE user_id=$2 AND id=ANY($3)`
-	result, err := s.db.Exec(query, starred, userID, pq.Array(entryIDs))
+// SetEntriesBookmarked update the bookmarked state for the given list of
+// entries.
+func (s *Storage) SetEntriesBookmarkedState(ctx context.Context, userID int64,
+	entryIDs []int64, starred bool,
+) error {
+	result, err := s.db.Exec(ctx, `
+UPDATE entries
+   SET starred=$1, changed_at=now()
+ WHERE user_id=$2 AND id=ANY($3)`,
+		starred, userID, entryIDs)
 	if err != nil {
 		return fmt.Errorf(`store: unable to update the bookmarked state %v: %w`,
 			entryIDs, err)
 	}
 
-	count, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf(`store: unable to update these entries %v: %w`,
-			entryIDs, err)
-	}
-
-	if count == 0 {
+	if result.RowsAffected() == 0 {
 		return errors.New(`store: nothing has been updated`)
 	}
-
 	return nil
 }
 
 // ToggleBookmark toggles entry bookmark value.
-func (s *Storage) ToggleBookmark(userID int64, entryID int64) error {
-	query := `UPDATE entries SET starred = NOT starred, changed_at=now() WHERE user_id=$1 AND id=$2`
-	result, err := s.db.Exec(query, userID, entryID)
+func (s *Storage) ToggleBookmark(ctx context.Context, userID, entryID int64,
+) error {
+	result, err := s.db.Exec(ctx, `
+UPDATE entries
+   SET starred = NOT starred, changed_at=now()
+ WHERE user_id=$1 AND id=$2`,
+		userID, entryID)
 	if err != nil {
 		return fmt.Errorf(
 			`store: unable to toggle bookmark flag for entry #%d: %w`, entryID, err)
 	}
 
-	count, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf(
-			`store: unable to toggle bookmark flag for entry #%d: %w`, entryID, err)
-	}
-
-	if count == 0 {
+	if result.RowsAffected() == 0 {
 		return errors.New(`store: nothing has been updated`)
 	}
-
 	return nil
 }
 
 // FlushHistory changes all entries with the status "read" to "removed".
-func (s *Storage) FlushHistory(userID int64) error {
-	query := `
-		UPDATE
-			entries
-		SET
-			status=$1,
-			changed_at=now()
-		WHERE
-			user_id=$2 AND status=$3 AND starred is false AND share_code=''
-	`
-	_, err := s.db.Exec(query, model.EntryStatusRemoved, userID, model.EntryStatusRead)
+func (s *Storage) FlushHistory(ctx context.Context, userID int64) error {
+	_, err := s.db.Exec(ctx, `
+UPDATE entries
+   SET status=$1, changed_at=now()
+ WHERE user_id=$2 AND status=$3 AND starred is false AND share_code=''`,
+		model.EntryStatusRemoved, userID, model.EntryStatusRead)
 	if err != nil {
 		return fmt.Errorf(`store: unable to flush history: %w`, err)
 	}
-
 	return nil
 }
 
 // MarkAllAsRead updates all user entries to the read status.
-func (s *Storage) MarkAllAsRead(userID int64) error {
-	query := `UPDATE entries SET status=$1, changed_at=now() WHERE user_id=$2 AND status=$3`
-	result, err := s.db.Exec(query, model.EntryStatusRead, userID, model.EntryStatusUnread)
+func (s *Storage) MarkAllAsRead(ctx context.Context, userID int64) error {
+	result, err := s.db.Exec(ctx, `
+UPDATE entries
+   SET status=$1, changed_at=now()
+ WHERE user_id=$2 AND status=$3`,
+		model.EntryStatusRead, userID, model.EntryStatusUnread)
 	if err != nil {
 		return fmt.Errorf(`store: unable to mark all entries as read: %w`, err)
 	}
 
-	count, _ := result.RowsAffected()
-	slog.Debug("Marked all entries as read",
+	logging.FromContext(ctx).Debug("Marked all entries as read",
 		slog.Int64("user_id", userID),
-		slog.Int64("nb_entries", count),
-	)
-
+		slog.Int64("nb_entries", result.RowsAffected()))
 	return nil
 }
 
 // MarkGloballyVisibleFeedsAsRead updates all user entries to the read status.
-func (s *Storage) MarkGloballyVisibleFeedsAsRead(userID int64) error {
-	query := `
-		UPDATE
-			entries
-		SET
-			status=$1,
-			changed_at=now()
-		FROM
-			feeds
-		WHERE
-			entries.feed_id = feeds.id
-			AND entries.user_id=$2
-			AND entries.status=$3
-			AND feeds.hide_globally=$4
-	`
-	result, err := s.db.Exec(query, model.EntryStatusRead, userID, model.EntryStatusUnread, false)
+func (s *Storage) MarkGloballyVisibleFeedsAsRead(ctx context.Context,
+	userID int64,
+) error {
+	result, err := s.db.Exec(ctx, `
+UPDATE entries
+   SET status=$1, changed_at=now()
+  FROM feeds
+ WHERE entries.feed_id = feeds.id AND entries.user_id=$2 AND entries.status=$3
+       AND feeds.hide_globally=$4`,
+		model.EntryStatusRead, userID, model.EntryStatusUnread, false)
 	if err != nil {
 		return fmt.Errorf(
 			`store: unable to mark globally visible feeds as read: %w`, err)
 	}
 
-	count, _ := result.RowsAffected()
-	slog.Debug("Marked globally visible feed entries as read",
+	logging.FromContext(ctx).Debug(
+		"Marked globally visible feed entries as read",
 		slog.Int64("user_id", userID),
-		slog.Int64("nb_entries", count),
-	)
-
+		slog.Int64("nb_entries", result.RowsAffected()))
 	return nil
 }
 
 // MarkFeedAsRead updates all feed entries to the read status.
-func (s *Storage) MarkFeedAsRead(userID, feedID int64, before time.Time) error {
-	query := `
-		UPDATE
-			entries
-		SET
-			status=$1,
-			changed_at=now()
-		WHERE
-			user_id=$2 AND feed_id=$3 AND status=$4 AND published_at < $5
-	`
-	result, err := s.db.Exec(query, model.EntryStatusRead, userID, feedID, model.EntryStatusUnread, before)
+func (s *Storage) MarkFeedAsRead(ctx context.Context, userID, feedID int64,
+	before time.Time,
+) error {
+	result, err := s.db.Exec(ctx, `
+UPDATE entries
+   SET status=$1, changed_at=now()
+ WHERE user_id=$2 AND feed_id=$3 AND status=$4 AND published_at < $5`,
+		model.EntryStatusRead, userID, feedID, model.EntryStatusUnread, before)
 	if err != nil {
 		return fmt.Errorf(`store: unable to mark feed entries as read: %w`, err)
 	}
 
-	count, _ := result.RowsAffected()
-	slog.Debug("Marked feed entries as read",
+	logging.FromContext(ctx).Debug("Marked feed entries as read",
 		slog.Int64("user_id", userID),
 		slog.Int64("feed_id", feedID),
-		slog.Int64("nb_entries", count),
-	)
-
+		slog.Int64("nb_entries", result.RowsAffected()))
 	return nil
 }
 
 // MarkCategoryAsRead updates all category entries to the read status.
-func (s *Storage) MarkCategoryAsRead(userID, categoryID int64, before time.Time) error {
-	query := `
-		UPDATE
-			entries
-		SET
-			status=$1,
-			changed_at=now()
-		FROM
-			feeds
-		WHERE
-			feed_id=feeds.id
-		AND
-			feeds.user_id=$2
-		AND
-			status=$3
-		AND
-			published_at < $4
-		AND
-			feeds.category_id=$5
-	`
-	result, err := s.db.Exec(query, model.EntryStatusRead, userID, model.EntryStatusUnread, before, categoryID)
+func (s *Storage) MarkCategoryAsRead(ctx context.Context,
+	userID, categoryID int64, before time.Time,
+) error {
+	result, err := s.db.Exec(ctx, `
+UPDATE entries
+   SET status=$1, changed_at=now()
+  FROM feeds
+ WHERE feed_id=feeds.id AND feeds.user_id=$2 AND status=$3 AND published_at < $4
+       AND feeds.category_id=$5`,
+		model.EntryStatusRead, userID, model.EntryStatusUnread, before, categoryID)
 	if err != nil {
 		return fmt.Errorf(
 			`store: unable to mark category entries as read: %w`, err)
 	}
 
-	count, _ := result.RowsAffected()
-	slog.Debug("Marked category entries as read",
+	logging.FromContext(ctx).Debug("Marked category entries as read",
 		slog.Int64("user_id", userID),
 		slog.Int64("category_id", categoryID),
-		slog.Int64("nb_entries", count),
-	)
-
+		slog.Int64("nb_entries", result.RowsAffected()))
 	return nil
 }
 
-// EntryShareCode returns the share code of the provided entry.
-// It generates a new one if not already defined.
-func (s *Storage) EntryShareCode(userID int64, entryID int64) (shareCode string, err error) {
-	query := `SELECT share_code FROM entries WHERE user_id=$1 AND id=$2`
-	err = s.db.QueryRow(query, userID, entryID).Scan(&shareCode)
+// EntryShareCode returns the share code of the provided entry. It generates a
+// new one if not already defined.
+func (s *Storage) EntryShareCode(ctx context.Context, userID, entryID int64,
+) (string, error) {
+	rows, _ := s.db.Query(ctx,
+		`SELECT share_code FROM entries WHERE user_id=$1 AND id=$2`,
+		userID, entryID)
+
+	shareCode, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[string])
 	if err != nil {
-		err = fmt.Errorf(`store: unable to get share code for entry #%d: %w`,
+		return "", fmt.Errorf(
+			`store: unable to get share code for entry #%d: %w`, entryID, err)
+	}
+
+	if shareCode != "" {
+		return shareCode, nil
+	}
+	shareCode = crypto.GenerateRandomStringHex(20)
+
+	_, err = s.db.Exec(ctx,
+		`UPDATE entries SET share_code = $1 WHERE user_id=$2 AND id=$3`,
+		shareCode, userID, entryID)
+	if err != nil {
+		return "", fmt.Errorf(`store: unable to set share code for entry #%d: %w`,
 			entryID, err)
-		return
 	}
-
-	if shareCode == "" {
-		shareCode = crypto.GenerateRandomStringHex(20)
-
-		query = `UPDATE entries SET share_code = $1 WHERE user_id=$2 AND id=$3`
-		_, err = s.db.Exec(query, shareCode, userID, entryID)
-		if err != nil {
-			err = fmt.Errorf(`store: unable to set share code for entry #%d: %w`,
-				entryID, err)
-			return
-		}
-	}
-
-	return
+	return shareCode, nil
 }
 
 // UnshareEntry removes the share code for the given entry.
-func (s *Storage) UnshareEntry(userID int64, entryID int64) (err error) {
-	query := `UPDATE entries SET share_code='' WHERE user_id=$1 AND id=$2`
-	_, err = s.db.Exec(query, userID, entryID)
+func (s *Storage) UnshareEntry(ctx context.Context, userID, entryID int64,
+) error {
+	_, err := s.db.Exec(ctx,
+		`UPDATE entries SET share_code='' WHERE user_id=$1 AND id=$2`,
+		userID, entryID)
 	if err != nil {
-		err = fmt.Errorf(
+		return fmt.Errorf(
 			`store: unable to remove share code for entry #%d: %w`, entryID, err)
 	}
-	return
+	return nil
 }
 
 func removeDuplicates(l []string) []string {
@@ -627,11 +551,7 @@ func removeDuplicates(l []string) []string {
 }
 
 func removeEmpty(l []string) []string {
-	var finalSlice []string
-	for _, item := range l {
-		if strings.TrimSpace(item) != "" {
-			finalSlice = append(finalSlice, item)
-		}
-	}
-	return finalSlice
+	return slices.DeleteFunc(l, func(s string) bool {
+		return strings.TrimSpace(s) == ""
+	})
 }

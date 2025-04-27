@@ -7,12 +7,12 @@ import "fmt"
 
 // Category represents a feed category.
 type Category struct {
-	ID           int64  `json:"id"`
-	Title        string `json:"title"`
-	UserID       int64  `json:"user_id"`
-	HideGlobally bool   `json:"hide_globally"`
-	FeedCount    *int   `json:"feed_count,omitempty"`
-	TotalUnread  *int   `json:"total_unread,omitempty"`
+	ID           int64  `json:"id" db:"id"`
+	Title        string `json:"title" db:"title"`
+	UserID       int64  `json:"user_id" db:"user_id"`
+	HideGlobally bool   `json:"hide_globally" db:"hide_globally"`
+	FeedCount    *int   `json:"feed_count,omitempty" db:"feed_count"`
+	TotalUnread  *int   `json:"total_unread,omitempty" db:"total_unread"`
 }
 
 func (c *Category) String() string {
@@ -38,6 +38,3 @@ func (c *CategoryModificationRequest) Patch(category *Category) {
 		category.HideGlobally = *c.HideGlobally
 	}
 }
-
-// Categories represents a list of categories.
-type Categories []*Category

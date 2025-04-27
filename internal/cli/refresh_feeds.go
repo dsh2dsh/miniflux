@@ -4,7 +4,7 @@
 package cli // import "miniflux.app/v2/internal/cli"
 
 import (
-	"database/sql"
+	"context"
 	"log/slog"
 	"sync"
 	"time"
@@ -23,14 +23,14 @@ var refreshFeedsCmd = cobra.Command{
 	Args:  cobra.ExactArgs(0),
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return withStorage(func(_ *sql.DB, store *storage.Storage) error {
-			refreshFeeds(store)
+		return withStorage(func(store *storage.Storage) error {
+			refreshFeeds(context.Background(), store)
 			return nil
 		})
 	},
 }
 
-func refreshFeeds(store *storage.Storage) {
+func refreshFeeds(ctx context.Context, store *storage.Storage) {
 	var wg sync.WaitGroup
 
 	startTime := time.Now()
@@ -42,7 +42,7 @@ func refreshFeeds(store *storage.Storage) {
 	batchBuilder.WithoutDisabledFeeds()
 	batchBuilder.WithNextCheckExpired()
 
-	jobs, err := batchBuilder.FetchJobs()
+	jobs, err := batchBuilder.FetchJobs(ctx)
 	if err != nil {
 		slog.Error("Unable to fetch jobs from database", slog.Any("error", err))
 		return
@@ -72,7 +72,9 @@ func refreshFeeds(store *storage.Storage) {
 					slog.Int("worker_id", workerID),
 				)
 
-				if localizedError := feedHandler.RefreshFeed(store, job.UserID, job.FeedID, false); localizedError != nil {
+				localizedError := feedHandler.RefreshFeed(ctx, store, job.UserID,
+					job.FeedID, false)
+				if localizedError != nil {
 					slog.Warn("Unable to refresh feed",
 						slog.Int64("feed_id", job.FeedID),
 						slog.Int64("user_id", job.UserID),

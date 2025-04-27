@@ -35,7 +35,8 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request) int64 
 	// Avoid accidental and excessive refreshes.
 	if time.Now().UTC().Unix()-request.LastForceRefresh(r) < int64(config.Opts.ForceRefreshInterval())*60 {
 		time := config.Opts.ForceRefreshInterval()
-		sess.NewFlashErrorMessage(printer.Plural("alert.too_many_feeds_refresh", time, time))
+		sess.NewFlashErrorMessage(r.Context(),
+			printer.Plural("alert.too_many_feeds_refresh", time, time))
 	} else {
 		// We allow the end-user to force refresh all its feeds in this category
 		// without taking into consideration the number of errors.
@@ -44,7 +45,7 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request) int64 
 		batchBuilder.WithUserID(userID)
 		batchBuilder.WithCategoryID(categoryID)
 
-		jobs, err := batchBuilder.FetchJobs()
+		jobs, err := batchBuilder.FetchJobs(r.Context())
 		if err != nil {
 			html.ServerError(w, r, err)
 			return 0
@@ -59,8 +60,9 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request) int64 
 
 		go h.pool.Push(jobs)
 
-		sess.SetLastForceRefresh()
-		sess.NewFlashMessage(printer.Print("alert.background_feed_refresh"))
+		sess.SetLastForceRefresh(r.Context())
+		sess.NewFlashMessage(r.Context(),
+			printer.Print("alert.background_feed_refresh"))
 	}
 
 	return categoryID

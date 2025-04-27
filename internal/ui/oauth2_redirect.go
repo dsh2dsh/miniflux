@@ -36,8 +36,7 @@ func (h *handler) oauth2Redirect(w http.ResponseWriter, r *http.Request) {
 
 	auth := oauth2.GenerateAuthorization(authProvider.GetConfig())
 
-	sess.SetOAuth2State(auth.State())
-	sess.SetOAuth2CodeVerifier(auth.CodeVerifier())
-
+	sess.SetOAuth2State(r.Context(), auth.State())
+	sess.SetOAuth2CodeVerifier(r.Context(), auth.CodeVerifier())
 	html.Redirect(w, r, auth.RedirectURL())
 }

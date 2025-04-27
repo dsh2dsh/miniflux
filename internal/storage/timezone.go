@@ -4,29 +4,32 @@
 package storage // import "miniflux.app/v2/internal/storage"
 
 import (
+	"context"
 	"fmt"
 	"strings"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // Timezones returns all timezones supported by the database.
-func (s *Storage) Timezones() (map[string]string, error) {
+func (s *Storage) Timezones(ctx context.Context) (map[string]string, error) {
+	rows, _ := s.db.Query(ctx,
+		`SELECT name FROM pg_timezone_names ORDER BY name ASC`)
+
 	timezones := make(map[string]string)
-	rows, err := s.db.Query(`SELECT name FROM pg_timezone_names ORDER BY name ASC`)
+	var timezone string
+	_, err := pgx.ForEachRow(rows, []any{&timezone}, func() error {
+		switch {
+		case timezone == "localtime":
+		case strings.HasPrefix(timezone, "posix"):
+		case strings.HasPrefix(timezone, "SystemV"):
+		default:
+			timezones[timezone] = timezone
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, fmt.Errorf(`store: unable to fetch timezones: %w`, err)
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var timezone string
-		if err := rows.Scan(&timezone); err != nil {
-			return nil, fmt.Errorf(`store: unable to fetch timezones row: %w`, err)
-		}
-
-		if !strings.HasPrefix(timezone, "posix") && !strings.HasPrefix(timezone, "SystemV") && timezone != "localtime" {
-			timezones[timezone] = timezone
-		}
-	}
-
 	return timezones, nil
 }

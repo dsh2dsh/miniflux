@@ -4,7 +4,7 @@
 package cli // import "miniflux.app/v2/internal/cli"
 
 import (
-	"database/sql"
+	"context"
 	"errors"
 	"fmt"
 
@@ -21,15 +21,14 @@ var resetPassCmd = cobra.Command{
 	Args:  cobra.ExactArgs(0),
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return withStorage(func(_ *sql.DB, store *storage.Storage) error {
-			return resetPassword(store)
-		})
+		return withStorage(resetPassword)
 	},
 }
 
 func resetPassword(store *storage.Storage) error {
+	ctx := context.Background()
 	username, password := askCredentials()
-	user, err := store.UserByUsername(username)
+	user, err := store.UserByUsername(ctx, username)
 	if err != nil {
 		return err
 	} else if user == nil {
@@ -39,14 +38,14 @@ func resetPassword(store *storage.Storage) error {
 	userModificationRequest := model.UserModificationRequest{
 		Password: &password,
 	}
-	validationErr := validator.ValidateUserModification(store,
-		user.ID, &userModificationRequest)
+	validationErr := validator.ValidateUserModification(ctx, store, user.ID,
+		&userModificationRequest)
 	if validationErr != nil {
 		return validationErr.Error()
 	}
 
 	user.Password = password
-	if err := store.UpdateUser(user); err != nil {
+	if err := store.UpdateUser(ctx, user); err != nil {
 		return err
 	}
 

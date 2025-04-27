@@ -79,14 +79,15 @@ func (m *middleware) handleAppSession(next http.Handler) http.Handler {
 				slog.Debug("Cookie expired but user is logged: creating a new app session",
 					slog.Int64("user_id", userID),
 				)
-				session, err = m.store.CreateAppSessionWithUserPrefs(userID)
+				session, err = m.store.CreateAppSessionWithUserPrefs(
+					r.Context(), userID)
 				if err != nil {
 					html.ServerError(w, r, err)
 					return
 				}
 			} else {
 				slog.Debug("App session not found, creating a new one")
-				session, err = m.store.CreateAppSession()
+				session, err = m.store.CreateAppSession(r.Context())
 				if err != nil {
 					html.ServerError(w, r, err)
 					return
@@ -140,7 +141,7 @@ func (m *middleware) getAppSessionValueFromCookie(r *http.Request) *model.Sessio
 		return nil
 	}
 
-	session, err := m.store.AppSession(cookieValue)
+	session, err := m.store.AppSession(r.Context(), cookieValue)
 	if err != nil {
 		slog.Debug("Unable to fetch app session from the database; another session will be created",
 			slog.Any("cookie_value", cookieValue),
@@ -148,7 +149,6 @@ func (m *middleware) getAppSessionValueFromCookie(r *http.Request) *model.Sessio
 		)
 		return nil
 	}
-
 	return session
 }
 
@@ -184,7 +184,7 @@ func (m *middleware) getUserSessionFromCookie(r *http.Request) *model.UserSessio
 		return nil
 	}
 
-	session, err := m.store.UserSessionByToken(cookieValue)
+	session, err := m.store.UserSessionByToken(r.Context(), cookieValue)
 	if err != nil {
 		slog.Error("Unable to fetch user session from the database",
 			slog.Any("cookie_value", cookieValue),
@@ -216,7 +216,7 @@ func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
 			slog.String("username", username),
 		)
 
-		user, err := m.store.UserByUsername(username)
+		user, err := m.store.UserByUsername(r.Context(), username)
 		if err != nil {
 			html.ServerError(w, r, err)
 			return
@@ -234,13 +234,16 @@ func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
 				return
 			}
 
-			if user, err = m.store.CreateUser(&model.UserCreationRequest{Username: username}); err != nil {
+			user, err = m.store.CreateUser(r.Context(),
+				&model.UserCreationRequest{Username: username})
+			if err != nil {
 				html.ServerError(w, r, err)
 				return
 			}
 		}
 
-		sessionToken, _, err := m.store.CreateUserSessionFromUsername(user.Username, r.UserAgent(), clientIP)
+		sessionToken, _, err := m.store.CreateUserSessionFromUsername(
+			r.Context(), user.Username, r.UserAgent(), clientIP)
 		if err != nil {
 			html.ServerError(w, r, err)
 			return
@@ -254,14 +257,14 @@ func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
 			slog.String("username", user.Username),
 		)
 
-		if err := m.store.SetLastLogin(user.ID); err != nil {
+		if err := m.store.SetLastLogin(r.Context(), user.ID); err != nil {
 			html.ServerError(w, r, err)
 			return
 		}
 
 		sess := session.New(m.store, request.SessionID(r))
-		sess.SetLanguage(user.Language)
-		sess.SetTheme(user.Theme)
+		sess.SetLanguage(r.Context(), user.Language)
+		sess.SetTheme(r.Context(), user.Theme)
 
 		http.SetCookie(w, cookie.New(
 			cookie.CookieUserSessionID,
@@ -269,7 +272,6 @@ func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
 			config.Opts.HTTPS(),
 			config.Opts.BasePath(),
 		))
-
 		html.Redirect(w, r, route.Path(m.router, user.DefaultHomePage))
 	})
 }

@@ -43,30 +43,31 @@ func (h *handler) oauth2Unlink(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sess := session.New(h.store, request.SessionID(r))
-	user, err := h.store.UserByID(request.UserID(r))
+	user, err := h.store.UserByID(r.Context(), request.UserID(r))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	hasPassword, err := h.store.HasPassword(request.UserID(r))
+	hasPassword, err := h.store.HasPassword(r.Context(), request.UserID(r))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
 	if !hasPassword {
-		sess.NewFlashErrorMessage(printer.Print("error.unlink_account_without_password"))
+		sess.NewFlashErrorMessage(r.Context(),
+			printer.Print("error.unlink_account_without_password"))
 		html.Redirect(w, r, route.Path(h.router, "settings"))
 		return
 	}
 
 	authProvider.UnsetUserProfileID(user)
-	if err := h.store.UpdateUser(user); err != nil {
+	if err := h.store.UpdateUser(r.Context(), user); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	sess.NewFlashMessage(printer.Print("alert.account_unlinked"))
+	sess.NewFlashMessage(r.Context(), printer.Print("alert.account_unlinked"))
 	html.Redirect(w, r, route.Path(h.router, "settings"))
 }

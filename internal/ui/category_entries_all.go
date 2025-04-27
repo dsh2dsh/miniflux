@@ -15,14 +15,14 @@ import (
 )
 
 func (h *handler) showCategoryEntriesAllPage(w http.ResponseWriter, r *http.Request) {
-	user, err := h.store.UserByID(request.UserID(r))
+	user, err := h.store.UserByID(r.Context(), request.UserID(r))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
 	categoryID := request.RouteInt64Param(r, "categoryID")
-	category, err := h.store.Category(request.UserID(r), categoryID)
+	category, err := h.store.Category(r.Context(), request.UserID(r), categoryID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -42,13 +42,13 @@ func (h *handler) showCategoryEntriesAllPage(w http.ResponseWriter, r *http.Requ
 	builder.WithOffset(offset)
 	builder.WithLimit(user.EntriesPerPage)
 
-	entries, err := builder.GetEntries()
+	entries, err := builder.GetEntries(r.Context())
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	count, err := builder.CountEntries()
+	count, err := builder.CountEntries(r.Context())
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -62,10 +62,10 @@ func (h *handler) showCategoryEntriesAllPage(w http.ResponseWriter, r *http.Requ
 	view.Set("pagination", getPagination(route.Path(h.router, "categoryEntriesAll", "categoryID", category.ID), count, offset, user.EntriesPerPage))
 	view.Set("menu", "categories")
 	view.Set("user", user)
-	view.Set("countUnread", h.store.CountUnreadEntries(user.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(user.ID))
-	view.Set("hasSaveEntry", h.store.HasSaveEntry(user.ID))
+	view.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
+	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
+		r.Context(), user.ID))
+	view.Set("hasSaveEntry", h.store.HasSaveEntry(r.Context(), user.ID))
 	view.Set("showOnlyUnreadEntries", false)
-
 	html.OK(w, r, view.Render("category_entries"))
 }

@@ -5,7 +5,6 @@ package cli // import "miniflux.app/v2/internal/cli"
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -15,7 +14,6 @@ import (
 	"time"
 
 	"miniflux.app/v2/internal/config"
-	"miniflux.app/v2/internal/database"
 	httpd "miniflux.app/v2/internal/http/server"
 	"miniflux.app/v2/internal/metric"
 	"miniflux.app/v2/internal/proxyrotator"
@@ -26,24 +24,25 @@ import (
 )
 
 func RunDaemon() error {
-	return withStorage(func(db *sql.DB, store *storage.Storage) error {
-		if err := configureDaemon(db, store); err != nil {
+	return withStorage(func(store *storage.Storage) error {
+		if err := configureDaemon(store); err != nil {
 			return err
 		}
-		startDaemon(store)
+		startDaemon(context.Background(), store)
 		return nil
 	})
 }
 
-func configureDaemon(db *sql.DB, store *storage.Storage) error {
+func configureDaemon(store *storage.Storage) error {
 	// Run migrations and start the daemon.
+	ctx := context.Background()
 	if config.Opts.RunMigrations() {
-		if err := database.Migrate(db); err != nil {
+		if err := store.Migrate(ctx); err != nil {
 			return err
 		}
 	}
 
-	if err := database.IsSchemaUpToDate(db); err != nil {
+	if err := store.SchemaUpToDate(ctx); err != nil {
 		return err
 	}
 
@@ -81,17 +80,17 @@ func generateBundles() error {
 	return nil
 }
 
-func startDaemon(store *storage.Storage) {
+func startDaemon(ctx context.Context, store *storage.Storage) {
 	slog.Info("Starting daemon...")
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 	signal.Notify(stop, syscall.SIGTERM)
 
-	pool := worker.NewPool(store, config.Opts.WorkerPoolSize())
+	pool := worker.NewPool(ctx, store, config.Opts.WorkerPoolSize())
 
 	if config.Opts.HasSchedulerService() && !config.Opts.HasMaintenanceMode() {
-		runScheduler(store, pool)
+		runScheduler(ctx, store, pool)
 	}
 
 	var httpServer *http.Server
@@ -100,8 +99,7 @@ func startDaemon(store *storage.Storage) {
 	}
 
 	if config.Opts.HasMetricsCollector() {
-		collector := metric.NewCollector(store, config.Opts.MetricsRefreshInterval())
-		go collector.GatherStorageMetrics()
+		metric.RegisterMetrics(store)
 	}
 
 	if systemd.HasNotifySocket() {
@@ -122,7 +120,7 @@ func startDaemon(store *storage.Storage) {
 				}
 
 				for {
-					if err := store.Ping(); err != nil {
+					if err := store.Ping(context.Background()); err != nil {
 						slog.Error("Unable to ping database", slog.Any("error", err))
 					} else {
 						if err := systemd.SdNotify(systemd.SdNotifyWatchdog); err != nil {

@@ -84,13 +84,13 @@ func (h *handler) handleGroups(w http.ResponseWriter, r *http.Request) {
 		slog.Int64("user_id", userID),
 	)
 
-	categories, err := h.store.Categories(userID)
+	categories, err := h.store.Categories(r.Context(), userID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
 
-	feeds, err := h.store.Feeds(userID)
+	feeds, err := h.store.Feeds(r.Context(), userID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -136,7 +136,7 @@ func (h *handler) handleFeeds(w http.ResponseWriter, r *http.Request) {
 		slog.Int64("user_id", userID),
 	)
 
-	feeds, err := h.store.Feeds(userID)
+	feeds, err := h.store.Feeds(r.Context(), userID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -191,7 +191,7 @@ func (h *handler) handleFavicons(w http.ResponseWriter, r *http.Request) {
 		slog.Int64("user_id", userID),
 	)
 
-	icons, err := h.store.Icons(userID)
+	icons, err := h.store.Icons(r.Context(), userID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -291,7 +291,7 @@ func (h *handler) handleItems(w http.ResponseWriter, r *http.Request) {
 		)
 	}
 
-	entries, err := builder.GetEntries()
+	entries, err := builder.GetEntries(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -299,7 +299,7 @@ func (h *handler) handleItems(w http.ResponseWriter, r *http.Request) {
 
 	builder = h.store.NewEntryQueryBuilder(userID)
 	builder.WithoutStatus(model.EntryStatusRemoved)
-	result.Total, err = builder.CountEntries()
+	result.Total, err = builder.CountEntries(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -350,7 +350,7 @@ func (h *handler) handleUnreadItems(w http.ResponseWriter, r *http.Request) {
 
 	builder := h.store.NewEntryQueryBuilder(userID)
 	builder.WithStatus(model.EntryStatusUnread)
-	rawEntryIDs, err := builder.GetEntryIDs()
+	rawEntryIDs, err := builder.GetEntryIDs(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -384,7 +384,7 @@ func (h *handler) handleSavedItems(w http.ResponseWriter, r *http.Request) {
 	builder := h.store.NewEntryQueryBuilder(userID)
 	builder.WithStarred(true)
 
-	entryIDs, err := builder.GetEntryIDs()
+	entryIDs, err := builder.GetEntryIDs(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -420,7 +420,7 @@ func (h *handler) handleWriteItems(w http.ResponseWriter, r *http.Request) {
 	builder.WithEntryID(entryID)
 	builder.WithoutStatus(model.EntryStatusRemoved)
 
-	entry, err := builder.GetEntry()
+	entry, err := builder.GetEntry(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -441,25 +441,26 @@ func (h *handler) handleWriteItems(w http.ResponseWriter, r *http.Request) {
 			slog.Int64("user_id", userID),
 			slog.Int64("entry_id", entryID),
 		)
-		err = h.store.SetEntriesStatus(userID, []int64{entryID},
+		err = h.store.SetEntriesStatus(r.Context(), userID, []int64{entryID},
 			model.EntryStatusRead)
 	case "unread":
 		slog.Debug("[Fever] Mark entry as unread",
 			slog.Int64("user_id", userID),
 			slog.Int64("entry_id", entryID),
 		)
-		err = h.store.SetEntriesStatus(userID, []int64{entryID},
+		err = h.store.SetEntriesStatus(r.Context(), userID, []int64{entryID},
 			model.EntryStatusUnread)
 	case "saved":
 		slog.Debug("[Fever] Mark entry as saved",
 			slog.Int64("user_id", userID),
 			slog.Int64("entry_id", entryID),
 		)
-		if err := h.store.ToggleBookmark(userID, entryID); err != nil {
+		err := h.store.ToggleBookmark(r.Context(), userID, entryID)
+		if err != nil {
 			json.ServerError(w, r, err)
 			return
 		}
-		settings, err := h.store.Integration(userID)
+		settings, err := h.store.Integration(r.Context(), userID)
 		if err != nil {
 			json.ServerError(w, r, err)
 			return
@@ -470,7 +471,7 @@ func (h *handler) handleWriteItems(w http.ResponseWriter, r *http.Request) {
 			slog.Int64("user_id", userID),
 			slog.Int64("entry_id", entryID),
 		)
-		err = h.store.ToggleBookmark(userID, entryID)
+		err = h.store.ToggleBookmark(r.Context(), userID, entryID)
 	}
 	if err != nil {
 		json.ServerError(w, r, err)
@@ -502,7 +503,8 @@ func (h *handler) handleWriteFeeds(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go func() {
-		if err := h.store.MarkFeedAsRead(userID, feedID, before); err != nil {
+		err := h.store.MarkFeedAsRead(r.Context(), userID, feedID, before)
+		if err != nil {
 			slog.Error("[Fever] Unable to mark feed as read",
 				slog.Int64("user_id", userID),
 				slog.Int64("feed_id", feedID),
@@ -511,7 +513,6 @@ func (h *handler) handleWriteFeeds(w http.ResponseWriter, r *http.Request) {
 			)
 		}
 	}()
-
 	json.OK(w, r, newBaseResponse())
 }
 
@@ -540,9 +541,9 @@ func (h *handler) handleWriteGroups(w http.ResponseWriter, r *http.Request) {
 		var err error
 
 		if groupID == 0 {
-			err = h.store.MarkAllAsRead(userID)
+			err = h.store.MarkAllAsRead(r.Context(), userID)
 		} else {
-			err = h.store.MarkCategoryAsRead(userID, groupID, before)
+			err = h.store.MarkCategoryAsRead(r.Context(), userID, groupID, before)
 		}
 
 		if err != nil {

@@ -63,8 +63,8 @@ func (s *SessionData) Scan(src any) error {
 
 // Session represents a session in the system.
 type Session struct {
-	ID   string
-	Data *SessionData
+	ID   string       `db:"id"`
+	Data *SessionData `db:"data"`
 }
 
 func (s *Session) String() string {

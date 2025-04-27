@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
+
 	"miniflux.app/v2/internal/config"
 )
 

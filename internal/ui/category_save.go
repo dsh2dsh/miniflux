@@ -17,7 +17,7 @@ import (
 )
 
 func (h *handler) saveCategory(w http.ResponseWriter, r *http.Request) {
-	loggedUser, err := h.store.UserByID(request.UserID(r))
+	loggedUser, err := h.store.UserByID(r.Context(), request.UserID(r))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -30,18 +30,24 @@ func (h *handler) saveCategory(w http.ResponseWriter, r *http.Request) {
 	view.Set("form", categoryForm)
 	view.Set("menu", "categories")
 	view.Set("user", loggedUser)
-	view.Set("countUnread", h.store.CountUnreadEntries(loggedUser.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(loggedUser.ID))
+	view.Set("countUnread", h.store.CountUnreadEntries(
+		r.Context(), loggedUser.ID))
+	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
+		r.Context(), loggedUser.ID))
 
 	categoryCreationRequest := &model.CategoryCreationRequest{Title: categoryForm.Title}
 
-	if validationErr := validator.ValidateCategoryCreation(h.store, loggedUser.ID, categoryCreationRequest); validationErr != nil {
+	validationErr := validator.ValidateCategoryCreation(r.Context(),
+		h.store, loggedUser.ID, categoryCreationRequest)
+	if validationErr != nil {
 		view.Set("errorMessage", validationErr.Translate(loggedUser.Language))
 		html.OK(w, r, view.Render("create_category"))
 		return
 	}
 
-	if _, err = h.store.CreateCategory(loggedUser.ID, categoryCreationRequest); err != nil {
+	_, err = h.store.CreateCategory(r.Context(), loggedUser.ID,
+		categoryCreationRequest)
+	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}

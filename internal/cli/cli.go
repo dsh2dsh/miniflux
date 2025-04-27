@@ -4,7 +4,7 @@
 package cli // import "miniflux.app/v2/internal/cli"
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -14,7 +14,6 @@ import (
 
 	"miniflux.app/v2/internal/cli/logger"
 	"miniflux.app/v2/internal/config"
-	"miniflux.app/v2/internal/database"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/version"
 )
@@ -55,8 +54,8 @@ var migrateCmd = cobra.Command{
 	Args:  cobra.ExactArgs(0),
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return withStorage(func(db *sql.DB, _ *storage.Storage) error {
-			return database.Migrate(db)
+		return withStorage(func(store *storage.Storage) error {
+			return store.Migrate(context.Background())
 		})
 	},
 }
@@ -67,8 +66,8 @@ var resetFeedErrorsCmd = cobra.Command{
 	Args:  cobra.ExactArgs(0),
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return withStorage(func(_ *sql.DB, store *storage.Storage) error {
-			return store.ResetFeedErrors()
+		return withStorage(func(store *storage.Storage) error {
+			return store.ResetFeedErrors(context.Background())
 		})
 	},
 }
@@ -79,8 +78,8 @@ var resetFeedNextCmd = cobra.Command{
 	Args:  cobra.ExactArgs(0),
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return withStorage(func(_ *sql.DB, store *storage.Storage) error {
-			return store.ResetNextCheckAt()
+		return withStorage(func(store *storage.Storage) error {
+			return store.ResetNextCheckAt(context.Background())
 		})
 	},
 }
@@ -129,27 +128,26 @@ func printErrorAndExit(err error) {
 	os.Exit(1)
 }
 
-func withStorage(fn func(db *sql.DB, store *storage.Storage) error) error {
+func withStorage(fn func(store *storage.Storage) error) error {
 	if config.Opts.IsDefaultDatabaseURL() {
 		slog.Info("The default value for DATABASE_URL is used")
 	}
 
-	db, err := database.NewConnectionPool(
+	ctx := context.Background()
+	store, err := storage.New(ctx,
 		config.Opts.DatabaseURL(),
-		config.Opts.DatabaseMinConns(),
 		config.Opts.DatabaseMaxConns(),
-		config.Opts.DatabaseConnectionLifetime(),
-	)
+		config.Opts.DatabaseMinConns(),
+		config.Opts.DatabaseConnectionLifetime())
 	if err != nil {
-		return fmt.Errorf("unable to connect to database: %w", err)
-	}
-	defer db.Close()
-
-	store := storage.NewStorage(db)
-	if err := store.Ping(); err != nil {
 		return err
 	}
-	return fn(db, store)
+	defer store.Close(ctx)
+
+	if err := store.Ping(ctx); err != nil {
+		return err
+	}
+	return fn(store)
 }
 
 func Execute() {

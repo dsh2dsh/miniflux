@@ -95,6 +95,27 @@ Official website: <https://miniflux.app>
   Use "miniflux [command] --help" for more information about a command.
   ```
 
+  * Refactor storage and switch to [pgx](https://github.com/jackc/pgx)
+
+  `DATABASE_URL` have additional variables for pool configuration:
+
+  ```
+  pool_max_conn_idle_time: duration string (default 30 minutes)
+  pool_health_check_period: duration string (default 1 minute)
+  pool_max_conn_lifetime_jitter: duration string (default 0)
+  ```
+
+  See [ParseConfig] for details.
+
+  Don't specify `pool_max_conns`, `pool_min_conns` and `pool_max_conn_lifetime`,
+  because config variables `DATABASE_MAX_CONNS`, `DATABASE_MIN_CONNS` and
+  `DATABASE_CONNECTION_LIFETIME` overwrite it.
+
+  `DATABASE_MAX_CONNS` changed its default from 20 to the greater of 4 or
+  `runtime.NumCPU()`.
+
+  [ParseConfig]: https://pkg.go.dev/github.com/jackc/pgx/v5@v5.7.4/pgxpool#ParseConfig
+
 Features
 --------
 

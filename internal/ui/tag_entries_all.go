@@ -16,7 +16,7 @@ import (
 )
 
 func (h *handler) showTagEntriesAllPage(w http.ResponseWriter, r *http.Request) {
-	user, err := h.store.UserByID(request.UserID(r))
+	user, err := h.store.UserByID(r.Context(), request.UserID(r))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -38,13 +38,13 @@ func (h *handler) showTagEntriesAllPage(w http.ResponseWriter, r *http.Request) 
 	builder.WithOffset(offset)
 	builder.WithLimit(user.EntriesPerPage)
 
-	entries, err := builder.GetEntries()
+	entries, err := builder.GetEntries(r.Context())
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	count, err := builder.CountEntries()
+	count, err := builder.CountEntries(r.Context())
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -57,10 +57,10 @@ func (h *handler) showTagEntriesAllPage(w http.ResponseWriter, r *http.Request) 
 	view.Set("entries", entries)
 	view.Set("pagination", getPagination(route.Path(h.router, "tagEntriesAll", "tagName", url.PathEscape(tagName)), count, offset, user.EntriesPerPage))
 	view.Set("user", user)
-	view.Set("countUnread", h.store.CountUnreadEntries(user.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(user.ID))
-	view.Set("hasSaveEntry", h.store.HasSaveEntry(user.ID))
+	view.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
+	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
+		r.Context(), user.ID))
+	view.Set("hasSaveEntry", h.store.HasSaveEntry(r.Context(), user.ID))
 	view.Set("showOnlyUnreadEntries", false)
-
 	html.OK(w, r, view.Render("tag_entries"))
 }

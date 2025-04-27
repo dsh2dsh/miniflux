@@ -16,16 +16,18 @@ import (
 
 func (h *handler) logout(w http.ResponseWriter, r *http.Request) {
 	sess := session.New(h.store, request.SessionID(r))
-	user, err := h.store.UserByID(request.UserID(r))
+	user, err := h.store.UserByID(r.Context(), request.UserID(r))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	sess.SetLanguage(user.Language)
-	sess.SetTheme(user.Theme)
+	sess.SetLanguage(r.Context(), user.Language)
+	sess.SetTheme(r.Context(), user.Theme)
 
-	if err := h.store.RemoveUserSessionByToken(user.ID, request.UserSessionToken(r)); err != nil {
+	err = h.store.RemoveUserSessionByToken(r.Context(), user.ID,
+		request.UserSessionToken(r))
+	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
@@ -35,6 +37,5 @@ func (h *handler) logout(w http.ResponseWriter, r *http.Request) {
 		config.Opts.HTTPS(),
 		config.Opts.BasePath(),
 	))
-
 	html.Redirect(w, r, route.Path(h.router, "login"))
 }

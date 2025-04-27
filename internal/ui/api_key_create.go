@@ -14,7 +14,7 @@ import (
 )
 
 func (h *handler) showCreateAPIKeyPage(w http.ResponseWriter, r *http.Request) {
-	user, err := h.store.UserByID(request.UserID(r))
+	user, err := h.store.UserByID(r.Context(), request.UserID(r))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -25,8 +25,8 @@ func (h *handler) showCreateAPIKeyPage(w http.ResponseWriter, r *http.Request) {
 	view.Set("form", &form.APIKeyForm{})
 	view.Set("menu", "settings")
 	view.Set("user", user)
-	view.Set("countUnread", h.store.CountUnreadEntries(user.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(user.ID))
-
+	view.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
+	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
+		r.Context(), user.ID))
 	html.OK(w, r, view.Render("create_api_key"))
 }

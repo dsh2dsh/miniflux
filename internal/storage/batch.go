@@ -4,24 +4,25 @@
 package storage // import "miniflux.app/v2/internal/storage"
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"strings"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"miniflux.app/v2/internal/model"
 )
 
 type BatchBuilder struct {
-	db         *sql.DB
+	db         *pgxpool.Pool
 	args       []any
 	conditions []string
 	limit      int
 }
 
 func (s *Storage) NewBatchBuilder() *BatchBuilder {
-	return &BatchBuilder{
-		db: s.db,
-	}
+	return &BatchBuilder{db: s.db}
 }
 
 func (b *BatchBuilder) WithBatchSize(batchSize int) *BatchBuilder {
@@ -30,20 +31,23 @@ func (b *BatchBuilder) WithBatchSize(batchSize int) *BatchBuilder {
 }
 
 func (b *BatchBuilder) WithUserID(userID int64) *BatchBuilder {
-	b.conditions = append(b.conditions, fmt.Sprintf("user_id = $%d", len(b.args)+1))
+	b.conditions = append(b.conditions,
+		fmt.Sprintf("user_id = $%d", len(b.args)+1))
 	b.args = append(b.args, userID)
 	return b
 }
 
 func (b *BatchBuilder) WithCategoryID(categoryID int64) *BatchBuilder {
-	b.conditions = append(b.conditions, fmt.Sprintf("category_id = $%d", len(b.args)+1))
+	b.conditions = append(b.conditions,
+		fmt.Sprintf("category_id = $%d", len(b.args)+1))
 	b.args = append(b.args, categoryID)
 	return b
 }
 
 func (b *BatchBuilder) WithErrorLimit(limit int) *BatchBuilder {
 	if limit > 0 {
-		b.conditions = append(b.conditions, fmt.Sprintf("parsing_error_count < $%d", len(b.args)+1))
+		b.conditions = append(b.conditions,
+			fmt.Sprintf("parsing_error_count < $%d", len(b.args)+1))
 		b.args = append(b.args, limit)
 	}
 	return b
@@ -59,9 +63,8 @@ func (b *BatchBuilder) WithoutDisabledFeeds() *BatchBuilder {
 	return b
 }
 
-func (b *BatchBuilder) FetchJobs() (jobs model.JobList, err error) {
+func (b *BatchBuilder) FetchJobs(ctx context.Context) ([]model.Job, error) {
 	query := `SELECT id, user_id FROM feeds`
-
 	if len(b.conditions) > 0 {
 		query += " WHERE " + strings.Join(b.conditions, " AND ")
 	}
@@ -70,20 +73,10 @@ func (b *BatchBuilder) FetchJobs() (jobs model.JobList, err error) {
 		query += fmt.Sprintf(" ORDER BY next_check_at ASC LIMIT %d", b.limit)
 	}
 
-	rows, err := b.db.Query(query, b.args...)
+	rows, _ := b.db.Query(ctx, query, b.args...)
+	jobs, err := pgx.CollectRows(rows, pgx.RowToStructByName[model.Job])
 	if err != nil {
 		return nil, fmt.Errorf(`store: unable to fetch batch of jobs: %w`, err)
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var job model.Job
-		if err := rows.Scan(&job.FeedID, &job.UserID); err != nil {
-			return nil, fmt.Errorf(`store: unable to fetch job: %w`, err)
-		}
-
-		jobs = append(jobs, job)
-	}
-
 	return jobs, nil
 }

@@ -4,26 +4,42 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"log/slog"
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
+	"miniflux.app/v2/internal/logging"
 )
 
 func (h *handler) removeCategoryFeed(w http.ResponseWriter, r *http.Request) {
 	feedID := request.RouteInt64Param(r, "feedID")
 	categoryID := request.RouteInt64Param(r, "categoryID")
 
-	if !h.store.CategoryFeedExists(request.UserID(r), categoryID, feedID) {
-		html.NotFound(w, r)
-		return
-	}
-
-	if err := h.store.RemoveFeed(request.UserID(r), feedID); err != nil {
+	userID := request.UserID(r)
+	exists, err := h.store.CategoryFeedExists(r.Context(), userID, categoryID,
+		feedID)
+	if err != nil {
+		logging.FromContext(r.Context()).Error(
+			"storage: unable check feed exists",
+			slog.Int64("user_id", userID),
+			slog.Int64("category_id", categoryID),
+			slog.Int64("feed_id", feedID),
+			slog.Any("error", err))
 		html.ServerError(w, r, err)
 		return
 	}
 
+	if !exists {
+		html.NotFound(w, r)
+		return
+	}
+
+	err = h.store.RemoveFeed(r.Context(), request.UserID(r), feedID)
+	if err != nil {
+		html.ServerError(w, r, err)
+		return
+	}
 	html.Redirect(w, r, route.Path(h.router, "categoryFeeds", "categoryID", categoryID))
 }

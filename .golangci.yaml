@@ -15,7 +15,7 @@ formatters:
       # with the given prefixes are grouped after 3rd-party packages.
       # Default: []
       local-prefixes:
-        - "miniflux/v2"
+        - "miniflux.app/v2"
 
 linters:
   enable:

@@ -49,7 +49,7 @@ func (m *middleware) apiKeyAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		user, err := m.store.UserByAPIKey(token)
+		user, err := m.store.UserByAPIKey(r.Context(), token)
 		if err != nil {
 			json.ServerError(w, r, err)
 			return
@@ -72,7 +72,7 @@ func (m *middleware) apiKeyAuth(next http.Handler) http.Handler {
 			slog.String("username", user.Username),
 		)
 
-		if err := m.store.SetLastLogin(user.ID); err != nil {
+		if err := m.store.SetLastLogin(r.Context(), user.ID); err != nil {
 			slog.Error("[API] failed set last login",
 				slog.String("client_ip", clientIP),
 				slog.String("user_agent", r.UserAgent()),
@@ -81,7 +81,7 @@ func (m *middleware) apiKeyAuth(next http.Handler) http.Handler {
 			)
 		}
 
-		if err := m.store.SetAPIKeyUsedTimestamp(user.ID, token); err != nil {
+		if err := m.store.SetAPIKeyUsedTimestamp(r.Context(), user.ID, token); err != nil {
 			slog.Error("[API] failed set key used timestamp",
 				slog.String("client_ip", clientIP),
 				slog.String("user_agent", r.UserAgent()),
@@ -131,7 +131,8 @@ func (m *middleware) basicAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		if err := m.store.CheckPassword(username, password); err != nil {
+		err := m.store.CheckPassword(r.Context(), username, password)
+		if err != nil {
 			slog.Warn("[API] Invalid username or password provided during Basic HTTP Authentication",
 				slog.Bool("authentication_failed", true),
 				slog.String("client_ip", clientIP),
@@ -142,7 +143,7 @@ func (m *middleware) basicAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		user, err := m.store.UserByUsername(username)
+		user, err := m.store.UserByUsername(r.Context(), username)
 		if err != nil {
 			json.ServerError(w, r, err)
 			return
@@ -166,7 +167,7 @@ func (m *middleware) basicAuth(next http.Handler) http.Handler {
 			slog.String("username", username),
 		)
 
-		if err := m.store.SetLastLogin(user.ID); err != nil {
+		if err := m.store.SetLastLogin(r.Context(), user.ID); err != nil {
 			slog.Error("[API] failed set last login",
 				slog.String("client_ip", clientIP),
 				slog.String("user_agent", r.UserAgent()),

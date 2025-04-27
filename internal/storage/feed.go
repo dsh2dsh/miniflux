@@ -4,13 +4,16 @@
 package storage // import "miniflux.app/v2/internal/storage"
 
 import (
-	"database/sql"
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"sort"
 
+	"github.com/jackc/pgx/v5"
+
 	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 )
 
@@ -33,232 +36,263 @@ func (l byStateAndName) Less(i, j int) bool {
 }
 
 // FeedExists checks if the given feed exists.
-func (s *Storage) FeedExists(userID, feedID int64) bool {
-	var result bool
-	query := `SELECT true FROM feeds WHERE user_id=$1 AND id=$2`
-	_ = s.db.QueryRow(query, userID, feedID).Scan(&result)
+func (s *Storage) FeedExists(ctx context.Context, userID, feedID int64) bool {
+	rows, _ := s.db.Query(ctx,
+		`SELECT EXISTS(SELECT FROM feeds WHERE user_id=$1 AND id=$2)`,
+		userID, feedID)
+
+	result, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[bool])
+	if err != nil {
+		logging.FromContext(ctx).Error("storage: unable check feed exists",
+			slog.Int64("user_id", userID),
+			slog.Int64("feed_id", feedID),
+			slog.Any("error", err))
+		return false
+	}
 	return result
 }
 
-// CategoryFeedExists returns true if the given feed exists that belongs to the given category.
-func (s *Storage) CategoryFeedExists(userID, categoryID, feedID int64) bool {
-	var result bool
-	query := `SELECT true FROM feeds WHERE user_id=$1 AND category_id=$2 AND id=$3`
-	_ = s.db.QueryRow(query, userID, categoryID, feedID).Scan(&result)
-	return result
+// CategoryFeedExists returns true if the given feed exists that belongs to the
+// given category.
+func (s *Storage) CategoryFeedExists(ctx context.Context, userID, categoryID,
+	feedID int64,
+) (bool, error) {
+	rows, _ := s.db.Query(ctx, `
+SELECT EXISTS(
+  SELECT FROM feeds WHERE user_id=$1 AND category_id=$2 AND id=$3)`,
+		userID, categoryID, feedID)
+
+	result, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[bool])
+	if err != nil {
+		return false, fmt.Errorf("storage: unable check feed exists: %w", err)
+	}
+	return result, nil
 }
 
 // FeedURLExists checks if feed URL already exists.
-func (s *Storage) FeedURLExists(userID int64, feedURL string) bool {
-	var result bool
-	query := `SELECT true FROM feeds WHERE user_id=$1 AND feed_url=$2`
-	_ = s.db.QueryRow(query, userID, feedURL).Scan(&result)
+func (s *Storage) FeedURLExists(ctx context.Context, userID int64,
+	feedURL string,
+) bool {
+	rows, _ := s.db.Query(ctx, `
+SELECT EXISTS(
+  SELECT FROM feeds WHERE user_id=$1 AND feed_url=$2)`,
+		userID, feedURL)
+
+	result, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[bool])
+	if err != nil {
+		logging.FromContext(ctx).Error("storage: unable check feed url exists",
+			slog.Int64("user_id", userID),
+			slog.String("feed_url", feedURL),
+			slog.Any("error", err))
+		return false
+	}
 	return result
 }
 
 // AnotherFeedURLExists checks if the user a duplicated feed.
-func (s *Storage) AnotherFeedURLExists(userID, feedID int64, feedURL string) bool {
-	var result bool
-	query := `SELECT true FROM feeds WHERE id <> $1 AND user_id=$2 AND feed_url=$3`
-	_ = s.db.QueryRow(query, feedID, userID, feedURL).Scan(&result)
+func (s *Storage) AnotherFeedURLExists(ctx context.Context,
+	userID, feedID int64, feedURL string,
+) bool {
+	rows, _ := s.db.Query(ctx, `
+SELECT EXISTS(
+  SELECT FROM feeds WHERE id <> $1 AND user_id=$2 AND feed_url=$3)`,
+		feedID, userID, feedURL)
+
+	result, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[bool])
+	if err != nil {
+		logging.FromContext(ctx).Error(
+			"storage: unable check another feed url exists",
+			slog.Int64("user_id", userID),
+			slog.Int64("feed_id", feedID),
+			slog.String("feed_url", feedURL),
+			slog.Any("error", err))
+		return false
+	}
 	return result
 }
 
 // CountAllFeeds returns the number of feeds in the database.
-func (s *Storage) CountAllFeeds() map[string]int64 {
-	rows, err := s.db.Query(`SELECT disabled, count(*) FROM feeds GROUP BY disabled`)
-	if err != nil {
-		return nil
-	}
-	defer rows.Close()
+func (s *Storage) CountAllFeeds(ctx context.Context) (map[string]int64, error) {
+	rows, _ := s.db.Query(ctx,
+		`SELECT disabled, count(*) FROM feeds GROUP BY disabled`)
 
-	results := map[string]int64{
-		"enabled":  0,
-		"disabled": 0,
-		"total":    0,
-	}
+	results := map[string]int64{"enabled": 0, "disabled": 0, "total": 0}
 
-	for rows.Next() {
-		var disabled bool
-		var count int64
-
-		if err := rows.Scan(&disabled, &count); err != nil {
-			continue
-		}
-
+	var disabled bool
+	var count int64
+	_, err := pgx.ForEachRow(rows, []any{&disabled, &count}, func() error {
 		if disabled {
 			results["disabled"] = count
 		} else {
 			results["enabled"] = count
 		}
+		results["total"] += count
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("storage: count all feeds by disabled: %w", err)
 	}
-
-	results["total"] = results["disabled"] + results["enabled"]
-	return results
+	return results, nil
 }
 
-// CountUserFeedsWithErrors returns the number of feeds with parsing errors that belong to the given user.
-func (s *Storage) CountUserFeedsWithErrors(userID int64) int {
-	pollingParsingErrorLimit := config.Opts.PollingParsingErrorLimit()
-	if pollingParsingErrorLimit <= 0 {
-		pollingParsingErrorLimit = 1
-	}
-	query := `SELECT count(*) FROM feeds WHERE user_id=$1 AND parsing_error_count >= $2`
-	var result int
-	err := s.db.QueryRow(query, userID, pollingParsingErrorLimit).Scan(&result)
+// CountUserFeedsWithErrors returns the number of feeds with parsing errors that
+// belong to the given user.
+func (s *Storage) CountUserFeedsWithErrors(ctx context.Context, userID int64,
+) int {
+	limit := max(1, config.Opts.PollingParsingErrorLimit())
+	rows, _ := s.db.Query(ctx, `
+SELECT count(*) FROM feeds WHERE user_id=$1 AND parsing_error_count >= $2`,
+		userID, limit)
+
+	count, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[int])
 	if err != nil {
+		logging.FromContext(ctx).Error(
+			"storage: unable count user feeds with error",
+			slog.Int64("user_id", userID), slog.Any("error", err))
 		return 0
 	}
-
-	return result
+	return count
 }
 
 // CountAllFeedsWithErrors returns the number of feeds with parsing errors.
-func (s *Storage) CountAllFeedsWithErrors() int {
-	pollingParsingErrorLimit := config.Opts.PollingParsingErrorLimit()
-	if pollingParsingErrorLimit <= 0 {
-		pollingParsingErrorLimit = 1
-	}
-	query := `SELECT count(*) FROM feeds WHERE parsing_error_count >= $1`
-	var result int
-	err := s.db.QueryRow(query, pollingParsingErrorLimit).Scan(&result)
-	if err != nil {
-		return 0
-	}
+func (s *Storage) CountAllFeedsWithErrors(ctx context.Context) (int, error) {
+	limit := max(1, config.Opts.PollingParsingErrorLimit())
+	rows, _ := s.db.Query(ctx,
+		`SELECT count(*) FROM feeds WHERE parsing_error_count >= $1`, limit)
 
-	return result
+	count, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[int])
+	if err != nil {
+		return 0, fmt.Errorf("storage: unable count all feeds with error: %w", err)
+	}
+	return count, nil
 }
 
 // Feeds returns all feeds that belongs to the given user.
-func (s *Storage) Feeds(userID int64) (model.Feeds, error) {
-	builder := NewFeedQueryBuilder(s, userID)
-	builder.WithSorting(model.DefaultFeedSorting, model.DefaultFeedSortingDirection)
-	return builder.GetFeeds()
+func (s *Storage) Feeds(ctx context.Context, userID int64,
+) (model.Feeds, error) {
+	builder := s.NewFeedQueryBuilder(userID).
+		WithSorting(model.DefaultFeedSorting, model.DefaultFeedSortingDirection)
+	return builder.GetFeeds(ctx)
 }
 
-func getFeedsSorted(builder *FeedQueryBuilder) (model.Feeds, error) {
-	result, err := builder.GetFeeds()
-	if err == nil {
-		sort.Sort(byStateAndName{result})
-		return result, nil
+func getFeedsSorted(ctx context.Context, builder *FeedQueryBuilder,
+) (model.Feeds, error) {
+	result, err := builder.GetFeeds(ctx)
+	if err != nil {
+		return result, err
 	}
-	return result, err
+	sort.Sort(byStateAndName{result})
+	return result, nil
 }
 
-// FeedsWithCounters returns all feeds of the given user with counters of read and unread entries.
-func (s *Storage) FeedsWithCounters(userID int64) (model.Feeds, error) {
-	builder := NewFeedQueryBuilder(s, userID)
-	builder.WithCounters()
-	builder.WithSorting(model.DefaultFeedSorting, model.DefaultFeedSortingDirection)
-	return getFeedsSorted(builder)
+// FeedsWithCounters returns all feeds of the given user with counters of read
+// and unread entries.
+func (s *Storage) FeedsWithCounters(ctx context.Context, userID int64,
+) (model.Feeds, error) {
+	builder := s.NewFeedQueryBuilder(userID).
+		WithCounters().
+		WithSorting(model.DefaultFeedSorting, model.DefaultFeedSortingDirection)
+	return getFeedsSorted(ctx, builder)
 }
 
 // Return read and unread count.
-func (s *Storage) FetchCounters(userID int64) (model.FeedCounters, error) {
-	builder := NewFeedQueryBuilder(s, userID)
-	builder.WithCounters()
-	reads, unreads, err := builder.fetchFeedCounter()
+func (s *Storage) FetchCounters(ctx context.Context, userID int64,
+) (model.FeedCounters, error) {
+	builder := s.NewFeedQueryBuilder(userID).WithCounters()
+	reads, unreads, err := builder.fetchFeedCounter(ctx)
 	return model.FeedCounters{ReadCounters: reads, UnreadCounters: unreads}, err
 }
 
-// FeedsByCategoryWithCounters returns all feeds of the given user/category with counters of read and unread entries.
-func (s *Storage) FeedsByCategoryWithCounters(userID, categoryID int64) (model.Feeds, error) {
-	builder := NewFeedQueryBuilder(s, userID)
-	builder.WithCategoryID(categoryID)
-	builder.WithCounters()
-	builder.WithSorting(model.DefaultFeedSorting, model.DefaultFeedSortingDirection)
-	return getFeedsSorted(builder)
+// FeedsByCategoryWithCounters returns all feeds of the given user/category with
+// counters of read and unread entries.
+func (s *Storage) FeedsByCategoryWithCounters(ctx context.Context,
+	userID, categoryID int64,
+) (model.Feeds, error) {
+	builder := s.NewFeedQueryBuilder(userID).
+		WithCategoryID(categoryID).
+		WithCounters().
+		WithSorting(model.DefaultFeedSorting, model.DefaultFeedSortingDirection)
+	return getFeedsSorted(ctx, builder)
 }
 
 // WeeklyFeedEntryCount returns the weekly entry count for a feed.
-func (s *Storage) WeeklyFeedEntryCount(userID, feedID int64) (int, error) {
-	// Calculate a virtual weekly count based on the average updating frequency.
-	// This helps after just adding a high volume feed.
-	// Return 0 when the 'count(*)' is zero(0) or one(1).
-	query := `
-		SELECT
-			COALESCE(CAST(CEIL(
-				(EXTRACT(epoch from interval '1 week'))	/
-				NULLIF((EXTRACT(epoch from (max(published_at)-min(published_at))/NULLIF((count(*)-1), 0) )), 0)
-			) AS BIGINT), 0)
-		FROM
-			entries
-		WHERE
-			entries.user_id=$1 AND
-			entries.feed_id=$2 AND
-			entries.published_at >= now() - interval '1 week';
-	`
+//
+// Calculate a virtual weekly count based on the average updating frequency.
+// This helps after just adding a high volume feed.
+//
+// Return 0 when the 'count(*)' is zero(0) or one(1).
+func (s *Storage) WeeklyFeedEntryCount(ctx context.Context,
+	userID, feedID int64,
+) (int, error) {
+	rows, _ := s.db.Query(ctx, `
+SELECT
+	COALESCE(CAST(CEIL(
+		(EXTRACT(epoch from interval '1 week'))	/
+		NULLIF((EXTRACT(epoch from (max(published_at)-min(published_at))/NULLIF((count(*)-1), 0) )), 0)
+	) AS BIGINT), 0)
+ FROM entries
+WHERE entries.user_id=$1 AND entries.feed_id=$2
+      AND entries.published_at >= now() - interval '1 week'`,
+		userID, feedID)
 
-	var weeklyCount int
-	err := s.db.QueryRow(query, userID, feedID).Scan(&weeklyCount)
-
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
+	count, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[int])
+	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, nil
-	case err != nil:
+	} else if err != nil {
 		return 0, fmt.Errorf(
 			`store: unable to fetch weekly count for feed #%d: %w`, feedID, err)
 	}
-
-	return weeklyCount, nil
+	return count, nil
 }
 
 // FeedByID returns a feed by the ID.
-func (s *Storage) FeedByID(userID, feedID int64) (*model.Feed, error) {
-	builder := NewFeedQueryBuilder(s, userID)
-	builder.WithFeedID(feedID)
-	feed, err := builder.GetFeed()
-
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
+func (s *Storage) FeedByID(ctx context.Context, userID, feedID int64,
+) (*model.Feed, error) {
+	builder := s.NewFeedQueryBuilder(userID).WithFeedID(feedID)
+	feed, err := builder.GetFeed(ctx)
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
-	case err != nil:
+	} else if err != nil {
 		return nil, fmt.Errorf(`store: unable to fetch feed #%d: %w`, feedID, err)
 	}
-
 	return feed, nil
 }
 
 // CreateFeed creates a new feed.
-func (s *Storage) CreateFeed(feed *model.Feed) error {
-	sql := `
-		INSERT INTO feeds (
-			feed_url,
-			site_url,
-			title,
-			category_id,
-			user_id,
-			etag_header,
-			last_modified_header,
-			crawler,
-			user_agent,
-			cookie,
-			username,
-			password,
-			disabled,
-			scraper_rules,
-			rewrite_rules,
-			blocklist_rules,
-			keeplist_rules,
-			ignore_http_cache,
-			allow_self_signed_certificates,
-			fetch_via_proxy,
-			hide_globally,
-			url_rewrite_rules,
-			no_media_player,
-			apprise_service_urls,
-			webhook_url,
-			disable_http2,
-			description,
-			proxy_url
-		)
-		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
-		RETURNING
-			id
-	`
-	err := s.db.QueryRow(
-		sql,
+func (s *Storage) CreateFeed(ctx context.Context, feed *model.Feed) error {
+	err := s.db.QueryRow(ctx, `
+INSERT INTO feeds (
+  feed_url,
+  site_url,
+  title,
+  category_id,
+  user_id,
+  etag_header,
+  last_modified_header,
+  crawler,
+  user_agent,
+  cookie,
+  username,
+  password,
+  disabled,
+  scraper_rules,
+  rewrite_rules,
+  blocklist_rules,
+  keeplist_rules,
+  ignore_http_cache,
+  allow_self_signed_certificates,
+  fetch_via_proxy,
+  hide_globally,
+  url_rewrite_rules,
+  no_media_player,
+  apprise_service_urls,
+  webhook_url,
+  disable_http2,
+  description,
+  proxy_url)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+        $17, $18, $19, $20, $21, $22,  $23, $24, $25, $26, $27, $28)
+RETURNING id`,
 		feed.FeedURL,
 		feed.SiteURL,
 		feed.Title,
@@ -286,8 +320,7 @@ func (s *Storage) CreateFeed(feed *model.Feed) error {
 		feed.WebhookURL,
 		feed.DisableHTTP2,
 		feed.Description,
-		feed.ProxyURL,
-	).Scan(&feed.ID)
+		feed.ProxyURL).Scan(&feed.ID)
 	if err != nil {
 		return fmt.Errorf(`store: unable to create feed %q: %w`, feed.FeedURL, err)
 	}
@@ -295,87 +328,63 @@ func (s *Storage) CreateFeed(feed *model.Feed) error {
 	for _, entry := range feed.Entries {
 		entry.FeedID = feed.ID
 		entry.UserID = feed.UserID
-
-		tx, err := s.db.Begin()
-		if err != nil {
-			return fmt.Errorf(`store: unable to start transaction: %w`, err)
-		}
-
-		entryExists, err := s.entryExists(tx, entry)
-		if err != nil {
-			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				return fmt.Errorf(
-					`store: unable to rollback transaction: %w (rolled back due to: %w)`,
-					rollbackErr, err)
-			}
-			return err
-		}
-
-		if !entryExists {
-			if err := s.createEntry(tx, entry); err != nil {
-				if rollbackErr := tx.Rollback(); rollbackErr != nil {
-					return fmt.Errorf(
-						`store: unable to rollback transaction: %w (rolled back due to: %w)`,
-						rollbackErr, err)
-				}
+		err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+			if entryExists, err := s.entryExists(ctx, tx, entry); err != nil {
 				return err
+			} else if entryExists {
+				return nil
 			}
-		}
-
-		if err := tx.Commit(); err != nil {
-			return fmt.Errorf(`store: unable to commit transaction: %w`, err)
+			return s.createEntry(ctx, tx, entry)
+		})
+		if err != nil {
+			return fmt.Errorf("store: unable to create entries: %w", err)
 		}
 	}
-
 	return nil
 }
 
 // UpdateFeed updates an existing feed.
-func (s *Storage) UpdateFeed(feed *model.Feed) (err error) {
-	query := `
-		UPDATE
-			feeds
-		SET
-			feed_url=$1,
-			site_url=$2,
-			title=$3,
-			category_id=$4,
-			etag_header=$5,
-			last_modified_header=$6,
-			checked_at=$7,
-			parsing_error_msg=$8,
-			parsing_error_count=$9,
-			scraper_rules=$10,
-			rewrite_rules=$11,
-			blocklist_rules=$12,
-			keeplist_rules=$13,
-			crawler=$14,
-			user_agent=$15,
-			cookie=$16,
-			username=$17,
-			password=$18,
-			disabled=$19,
-			next_check_at=$20,
-			ignore_http_cache=$21,
-			allow_self_signed_certificates=$22,
-			fetch_via_proxy=$23,
-			hide_globally=$24,
-			url_rewrite_rules=$25,
-			no_media_player=$26,
-			apprise_service_urls=$27,
-			webhook_url=$28,
-			disable_http2=$29,
-			description=$30,
-			ntfy_enabled=$31,
-			ntfy_priority=$32,
-			ntfy_topic=$33,
-			pushover_enabled=$34,
-			pushover_priority=$35,
-			proxy_url=$36
-		WHERE
-			id=$37 AND user_id=$38
-	`
-	_, err = s.db.Exec(query,
+func (s *Storage) UpdateFeed(ctx context.Context, feed *model.Feed) error {
+	_, err := s.db.Exec(ctx, `
+UPDATE feeds
+SET
+	feed_url=$1,
+	site_url=$2,
+	title=$3,
+	category_id=$4,
+	etag_header=$5,
+	last_modified_header=$6,
+	checked_at=$7,
+	parsing_error_msg=$8,
+	parsing_error_count=$9,
+	scraper_rules=$10,
+	rewrite_rules=$11,
+	blocklist_rules=$12,
+	keeplist_rules=$13,
+	crawler=$14,
+	user_agent=$15,
+	cookie=$16,
+	username=$17,
+	password=$18,
+	disabled=$19,
+	next_check_at=$20,
+	ignore_http_cache=$21,
+	allow_self_signed_certificates=$22,
+	fetch_via_proxy=$23,
+	hide_globally=$24,
+	url_rewrite_rules=$25,
+	no_media_player=$26,
+	apprise_service_urls=$27,
+	webhook_url=$28,
+	disable_http2=$29,
+	description=$30,
+	ntfy_enabled=$31,
+	ntfy_priority=$32,
+	ntfy_topic=$33,
+	pushover_enabled=$34,
+	pushover_priority=$35,
+	proxy_url=$36
+WHERE id=$37 AND user_id=$38`,
 		feed.FeedURL,
 		feed.SiteURL,
 		feed.Title,
@@ -412,91 +421,100 @@ func (s *Storage) UpdateFeed(feed *model.Feed) (err error) {
 		feed.PushoverEnabled,
 		feed.PushoverPriority,
 		feed.ProxyURL,
-		feed.ID,
-		feed.UserID,
-	)
+		feed.ID, feed.UserID)
 	if err != nil {
 		return fmt.Errorf(`store: unable to update feed #%d (%s): %w`,
 			feed.ID, feed.FeedURL, err)
 	}
-
 	return nil
 }
 
 // UpdateFeedError updates feed errors.
-func (s *Storage) UpdateFeedError(feed *model.Feed) (err error) {
-	query := `
-		UPDATE
-			feeds
-		SET
-			parsing_error_msg=$1,
-			parsing_error_count=$2,
-			checked_at=$3,
-			next_check_at=$4
-		WHERE
-			id=$5 AND user_id=$6
-	`
-	_, err = s.db.Exec(query,
+func (s *Storage) UpdateFeedError(ctx context.Context, feed *model.Feed,
+) error {
+	_, err := s.db.Exec(ctx, `
+UPDATE feeds
+   SET parsing_error_msg=$1,
+	     parsing_error_count=$2,
+	     checked_at=$3,
+	     next_check_at=$4
+ WHERE id=$5 AND user_id=$6`,
 		feed.ParsingErrorMsg,
 		feed.ParsingErrorCount,
 		feed.CheckedAt,
 		feed.NextCheckAt,
-		feed.ID,
-		feed.UserID,
-	)
+		feed.ID, feed.UserID)
 	if err != nil {
 		return fmt.Errorf(`store: unable to update feed error #%d (%s): %w`,
 			feed.ID, feed.FeedURL, err)
 	}
-
 	return nil
 }
 
 // RemoveFeed removes a feed and all entries.
-// This operation can takes time if the feed has lot of entries.
-func (s *Storage) RemoveFeed(userID, feedID int64) error {
-	rows, err := s.db.Query(`SELECT id FROM entries WHERE user_id=$1 AND feed_id=$2`, userID, feedID)
+func (s *Storage) RemoveFeed(ctx context.Context, userID, feedID int64) error {
+	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx,
+			`DELETE FROM entries WHERE user_id=$1 AND feed_id=$2`, userID, feedID)
+		if err != nil {
+			return fmt.Errorf("delete entries: %w", err)
+		}
+
+		_, err = tx.Exec(ctx,
+			`DELETE FROM feeds WHERE id=$1 AND user_id=$2`, feedID, userID)
+		if err != nil {
+			return fmt.Errorf("delete feed: %w", err)
+		}
+		return nil
+	})
 	if err != nil {
-		return fmt.Errorf(`store: unable to get user feed entries: %w`, err)
+		return fmt.Errorf("storage: unable to delete feed #%d: %w", feedID, err)
 	}
-	defer rows.Close()
+	return nil
+}
 
-	for rows.Next() {
-		var entryID int64
-		if err := rows.Scan(&entryID); err != nil {
-			return fmt.Errorf(`store: unable to read user feed entry ID: %w`, err)
+func (s *Storage) RemoveMultipleFeeds(ctx context.Context, userID int64,
+	feedIDs []int64,
+) error {
+	logging.FromContext(ctx).Debug("Deleting multiple feeds",
+		slog.Int64("user_id", userID),
+		slog.Int("num_of_feeds", len(feedIDs)),
+		slog.Any("feed_ids", feedIDs))
+
+	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx,
+			`DELETE FROM entries WHERE user_id=$1 AND feed_id=ANY($2)`,
+			userID, feedIDs)
+		if err != nil {
+			return fmt.Errorf("delete entries: %w", err)
 		}
 
-		slog.Debug("Deleting entry",
-			slog.Int64("user_id", userID),
-			slog.Int64("feed_id", feedID),
-			slog.Int64("entry_id", entryID),
-		)
-
-		if _, err := s.db.Exec(`DELETE FROM entries WHERE id=$1 AND user_id=$2`, entryID, userID); err != nil {
-			return fmt.Errorf(
-				`store: unable to delete user feed entries #%d: %w`, entryID, err)
+		_, err = tx.Exec(ctx,
+			`DELETE FROM feeds WHERE id=ANY($1) AND user_id=$2`, feedIDs, userID)
+		if err != nil {
+			return fmt.Errorf("delete feed: %w", err)
 		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("storage: unable to delete multiple feeds(%d): %w",
+			len(feedIDs), err)
 	}
-
-	if _, err := s.db.Exec(`DELETE FROM feeds WHERE id=$1 AND user_id=$2`, feedID, userID); err != nil {
-		return fmt.Errorf(`store: unable to delete feed #%d: %w`, feedID, err)
-	}
-
 	return nil
 }
 
 // ResetFeedErrors removes all feed errors.
-func (s *Storage) ResetFeedErrors() error {
-	_, err := s.db.Exec(`UPDATE feeds SET parsing_error_count=0, parsing_error_msg=''`)
+func (s *Storage) ResetFeedErrors(ctx context.Context) error {
+	_, err := s.db.Exec(ctx,
+		`UPDATE feeds SET parsing_error_count=0, parsing_error_msg=''`)
 	if err != nil {
 		return fmt.Errorf("storage: failed reset feed errors: %w", err)
 	}
 	return nil
 }
 
-func (s *Storage) ResetNextCheckAt() error {
-	_, err := s.db.Exec(`UPDATE feeds SET next_check_at=now()`)
+func (s *Storage) ResetNextCheckAt(ctx context.Context) error {
+	_, err := s.db.Exec(ctx, `UPDATE feeds SET next_check_at=now()`)
 	if err != nil {
 		return fmt.Errorf("storage: failed reset next check: %w", err)
 	}

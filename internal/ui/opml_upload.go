@@ -22,7 +22,7 @@ import (
 
 func (h *handler) uploadOPML(w http.ResponseWriter, r *http.Request) {
 	loggedUserID := request.UserID(r)
-	user, err := h.store.UserByID(loggedUserID)
+	user, err := h.store.UserByID(r.Context(), loggedUserID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -50,8 +50,9 @@ func (h *handler) uploadOPML(w http.ResponseWriter, r *http.Request) {
 	view := view.New(h.tpl, r, sess)
 	view.Set("menu", "feeds")
 	view.Set("user", user)
-	view.Set("countUnread", h.store.CountUnreadEntries(user.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(user.ID))
+	view.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
+	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
+		r.Context(), user.ID))
 
 	if fileHeader.Size == 0 {
 		view.Set("errorMessage", locale.NewLocalizedError("error.empty_file").Translate(user.Language))
@@ -59,7 +60,8 @@ func (h *handler) uploadOPML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if impErr := opml.NewHandler(h.store).Import(user.ID, file); impErr != nil {
+	impErr := opml.NewHandler(h.store).Import(r.Context(), user.ID, file)
+	if impErr != nil {
 		view.Set("errorMessage", impErr)
 		html.OK(w, r, view.Render("import"))
 		return
@@ -70,7 +72,7 @@ func (h *handler) uploadOPML(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
 	loggedUserID := request.UserID(r)
-	user, err := h.store.UserByID(loggedUserID)
+	user, err := h.store.UserByID(r.Context(), loggedUserID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -91,8 +93,9 @@ func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
 	view := view.New(h.tpl, r, sess)
 	view.Set("menu", "feeds")
 	view.Set("user", user)
-	view.Set("countUnread", h.store.CountUnreadEntries(user.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(user.ID))
+	view.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
+	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
+		r.Context(), user.ID))
 
 	requestBuilder := fetcher.NewRequestBuilder()
 	requestBuilder.WithTimeout(config.Opts.HTTPClientTimeout())
@@ -110,7 +113,9 @@ func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if impErr := opml.NewHandler(h.store).Import(user.ID, responseHandler.Body(config.Opts.HTTPClientMaxBodySize())); impErr != nil {
+	impErr := opml.NewHandler(h.store).Import(r.Context(),
+		user.ID, responseHandler.Body(config.Opts.HTTPClientMaxBodySize()))
+	if impErr != nil {
 		view.Set("errorMessage", impErr)
 		html.OK(w, r, view.Render("import"))
 		return

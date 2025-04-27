@@ -18,7 +18,7 @@ func (h *handler) saveEntry(w http.ResponseWriter, r *http.Request) {
 	builder.WithEntryID(entryID)
 	builder.WithoutStatus(model.EntryStatusRemoved)
 
-	entry, err := builder.GetEntry()
+	entry, err := builder.GetEntry(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -29,7 +29,7 @@ func (h *handler) saveEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userIntegrations, err := h.store.Integration(request.UserID(r))
+	userIntegrations, err := h.store.Integration(r.Context(), request.UserID(r))
 	if err != nil {
 		json.ServerError(w, r, err)
 		return

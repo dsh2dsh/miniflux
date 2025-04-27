@@ -5,9 +5,6 @@ package model // import "miniflux.app/v2/internal/model"
 
 // Job represents a payload sent to the processing queue.
 type Job struct {
-	UserID int64
-	FeedID int64
+	UserID int64 `db:"user_id"`
+	FeedID int64 `db:"id"`
 }
-
-// JobList represents a list of jobs.
-type JobList []Job

@@ -49,7 +49,8 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.store.CheckPassword(authForm.Username, authForm.Password); err != nil {
+	err := h.store.CheckPassword(r.Context(), authForm.Username, authForm.Password)
+	if err != nil {
 		slog.Warn("Incorrect username or password",
 			slog.Bool("authentication_failed", true),
 			slog.String("client_ip", clientIP),
@@ -61,7 +62,8 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionToken, userID, err := h.store.CreateUserSessionFromUsername(authForm.Username, r.UserAgent(), clientIP)
+	sessionToken, userID, err := h.store.CreateUserSessionFromUsername(
+		r.Context(), authForm.Username, r.UserAgent(), clientIP)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -75,19 +77,19 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 		slog.String("username", authForm.Username),
 	)
 
-	if err := h.store.SetLastLogin(userID); err != nil {
+	if err := h.store.SetLastLogin(r.Context(), userID); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	user, err := h.store.UserByID(userID)
+	user, err := h.store.UserByID(r.Context(), userID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	sess.SetLanguage(user.Language)
-	sess.SetTheme(user.Theme)
+	sess.SetLanguage(r.Context(), user.Language)
+	sess.SetTheme(r.Context(), user.Theme)
 
 	http.SetCookie(w, cookie.New(
 		cookie.CookieUserSessionID,
@@ -95,6 +97,5 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 		config.Opts.HTTPS(),
 		config.Opts.BasePath(),
 	))
-
 	html.Redirect(w, r, route.Path(h.router, user.DefaultHomePage))
 }

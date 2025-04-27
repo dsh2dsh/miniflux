@@ -4,7 +4,7 @@
 package cli // import "miniflux.app/v2/internal/cli"
 
 import (
-	"database/sql"
+	"context"
 	"log/slog"
 	"time"
 
@@ -22,23 +22,28 @@ var cleanupTasksCmd = cobra.Command{
 	Args:  cobra.ExactArgs(0),
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return withStorage(func(_ *sql.DB, store *storage.Storage) error {
-			runCleanupTasks(store)
+		return withStorage(func(store *storage.Storage) error {
+			runCleanupTasks(context.Background(), store)
 			return nil
 		})
 	},
 }
 
-func runCleanupTasks(store *storage.Storage) {
-	nbSessions := store.CleanOldSessions(config.Opts.CleanupRemoveSessionsDays())
-	nbUserSessions := store.CleanOldUserSessions(config.Opts.CleanupRemoveSessionsDays())
+func runCleanupTasks(ctx context.Context, store *storage.Storage) {
+	nbSessions := store.CleanOldSessions(ctx,
+		config.Opts.CleanupRemoveSessionsDays())
+	nbUserSessions := store.CleanOldUserSessions(ctx,
+		config.Opts.CleanupRemoveSessionsDays())
 	slog.Info("Sessions cleanup completed",
 		slog.Int64("application_sessions_removed", nbSessions),
 		slog.Int64("user_sessions_removed", nbUserSessions),
 	)
 
 	startTime := time.Now()
-	if rowsAffected, err := store.ArchiveEntries(model.EntryStatusRead, config.Opts.CleanupArchiveReadDays(), config.Opts.CleanupArchiveBatchSize()); err != nil {
+	rowsAffected, err := store.ArchiveEntries(ctx, model.EntryStatusRead,
+		config.Opts.CleanupArchiveReadDays(),
+		config.Opts.CleanupArchiveBatchSize())
+	if err != nil {
 		slog.Error("Unable to archive read entries", slog.Any("error", err))
 	} else {
 		slog.Info("Archiving read entries completed",
@@ -51,7 +56,10 @@ func runCleanupTasks(store *storage.Storage) {
 	}
 
 	startTime = time.Now()
-	if rowsAffected, err := store.ArchiveEntries(model.EntryStatusUnread, config.Opts.CleanupArchiveUnreadDays(), config.Opts.CleanupArchiveBatchSize()); err != nil {
+	rowsAffected, err = store.ArchiveEntries(ctx, model.EntryStatusUnread,
+		config.Opts.CleanupArchiveUnreadDays(),
+		config.Opts.CleanupArchiveBatchSize())
+	if err != nil {
 		slog.Error("Unable to archive unread entries", slog.Any("error", err))
 	} else {
 		slog.Info("Archiving unread entries completed",

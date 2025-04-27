@@ -14,7 +14,7 @@ import (
 
 func (h *handler) showFeedIcon(w http.ResponseWriter, r *http.Request) {
 	externalIconID := request.RouteStringParam(r, "externalIconID")
-	icon, err := h.store.IconByExternalID(externalIconID)
+	icon, err := h.store.IconByExternalID(r.Context(), externalIconID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return

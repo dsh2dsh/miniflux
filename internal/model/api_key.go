@@ -11,12 +11,12 @@ import (
 
 // APIKey represents an application API key.
 type APIKey struct {
-	ID          int64
-	UserID      int64
-	Token       string
-	Description string
-	LastUsedAt  *time.Time
-	CreatedAt   time.Time
+	ID          int64      `db:"id"`
+	UserID      int64      `db:"user_id"`
+	Token       string     `db:"token"`
+	Description string     `db:"description"`
+	LastUsedAt  *time.Time `db:"last_used_at"`
+	CreatedAt   time.Time  `db:"created_at"`
 }
 
 // NewAPIKey initializes a new APIKey.
@@ -27,6 +27,3 @@ func NewAPIKey(userID int64, description string) *APIKey {
 		Description: description,
 	}
 }
-
-// APIKeys represents a collection of API Key.
-type APIKeys []*APIKey

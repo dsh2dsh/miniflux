@@ -4,7 +4,7 @@
 package cli // import "miniflux.app/v2/internal/cli"
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -20,21 +20,23 @@ var exportUserFeedsCmd = cobra.Command{
 	Args: cobra.ExactArgs(1),
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return withStorage(func(_ *sql.DB, store *storage.Storage) error {
-			return exportUserFeeds(store, args[0])
+		return withStorage(func(store *storage.Storage) error {
+			return exportUserFeeds(context.Background(), store, args[0])
 		})
 	},
 }
 
-func exportUserFeeds(store *storage.Storage, username string) error {
-	user, err := store.UserByUsername(username)
+func exportUserFeeds(ctx context.Context, store *storage.Storage,
+	username string,
+) error {
+	user, err := store.UserByUsername(ctx, username)
 	if err != nil {
 		return fmt.Errorf("unable to find user: %w", err)
 	} else if user == nil {
 		return fmt.Errorf("user %q not found", username)
 	}
 
-	opmlExport, err := opml.NewHandler(store).Export(user.ID)
+	opmlExport, err := opml.NewHandler(store).Export(ctx, user.ID)
 	if err != nil {
 		return fmt.Errorf("unable to export feeds: %w", err)
 	}

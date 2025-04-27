@@ -16,7 +16,7 @@ import (
 func (h *handler) getEnclosureByID(w http.ResponseWriter, r *http.Request) {
 	enclosureID := request.RouteInt64Param(r, "enclosureID")
 
-	enclosure, err := h.store.GetEnclosure(enclosureID)
+	enclosure, err := h.store.GetEnclosure(r.Context(), enclosureID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -52,7 +52,7 @@ func (h *handler) updateEnclosureByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	enclosure, err := h.store.GetEnclosure(enclosureID)
+	enclosure, err := h.store.GetEnclosure(r.Context(), enclosureID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -70,7 +70,7 @@ func (h *handler) updateEnclosureByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	enclosure.MediaProgression = enclosureUpdateRequest.MediaProgression
-	if err := h.store.UpdateEnclosure(enclosure); err != nil {
+	if err := h.store.UpdateEnclosure(r.Context(), enclosure); err != nil {
 		json.ServerError(w, r, err)
 		return
 	}

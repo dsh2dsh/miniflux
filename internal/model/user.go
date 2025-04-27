@@ -11,36 +11,36 @@ import (
 
 // User represents a user in the system.
 type User struct {
-	ID                              int64      `json:"id"`
-	Username                        string     `json:"username"`
-	Password                        string     `json:"-"`
-	IsAdmin                         bool       `json:"is_admin"`
-	Theme                           string     `json:"theme"`
-	Language                        string     `json:"language"`
-	Timezone                        string     `json:"timezone"`
-	EntryDirection                  string     `json:"entry_sorting_direction"`
-	EntryOrder                      string     `json:"entry_sorting_order"`
-	Stylesheet                      string     `json:"stylesheet"`
-	CustomJS                        string     `json:"custom_js"`
-	ExternalFontHosts               string     `json:"external_font_hosts"`
-	GoogleID                        string     `json:"google_id"`
-	OpenIDConnectID                 string     `json:"openid_connect_id"`
-	EntriesPerPage                  int        `json:"entries_per_page"`
-	KeyboardShortcuts               bool       `json:"keyboard_shortcuts"`
-	ShowReadingTime                 bool       `json:"show_reading_time"`
-	EntrySwipe                      bool       `json:"entry_swipe"`
-	GestureNav                      string     `json:"gesture_nav"`
-	LastLoginAt                     *time.Time `json:"last_login_at"`
-	DisplayMode                     string     `json:"display_mode"`
-	DefaultReadingSpeed             int        `json:"default_reading_speed"`
-	CJKReadingSpeed                 int        `json:"cjk_reading_speed"`
-	DefaultHomePage                 string     `json:"default_home_page"`
-	CategoriesSortingOrder          string     `json:"categories_sorting_order"`
-	MarkReadOnView                  bool       `json:"mark_read_on_view"`
+	ID                              int64      `json:"id" db:"id"`
+	Username                        string     `json:"username" db:"username"`
+	Password                        string     `json:"-" db:"password"`
+	IsAdmin                         bool       `json:"is_admin" db:"is_admin"`
+	Theme                           string     `json:"theme" db:"theme"`
+	Language                        string     `json:"language" db:"language"`
+	Timezone                        string     `json:"timezone" db:"timezone"`
+	EntryDirection                  string     `json:"entry_sorting_direction" db:"entry_direction"`
+	EntryOrder                      string     `json:"entry_sorting_order" db:"entry_order"`
+	Stylesheet                      string     `json:"stylesheet" db:"stylesheet"`
+	CustomJS                        string     `json:"custom_js" db:"custom_js"`
+	ExternalFontHosts               string     `json:"external_font_hosts" db:"external_font_hosts"`
+	GoogleID                        string     `json:"google_id" db:"google_id"`
+	OpenIDConnectID                 string     `json:"openid_connect_id" db:"openid_connect_id"`
+	EntriesPerPage                  int        `json:"entries_per_page" db:"entries_per_page"`
+	KeyboardShortcuts               bool       `json:"keyboard_shortcuts" db:"keyboard_shortcuts"`
+	ShowReadingTime                 bool       `json:"show_reading_time" db:"show_reading_time"`
+	EntrySwipe                      bool       `json:"entry_swipe" db:"entry_swipe"`
+	GestureNav                      string     `json:"gesture_nav" db:"gesture_nav"`
+	LastLoginAt                     *time.Time `json:"last_login_at" db:"last_login_at"`
+	DisplayMode                     string     `json:"display_mode" db:"display_mode"`
+	DefaultReadingSpeed             int        `json:"default_reading_speed" db:"default_reading_speed"`
+	CJKReadingSpeed                 int        `json:"cjk_reading_speed" db:"cjk_reading_speed"`
+	DefaultHomePage                 string     `json:"default_home_page" db:"default_home_page"`
+	CategoriesSortingOrder          string     `json:"categories_sorting_order" db:"categories_sorting_order"`
+	MarkReadOnView                  bool       `json:"mark_read_on_view" db:"mark_read_on_view"`
 	MarkReadOnMediaPlayerCompletion bool       `json:"mark_read_on_media_player_completion"`
-	MediaPlaybackRate               float64    `json:"media_playback_rate"`
-	BlockFilterEntryRules           string     `json:"block_filter_entry_rules"`
-	KeepFilterEntryRules            string     `json:"keep_filter_entry_rules"`
+	MediaPlaybackRate               float64    `json:"media_playback_rate" db:"media_playback_rate"`
+	BlockFilterEntryRules           string     `json:"block_filter_entry_rules" db:"block_filter_entry_rules"`
+	KeepFilterEntryRules            string     `json:"keep_filter_entry_rules" db:"keep_filter_entry_rules"`
 }
 
 // UserCreationRequest represents the request to create a user.

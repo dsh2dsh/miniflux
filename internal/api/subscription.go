@@ -30,7 +30,7 @@ func (h *handler) discoverSubscriptions(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var rssbridgeURL string
-	intg, err := h.store.Integration(request.UserID(r))
+	intg, err := h.store.Integration(r.Context(), request.UserID(r))
 	if err == nil && intg != nil && intg.RSSBridgeEnabled {
 		rssbridgeURL = intg.RSSBridgeURL
 	}

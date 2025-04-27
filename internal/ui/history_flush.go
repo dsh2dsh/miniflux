@@ -11,11 +11,10 @@ import (
 )
 
 func (h *handler) flushHistory(w http.ResponseWriter, r *http.Request) {
-	err := h.store.FlushHistory(request.UserID(r))
+	err := h.store.FlushHistory(r.Context(), request.UserID(r))
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
-
 	json.OK(w, r, "OK")
 }

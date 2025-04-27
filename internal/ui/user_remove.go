@@ -13,7 +13,7 @@ import (
 )
 
 func (h *handler) removeUser(w http.ResponseWriter, r *http.Request) {
-	loggedUser, err := h.store.UserByID(request.UserID(r))
+	loggedUser, err := h.store.UserByID(r.Context(), request.UserID(r))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -25,7 +25,7 @@ func (h *handler) removeUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	selectedUserID := request.RouteInt64Param(r, "userID")
-	selectedUser, err := h.store.UserByID(selectedUserID)
+	selectedUser, err := h.store.UserByID(r.Context(), selectedUserID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -41,10 +41,10 @@ func (h *handler) removeUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.store.RemoveUser(selectedUser.ID); err != nil {
+	err = h.store.RemoveUser(r.Context(), selectedUser.ID)
+	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
-
 	html.Redirect(w, r, route.Path(h.router, "users"))
 }

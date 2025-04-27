@@ -14,20 +14,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/mux"
+	"golang.org/x/crypto/acme"
+	"golang.org/x/crypto/acme/autocert"
+
 	"miniflux.app/v2/internal/api"
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/fever"
 	"miniflux.app/v2/internal/googlereader"
-	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/metric"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/ui"
 	"miniflux.app/v2/internal/version"
 	"miniflux.app/v2/internal/worker"
-
-	"github.com/gorilla/mux"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"golang.org/x/crypto/acme"
-	"golang.org/x/crypto/acme/autocert"
 )
 
 func StartWebServer(store *storage.Storage, pool *worker.Pool) *http.Server {
@@ -124,7 +123,7 @@ func tlsConfig() *tls.Config {
 func startAutoCertTLSServer(server *http.Server, certDomain string, store *storage.Storage) {
 	server.Addr = ":https"
 	certManager := autocert.Manager{
-		Cache:      storage.NewCertificateCache(store),
+		Cache:      store.NewCertificateCache(),
 		Prompt:     autocert.AcceptTOS,
 		HostPolicy: autocert.HostWhitelist(certDomain),
 	}
@@ -182,7 +181,6 @@ func startHTTPServer(server *http.Server) {
 
 func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
 	router := mux.NewRouter()
-
 	if config.Opts.BasePath() != "" {
 		router = router.PathPrefix(config.Opts.BasePath()).Subrouter()
 	}
@@ -203,7 +201,7 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
 	ui.Serve(router, store, pool)
 
 	router.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
-		if err := store.Ping(); err != nil {
+		if err := store.Ping(r.Context()); err != nil {
 			http.Error(w, "Database Connection Error", http.StatusInternalServerError)
 			return
 		}
@@ -215,93 +213,9 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
 	}).Name("version")
 
 	if config.Opts.HasMetricsCollector() {
-		router.Handle("/metrics", promhttp.Handler()).Name("metrics")
-		router.Use(func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				route := mux.CurrentRoute(r)
-
-				// Returns a 404 if the client is not authorized to access the metrics endpoint.
-				if route.GetName() == "metrics" && !isAllowedToAccessMetricsEndpoint(r) {
-					slog.Warn("Authentication failed while accessing the metrics endpoint",
-						slog.String("client_ip", request.ClientIP(r)),
-						slog.String("client_user_agent", r.UserAgent()),
-						slog.String("client_remote_addr", r.RemoteAddr),
-					)
-					http.NotFound(w, r)
-					return
-				}
-
-				next.ServeHTTP(w, r)
-			})
-		})
+		router.Handle("/metrics", metric.Handler(store)).Name("metrics")
 	}
-
 	return router
-}
-
-func isAllowedToAccessMetricsEndpoint(r *http.Request) bool {
-	clientIP := request.ClientIP(r)
-
-	if config.Opts.MetricsUsername() != "" && config.Opts.MetricsPassword() != "" {
-		username, password, authOK := r.BasicAuth()
-		if !authOK {
-			slog.Warn("Metrics endpoint accessed without authentication header",
-				slog.Bool("authentication_failed", true),
-				slog.String("client_ip", clientIP),
-				slog.String("client_user_agent", r.UserAgent()),
-				slog.String("client_remote_addr", r.RemoteAddr),
-			)
-			return false
-		}
-
-		if username == "" || password == "" {
-			slog.Warn("Metrics endpoint accessed with empty username or password",
-				slog.Bool("authentication_failed", true),
-				slog.String("client_ip", clientIP),
-				slog.String("client_user_agent", r.UserAgent()),
-				slog.String("client_remote_addr", r.RemoteAddr),
-			)
-			return false
-		}
-
-		if username != config.Opts.MetricsUsername() || password != config.Opts.MetricsPassword() {
-			slog.Warn("Metrics endpoint accessed with invalid username or password",
-				slog.Bool("authentication_failed", true),
-				slog.String("client_ip", clientIP),
-				slog.String("client_user_agent", r.UserAgent()),
-				slog.String("client_remote_addr", r.RemoteAddr),
-			)
-			return false
-		}
-	}
-
-	remoteIP := request.FindRemoteIP(r)
-	if remoteIP == "@" {
-		// This indicates a request sent via a Unix socket, always consider these trusted.
-		return true
-	}
-
-	for _, cidr := range config.Opts.MetricsAllowedNetworks() {
-		_, network, err := net.ParseCIDR(cidr)
-		if err != nil {
-			slog.Error("Metrics endpoint accessed with invalid CIDR",
-				slog.Bool("authentication_failed", true),
-				slog.String("client_ip", clientIP),
-				slog.String("client_user_agent", r.UserAgent()),
-				slog.String("client_remote_addr", r.RemoteAddr),
-				slog.String("cidr", cidr),
-			)
-			return false
-		}
-
-		// We use r.RemoteAddr in this case because HTTP headers like X-Forwarded-For can be easily spoofed.
-		// The recommendation is to use HTTP Basic authentication.
-		if network.Contains(net.ParseIP(remoteIP)) {
-			return true
-		}
-	}
-
-	return false
 }
 
 func printErrorAndExit(format string, a ...any) {

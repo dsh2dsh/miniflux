@@ -4,21 +4,30 @@
 package storage // import "miniflux.app/v2/internal/storage"
 
 import (
-	"database/sql"
+	"context"
+	"errors"
 	"fmt"
+	"log/slog"
+	"strconv"
+
+	"github.com/jackc/pgx/v5"
 
 	"miniflux.app/v2/internal/crypto"
+	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 )
 
-// CreateAppSessionWithUserPrefs creates a new application session with the given user preferences.
-func (s *Storage) CreateAppSessionWithUserPrefs(userID int64) (*model.Session, error) {
-	user, err := s.UserByID(userID)
+// CreateAppSessionWithUserPrefs creates a new application session with the
+// given user preferences.
+func (s *Storage) CreateAppSessionWithUserPrefs(ctx context.Context,
+	userID int64,
+) (*model.Session, error) {
+	user, err := s.UserByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	session := model.Session{
+	session := &model.Session{
 		ID: crypto.GenerateRandomString(32),
 		Data: &model.SessionData{
 			CSRF:     crypto.GenerateRandomString(64),
@@ -26,115 +35,105 @@ func (s *Storage) CreateAppSessionWithUserPrefs(userID int64) (*model.Session, e
 			Language: user.Language,
 		},
 	}
-
-	return s.createAppSession(&session)
+	return s.createAppSession(ctx, session)
 }
 
 // CreateAppSession creates a new application session.
-func (s *Storage) CreateAppSession() (*model.Session, error) {
-	session := model.Session{
+func (s *Storage) CreateAppSession(ctx context.Context,
+) (*model.Session, error) {
+	session := &model.Session{
 		ID: crypto.GenerateRandomString(32),
 		Data: &model.SessionData{
 			CSRF: crypto.GenerateRandomString(64),
 		},
 	}
-
-	return s.createAppSession(&session)
+	return s.createAppSession(ctx, session)
 }
 
-func (s *Storage) createAppSession(session *model.Session) (*model.Session, error) {
-	query := `INSERT INTO sessions (id, data) VALUES ($1, $2)`
-	_, err := s.db.Exec(query, session.ID, session.Data)
+func (s *Storage) createAppSession(ctx context.Context, session *model.Session,
+) (*model.Session, error) {
+	_, err := s.db.Exec(ctx,
+		`INSERT INTO sessions (id, data) VALUES ($1, $2)`,
+		session.ID, session.Data)
 	if err != nil {
 		return nil, fmt.Errorf(`store: unable to create app session: %w`, err)
 	}
-
 	return session, nil
 }
 
 // UpdateAppSessionField updates only one session field.
-func (s *Storage) UpdateAppSessionField(sessionID, field string, value any) error {
+func (s *Storage) UpdateAppSessionField(ctx context.Context, sessionID,
+	field string, value any,
+) error {
 	query := `
-		UPDATE
-			sessions
-		SET
-			data = jsonb_set(data, '{%s}', to_jsonb($1::text), true)
-		WHERE
-			id=$2
-	`
-	_, err := s.db.Exec(fmt.Sprintf(query, field), value, sessionID)
+UPDATE sessions
+   SET data = jsonb_set(data, '{%s}', to_jsonb($1::text), true)
+ WHERE id=$2`
+	_, err := s.db.Exec(ctx, fmt.Sprintf(query, field), value, sessionID)
 	if err != nil {
 		return fmt.Errorf(`store: unable to update session field: %w`, err)
 	}
-
 	return nil
 }
 
-func (s *Storage) UpdateAppSessionObjectField(sessionID, field string, value interface{}) error {
+func (s *Storage) UpdateAppSessionObjectField(ctx context.Context, sessionID,
+	field string, value any,
+) error {
 	query := `
-		UPDATE
-			sessions
-		SET
-			data = jsonb_set(data, '{%s}', $1, true)
-		WHERE
-			id=$2
-	`
-	_, err := s.db.Exec(fmt.Sprintf(query, field), value, sessionID)
+UPDATE sessions
+   SET data = jsonb_set(data, '{%s}', $1, true)
+WHERE id=$2`
+	_, err := s.db.Exec(ctx, fmt.Sprintf(query, field), value, sessionID)
 	if err != nil {
 		return fmt.Errorf(`store: unable to update session field: %w`, err)
 	}
-
 	return nil
 }
 
 // AppSession returns the given session.
-func (s *Storage) AppSession(id string) (*model.Session, error) {
-	var session model.Session
+func (s *Storage) AppSession(ctx context.Context, id string,
+) (*model.Session, error) {
+	rows, _ := s.db.Query(ctx, `SELECT id, data FROM sessions WHERE id=$1`, id)
 
-	query := "SELECT id, data FROM sessions WHERE id=$1"
-	err := s.db.QueryRow(query, id).Scan(
-		&session.ID,
-		&session.Data,
-	)
-
-	switch {
-	case err == sql.ErrNoRows:
+	session, err := pgx.CollectExactlyOneRow(rows,
+		pgx.RowToAddrOfStructByName[model.Session])
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, fmt.Errorf(`store: session not found: %s`, id)
-	case err != nil:
+	} else if err != nil {
 		return nil, fmt.Errorf(`store: unable to fetch session: %w`, err)
-	default:
-		return &session, nil
 	}
+	return session, nil
 }
 
 // FlushAllSessions removes all sessions from the database.
-func (s *Storage) FlushAllSessions() (err error) {
-	_, err = s.db.Exec(`DELETE FROM user_sessions`)
-	if err != nil {
-		return fmt.Errorf("storage: failed full all sessions: %w", err)
-	}
+func (s *Storage) FlushAllSessions(ctx context.Context) error {
+	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `DELETE FROM user_sessions`)
+		if err != nil {
+			return fmt.Errorf("full user_sessions: %w", err)
+		}
 
-	_, err = s.db.Exec(`DELETE FROM sessions`)
+		_, err = tx.Exec(ctx, `DELETE FROM sessions`)
+		if err != nil {
+			return fmt.Errorf("flush sessions: %w", err)
+		}
+		return nil
+	})
 	if err != nil {
-		return fmt.Errorf("storage: failed full all sessions: %w", err)
+		return fmt.Errorf("storage: failed flush all sessions: %w", err)
 	}
-
 	return nil
 }
 
 // CleanOldSessions removes sessions older than specified days.
-func (s *Storage) CleanOldSessions(days int) int64 {
-	query := `
-		DELETE FROM
-			sessions
-		WHERE
-			created_at < now() - $1::interval
-	`
-	result, err := s.db.Exec(query, fmt.Sprintf("%d days", days))
+func (s *Storage) CleanOldSessions(ctx context.Context, days int) int64 {
+	result, err := s.db.Exec(ctx,
+		`DELETE FROM sessions WHERE created_at < now() - $1::interval`,
+		strconv.FormatInt(int64(days), 10)+" days")
 	if err != nil {
+		logging.FromContext(ctx).Error(
+			"storage: unable clean old sessions", slog.Any("error", err))
 		return 0
 	}
-
-	n, _ := result.RowsAffected()
-	return n
+	return result.RowsAffected()
 }

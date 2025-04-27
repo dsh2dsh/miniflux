@@ -129,10 +129,10 @@ func (m *middleware) apiKeyAuth(next http.Handler) http.Handler {
 			Unauthorized(w, r)
 			return
 		}
-		var integration *model.Integration
 		var user *model.User
-		var err error
-		if integration, err = m.store.GoogleReaderUserGetIntegration(parts[0]); err != nil {
+		integration, err := m.store.GoogleReaderUserGetIntegration(
+			r.Context(), parts[0])
+		if err != nil {
 			slog.Warn("[GoogleReader] No user found with the given Google Reader username",
 				slog.Bool("authentication_failed", true),
 				slog.String("client_ip", clientIP),
@@ -152,7 +152,9 @@ func (m *middleware) apiKeyAuth(next http.Handler) http.Handler {
 			Unauthorized(w, r)
 			return
 		}
-		if user, err = m.store.UserByID(integration.UserID); err != nil {
+
+		user, err = m.store.UserByID(r.Context(), integration.UserID)
+		if err != nil {
 			slog.Error("[GoogleReader] Unable to fetch user from database",
 				slog.Bool("authentication_failed", true),
 				slog.String("client_ip", clientIP),
@@ -181,7 +183,8 @@ func (m *middleware) apiKeyAuth(next http.Handler) http.Handler {
 			slog.String("username", user.Username),
 		)
 
-		if err := m.store.SetLastLogin(integration.UserID); err != nil {
+		err = m.store.SetLastLogin(r.Context(), integration.UserID)
+		if err != nil {
 			slog.Error("[GoogleReader] Unable to set last login",
 				slog.String("client_ip", clientIP),
 				slog.String("user_agent", r.UserAgent()),

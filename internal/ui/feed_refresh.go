@@ -20,7 +20,9 @@ import (
 func (h *handler) refreshFeed(w http.ResponseWriter, r *http.Request) {
 	feedID := request.RouteInt64Param(r, "feedID")
 	forceRefresh := request.QueryBoolParam(r, "forceRefresh", false)
-	if localizedError := feedHandler.RefreshFeed(h.store, request.UserID(r), feedID, forceRefresh); localizedError != nil {
+	localizedError := feedHandler.RefreshFeed(r.Context(), h.store,
+		request.UserID(r), feedID, forceRefresh)
+	if localizedError != nil {
 		slog.Warn("Unable to refresh feed",
 			slog.Int64("user_id", request.UserID(r)),
 			slog.Int64("feed_id", feedID),
@@ -40,7 +42,8 @@ func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
 	// Avoid accidental and excessive refreshes.
 	if time.Now().UTC().Unix()-request.LastForceRefresh(r) < int64(config.Opts.ForceRefreshInterval())*60 {
 		time := config.Opts.ForceRefreshInterval()
-		sess.NewFlashErrorMessage(printer.Plural("alert.too_many_feeds_refresh", time, time))
+		sess.NewFlashErrorMessage(r.Context(),
+			printer.Plural("alert.too_many_feeds_refresh", time, time))
 	} else {
 		// We allow the end-user to force refresh all its feeds
 		// without taking into consideration the number of errors.
@@ -48,7 +51,7 @@ func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
 		batchBuilder.WithoutDisabledFeeds()
 		batchBuilder.WithUserID(userID)
 
-		jobs, err := batchBuilder.FetchJobs()
+		jobs, err := batchBuilder.FetchJobs(r.Context())
 		if err != nil {
 			html.ServerError(w, r, err)
 			return
@@ -62,8 +65,9 @@ func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
 
 		go h.pool.Push(jobs)
 
-		sess.SetLastForceRefresh()
-		sess.NewFlashMessage(printer.Print("alert.background_feed_refresh"))
+		sess.SetLastForceRefresh(r.Context())
+		sess.NewFlashMessage(r.Context(),
+			printer.Print("alert.background_feed_refresh"))
 	}
 
 	html.Redirect(w, r, route.Path(h.router, "feeds"))

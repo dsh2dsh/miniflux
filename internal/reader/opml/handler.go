@@ -4,6 +4,7 @@
 package opml // import "miniflux.app/v2/internal/reader/opml"
 
 import (
+	"context"
 	"fmt"
 	"io"
 
@@ -17,8 +18,8 @@ type Handler struct {
 }
 
 // Export exports user feeds to OPML.
-func (h *Handler) Export(userID int64) (string, error) {
-	feeds, err := h.store.Feeds(userID)
+func (h *Handler) Export(ctx context.Context, userID int64) (string, error) {
+	feeds, err := h.store.Feeds(ctx, userID)
 	if err != nil {
 		return "", err
 	}
@@ -38,30 +39,33 @@ func (h *Handler) Export(userID int64) (string, error) {
 }
 
 // Import parses and create feeds from an OPML import.
-func (h *Handler) Import(userID int64, data io.Reader) error {
+func (h *Handler) Import(ctx context.Context, userID int64, data io.Reader,
+) error {
 	subscriptions, err := Parse(data)
 	if err != nil {
 		return err
 	}
 
 	for _, subscription := range subscriptions {
-		if !h.store.FeedURLExists(userID, subscription.FeedURL) {
+		if !h.store.FeedURLExists(ctx, userID, subscription.FeedURL) {
 			var category *model.Category
 			var err error
 
 			if subscription.CategoryName == "" {
-				category, err = h.store.FirstCategory(userID)
+				category, err = h.store.FirstCategory(ctx, userID)
 				if err != nil {
 					return fmt.Errorf("opml: unable to find first category: %w", err)
 				}
 			} else {
-				category, err = h.store.CategoryByTitle(userID, subscription.CategoryName)
+				category, err = h.store.CategoryByTitle(ctx, userID,
+					subscription.CategoryName)
 				if err != nil {
 					return fmt.Errorf("opml: unable to search category by title: %w", err)
 				}
 
 				if category == nil {
-					category, err = h.store.CreateCategory(userID, &model.CategoryCreationRequest{Title: subscription.CategoryName})
+					category, err = h.store.CreateCategory(ctx, userID,
+						&model.CategoryCreationRequest{Title: subscription.CategoryName})
 					if err != nil {
 						return fmt.Errorf(`opml: unable to create this category: %q`, subscription.CategoryName)
 					}
@@ -77,7 +81,7 @@ func (h *Handler) Import(userID int64, data io.Reader) error {
 				Category:    category,
 			}
 
-			if err := h.store.CreateFeed(feed); err != nil {
+			if err := h.store.CreateFeed(ctx, feed); err != nil {
 				return fmt.Errorf(`opml: unable to create this feed: %q`, subscription.FeedURL)
 			}
 		}

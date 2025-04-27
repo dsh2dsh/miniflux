@@ -10,13 +10,12 @@ import (
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
-	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/ui/session"
 	"miniflux.app/v2/internal/ui/view"
 )
 
 func (h *handler) showUnreadEntryPage(w http.ResponseWriter, r *http.Request) {
-	user, err := h.store.UserByID(request.UserID(r))
+	user, err := h.store.UserByID(r.Context(), request.UserID(r))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -27,7 +26,7 @@ func (h *handler) showUnreadEntryPage(w http.ResponseWriter, r *http.Request) {
 	builder.WithEntryID(entryID)
 	builder.WithoutStatus(model.EntryStatusRemoved)
 
-	entry, err := builder.GetEntry()
+	entry, err := builder.GetEntry(r.Context())
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -40,17 +39,18 @@ func (h *handler) showUnreadEntryPage(w http.ResponseWriter, r *http.Request) {
 
 	// Make sure we always get the pagination in unread mode even if the page is refreshed.
 	if entry.Status == model.EntryStatusRead {
-		err = h.store.SetEntriesStatus(user.ID, []int64{entry.ID}, model.EntryStatusUnread)
+		err = h.store.SetEntriesStatus(r.Context(), user.ID,
+			[]int64{entry.ID}, model.EntryStatusUnread)
 		if err != nil {
 			html.ServerError(w, r, err)
 			return
 		}
 	}
 
-	entryPaginationBuilder := storage.NewEntryPaginationBuilder(h.store, user.ID, entry.ID, user.EntryOrder, user.EntryDirection)
+	entryPaginationBuilder := h.store.NewEntryPaginationBuilder(user.ID, entry.ID, user.EntryOrder, user.EntryDirection)
 	entryPaginationBuilder.WithStatus(model.EntryStatusUnread)
 	entryPaginationBuilder.WithGloballyVisible()
-	prevEntry, nextEntry, err := entryPaginationBuilder.Entries()
+	prevEntry, nextEntry, err := entryPaginationBuilder.Entries(r.Context())
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -72,7 +72,8 @@ func (h *handler) showUnreadEntryPage(w http.ResponseWriter, r *http.Request) {
 
 	// Restore entry read status if needed after fetching the pagination.
 	if entry.Status == model.EntryStatusRead {
-		err = h.store.SetEntriesStatus(user.ID, []int64{entry.ID}, model.EntryStatusRead)
+		err = h.store.SetEntriesStatus(r.Context(), user.ID,
+			[]int64{entry.ID}, model.EntryStatusRead)
 		if err != nil {
 			html.ServerError(w, r, err)
 			return
@@ -88,11 +89,10 @@ func (h *handler) showUnreadEntryPage(w http.ResponseWriter, r *http.Request) {
 	view.Set("prevEntryRoute", prevEntryRoute)
 	view.Set("menu", "unread")
 	view.Set("user", user)
-	view.Set("hasSaveEntry", h.store.HasSaveEntry(user.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(user.ID))
-
+	view.Set("hasSaveEntry", h.store.HasSaveEntry(r.Context(), user.ID))
+	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
+		r.Context(), user.ID))
 	// Fetching the counter here avoid to be off by one.
-	view.Set("countUnread", h.store.CountUnreadEntries(user.ID))
-
+	view.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
 	html.OK(w, r, view.Render("entry"))
 }

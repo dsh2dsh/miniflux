@@ -23,43 +23,43 @@ const (
 
 // Feed represents a feed in the application.
 type Feed struct {
-	ID                          int64     `json:"id"`
-	UserID                      int64     `json:"user_id"`
-	FeedURL                     string    `json:"feed_url"`
-	SiteURL                     string    `json:"site_url"`
-	Title                       string    `json:"title"`
-	Description                 string    `json:"description"`
-	CheckedAt                   time.Time `json:"checked_at"`
-	NextCheckAt                 time.Time `json:"next_check_at"`
-	EtagHeader                  string    `json:"etag_header"`
-	LastModifiedHeader          string    `json:"last_modified_header"`
-	ParsingErrorMsg             string    `json:"parsing_error_message"`
-	ParsingErrorCount           int       `json:"parsing_error_count"`
-	ScraperRules                string    `json:"scraper_rules"`
-	RewriteRules                string    `json:"rewrite_rules"`
-	Crawler                     bool      `json:"crawler"`
-	BlocklistRules              string    `json:"blocklist_rules"`
-	KeeplistRules               string    `json:"keeplist_rules"`
-	UrlRewriteRules             string    `json:"urlrewrite_rules"`
-	UserAgent                   string    `json:"user_agent"`
-	Cookie                      string    `json:"cookie"`
-	Username                    string    `json:"username"`
-	Password                    string    `json:"password"`
-	Disabled                    bool      `json:"disabled"`
-	NoMediaPlayer               bool      `json:"no_media_player"`
-	IgnoreHTTPCache             bool      `json:"ignore_http_cache"`
-	AllowSelfSignedCertificates bool      `json:"allow_self_signed_certificates"`
-	FetchViaProxy               bool      `json:"fetch_via_proxy"`
-	HideGlobally                bool      `json:"hide_globally"`
-	DisableHTTP2                bool      `json:"disable_http2"`
-	AppriseServiceURLs          string    `json:"apprise_service_urls"`
-	WebhookURL                  string    `json:"webhook_url"`
-	NtfyEnabled                 bool      `json:"ntfy_enabled"`
-	NtfyPriority                int       `json:"ntfy_priority"`
-	NtfyTopic                   string    `json:"ntfy_topic"`
-	PushoverEnabled             bool      `json:"pushover_enabled"`
-	PushoverPriority            int       `json:"pushover_priority"`
-	ProxyURL                    string    `json:"proxy_url"`
+	ID                          int64     `json:"id" db:"id"`
+	UserID                      int64     `json:"user_id" db:"user_id"`
+	FeedURL                     string    `json:"feed_url" db:"feed_url"`
+	SiteURL                     string    `json:"site_url" db:"site_url"`
+	Title                       string    `json:"title" db:"title"`
+	Description                 string    `json:"description" db:"description"`
+	CheckedAt                   time.Time `json:"checked_at" db:"checked_at"`
+	NextCheckAt                 time.Time `json:"next_check_at" db:"next_check_at"`
+	EtagHeader                  string    `json:"etag_header" db:"etag_header"`
+	LastModifiedHeader          string    `json:"last_modified_header" db:"last_modified_header"`
+	ParsingErrorMsg             string    `json:"parsing_error_message" db:"parsing_error_message"`
+	ParsingErrorCount           int       `json:"parsing_error_count" db:"parsing_error_count"`
+	ScraperRules                string    `json:"scraper_rules" db:"scraper_rules"`
+	RewriteRules                string    `json:"rewrite_rules" db:"rewrite_rules"`
+	Crawler                     bool      `json:"crawler" db:"crawler"`
+	BlocklistRules              string    `json:"blocklist_rules" db:"blocklist_rules"`
+	KeeplistRules               string    `json:"keeplist_rules" db:"keeplist_rules"`
+	UrlRewriteRules             string    `json:"urlrewrite_rules" db:"urlrewrite_rules"`
+	UserAgent                   string    `json:"user_agent" db:"user_agent"`
+	Cookie                      string    `json:"cookie" db:"cookie"`
+	Username                    string    `json:"username" db:"username"`
+	Password                    string    `json:"password" db:"password"`
+	Disabled                    bool      `json:"disabled" db:"disabled"`
+	NoMediaPlayer               bool      `json:"no_media_player" db:"no_media_player"`
+	IgnoreHTTPCache             bool      `json:"ignore_http_cache" db:"ignore_http_cache"`
+	AllowSelfSignedCertificates bool      `json:"allow_self_signed_certificates" db:"allow_self_signed_certificates"`
+	FetchViaProxy               bool      `json:"fetch_via_proxy" db:"fetch_via_proxy"`
+	HideGlobally                bool      `json:"hide_globally" db:"hide_globally"`
+	DisableHTTP2                bool      `json:"disable_http2" db:"disable_http2"`
+	AppriseServiceURLs          string    `json:"apprise_service_urls" db:"apprise_service_urls"`
+	WebhookURL                  string    `json:"webhook_url" db:"webhook_url"`
+	NtfyEnabled                 bool      `json:"ntfy_enabled" db:"ntfy_enabled"`
+	NtfyPriority                int       `json:"ntfy_priority" db:"ntfy_priority"`
+	NtfyTopic                   string    `json:"ntfy_topic" db:"ntfy_topic"`
+	PushoverEnabled             bool      `json:"pushover_enabled" db:"pushover_enabled"`
+	PushoverPriority            int       `json:"pushover_priority" db:"pushover_priority"`
+	ProxyURL                    string    `json:"proxy_url" db:"proxy_url"`
 
 	// Non-persisted attributes
 	Category *Category `json:"category,omitempty"`
@@ -67,11 +67,11 @@ type Feed struct {
 	Entries  Entries   `json:"entries,omitempty"`
 
 	// Internal attributes (not exposed in the API and not persisted in the database)
-	TTL                    int    `json:"-"`
-	IconURL                string `json:"-"`
-	UnreadCount            int    `json:"-"`
-	ReadCount              int    `json:"-"`
-	NumberOfVisibleEntries int    `json:"-"`
+	TTL                    int    `json:"-" db:"-"`
+	IconURL                string `json:"-" db:"-"`
+	UnreadCount            int    `json:"-" db:"-"`
+	ReadCount              int    `json:"-" db:"-"`
+	NumberOfVisibleEntries int    `json:"-" db:"-"`
 }
 
 type FeedCounters struct {

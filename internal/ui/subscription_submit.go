@@ -22,13 +22,13 @@ import (
 )
 
 func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
-	user, err := h.store.UserByID(request.UserID(r))
+	user, err := h.store.UserByID(r.Context(), request.UserID(r))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	categories, err := h.store.Categories(user.ID)
+	categories, err := h.store.Categories(r.Context(), user.ID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -39,8 +39,9 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 	v.Set("categories", categories)
 	v.Set("menu", "feeds")
 	v.Set("user", user)
-	v.Set("countUnread", h.store.CountUnreadEntries(user.ID))
-	v.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(user.ID))
+	v.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
+	v.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
+		r.Context(), user.ID))
 	v.Set("defaultUserAgent", config.Opts.HTTPClientUserAgent())
 	v.Set("hasProxyConfigured", config.Opts.HasHTTPClientProxyURLConfigured())
 
@@ -53,7 +54,8 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var rssBridgeURL string
-	if intg, err := h.store.Integration(user.ID); err == nil && intg != nil && intg.RSSBridgeEnabled {
+	intg, err := h.store.Integration(r.Context(), user.ID)
+	if err == nil && intg != nil && intg.RSSBridgeEnabled {
 		rssBridgeURL = intg.RSSBridgeURL
 	}
 
@@ -88,15 +90,46 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 		v.Set("errorMessage", locale.NewLocalizedError("error.subscription_not_found").Translate(user.Language))
 		html.OK(w, r, v.Render("add_subscription"))
 	case n == 1 && subscriptionFinder.IsFeedAlreadyDownloaded():
-		feed, localizedError := feedHandler.CreateFeedFromSubscriptionDiscovery(h.store, user.ID, &model.FeedCreationRequestFromSubscriptionDiscovery{
-			Content:      subscriptionFinder.FeedResponseInfo().Content,
-			ETag:         subscriptionFinder.FeedResponseInfo().ETag,
-			LastModified: subscriptionFinder.FeedResponseInfo().LastModified,
-			FeedCreationRequest: model.FeedCreationRequest{
+		feed, localizedError := feedHandler.CreateFeedFromSubscriptionDiscovery(
+			r.Context(), h.store, user.ID,
+			&model.FeedCreationRequestFromSubscriptionDiscovery{
+				Content:      subscriptionFinder.FeedResponseInfo().Content,
+				ETag:         subscriptionFinder.FeedResponseInfo().ETag,
+				LastModified: subscriptionFinder.FeedResponseInfo().LastModified,
+				FeedCreationRequest: model.FeedCreationRequest{
+					CategoryID:                  subscriptionForm.CategoryID,
+					FeedURL:                     subscriptions[0].URL,
+					AllowSelfSignedCertificates: subscriptionForm.AllowSelfSignedCertificates,
+					Crawler:                     subscriptionForm.Crawler,
+					UserAgent:                   subscriptionForm.UserAgent,
+					Cookie:                      subscriptionForm.Cookie,
+					Username:                    subscriptionForm.Username,
+					Password:                    subscriptionForm.Password,
+					ScraperRules:                subscriptionForm.ScraperRules,
+					RewriteRules:                subscriptionForm.RewriteRules,
+					BlocklistRules:              subscriptionForm.BlocklistRules,
+					KeeplistRules:               subscriptionForm.KeeplistRules,
+					UrlRewriteRules:             subscriptionForm.UrlRewriteRules,
+					FetchViaProxy:               subscriptionForm.FetchViaProxy,
+					DisableHTTP2:                subscriptionForm.DisableHTTP2,
+					ProxyURL:                    subscriptionForm.ProxyURL,
+				},
+			})
+		if localizedError != nil {
+			v.Set("form", subscriptionForm)
+			v.Set("errorMessage", localizedError.Translate(user.Language))
+			html.OK(w, r, v.Render("add_subscription"))
+			return
+		}
+
+		html.Redirect(w, r, route.Path(h.router, "feedEntries", "feedID", feed.ID))
+	case n == 1 && !subscriptionFinder.IsFeedAlreadyDownloaded():
+		feed, localizedError := feedHandler.CreateFeed(r.Context(),
+			h.store, user.ID, &model.FeedCreationRequest{
 				CategoryID:                  subscriptionForm.CategoryID,
 				FeedURL:                     subscriptions[0].URL,
-				AllowSelfSignedCertificates: subscriptionForm.AllowSelfSignedCertificates,
 				Crawler:                     subscriptionForm.Crawler,
+				AllowSelfSignedCertificates: subscriptionForm.AllowSelfSignedCertificates,
 				UserAgent:                   subscriptionForm.UserAgent,
 				Cookie:                      subscriptionForm.Cookie,
 				Username:                    subscriptionForm.Username,
@@ -109,35 +142,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 				FetchViaProxy:               subscriptionForm.FetchViaProxy,
 				DisableHTTP2:                subscriptionForm.DisableHTTP2,
 				ProxyURL:                    subscriptionForm.ProxyURL,
-			},
-		})
-		if localizedError != nil {
-			v.Set("form", subscriptionForm)
-			v.Set("errorMessage", localizedError.Translate(user.Language))
-			html.OK(w, r, v.Render("add_subscription"))
-			return
-		}
-
-		html.Redirect(w, r, route.Path(h.router, "feedEntries", "feedID", feed.ID))
-	case n == 1 && !subscriptionFinder.IsFeedAlreadyDownloaded():
-		feed, localizedError := feedHandler.CreateFeed(h.store, user.ID, &model.FeedCreationRequest{
-			CategoryID:                  subscriptionForm.CategoryID,
-			FeedURL:                     subscriptions[0].URL,
-			Crawler:                     subscriptionForm.Crawler,
-			AllowSelfSignedCertificates: subscriptionForm.AllowSelfSignedCertificates,
-			UserAgent:                   subscriptionForm.UserAgent,
-			Cookie:                      subscriptionForm.Cookie,
-			Username:                    subscriptionForm.Username,
-			Password:                    subscriptionForm.Password,
-			ScraperRules:                subscriptionForm.ScraperRules,
-			RewriteRules:                subscriptionForm.RewriteRules,
-			BlocklistRules:              subscriptionForm.BlocklistRules,
-			KeeplistRules:               subscriptionForm.KeeplistRules,
-			UrlRewriteRules:             subscriptionForm.UrlRewriteRules,
-			FetchViaProxy:               subscriptionForm.FetchViaProxy,
-			DisableHTTP2:                subscriptionForm.DisableHTTP2,
-			ProxyURL:                    subscriptionForm.ProxyURL,
-		})
+			})
 		if localizedError != nil {
 			v.Set("form", subscriptionForm)
 			v.Set("errorMessage", localizedError.Translate(user.Language))
@@ -152,10 +157,10 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 		view.Set("form", subscriptionForm)
 		view.Set("menu", "feeds")
 		view.Set("user", user)
-		view.Set("countUnread", h.store.CountUnreadEntries(user.ID))
-		view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(user.ID))
+		view.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
+		view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
+			r.Context(), user.ID))
 		view.Set("hasProxyConfigured", config.Opts.HasHTTPClientProxyURLConfigured())
-
 		html.OK(w, r, view.Render("choose_subscription"))
 	}
 }

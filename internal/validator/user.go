@@ -4,6 +4,7 @@
 package validator // import "miniflux.app/v2/internal/validator"
 
 import (
+	"context"
 	"slices"
 	"strings"
 	"unicode"
@@ -14,12 +15,14 @@ import (
 )
 
 // ValidateUserCreationWithPassword validates user creation with a password.
-func ValidateUserCreationWithPassword(store *storage.Storage, request *model.UserCreationRequest) *locale.LocalizedError {
+func ValidateUserCreationWithPassword(ctx context.Context,
+	store *storage.Storage, request *model.UserCreationRequest,
+) *locale.LocalizedError {
 	if request.Username == "" {
 		return locale.NewLocalizedError("error.user_mandatory_fields")
 	}
 
-	if store.UserExists(request.Username) {
+	if store.UserExists(ctx, request.Username) {
 		return locale.NewLocalizedError("error.user_already_exists")
 	}
 
@@ -35,11 +38,13 @@ func ValidateUserCreationWithPassword(store *storage.Storage, request *model.Use
 }
 
 // ValidateUserModification validates user modifications.
-func ValidateUserModification(store *storage.Storage, userID int64, changes *model.UserModificationRequest) *locale.LocalizedError {
+func ValidateUserModification(ctx context.Context, store *storage.Storage,
+	userID int64, changes *model.UserModificationRequest,
+) *locale.LocalizedError {
 	if changes.Username != nil {
 		if *changes.Username == "" {
 			return locale.NewLocalizedError("error.user_mandatory_fields")
-		} else if store.AnotherUserExists(userID, *changes.Username) {
+		} else if store.AnotherUserExists(ctx, userID, *changes.Username) {
 			return locale.NewLocalizedError("error.user_already_exists")
 		}
 	}
@@ -63,7 +68,7 @@ func ValidateUserModification(store *storage.Storage, userID int64, changes *mod
 	}
 
 	if changes.Timezone != nil {
-		if err := validateTimezone(store, *changes.Timezone); err != nil {
+		if err := validateTimezone(ctx, store, *changes.Timezone); err != nil {
 			return err
 		}
 	}
@@ -188,8 +193,10 @@ func validateLanguage(language string) *locale.LocalizedError {
 	return nil
 }
 
-func validateTimezone(store *storage.Storage, timezone string) *locale.LocalizedError {
-	timezones, err := store.Timezones()
+func validateTimezone(ctx context.Context, store *storage.Storage,
+	timezone string,
+) *locale.LocalizedError {
+	timezones, err := store.Timezones(ctx)
 	if err != nil {
 		return locale.NewLocalizedError(err.Error())
 	}

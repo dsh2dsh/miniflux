@@ -15,14 +15,14 @@ import (
 )
 
 func (h *handler) showEditFeedPage(w http.ResponseWriter, r *http.Request) {
-	user, err := h.store.UserByID(request.UserID(r))
+	user, err := h.store.UserByID(r.Context(), request.UserID(r))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
 	feedID := request.RouteInt64Param(r, "feedID")
-	feed, err := h.store.FeedByID(user.ID, feedID)
+	feed, err := h.store.FeedByID(r.Context(), user.ID, feedID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -33,7 +33,7 @@ func (h *handler) showEditFeedPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	categories, err := h.store.Categories(user.ID)
+	categories, err := h.store.Categories(r.Context(), user.ID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -80,10 +80,10 @@ func (h *handler) showEditFeedPage(w http.ResponseWriter, r *http.Request) {
 	view.Set("feed", feed)
 	view.Set("menu", "feeds")
 	view.Set("user", user)
-	view.Set("countUnread", h.store.CountUnreadEntries(user.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(user.ID))
+	view.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
+	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
+		r.Context(), user.ID))
 	view.Set("defaultUserAgent", config.Opts.HTTPClientUserAgent())
 	view.Set("hasProxyConfigured", config.Opts.HasHTTPClientProxyURLConfigured())
-
 	html.OK(w, r, view.Render("edit_feed"))
 }

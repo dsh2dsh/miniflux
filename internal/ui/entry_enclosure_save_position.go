@@ -13,7 +13,7 @@ import (
 
 func (h *handler) saveEnclosureProgression(w http.ResponseWriter, r *http.Request) {
 	enclosureID := request.RouteInt64Param(r, "enclosureID")
-	enclosure, err := h.store.GetEnclosure(enclosureID)
+	enclosure, err := h.store.GetEnclosure(r.Context(), enclosureID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -35,7 +35,7 @@ func (h *handler) saveEnclosureProgression(w http.ResponseWriter, r *http.Reques
 	}
 	enclosure.MediaProgression = postData.Progression
 
-	if err := h.store.UpdateEnclosure(enclosure); err != nil {
+	if err := h.store.UpdateEnclosure(r.Context(), enclosure); err != nil {
 		json.ServerError(w, r, err)
 		return
 	}

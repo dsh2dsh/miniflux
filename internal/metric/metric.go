@@ -5,11 +5,18 @@ package metric // import "miniflux.app/v2/internal/metric"
 
 import (
 	"log/slog"
+	"net"
+	"net/http"
 	"time"
 
-	"miniflux.app/v2/internal/storage"
-
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/logging"
+	"miniflux.app/v2/internal/storage"
 )
 
 // Prometheus Metrics.
@@ -43,149 +50,94 @@ var (
 		},
 		[]string{"status"},
 	)
-
-	usersGauge = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: "miniflux",
-			Name:      "users",
-			Help:      "Number of users",
-		},
-	)
-
-	feedsGauge = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: "miniflux",
-			Name:      "feeds",
-			Help:      "Number of feeds by status",
-		},
-		[]string{"status"},
-	)
-
-	brokenFeedsGauge = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: "miniflux",
-			Name:      "broken_feeds",
-			Help:      "Number of broken feeds",
-		},
-	)
-
-	entriesGauge = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: "miniflux",
-			Name:      "entries",
-			Help:      "Number of entries by status",
-		},
-		[]string{"status"},
-	)
-
-	dbOpenConnectionsGauge = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: "miniflux",
-			Name:      "db_open_connections",
-			Help:      "The number of established connections both in use and idle",
-		},
-	)
-
-	dbConnectionsInUseGauge = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: "miniflux",
-			Name:      "db_connections_in_use",
-			Help:      "The number of connections currently in use",
-		},
-	)
-
-	dbConnectionsIdleGauge = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: "miniflux",
-			Name:      "db_connections_idle",
-			Help:      "The number of idle connections",
-		},
-	)
-
-	dbConnectionsWaitCountGauge = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: "miniflux",
-			Name:      "db_connections_wait_count",
-			Help:      "The total number of connections waited for",
-		},
-	)
-
-	dbConnectionsMaxIdleClosedGauge = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: "miniflux",
-			Name:      "db_connections_max_idle_closed",
-			Help:      "The total number of connections closed due to SetMaxIdleConns",
-		},
-	)
-
-	dbConnectionsMaxIdleTimeClosedGauge = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: "miniflux",
-			Name:      "db_connections_max_idle_time_closed",
-			Help:      "The total number of connections closed due to SetConnMaxIdleTime",
-		},
-	)
-
-	dbConnectionsMaxLifetimeClosedGauge = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: "miniflux",
-			Name:      "db_connections_max_lifetime_closed",
-			Help:      "The total number of connections closed due to SetConnMaxLifetime",
-		},
-	)
 )
 
-// Collector represents a metric collector.
-type Collector struct {
-	store           *storage.Storage
-	refreshInterval int
-}
-
-// NewCollector initializes a new metric collector.
-func NewCollector(store *storage.Storage, refreshInterval int) *Collector {
+func RegisterMetrics(store *storage.Storage) {
 	prometheus.MustRegister(BackgroundFeedRefreshDuration)
 	prometheus.MustRegister(ScraperRequestDuration)
 	prometheus.MustRegister(ArchiveEntriesDuration)
-	prometheus.MustRegister(usersGauge)
-	prometheus.MustRegister(feedsGauge)
-	prometheus.MustRegister(brokenFeedsGauge)
-	prometheus.MustRegister(entriesGauge)
-	prometheus.MustRegister(dbOpenConnectionsGauge)
-	prometheus.MustRegister(dbConnectionsInUseGauge)
-	prometheus.MustRegister(dbConnectionsIdleGauge)
-	prometheus.MustRegister(dbConnectionsWaitCountGauge)
-	prometheus.MustRegister(dbConnectionsMaxIdleClosedGauge)
-	prometheus.MustRegister(dbConnectionsMaxIdleTimeClosedGauge)
-	prometheus.MustRegister(dbConnectionsMaxLifetimeClosedGauge)
-
-	return &Collector{store, refreshInterval}
+	store.RegisterMetricts()
 }
 
-// GatherStorageMetrics polls the database to fetch metrics.
-func (c *Collector) GatherStorageMetrics() {
-	for range time.Tick(time.Duration(c.refreshInterval) * time.Second) {
-		slog.Debug("Collecting metrics from the database")
+func Handler(store *storage.Storage) http.Handler {
+	promHandler := promhttp.Handler()
+	var lastStorageMetricsAt time.Time
 
-		usersGauge.Set(float64(c.store.CountUsers()))
-		brokenFeedsGauge.Set(float64(c.store.CountAllFeedsWithErrors()))
-
-		feedsCount := c.store.CountAllFeeds()
-		for status, count := range feedsCount {
-			feedsGauge.WithLabelValues(status).Set(float64(count))
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		log := logging.FromContext(ctx)
+		if !isAllowedToAccessMetricsEndpoint(r) {
+			log.Warn("Authentication failed while accessing the metrics endpoint",
+				slog.String("client_ip", request.ClientIP(r)),
+				slog.String("client_user_agent", r.UserAgent()),
+				slog.String("client_remote_addr", r.RemoteAddr),
+			)
+			http.NotFound(w, r)
+			return
 		}
 
-		entriesCount := c.store.CountAllEntries()
-		for status, count := range entriesCount {
-			entriesGauge.WithLabelValues(status).Set(float64(count))
+		d := time.Since(lastStorageMetricsAt)
+		fromDB := d >= config.Opts.MetricsRefreshInterval()
+		log.Debug("Collecting storage metrics",
+			slog.Duration("elapsed", d), slog.Bool("from_db", fromDB))
+		if fromDB {
+			lastStorageMetricsAt = time.Now()
 		}
-
-		dbStats := c.store.DBStats()
-		dbOpenConnectionsGauge.Set(float64(dbStats.OpenConnections))
-		dbConnectionsInUseGauge.Set(float64(dbStats.InUse))
-		dbConnectionsIdleGauge.Set(float64(dbStats.Idle))
-		dbConnectionsWaitCountGauge.Set(float64(dbStats.WaitCount))
-		dbConnectionsMaxIdleClosedGauge.Set(float64(dbStats.MaxIdleClosed))
-		dbConnectionsMaxIdleTimeClosedGauge.Set(float64(dbStats.MaxIdleTimeClosed))
-		dbConnectionsMaxLifetimeClosedGauge.Set(float64(dbStats.MaxLifetimeClosed))
+		if err := store.Metrics(ctx, fromDB); err != nil {
+			log.Error("unable collect storage metrics", slog.Any("error", err))
+			html.ServerError(w, r, err)
+			return
+		}
+		promHandler.ServeHTTP(w, r)
 	}
+	return http.HandlerFunc(fn)
+}
+
+func isAllowedToAccessMetricsEndpoint(r *http.Request) bool {
+	log := logging.FromContext(r.Context()).With(
+		slog.Bool("authentication_failed", true),
+		slog.String("client_ip", request.ClientIP(r)),
+		slog.String("client_user_agent", r.UserAgent()),
+		slog.String("client_remote_addr", r.RemoteAddr))
+
+	needAuth := config.Opts.MetricsUsername() != "" &&
+		config.Opts.MetricsPassword() != ""
+	if needAuth {
+		username, password, authOK := r.BasicAuth()
+		switch {
+		case !authOK:
+			log.Warn("Metrics endpoint accessed without authentication header")
+			return false
+		case username == "" || password == "":
+			log.Warn("Metrics endpoint accessed with empty username or password")
+			return false
+		case username != config.Opts.MetricsUsername() || password != config.Opts.MetricsPassword():
+			log.Warn("Metrics endpoint accessed with invalid username or password")
+			return false
+		}
+	}
+
+	remoteIP := request.FindRemoteIP(r)
+	if remoteIP == "@" {
+		// This indicates a request sent via a Unix socket, always consider these
+		// trusted.
+		return true
+	}
+
+	for _, cidr := range config.Opts.MetricsAllowedNetworks() {
+		_, network, err := net.ParseCIDR(cidr)
+		if err != nil {
+			log.Error("Metrics endpoint accessed with invalid CIDR",
+				slog.String("cidr", cidr))
+			return false
+		}
+
+		// We use r.RemoteAddr in this case because HTTP headers like
+		// X-Forwarded-For can be easily spoofed. The recommendation is to use HTTP
+		// Basic authentication.
+		if network.Contains(net.ParseIP(remoteIP)) {
+			return true
+		}
+	}
+	return false
 }

@@ -11,29 +11,28 @@ import (
 	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
-	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/ui/session"
 	"miniflux.app/v2/internal/ui/view"
 )
 
 func (h *handler) createSharedEntry(w http.ResponseWriter, r *http.Request) {
 	entryID := request.RouteInt64Param(r, "entryID")
-	shareCode, err := h.store.EntryShareCode(request.UserID(r), entryID)
+	shareCode, err := h.store.EntryShareCode(r.Context(),
+		request.UserID(r), entryID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
-
 	html.Redirect(w, r, route.Path(h.router, "sharedEntry", "shareCode", shareCode))
 }
 
 func (h *handler) unshareEntry(w http.ResponseWriter, r *http.Request) {
 	entryID := request.RouteInt64Param(r, "entryID")
-	if err := h.store.UnshareEntry(request.UserID(r), entryID); err != nil {
+	err := h.store.UnshareEntry(r.Context(), request.UserID(r), entryID)
+	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
-
 	html.Redirect(w, r, route.Path(h.router, "sharedEntries"))
 }
 
@@ -46,10 +45,10 @@ func (h *handler) sharedEntry(w http.ResponseWriter, r *http.Request) {
 
 	etag := shareCode
 	response.New(w, r).WithCaching(etag, 72*time.Hour, func(b *response.Builder) {
-		builder := storage.NewAnonymousQueryBuilder(h.store)
+		builder := h.store.NewAnonymousQueryBuilder()
 		builder.WithShareCode(shareCode)
 
-		entry, err := builder.GetEntry()
+		entry, err := builder.GetEntry(r.Context())
 		if err != nil || entry == nil {
 			html.NotFound(w, r)
 			return

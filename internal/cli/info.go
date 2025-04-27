@@ -8,6 +8,7 @@ import (
 	"runtime"
 
 	"github.com/spf13/cobra"
+
 	"miniflux.app/v2/internal/version"
 )
 

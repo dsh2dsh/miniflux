@@ -14,15 +14,15 @@ import (
 func (h *handler) removeFeed(w http.ResponseWriter, r *http.Request) {
 	feedID := request.RouteInt64Param(r, "feedID")
 
-	if !h.store.FeedExists(request.UserID(r), feedID) {
+	if !h.store.FeedExists(r.Context(), request.UserID(r), feedID) {
 		html.NotFound(w, r)
 		return
 	}
 
-	if err := h.store.RemoveFeed(request.UserID(r), feedID); err != nil {
+	err := h.store.RemoveFeed(r.Context(), request.UserID(r), feedID)
+	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
-
 	html.Redirect(w, r, route.Path(h.router, "feeds"))
 }

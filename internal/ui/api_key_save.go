@@ -4,12 +4,14 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"log/slog"
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
+	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
 	"miniflux.app/v2/internal/ui/session"
@@ -17,7 +19,7 @@ import (
 )
 
 func (h *handler) saveAPIKey(w http.ResponseWriter, r *http.Request) {
-	user, err := h.store.UserByID(request.UserID(r))
+	user, err := h.store.UserByID(r.Context(), request.UserID(r))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -30,8 +32,9 @@ func (h *handler) saveAPIKey(w http.ResponseWriter, r *http.Request) {
 	view.Set("form", apiKeyForm)
 	view.Set("menu", "settings")
 	view.Set("user", user)
-	view.Set("countUnread", h.store.CountUnreadEntries(user.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(user.ID))
+	view.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
+	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
+		r.Context(), user.ID))
 
 	if validationErr := apiKeyForm.Validate(); validationErr != nil {
 		view.Set("errorMessage", validationErr.Translate(user.Language))
@@ -39,14 +42,25 @@ func (h *handler) saveAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.store.APIKeyExists(user.ID, apiKeyForm.Description) {
+	alreadyExists, err := h.store.APIKeyExists(r.Context(), user.ID,
+		apiKeyForm.Description)
+	if err != nil {
+		logging.FromContext(r.Context()).Error("failed API key lookup",
+			slog.Int64("user_id", user.ID),
+			slog.String("description", apiKeyForm.Description),
+			slog.Any("error", err))
+		html.ServerError(w, r, err)
+		return
+	}
+
+	if alreadyExists {
 		view.Set("errorMessage", locale.NewLocalizedError("error.api_key_already_exists").Translate(user.Language))
 		html.OK(w, r, view.Render("create_api_key"))
 		return
 	}
 
 	apiKey := model.NewAPIKey(user.ID, apiKeyForm.Description)
-	if err = h.store.CreateAPIKey(apiKey); err != nil {
+	if err = h.store.CreateAPIKey(r.Context(), apiKey); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}

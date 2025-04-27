@@ -25,12 +25,15 @@ func (h *handler) createCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if validationErr := validator.ValidateCategoryCreation(h.store, userID, &categoryCreationRequest); validationErr != nil {
+	validationErr := validator.ValidateCategoryCreation(r.Context(),
+		h.store, userID, &categoryCreationRequest)
+	if validationErr != nil {
 		json.BadRequest(w, r, validationErr.Error())
 		return
 	}
 
-	category, err := h.store.CreateCategory(userID, &categoryCreationRequest)
+	category, err := h.store.CreateCategory(r.Context(),
+		userID, &categoryCreationRequest)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -43,7 +46,7 @@ func (h *handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 	userID := request.UserID(r)
 	categoryID := request.RouteInt64Param(r, "categoryID")
 
-	category, err := h.store.Category(userID, categoryID)
+	category, err := h.store.Category(r.Context(), userID, categoryID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -60,14 +63,16 @@ func (h *handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if validationErr := validator.ValidateCategoryModification(h.store, userID, category.ID, &categoryModificationRequest); validationErr != nil {
+	validationErr := validator.ValidateCategoryModification(r.Context(),
+		h.store, userID, category.ID, &categoryModificationRequest)
+	if validationErr != nil {
 		json.BadRequest(w, r, validationErr.Error())
 		return
 	}
 
 	categoryModificationRequest.Patch(category)
 
-	if err := h.store.UpdateCategory(category); err != nil {
+	if err := h.store.UpdateCategory(r.Context(), category); err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
@@ -79,7 +84,7 @@ func (h *handler) markCategoryAsRead(w http.ResponseWriter, r *http.Request) {
 	userID := request.UserID(r)
 	categoryID := request.RouteInt64Param(r, "categoryID")
 
-	category, err := h.store.Category(userID, categoryID)
+	category, err := h.store.Category(r.Context(), userID, categoryID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -90,23 +95,24 @@ func (h *handler) markCategoryAsRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = h.store.MarkCategoryAsRead(userID, categoryID, time.Now()); err != nil {
+	err = h.store.MarkCategoryAsRead(r.Context(), userID, categoryID, time.Now())
+	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
-
 	json.NoContent(w, r)
 }
 
 func (h *handler) getCategories(w http.ResponseWriter, r *http.Request) {
-	var categories model.Categories
+	var categories []*model.Category
 	var err error
 	includeCounts := request.QueryStringParam(r, "counts", "false")
 
 	if includeCounts == "true" {
-		categories, err = h.store.CategoriesWithFeedCount(request.UserID(r))
+		categories, err = h.store.CategoriesWithFeedCount(
+			r.Context(), request.UserID(r))
 	} else {
-		categories, err = h.store.Categories(request.UserID(r))
+		categories, err = h.store.Categories(r.Context(), request.UserID(r))
 	}
 
 	if err != nil {
@@ -120,12 +126,13 @@ func (h *handler) removeCategory(w http.ResponseWriter, r *http.Request) {
 	userID := request.UserID(r)
 	categoryID := request.RouteInt64Param(r, "categoryID")
 
-	if !h.store.CategoryIDExists(userID, categoryID) {
+	if !h.store.CategoryIDExists(r.Context(), userID, categoryID) {
 		json.NotFound(w, r)
 		return
 	}
 
-	if err := h.store.RemoveCategory(userID, categoryID); err != nil {
+	err := h.store.RemoveCategory(r.Context(), userID, categoryID)
+	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
@@ -144,7 +151,7 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request) {
 	batchBuilder.WithCategoryID(categoryID)
 	batchBuilder.WithNextCheckExpired()
 
-	jobs, err := batchBuilder.FetchJobs()
+	jobs, err := batchBuilder.FetchJobs(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return

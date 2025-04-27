@@ -4,754 +4,559 @@
 package storage // import "miniflux.app/v2/internal/storage"
 
 import (
-	"database/sql"
+	"context"
+	"errors"
 	"fmt"
 	"log/slog"
-	"runtime"
 	"strings"
 
-	"miniflux.app/v2/internal/crypto"
-	"miniflux.app/v2/internal/model"
-
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5"
 	"golang.org/x/crypto/bcrypt"
+
+	"miniflux.app/v2/internal/crypto"
+	"miniflux.app/v2/internal/logging"
+	"miniflux.app/v2/internal/model"
 )
 
 // CountUsers returns the total number of users.
-func (s *Storage) CountUsers() int {
-	var result int
-	err := s.db.QueryRow(`SELECT count(*) FROM users`).Scan(&result)
+func (s *Storage) CountUsers(ctx context.Context) (int, error) {
+	rows, _ := s.db.Query(ctx, `SELECT count(*) FROM users`)
+	count, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[int])
 	if err != nil {
-		return 0
+		return 0, fmt.Errorf("storage: unable count users: %w", err)
 	}
-
-	return result
+	return count, nil
 }
 
 // SetLastLogin updates the last login date of a user.
-func (s *Storage) SetLastLogin(userID int64) error {
-	query := `UPDATE users SET last_login_at=now() WHERE id=$1`
-	_, err := s.db.Exec(query, userID)
+func (s *Storage) SetLastLogin(ctx context.Context, userID int64) error {
+	_, err := s.db.Exec(ctx,
+		`UPDATE users SET last_login_at=now() WHERE id=$1`, userID)
 	if err != nil {
 		return fmt.Errorf(`store: unable to update last login date: %w`, err)
 	}
-
 	return nil
 }
 
 // UserExists checks if a user exists by using the given username.
-func (s *Storage) UserExists(username string) bool {
-	var result bool
-	_ = s.db.QueryRow(
-		`SELECT true FROM users WHERE username=LOWER($1)`, username).
-		Scan(&result)
+func (s *Storage) UserExists(ctx context.Context, username string) bool {
+	rows, _ := s.db.Query(ctx, `
+SELECT EXISTS(
+  SELECT FROM users WHERE username=LOWER($1))`, username)
+
+	result, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[bool])
+	if err != nil {
+		logging.FromContext(ctx).Error("storage: unable check user exists",
+			slog.String("username", username), slog.Any("error", err))
+		return false
+	}
 	return result
 }
 
 // AnotherUserExists checks if another user exists with the given username.
-func (s *Storage) AnotherUserExists(userID int64, username string) bool {
-	var result bool
-	_ = s.db.QueryRow(
-		`SELECT true FROM users WHERE id != $1 AND username=LOWER($2)`,
-		userID, username,
-	).Scan(&result)
+func (s *Storage) AnotherUserExists(ctx context.Context, userID int64,
+	username string,
+) bool {
+	rows, _ := s.db.Query(ctx, `
+SELECT EXISTS (
+  SELECT FROM users WHERE id != $1 AND username=LOWER($2))`,
+		userID, username)
+
+	result, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[bool])
+	if err != nil {
+		logging.FromContext(ctx).Error(
+			"storage: unable check another user exists",
+			slog.Int64("user_id", userID),
+			slog.String("username", username),
+			slog.Any("error", err))
+		return false
+	}
 	return result
 }
 
 // CreateUser creates a new user.
-func (s *Storage) CreateUser(userCreationRequest *model.UserCreationRequest) (*model.User, error) {
+func (s *Storage) CreateUser(ctx context.Context,
+	userCreationRequest *model.UserCreationRequest,
+) (user *model.User, _ error) {
 	var hashedPassword string
 	if userCreationRequest.Password != "" {
-		var err error
-		hashedPassword, err = crypto.HashPassword(userCreationRequest.Password)
+		hash, err := crypto.HashPassword(userCreationRequest.Password)
 		if err != nil {
 			return nil, err
 		}
+		hashedPassword = hash
 	}
 
-	query := `
-		INSERT INTO users
-			(username, password, is_admin, google_id, openid_connect_id)
-		VALUES
-			(LOWER($1), $2, $3, $4, $5)
-		RETURNING
-			id,
-			username,
-			is_admin,
-			language,
-			theme,
-			timezone,
-			entry_direction,
-			entries_per_page,
-			keyboard_shortcuts,
-			show_reading_time,
-			entry_swipe,
-			gesture_nav,
-			stylesheet,
-			custom_js,
-			external_font_hosts,
-			google_id,
-			openid_connect_id,
-			display_mode,
-			entry_order,
-			default_reading_speed,
-			cjk_reading_speed,
-			default_home_page,
-			categories_sorting_order,
-			mark_read_on_view,
-			media_playback_rate,
-			block_filter_entry_rules,
-			keep_filter_entry_rules
-	`
+	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		rows, _ := tx.Query(ctx, `
+INSERT INTO users
+	(username, password, is_admin, google_id, openid_connect_id)
+VALUES
+	(LOWER($1), $2,      $3,       $4,        $5)
+RETURNING
+	id,
+	username,
+	is_admin,
+	language,
+	theme,
+	timezone,
+	entry_direction,
+	entries_per_page,
+	keyboard_shortcuts,
+	show_reading_time,
+	entry_swipe,
+	gesture_nav,
+	stylesheet,
+	custom_js,
+	external_font_hosts,
+	google_id,
+	openid_connect_id,
+	display_mode,
+	entry_order,
+	default_reading_speed,
+	cjk_reading_speed,
+	default_home_page,
+	categories_sorting_order,
+	mark_read_on_view,
+	media_playback_rate,
+	block_filter_entry_rules,
+	keep_filter_entry_rules`,
+			userCreationRequest.Username,
+			hashedPassword,
+			userCreationRequest.IsAdmin,
+			userCreationRequest.GoogleID,
+			userCreationRequest.OpenIDConnectID)
 
-	tx, err := s.db.Begin()
-	if err != nil {
-		return nil, fmt.Errorf(`store: unable to start transaction: %w`, err)
-	}
+		u, err := pgx.CollectExactlyOneRow(rows,
+			pgx.RowToAddrOfStructByNameLax[model.User])
+		if err != nil {
+			return fmt.Errorf(`create user: %w`, err)
+		}
+		user = u
 
-	var user model.User
-	err = tx.QueryRow(
-		query,
-		userCreationRequest.Username,
-		hashedPassword,
-		userCreationRequest.IsAdmin,
-		userCreationRequest.GoogleID,
-		userCreationRequest.OpenIDConnectID,
-	).Scan(
-		&user.ID,
-		&user.Username,
-		&user.IsAdmin,
-		&user.Language,
-		&user.Theme,
-		&user.Timezone,
-		&user.EntryDirection,
-		&user.EntriesPerPage,
-		&user.KeyboardShortcuts,
-		&user.ShowReadingTime,
-		&user.EntrySwipe,
-		&user.GestureNav,
-		&user.Stylesheet,
-		&user.CustomJS,
-		&user.ExternalFontHosts,
-		&user.GoogleID,
-		&user.OpenIDConnectID,
-		&user.DisplayMode,
-		&user.EntryOrder,
-		&user.DefaultReadingSpeed,
-		&user.CJKReadingSpeed,
-		&user.DefaultHomePage,
-		&user.CategoriesSortingOrder,
-		&user.MarkReadOnView,
-		&user.MediaPlaybackRate,
-		&user.BlockFilterEntryRules,
-		&user.KeepFilterEntryRules,
-	)
+		_, err = tx.Exec(ctx,
+			`INSERT INTO categories (user_id, title) VALUES ($1, $2)`,
+			user.ID, "All")
+		if err != nil {
+			return fmt.Errorf(`create default category: %w`, err)
+		}
+
+		_, err = tx.Exec(ctx,
+			`INSERT INTO integrations (user_id) VALUES ($1)`, user.ID)
+		if err != nil {
+			return fmt.Errorf(`create integration row: %w`, err)
+		}
+		return nil
+	})
 	if err != nil {
-		tx.Rollback()
 		return nil, fmt.Errorf(`store: unable to create user: %w`, err)
 	}
-
-	_, err = tx.Exec(`INSERT INTO categories (user_id, title) VALUES ($1, $2)`, user.ID, "All")
-	if err != nil {
-		tx.Rollback()
-		return nil, fmt.Errorf(
-			`store: unable to create user default category: %w`, err)
-	}
-
-	_, err = tx.Exec(`INSERT INTO integrations (user_id) VALUES ($1)`, user.ID)
-	if err != nil {
-		tx.Rollback()
-		return nil, fmt.Errorf(
-			`store: unable to create integration row: %w`, err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf(`store: unable to commit transaction: %w`, err)
-	}
-
-	return &user, nil
+	return user, nil
 }
 
 // UpdateUser updates a user.
-func (s *Storage) UpdateUser(user *model.User) error {
+func (s *Storage) UpdateUser(ctx context.Context, user *model.User) error {
 	user.ExternalFontHosts = strings.TrimSpace(user.ExternalFontHosts)
 
+	var hashedPassword string
 	if user.Password != "" {
-		hashedPassword, err := crypto.HashPassword(user.Password)
+		hash, err := crypto.HashPassword(user.Password)
 		if err != nil {
 			return err
 		}
-
-		query := `
-			UPDATE users SET
-				username=LOWER($1),
-				password=$2,
-				is_admin=$3,
-				theme=$4,
-				language=$5,
-				timezone=$6,
-				entry_direction=$7,
-				entries_per_page=$8,
-				keyboard_shortcuts=$9,
-				show_reading_time=$10,
-				entry_swipe=$11,
-				gesture_nav=$12,
-				stylesheet=$13,
-				custom_js=$14,
-				external_font_hosts=$15,
-				google_id=$16,
-				openid_connect_id=$17,
-				display_mode=$18,
-				entry_order=$19,
-				default_reading_speed=$20,
-				cjk_reading_speed=$21,
-				default_home_page=$22,
-				categories_sorting_order=$23,
-				mark_read_on_view=$24,
-				mark_read_on_media_player_completion=$25,
-				media_playback_rate=$26,
-				block_filter_entry_rules=$27,
-				keep_filter_entry_rules=$28
-			WHERE
-				id=$29
-		`
-
-		_, err = s.db.Exec(
-			query,
-			user.Username,
-			hashedPassword,
-			user.IsAdmin,
-			user.Theme,
-			user.Language,
-			user.Timezone,
-			user.EntryDirection,
-			user.EntriesPerPage,
-			user.KeyboardShortcuts,
-			user.ShowReadingTime,
-			user.EntrySwipe,
-			user.GestureNav,
-			user.Stylesheet,
-			user.CustomJS,
-			user.ExternalFontHosts,
-			user.GoogleID,
-			user.OpenIDConnectID,
-			user.DisplayMode,
-			user.EntryOrder,
-			user.DefaultReadingSpeed,
-			user.CJKReadingSpeed,
-			user.DefaultHomePage,
-			user.CategoriesSortingOrder,
-			user.MarkReadOnView,
-			user.MarkReadOnMediaPlayerCompletion,
-			user.MediaPlaybackRate,
-			user.BlockFilterEntryRules,
-			user.KeepFilterEntryRules,
-			user.ID,
-		)
-		if err != nil {
-			return fmt.Errorf(`store: unable to update user: %w`, err)
-		}
-	} else {
-		query := `
-			UPDATE users SET
-				username=LOWER($1),
-				is_admin=$2,
-				theme=$3,
-				language=$4,
-				timezone=$5,
-				entry_direction=$6,
-				entries_per_page=$7,
-				keyboard_shortcuts=$8,
-				show_reading_time=$9,
-				entry_swipe=$10,
-				gesture_nav=$11,
-				stylesheet=$12,
-				custom_js=$13,
-				external_font_hosts=$14,
-				google_id=$15,
-				openid_connect_id=$16,
-				display_mode=$17,
-				entry_order=$18,
-				default_reading_speed=$19,
-				cjk_reading_speed=$20,
-				default_home_page=$21,
-				categories_sorting_order=$22,
-				mark_read_on_view=$23,
-				mark_read_on_media_player_completion=$24,
-				media_playback_rate=$25,
-				block_filter_entry_rules=$26,
-				keep_filter_entry_rules=$27
-			WHERE
-				id=$28
-		`
-
-		_, err := s.db.Exec(
-			query,
-			user.Username,
-			user.IsAdmin,
-			user.Theme,
-			user.Language,
-			user.Timezone,
-			user.EntryDirection,
-			user.EntriesPerPage,
-			user.KeyboardShortcuts,
-			user.ShowReadingTime,
-			user.EntrySwipe,
-			user.GestureNav,
-			user.Stylesheet,
-			user.CustomJS,
-			user.ExternalFontHosts,
-			user.GoogleID,
-			user.OpenIDConnectID,
-			user.DisplayMode,
-			user.EntryOrder,
-			user.DefaultReadingSpeed,
-			user.CJKReadingSpeed,
-			user.DefaultHomePage,
-			user.CategoriesSortingOrder,
-			user.MarkReadOnView,
-			user.MarkReadOnMediaPlayerCompletion,
-			user.MediaPlaybackRate,
-			user.BlockFilterEntryRules,
-			user.KeepFilterEntryRules,
-			user.ID,
-		)
-		if err != nil {
-			return fmt.Errorf(`store: unable to update user: %w`, err)
-		}
+		hashedPassword = hash
 	}
 
+	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		_, err := s.db.Exec(ctx, `
+UPDATE users SET
+	username=LOWER($1),
+	is_admin=$2,
+	theme=$3,
+	language=$4,
+	timezone=$5,
+	entry_direction=$6,
+	entries_per_page=$7,
+	keyboard_shortcuts=$8,
+	show_reading_time=$9,
+	entry_swipe=$10,
+	gesture_nav=$11,
+	stylesheet=$12,
+	custom_js=$13,
+	external_font_hosts=$14,
+	google_id=$15,
+	openid_connect_id=$16,
+	display_mode=$17,
+	entry_order=$18,
+	default_reading_speed=$19,
+	cjk_reading_speed=$20,
+	default_home_page=$21,
+	categories_sorting_order=$22,
+	mark_read_on_view=$23,
+	mark_read_on_media_player_completion=$24,
+	media_playback_rate=$25,
+	block_filter_entry_rules=$26,
+	keep_filter_entry_rules=$27
+WHERE id=$28`,
+			user.Username,
+			user.IsAdmin,
+			user.Theme,
+			user.Language,
+			user.Timezone,
+			user.EntryDirection,
+			user.EntriesPerPage,
+			user.KeyboardShortcuts,
+			user.ShowReadingTime,
+			user.EntrySwipe,
+			user.GestureNav,
+			user.Stylesheet,
+			user.CustomJS,
+			user.ExternalFontHosts,
+			user.GoogleID,
+			user.OpenIDConnectID,
+			user.DisplayMode,
+			user.EntryOrder,
+			user.DefaultReadingSpeed,
+			user.CJKReadingSpeed,
+			user.DefaultHomePage,
+			user.CategoriesSortingOrder,
+			user.MarkReadOnView,
+			user.MarkReadOnMediaPlayerCompletion,
+			user.MediaPlaybackRate,
+			user.BlockFilterEntryRules,
+			user.KeepFilterEntryRules,
+			user.ID)
+		if err != nil {
+			return fmt.Errorf(`update user: %w`, err)
+		}
+
+		if hashedPassword != "" {
+			_, err := tx.Exec(ctx, `UPDATE users SET password=$1 WHERE id=$2`,
+				user.ID)
+			if err != nil {
+				return fmt.Errorf(`update password: %w`, err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf(`store: unable to update user: %w`, err)
+	}
 	return nil
 }
 
-// UserLanguage returns the language of the given user.
-func (s *Storage) UserLanguage(userID int64) (language string) {
-	err := s.db.QueryRow(`SELECT language FROM users WHERE id = $1`, userID).Scan(&language)
-	if err != nil {
-		return "en_US"
-	}
-
-	return language
-}
-
 // UserByID finds a user by the ID.
-func (s *Storage) UserByID(userID int64) (*model.User, error) {
+func (s *Storage) UserByID(ctx context.Context, userID int64,
+) (*model.User, error) {
 	query := `
-		SELECT
-			id,
-			username,
-			is_admin,
-			theme,
-			language,
-			timezone,
-			entry_direction,
-			entries_per_page,
-			keyboard_shortcuts,
-			show_reading_time,
-			entry_swipe,
-			gesture_nav,
-			last_login_at,
-			stylesheet,
-			custom_js,
-			external_font_hosts,
-			google_id,
-			openid_connect_id,
-			display_mode,
-			entry_order,
-			default_reading_speed,
-			cjk_reading_speed,
-			default_home_page,
-			categories_sorting_order,
-			mark_read_on_view,
-			mark_read_on_media_player_completion,
-			media_playback_rate,
-			block_filter_entry_rules,
-			keep_filter_entry_rules
-		FROM
-			users
-		WHERE
-			id = $1
-	`
-	return s.fetchUser(query, userID)
+SELECT
+	id,
+	username,
+	is_admin,
+	theme,
+	language,
+	timezone,
+	entry_direction,
+	entries_per_page,
+	keyboard_shortcuts,
+	show_reading_time,
+	entry_swipe,
+	gesture_nav,
+	last_login_at,
+	stylesheet,
+	custom_js,
+	external_font_hosts,
+	google_id,
+	openid_connect_id,
+	display_mode,
+	entry_order,
+	default_reading_speed,
+	cjk_reading_speed,
+	default_home_page,
+	categories_sorting_order,
+	mark_read_on_view,
+	mark_read_on_media_player_completion,
+	media_playback_rate,
+	block_filter_entry_rules,
+	keep_filter_entry_rules
+FROM users WHERE id = $1`
+	return s.fetchUser(ctx, query, userID)
 }
 
 // UserByUsername finds a user by the username.
-func (s *Storage) UserByUsername(username string) (*model.User, error) {
+func (s *Storage) UserByUsername(ctx context.Context, username string,
+) (*model.User, error) {
 	query := `
-		SELECT
-			id,
-			username,
-			is_admin,
-			theme,
-			language,
-			timezone,
-			entry_direction,
-			entries_per_page,
-			keyboard_shortcuts,
-			show_reading_time,
-			entry_swipe,
-			gesture_nav,
-			last_login_at,
-			stylesheet,
-			custom_js,
-			external_font_hosts,
-			google_id,
-			openid_connect_id,
-			display_mode,
-			entry_order,
-			default_reading_speed,
-			cjk_reading_speed,
-			default_home_page,
-			categories_sorting_order,
-			mark_read_on_view,
-			mark_read_on_media_player_completion,
-			media_playback_rate,
-			block_filter_entry_rules,
-			keep_filter_entry_rules
-		FROM
-			users
-		WHERE
-			username=LOWER($1)
-	`
-	return s.fetchUser(query, username)
+SELECT
+	id,
+	username,
+	is_admin,
+	theme,
+	language,
+	timezone,
+	entry_direction,
+	entries_per_page,
+	keyboard_shortcuts,
+	show_reading_time,
+	entry_swipe,
+	gesture_nav,
+	last_login_at,
+	stylesheet,
+	custom_js,
+	external_font_hosts,
+	google_id,
+	openid_connect_id,
+	display_mode,
+	entry_order,
+	default_reading_speed,
+	cjk_reading_speed,
+	default_home_page,
+	categories_sorting_order,
+	mark_read_on_view,
+	mark_read_on_media_player_completion,
+	media_playback_rate,
+	block_filter_entry_rules,
+	keep_filter_entry_rules
+FROM users WHERE username=LOWER($1)`
+	return s.fetchUser(ctx, query, username)
 }
 
 // UserByField finds a user by a field value.
-func (s *Storage) UserByField(field, value string) (*model.User, error) {
-	query := `
-		SELECT
-			id,
-			username,
-			is_admin,
-			theme,
-			language,
-			timezone,
-			entry_direction,
-			entries_per_page,
-			keyboard_shortcuts,
-			show_reading_time,
-			entry_swipe,
-			gesture_nav,
-			last_login_at,
-			stylesheet,
-			custom_js,
-			external_font_hosts,
-			google_id,
-			openid_connect_id,
-			display_mode,
-			entry_order,
-			default_reading_speed,
-			cjk_reading_speed,
-			default_home_page,
-			categories_sorting_order,
-			mark_read_on_view,
-			mark_read_on_media_player_completion,
-			media_playback_rate,
-			block_filter_entry_rules,
-			keep_filter_entry_rules
-		FROM
-			users
-		WHERE
-			%s=$1
-	`
-	return s.fetchUser(fmt.Sprintf(query, pq.QuoteIdentifier(field)), value)
+func (s *Storage) UserByField(ctx context.Context, field, value string,
+) (*model.User, error) {
+	query := fmt.Sprintf(`
+SELECT
+	id,
+	username,
+	is_admin,
+	theme,
+	language,
+	timezone,
+	entry_direction,
+	entries_per_page,
+	keyboard_shortcuts,
+	show_reading_time,
+	entry_swipe,
+	gesture_nav,
+	last_login_at,
+	stylesheet,
+	custom_js,
+	external_font_hosts,
+	google_id,
+	openid_connect_id,
+	display_mode,
+	entry_order,
+	default_reading_speed,
+	cjk_reading_speed,
+	default_home_page,
+	categories_sorting_order,
+	mark_read_on_view,
+	mark_read_on_media_player_completion,
+	media_playback_rate,
+	block_filter_entry_rules,
+	keep_filter_entry_rules
+FROM users WHERE %s=$1`,
+		pgx.Identifier([]string{field}).Sanitize())
+	return s.fetchUser(ctx, query, value)
 }
 
-// AnotherUserWithFieldExists returns true if a user has the value set for the given field.
-func (s *Storage) AnotherUserWithFieldExists(userID int64, field, value string) bool {
-	var result bool
-	_ = s.db.QueryRow(
-		fmt.Sprintf(`SELECT true FROM users WHERE id <> $1 AND %s=$2`,
-			pq.QuoteIdentifier(field)),
-		userID, value,
-	).Scan(&result)
-	return result
+// AnotherUserWithFieldExists returns true if a user has the value set for the
+// given field.
+func (s *Storage) AnotherUserWithFieldExists(ctx context.Context, userID int64,
+	field, value string,
+) (bool, error) {
+	rows, _ := s.db.Query(ctx,
+		fmt.Sprintf(`
+SELECT EXISTS(
+  SELECT FROM users WHERE id <> $1 AND %s=$2)`,
+			pgx.Identifier([]string{field}).Sanitize()),
+		userID, value)
+
+	result, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[bool])
+	if err != nil {
+		return false, fmt.Errorf(
+			"storage: unable check another user exists: %w", err)
+	}
+	return result, nil
 }
 
 // UserByAPIKey returns a User from an API Key.
-func (s *Storage) UserByAPIKey(token string) (*model.User, error) {
+func (s *Storage) UserByAPIKey(ctx context.Context, token string,
+) (*model.User, error) {
 	query := `
-		SELECT
-			u.id,
-			u.username,
-			u.is_admin,
-			u.theme,
-			u.language,
-			u.timezone,
-			u.entry_direction,
-			u.entries_per_page,
-			u.keyboard_shortcuts,
-			u.show_reading_time,
-			u.entry_swipe,
-			u.gesture_nav,
-			u.last_login_at,
-			u.stylesheet,
-			u.custom_js,
-			u.external_font_hosts,
-			u.google_id,
-			u.openid_connect_id,
-			u.display_mode,
-			u.entry_order,
-			u.default_reading_speed,
-			u.cjk_reading_speed,
-			u.default_home_page,
-			u.categories_sorting_order,
-			u.mark_read_on_view,
-			u.mark_read_on_media_player_completion,
-			media_playback_rate,
-			u.block_filter_entry_rules,
-			u.keep_filter_entry_rules
-		FROM
-			users u
-		LEFT JOIN
-			api_keys ON api_keys.user_id=u.id
-		WHERE
-			api_keys.token = $1
-	`
-	return s.fetchUser(query, token)
+SELECT
+	u.id,
+	u.username,
+	u.is_admin,
+	u.theme,
+	u.language,
+	u.timezone,
+	u.entry_direction,
+	u.entries_per_page,
+	u.keyboard_shortcuts,
+	u.show_reading_time,
+	u.entry_swipe,
+	u.gesture_nav,
+	u.last_login_at,
+	u.stylesheet,
+	u.custom_js,
+	u.external_font_hosts,
+	u.google_id,
+	u.openid_connect_id,
+	u.display_mode,
+	u.entry_order,
+	u.default_reading_speed,
+	u.cjk_reading_speed,
+	u.default_home_page,
+	u.categories_sorting_order,
+	u.mark_read_on_view,
+	u.mark_read_on_media_player_completion,
+	u.media_playback_rate,
+	u.block_filter_entry_rules,
+	u.keep_filter_entry_rules
+FROM users u
+     LEFT JOIN api_keys ON api_keys.user_id=u.id
+WHERE api_keys.token = $1`
+	return s.fetchUser(ctx, query, token)
 }
 
-func (s *Storage) fetchUser(query string, args ...any) (*model.User, error) {
-	var user model.User
-	err := s.db.QueryRow(query, args...).Scan(
-		&user.ID,
-		&user.Username,
-		&user.IsAdmin,
-		&user.Theme,
-		&user.Language,
-		&user.Timezone,
-		&user.EntryDirection,
-		&user.EntriesPerPage,
-		&user.KeyboardShortcuts,
-		&user.ShowReadingTime,
-		&user.EntrySwipe,
-		&user.GestureNav,
-		&user.LastLoginAt,
-		&user.Stylesheet,
-		&user.CustomJS,
-		&user.ExternalFontHosts,
-		&user.GoogleID,
-		&user.OpenIDConnectID,
-		&user.DisplayMode,
-		&user.EntryOrder,
-		&user.DefaultReadingSpeed,
-		&user.CJKReadingSpeed,
-		&user.DefaultHomePage,
-		&user.CategoriesSortingOrder,
-		&user.MarkReadOnView,
-		&user.MarkReadOnMediaPlayerCompletion,
-		&user.MediaPlaybackRate,
-		&user.BlockFilterEntryRules,
-		&user.KeepFilterEntryRules,
-	)
-
-	if err == sql.ErrNoRows {
+func (s *Storage) fetchUser(ctx context.Context, query string, args ...any,
+) (*model.User, error) {
+	rows, _ := s.db.Query(ctx, query, args...)
+	user, err := pgx.CollectExactlyOneRow(rows,
+		pgx.RowToAddrOfStructByNameLax[model.User])
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	} else if err != nil {
 		return nil, fmt.Errorf(`store: unable to fetch user: %w`, err)
 	}
-
-	return &user, nil
+	return user, nil
 }
 
-// RemoveUser deletes a user.
-func (s *Storage) RemoveUser(userID int64) error {
-	tx, err := s.db.Begin()
-	if err != nil {
-		return fmt.Errorf(`store: unable to start transaction: %w`, err)
+// RemoveUser deletes user data.
+func (s *Storage) RemoveUser(ctx context.Context, userID int64) error {
+	log := logging.FromContext(ctx).With(slog.Int64("user_id", userID))
+	if err := s.deleteUserFeeds(ctx, userID); err != nil {
+		log.Error("Unable to delete user feeds", slog.Any("error", err))
+		return err
 	}
 
-	if _, err := tx.Exec(`DELETE FROM users WHERE id=$1`, userID); err != nil {
-		tx.Rollback()
-		return fmt.Errorf(`store: unable to remove user #%d: %w`, userID, err)
+	if err := s.removeUser(ctx, userID); err != nil {
+		log.Error("storage: failed delete user", slog.Any("error", err))
+		return err
 	}
-
-	if _, err := tx.Exec(`DELETE FROM integrations WHERE user_id=$1`, userID); err != nil {
-		tx.Rollback()
-		return fmt.Errorf(
-			`store: unable to remove integration settings for user #%d: %w`,
-			userID, err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf(`store: unable to commit transaction: %w`, err)
-	}
-
 	return nil
 }
 
-// RemoveUserAsync deletes user data without locking the database.
-func (s *Storage) RemoveUserAsync(userID int64) {
-	go func() {
-		log := slog.With(slog.Int64("user_id", userID))
-		if err := s.deleteUserFeeds(userID); err != nil {
-			log.Error("Unable to delete user feeds", slog.Any("error", err))
-			return
-		}
+func (s *Storage) deleteUserFeeds(ctx context.Context, userID int64) error {
+	rows, _ := s.db.Query(ctx, `SELECT id FROM feeds WHERE user_id=$1`, userID)
 
-		_, err := s.db.Exec(`DELETE FROM users WHERE id=$1`, userID)
-		if err != nil {
-			log.Error("storage: failed delete from users", slog.Any("error", err))
-			return
-		}
-
-		_, err = s.db.Exec(`DELETE FROM integrations WHERE user_id=$1`, userID)
-		if err != nil {
-			log.Error("storage: failed delete from integrations",
-				slog.Any("error", err))
-			return
-		}
-		log.Debug("User deleted", slog.Int("goroutines", runtime.NumGoroutine()))
-	}()
-}
-
-func (s *Storage) deleteUserFeeds(userID int64) error {
-	rows, err := s.db.Query(`SELECT id FROM feeds WHERE user_id=$1`, userID)
+	feedIDs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
 	if err != nil {
 		return fmt.Errorf(`store: unable to get user feeds: %w`, err)
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var feedID int64
-		if err := rows.Scan(&feedID); err != nil {
-			return fmt.Errorf("storage: %w", err)
-		}
-
-		slog.Debug("Deleting feed",
-			slog.Int64("user_id", userID),
-			slog.Int64("feed_id", feedID),
-			slog.Int("goroutines", runtime.NumGoroutine()),
-		)
-
-		if err := s.RemoveFeed(userID, feedID); err != nil {
-			return err
-		}
+	if err := s.RemoveMultipleFeeds(ctx, userID, feedIDs); err != nil {
+		return err
 	}
+	return nil
+}
 
+// removeUser deletes a user.
+func (s *Storage) removeUser(ctx context.Context, userID int64) error {
+	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `DELETE FROM users WHERE id=$1`, userID)
+		if err != nil {
+			return fmt.Errorf("remove user: %w", err)
+		}
+
+		_, err = tx.Exec(ctx, `DELETE FROM integrations WHERE user_id=$1`, userID)
+		if err != nil {
+			return fmt.Errorf("remove integration settings: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf(`storage: unable to remove user #%d: %w`, userID, err)
+	}
 	return nil
 }
 
 // Users returns all users.
-func (s *Storage) Users() (model.Users, error) {
-	query := `
-		SELECT
-			id,
-			username,
-			is_admin,
-			theme,
-			language,
-			timezone,
-			entry_direction,
-			entries_per_page,
-			keyboard_shortcuts,
-			show_reading_time,
-			entry_swipe,
-			gesture_nav,
-			last_login_at,
-			stylesheet,
-			custom_js,
-			external_font_hosts,
-			google_id,
-			openid_connect_id,
-			display_mode,
-			entry_order,
-			default_reading_speed,
-			cjk_reading_speed,
-			default_home_page,
-			categories_sorting_order,
-			mark_read_on_view,
-			mark_read_on_media_player_completion,
-			media_playback_rate,
-			block_filter_entry_rules,
-			keep_filter_entry_rules
-		FROM
-			users
-		ORDER BY username ASC
-	`
-	rows, err := s.db.Query(query)
+func (s *Storage) Users(ctx context.Context) (model.Users, error) {
+	rows, _ := s.db.Query(ctx, `
+SELECT
+	id,
+	username,
+	is_admin,
+	theme,
+	language,
+	timezone,
+	entry_direction,
+	entries_per_page,
+	keyboard_shortcuts,
+	show_reading_time,
+	entry_swipe,
+	gesture_nav,
+	last_login_at,
+	stylesheet,
+	custom_js,
+	external_font_hosts,
+	google_id,
+	openid_connect_id,
+	display_mode,
+	entry_order,
+	default_reading_speed,
+	cjk_reading_speed,
+	default_home_page,
+	categories_sorting_order,
+	mark_read_on_view,
+	mark_read_on_media_player_completion,
+	media_playback_rate,
+	block_filter_entry_rules,
+	keep_filter_entry_rules
+FROM users ORDER BY username ASC`)
+
+	users, err := pgx.CollectRows(rows,
+		pgx.RowToAddrOfStructByNameLax[model.User])
 	if err != nil {
 		return nil, fmt.Errorf(`store: unable to fetch users: %w`, err)
 	}
-	defer rows.Close()
-
-	var users model.Users
-	for rows.Next() {
-		var user model.User
-		err := rows.Scan(
-			&user.ID,
-			&user.Username,
-			&user.IsAdmin,
-			&user.Theme,
-			&user.Language,
-			&user.Timezone,
-			&user.EntryDirection,
-			&user.EntriesPerPage,
-			&user.KeyboardShortcuts,
-			&user.ShowReadingTime,
-			&user.EntrySwipe,
-			&user.GestureNav,
-			&user.LastLoginAt,
-			&user.Stylesheet,
-			&user.CustomJS,
-			&user.ExternalFontHosts,
-			&user.GoogleID,
-			&user.OpenIDConnectID,
-			&user.DisplayMode,
-			&user.EntryOrder,
-			&user.DefaultReadingSpeed,
-			&user.CJKReadingSpeed,
-			&user.DefaultHomePage,
-			&user.CategoriesSortingOrder,
-			&user.MarkReadOnView,
-			&user.MarkReadOnMediaPlayerCompletion,
-			&user.MediaPlaybackRate,
-			&user.BlockFilterEntryRules,
-			&user.KeepFilterEntryRules,
-		)
-		if err != nil {
-			return nil, fmt.Errorf(`store: unable to fetch users row: %w`, err)
-		}
-
-		users = append(users, &user)
-	}
-
 	return users, nil
 }
 
 // CheckPassword validate the hashed password.
-func (s *Storage) CheckPassword(username, password string) error {
+func (s *Storage) CheckPassword(ctx context.Context, username, password string,
+) error {
 	var hash string
 	username = strings.ToLower(username)
 
-	err := s.db.QueryRow("SELECT password FROM users WHERE username=$1", username).Scan(&hash)
-	if err == sql.ErrNoRows {
+	rows, _ := s.db.Query(ctx,
+		`SELECT password FROM users WHERE username=$1`, username)
+
+	hash, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[string])
+	if errors.Is(err, pgx.ErrNoRows) {
 		return fmt.Errorf(`store: unable to find this user: %s`, username)
 	} else if err != nil {
 		return fmt.Errorf(`store: unable to fetch user: %w`, err)
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
-		return fmt.Errorf(`store: invalid password for "%s" (%w)`, username, err)
+	err = bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	if err != nil {
+		return fmt.Errorf(`store: invalid password for %q: %w`, username, err)
 	}
-
 	return nil
 }
 
 // HasPassword returns true if the given user has a password defined.
-func (s *Storage) HasPassword(userID int64) (bool, error) {
-	var result bool
-	query := `SELECT true FROM users WHERE id=$1 AND password <> ''`
+func (s *Storage) HasPassword(ctx context.Context, userID int64) (bool, error) {
+	rows, _ := s.db.Query(ctx, `
+SELECT EXISTS(
+  SELECT FROM users WHERE id=$1 AND password <> '')`, userID)
 
-	err := s.db.QueryRow(query, userID).Scan(&result)
-	if err == sql.ErrNoRows {
-		return false, nil
-	} else if err != nil {
-		return false, fmt.Errorf(`store: unable to execute query: %w`, err)
+	result, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[bool])
+	if err != nil {
+		return false, fmt.Errorf(`store: unable check password: %w`, err)
 	}
-
-	if result {
-		return true, nil
-	}
-	return false, nil
+	return result, nil
 }

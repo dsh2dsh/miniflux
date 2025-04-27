@@ -12,12 +12,12 @@ import (
 
 // UserSession represents a user session in the system.
 type UserSession struct {
-	ID        int64
-	UserID    int64
-	Token     string
-	CreatedAt time.Time
-	UserAgent string
-	IP        string
+	ID        int64     `db:"id"`
+	UserID    int64     `db:"user_id"`
+	Token     string    `db:"token"`
+	CreatedAt time.Time `db:"created_at"`
+	UserAgent string    `db:"user_agent"`
+	IP        string    `db:"ip"`
 }
 
 func (u *UserSession) String() string {

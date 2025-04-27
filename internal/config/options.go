@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/url"
 	"reflect"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -153,6 +154,8 @@ type Log struct {
 
 // NewOptions returns Options with default values.
 func NewOptions() *Options {
+	maxConns := max(4, runtime.GOMAXPROCS(0))
+
 	return &Options{
 		env: EnvOptions{
 			LogFile:                            "stderr",
@@ -160,9 +163,9 @@ func NewOptions() *Options {
 			LogLevel:                           "info",
 			BaseURL:                            defaultBaseURL,
 			DatabaseURL:                        defaultDatabaseURL,
-			DatabaseMaxConns:                   20,
-			DatabaseMinConns:                   1,
-			DatabaseConnectionLifetime:         5,
+			DatabaseMaxConns:                   maxConns,
+			DatabaseMinConns:                   0,
+			DatabaseConnectionLifetime:         60,
 			ListenAddr:                         "127.0.0.1:8080",
 			CleanupFrequencyHours:              24,
 			CleanupArchiveReadDays:             60,
@@ -690,9 +693,9 @@ func (o *Options) IsAuthProxyUserCreationAllowed() bool {
 // HasMetricsCollector returns true if metrics collection is enabled.
 func (o *Options) HasMetricsCollector() bool { return o.env.MetricsCollector }
 
-// MetricsRefreshInterval returns the refresh interval in seconds.
-func (o *Options) MetricsRefreshInterval() int {
-	return o.env.MetricsRefreshInterval
+// MetricsRefreshInterval returns the refresh interval.
+func (o *Options) MetricsRefreshInterval() time.Duration {
+	return time.Duration(o.env.MetricsRefreshInterval) * time.Second
 }
 
 // MetricsAllowedNetworks returns the list of networks allowed to connect to the
@@ -813,7 +816,7 @@ func (o *Options) SortedOptions(redactSecret bool) []Option {
 		"METRICS_ALLOWED_NETWORKS":               strings.Join(o.MetricsAllowedNetworks(), ","),
 		"METRICS_COLLECTOR":                      o.HasMetricsCollector(),
 		"METRICS_PASSWORD":                       secretValue(o.MetricsPassword(), redactSecret),
-		"METRICS_REFRESH_INTERVAL":               o.MetricsRefreshInterval(),
+		"METRICS_REFRESH_INTERVAL":               o.env.MetricsRefreshInterval,
 		"METRICS_USERNAME":                       o.MetricsUsername(),
 		"OAUTH2_CLIENT_ID":                       o.OAuth2ClientID(),
 		"OAUTH2_CLIENT_SECRET":                   secretValue(o.OAuth2ClientSecret(), redactSecret),

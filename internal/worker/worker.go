@@ -4,6 +4,7 @@
 package worker // import "miniflux.app/v2/internal/worker"
 
 import (
+	"context"
 	"log/slog"
 	"time"
 
@@ -21,7 +22,7 @@ type Worker struct {
 }
 
 // Run wait for a job and refresh the given feed.
-func (w *Worker) Run(c <-chan model.Job) {
+func (w *Worker) Run(ctx context.Context, c <-chan model.Job) {
 	slog.Debug("Worker started",
 		slog.Int("worker_id", w.id),
 	)
@@ -35,7 +36,8 @@ func (w *Worker) Run(c <-chan model.Job) {
 		)
 
 		startTime := time.Now()
-		localizedError := feedHandler.RefreshFeed(w.store, job.UserID, job.FeedID, false)
+		localizedError := feedHandler.RefreshFeed(ctx, w.store, job.UserID,
+			job.FeedID, false)
 
 		if config.Opts.HasMetricsCollector() {
 			status := "success"

@@ -4,7 +4,7 @@
 package cli // import "miniflux.app/v2/internal/cli"
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -18,15 +18,13 @@ var flushSessionsCmd = cobra.Command{
 	Args:  cobra.ExactArgs(0),
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return withStorage(func(_ *sql.DB, store *storage.Storage) error {
-			return flushSessions(store)
-		})
+		return withStorage(flushSessions)
 	},
 }
 
 func flushSessions(store *storage.Storage) error {
 	fmt.Println("Flushing all sessions (disconnect users)")
-	if err := store.FlushAllSessions(); err != nil {
+	if err := store.FlushAllSessions(context.Background()); err != nil {
 		return err
 	}
 	return nil

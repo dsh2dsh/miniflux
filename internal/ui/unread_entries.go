@@ -19,7 +19,7 @@ import (
 
 func (h *handler) showUnreadPage(w http.ResponseWriter, r *http.Request) {
 	beginPreProcessing := time.Now()
-	user, err := h.store.UserByID(request.UserID(r))
+	user, err := h.store.UserByID(r.Context(), request.UserID(r))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -30,7 +30,7 @@ func (h *handler) showUnreadPage(w http.ResponseWriter, r *http.Request) {
 	builder := h.store.NewEntryQueryBuilder(user.ID)
 	builder.WithStatus(model.EntryStatusUnread)
 	builder.WithGloballyVisible()
-	countUnread, err := builder.CountEntries()
+	countUnread, err := builder.CountEntries(r.Context())
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -49,7 +49,7 @@ func (h *handler) showUnreadPage(w http.ResponseWriter, r *http.Request) {
 	builder.WithOffset(offset)
 	builder.WithLimit(user.EntriesPerPage)
 	builder.WithGloballyVisible()
-	entries, err := builder.GetEntries()
+	entries, err := builder.GetEntries(r.Context())
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -63,8 +63,9 @@ func (h *handler) showUnreadPage(w http.ResponseWriter, r *http.Request) {
 	view.Set("menu", "unread")
 	view.Set("user", user)
 	view.Set("countUnread", countUnread)
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(user.ID))
-	view.Set("hasSaveEntry", h.store.HasSaveEntry(user.ID))
+	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
+		r.Context(), user.ID))
+	view.Set("hasSaveEntry", h.store.HasSaveEntry(r.Context(), user.ID))
 
 	finishPreProcessing := time.Now()
 

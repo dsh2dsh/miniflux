@@ -12,10 +12,10 @@ import (
 
 func (h *handler) toggleBookmark(w http.ResponseWriter, r *http.Request) {
 	entryID := request.RouteInt64Param(r, "entryID")
-	if err := h.store.ToggleBookmark(request.UserID(r), entryID); err != nil {
+	err := h.store.ToggleBookmark(r.Context(), request.UserID(r), entryID)
+	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
-
 	json.OK(w, r, "OK")
 }

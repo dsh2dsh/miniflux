@@ -13,12 +13,12 @@ import (
 func (h *handler) getIconByFeedID(w http.ResponseWriter, r *http.Request) {
 	feedID := request.RouteInt64Param(r, "feedID")
 
-	if !h.store.HasFeedIcon(feedID) {
+	if !h.store.HasFeedIcon(r.Context(), feedID) {
 		json.NotFound(w, r)
 		return
 	}
 
-	icon, err := h.store.IconByFeedID(request.UserID(r), feedID)
+	icon, err := h.store.IconByFeedID(r.Context(), request.UserID(r), feedID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -39,7 +39,7 @@ func (h *handler) getIconByFeedID(w http.ResponseWriter, r *http.Request) {
 func (h *handler) getIconByIconID(w http.ResponseWriter, r *http.Request) {
 	iconID := request.RouteInt64Param(r, "iconID")
 
-	icon, err := h.store.IconByID(iconID)
+	icon, err := h.store.IconByID(r.Context(), iconID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return

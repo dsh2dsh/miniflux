@@ -12,7 +12,6 @@ import (
 	"miniflux.app/v2/internal/mediaproxy"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/processor"
-	"miniflux.app/v2/internal/storage"
 )
 
 func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
@@ -23,7 +22,7 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 	entryBuilder.WithEntryID(entryID)
 	entryBuilder.WithoutStatus(model.EntryStatusRemoved)
 
-	entry, err := entryBuilder.GetEntry()
+	entry, err := entryBuilder.GetEntry(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -34,15 +33,15 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.store.UserByID(loggedUserID)
+	user, err := h.store.UserByID(r.Context(), loggedUserID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
 
-	feedBuilder := storage.NewFeedQueryBuilder(h.store, loggedUserID)
+	feedBuilder := h.store.NewFeedQueryBuilder(loggedUserID)
 	feedBuilder.WithFeedID(entry.FeedID)
-	feed, err := feedBuilder.GetFeed()
+	feed, err := feedBuilder.GetFeed(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -58,7 +57,8 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.store.UpdateEntryTitleAndContent(entry); err != nil {
+	err = h.store.UpdateEntryTitleAndContent(r.Context(), entry)
+	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}

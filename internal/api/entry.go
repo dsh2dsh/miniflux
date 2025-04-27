@@ -21,8 +21,10 @@ import (
 	"miniflux.app/v2/internal/validator"
 )
 
-func (h *handler) getEntryFromBuilder(w http.ResponseWriter, r *http.Request, b *storage.EntryQueryBuilder) {
-	entry, err := b.GetEntry()
+func (h *handler) getEntryFromBuilder(w http.ResponseWriter, r *http.Request,
+	b *storage.EntryQueryBuilder,
+) {
+	entry, err := b.GetEntry(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -114,13 +116,13 @@ func (h *handler) findEntries(w http.ResponseWriter, r *http.Request, feedID int
 
 	userID := request.UserID(r)
 	categoryID = request.QueryInt64Param(r, "category_id", categoryID)
-	if categoryID > 0 && !h.store.CategoryIDExists(userID, categoryID) {
+	if categoryID > 0 && !h.store.CategoryIDExists(r.Context(), userID, categoryID) {
 		json.BadRequest(w, r, errors.New("invalid category ID"))
 		return
 	}
 
 	feedID = request.QueryInt64Param(r, "feed_id", feedID)
-	if feedID > 0 && !h.store.FeedExists(userID, feedID) {
+	if feedID > 0 && !h.store.FeedExists(r.Context(), userID, feedID) {
 		json.BadRequest(w, r, errors.New("invalid feed ID"))
 		return
 	}
@@ -147,13 +149,13 @@ func (h *handler) findEntries(w http.ResponseWriter, r *http.Request, feedID int
 
 	configureFilters(builder, r)
 
-	entries, err := builder.GetEntries()
+	entries, err := builder.GetEntries(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
 
-	count, err := builder.CountEntries()
+	count, err := builder.CountEntries(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -178,7 +180,9 @@ func (h *handler) setEntryStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.store.SetEntriesStatus(request.UserID(r), entriesStatusUpdateRequest.EntryIDs, entriesStatusUpdateRequest.Status); err != nil {
+	err := h.store.SetEntriesStatus(r.Context(), request.UserID(r),
+		entriesStatusUpdateRequest.EntryIDs, entriesStatusUpdateRequest.Status)
+	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
@@ -188,11 +192,11 @@ func (h *handler) setEntryStatus(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) toggleBookmark(w http.ResponseWriter, r *http.Request) {
 	entryID := request.RouteInt64Param(r, "entryID")
-	if err := h.store.ToggleBookmark(request.UserID(r), entryID); err != nil {
+	err := h.store.ToggleBookmark(r.Context(), request.UserID(r), entryID)
+	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
-
 	json.NoContent(w, r)
 }
 
@@ -202,12 +206,12 @@ func (h *handler) saveEntry(w http.ResponseWriter, r *http.Request) {
 	builder.WithEntryID(entryID)
 	builder.WithoutStatus(model.EntryStatusRemoved)
 
-	if !h.store.HasSaveEntry(request.UserID(r)) {
+	if !h.store.HasSaveEntry(r.Context(), request.UserID(r)) {
 		json.BadRequest(w, r, errors.New("no third-party integration enabled"))
 		return
 	}
 
-	entry, err := builder.GetEntry()
+	entry, err := builder.GetEntry(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -218,7 +222,7 @@ func (h *handler) saveEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	settings, err := h.store.Integration(request.UserID(r))
+	settings, err := h.store.Integration(r.Context(), request.UserID(r))
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -248,7 +252,7 @@ func (h *handler) updateEntry(w http.ResponseWriter, r *http.Request) {
 	entryBuilder.WithEntryID(entryID)
 	entryBuilder.WithoutStatus(model.EntryStatusRemoved)
 
-	entry, err := entryBuilder.GetEntry()
+	entry, err := entryBuilder.GetEntry(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -259,7 +263,7 @@ func (h *handler) updateEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.store.UserByID(loggedUserID)
+	user, err := h.store.UserByID(r.Context(), loggedUserID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -275,7 +279,8 @@ func (h *handler) updateEntry(w http.ResponseWriter, r *http.Request) {
 		entry.ReadingTime = readingtime.EstimateReadingTime(entry.Content, user.DefaultReadingSpeed, user.CJKReadingSpeed)
 	}
 
-	if err := h.store.UpdateEntryTitleAndContent(entry); err != nil {
+	err = h.store.UpdateEntryTitleAndContent(r.Context(), entry)
+	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
@@ -291,7 +296,7 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 	entryBuilder.WithEntryID(entryID)
 	entryBuilder.WithoutStatus(model.EntryStatusRemoved)
 
-	entry, err := entryBuilder.GetEntry()
+	entry, err := entryBuilder.GetEntry(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -302,7 +307,7 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.store.UserByID(loggedUserID)
+	user, err := h.store.UserByID(r.Context(), loggedUserID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -313,9 +318,9 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	feedBuilder := storage.NewFeedQueryBuilder(h.store, loggedUserID)
+	feedBuilder := h.store.NewFeedQueryBuilder(loggedUserID)
 	feedBuilder.WithFeedID(entry.FeedID)
-	feed, err := feedBuilder.GetFeed()
+	feed, err := feedBuilder.GetFeed(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -333,13 +338,17 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 
 	shouldUpdateContent := request.QueryBoolParam(r, "update_content", false)
 	if shouldUpdateContent {
-		if err := h.store.UpdateEntryTitleAndContent(entry); err != nil {
+		err := h.store.UpdateEntryTitleAndContent(r.Context(), entry)
+		if err != nil {
 			json.ServerError(w, r, err)
 			return
 		}
 
-		json.OK(w, r, map[string]interface{}{"content": mediaproxy.RewriteDocumentWithRelativeProxyURL(h.router, entry.Content), "reading_time": entry.ReadingTime})
-
+		json.OK(w, r, map[string]any{
+			"content": mediaproxy.RewriteDocumentWithRelativeProxyURL(
+				h.router, entry.Content),
+			"reading_time": entry.ReadingTime,
+		})
 		return
 	}
 
@@ -347,8 +356,11 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) flushHistory(w http.ResponseWriter, r *http.Request) {
-	loggedUserID := request.UserID(r)
-	go func() { _ = h.store.FlushHistory(loggedUserID) }()
+	err := h.store.FlushHistory(r.Context(), request.UserID(r))
+	if err != nil {
+		json.ServerError(w, r, err)
+		return
+	}
 	json.Accepted(w, r)
 }
 

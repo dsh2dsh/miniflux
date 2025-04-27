@@ -4,6 +4,8 @@
 package worker // import "miniflux.app/v2/internal/worker"
 
 import (
+	"context"
+
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/storage"
 )
@@ -14,21 +16,21 @@ type Pool struct {
 }
 
 // Push send a list of jobs to the queue.
-func (p *Pool) Push(jobs model.JobList) {
+func (p *Pool) Push(jobs []model.Job) {
 	for _, job := range jobs {
 		p.queue <- job
 	}
 }
 
 // NewPool creates a pool of background workers.
-func NewPool(store *storage.Storage, nbWorkers int) *Pool {
+func NewPool(ctx context.Context, store *storage.Storage, nbWorkers int) *Pool {
 	workerPool := &Pool{
 		queue: make(chan model.Job),
 	}
 
 	for i := range nbWorkers {
 		worker := &Worker{id: i, store: store}
-		go worker.Run(workerPool.queue)
+		go worker.Run(ctx, workerPool.queue)
 	}
 
 	return workerPool

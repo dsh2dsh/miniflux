@@ -18,13 +18,13 @@ import (
 )
 
 func (h *handler) showChooseSubscriptionPage(w http.ResponseWriter, r *http.Request) {
-	user, err := h.store.UserByID(request.UserID(r))
+	user, err := h.store.UserByID(r.Context(), request.UserID(r))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	categories, err := h.store.Categories(user.ID)
+	categories, err := h.store.Categories(r.Context(), user.ID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -35,8 +35,9 @@ func (h *handler) showChooseSubscriptionPage(w http.ResponseWriter, r *http.Requ
 	view.Set("categories", categories)
 	view.Set("menu", "feeds")
 	view.Set("user", user)
-	view.Set("countUnread", h.store.CountUnreadEntries(user.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(user.ID))
+	view.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
+	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
+		r.Context(), user.ID))
 	view.Set("defaultUserAgent", config.Opts.HTTPClientUserAgent())
 
 	subscriptionForm := form.NewSubscriptionForm(r)
@@ -47,24 +48,25 @@ func (h *handler) showChooseSubscriptionPage(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	feed, localizedError := feedHandler.CreateFeed(h.store, user.ID, &model.FeedCreationRequest{
-		CategoryID:                  subscriptionForm.CategoryID,
-		FeedURL:                     subscriptionForm.URL,
-		Crawler:                     subscriptionForm.Crawler,
-		AllowSelfSignedCertificates: subscriptionForm.AllowSelfSignedCertificates,
-		UserAgent:                   subscriptionForm.UserAgent,
-		Cookie:                      subscriptionForm.Cookie,
-		Username:                    subscriptionForm.Username,
-		Password:                    subscriptionForm.Password,
-		ScraperRules:                subscriptionForm.ScraperRules,
-		RewriteRules:                subscriptionForm.RewriteRules,
-		BlocklistRules:              subscriptionForm.BlocklistRules,
-		KeeplistRules:               subscriptionForm.KeeplistRules,
-		UrlRewriteRules:             subscriptionForm.UrlRewriteRules,
-		FetchViaProxy:               subscriptionForm.FetchViaProxy,
-		DisableHTTP2:                subscriptionForm.DisableHTTP2,
-		ProxyURL:                    subscriptionForm.ProxyURL,
-	})
+	feed, localizedError := feedHandler.CreateFeed(r.Context(),
+		h.store, user.ID, &model.FeedCreationRequest{
+			CategoryID:                  subscriptionForm.CategoryID,
+			FeedURL:                     subscriptionForm.URL,
+			Crawler:                     subscriptionForm.Crawler,
+			AllowSelfSignedCertificates: subscriptionForm.AllowSelfSignedCertificates,
+			UserAgent:                   subscriptionForm.UserAgent,
+			Cookie:                      subscriptionForm.Cookie,
+			Username:                    subscriptionForm.Username,
+			Password:                    subscriptionForm.Password,
+			ScraperRules:                subscriptionForm.ScraperRules,
+			RewriteRules:                subscriptionForm.RewriteRules,
+			BlocklistRules:              subscriptionForm.BlocklistRules,
+			KeeplistRules:               subscriptionForm.KeeplistRules,
+			UrlRewriteRules:             subscriptionForm.UrlRewriteRules,
+			FetchViaProxy:               subscriptionForm.FetchViaProxy,
+			DisableHTTP2:                subscriptionForm.DisableHTTP2,
+			ProxyURL:                    subscriptionForm.ProxyURL,
+		})
 	if localizedError != nil {
 		view.Set("form", subscriptionForm)
 		view.Set("errorMessage", localizedError.Translate(user.Language))

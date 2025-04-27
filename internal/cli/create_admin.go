@@ -4,7 +4,7 @@
 package cli // import "miniflux.app/v2/internal/cli"
 
 import (
-	"database/sql"
+	"context"
 	"log/slog"
 
 	"github.com/spf13/cobra"
@@ -21,43 +21,44 @@ var createAdminCmd = cobra.Command{
 	Args:  cobra.ExactArgs(0),
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return withStorage(func(_ *sql.DB, store *storage.Storage) error {
-			return createAdminUserFromInteractiveTerminal(store)
-		})
+		return withStorage(createAdminUserFromInteractiveTerminal)
 	},
 }
 
 func createAdminUserFromEnvironmentVariables(store *storage.Storage) error {
-	return createAdminUser(store, config.Opts.AdminUsername(),
+	return createAdminUser(context.Background(), store,
+		config.Opts.AdminUsername(),
 		config.Opts.AdminPassword())
 }
 
 func createAdminUserFromInteractiveTerminal(store *storage.Storage) error {
 	username, password := askCredentials()
-	return createAdminUser(store, username, password)
+	return createAdminUser(context.Background(), store, username, password)
 }
 
-func createAdminUser(store *storage.Storage, username, password string) error {
+func createAdminUser(ctx context.Context, store *storage.Storage, username,
+	password string,
+) error {
 	userCreationRequest := model.UserCreationRequest{
 		Username: username,
 		Password: password,
 		IsAdmin:  true,
 	}
 
-	if store.UserExists(userCreationRequest.Username) {
+	if store.UserExists(ctx, userCreationRequest.Username) {
 		slog.Info("Skipping admin user creation because it already exists",
 			slog.String("username", userCreationRequest.Username),
 		)
 		return nil
 	}
 
-	validateErr := validator.ValidateUserCreationWithPassword(
-		store, &userCreationRequest)
+	validateErr := validator.ValidateUserCreationWithPassword(ctx, store,
+		&userCreationRequest)
 	if validateErr != nil {
 		return validateErr.Error()
 	}
 
-	user, err := store.CreateUser(&userCreationRequest)
+	user, err := store.CreateUser(ctx, &userCreationRequest)
 	if err != nil {
 		return err
 	}

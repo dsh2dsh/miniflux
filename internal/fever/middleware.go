@@ -35,7 +35,7 @@ func (m *middleware) serve(next http.Handler) http.Handler {
 			return
 		}
 
-		user, err := m.store.UserByFeverToken(apiKey)
+		user, err := m.store.UserByFeverToken(r.Context(), apiKey)
 		if err != nil {
 			slog.Error("[Fever] Unable to fetch user by API key",
 				slog.Bool("authentication_failed", true),
@@ -65,7 +65,7 @@ func (m *middleware) serve(next http.Handler) http.Handler {
 			slog.String("username", user.Username),
 		)
 
-		if err := m.store.SetLastLogin(user.ID); err != nil {
+		if err := m.store.SetLastLogin(r.Context(), user.ID); err != nil {
 			slog.Error("[Fever] Failed set last login",
 				slog.String("client_ip", clientIP),
 				slog.String("user_agent", r.UserAgent()),

@@ -20,19 +20,19 @@ import (
 )
 
 func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
-	loggedUser, err := h.store.UserByID(request.UserID(r))
+	loggedUser, err := h.store.UserByID(r.Context(), request.UserID(r))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	timezones, err := h.store.Timezones()
+	timezones, err := h.store.Timezones(r.Context())
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	creds, err := h.store.WebAuthnCredentialsByUserID(loggedUser.ID)
+	creds, err := h.store.WebAuthnCredentialsByUserID(r.Context(), loggedUser.ID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -54,11 +54,14 @@ func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 	view.Set("timezones", timezones)
 	view.Set("menu", "settings")
 	view.Set("user", loggedUser)
-	view.Set("countUnread", h.store.CountUnreadEntries(loggedUser.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(loggedUser.ID))
+	view.Set("countUnread", h.store.CountUnreadEntries(
+		r.Context(), loggedUser.ID))
+	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
+		r.Context(), loggedUser.ID))
 	view.Set("default_home_pages", model.HomePages())
 	view.Set("categories_sorting_options", model.CategoriesSortingOptions())
-	view.Set("countWebAuthnCerts", h.store.CountWebAuthnCredentialsByUserID(loggedUser.ID))
+	view.Set("countWebAuthnCerts", h.store.CountWebAuthnCredentialsByUserID(
+		r.Context(), loggedUser.ID))
 	view.Set("webAuthnCerts", creds)
 
 	// Sanitize the end of the block & Keep rules
@@ -94,20 +97,23 @@ func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		ExternalFontHosts:     model.OptionalString(settingsForm.ExternalFontHosts),
 	}
 
-	if validationErr := validator.ValidateUserModification(h.store, loggedUser.ID, userModificationRequest); validationErr != nil {
+	validationErr := validator.ValidateUserModification(r.Context(),
+		h.store, loggedUser.ID, userModificationRequest)
+	if validationErr != nil {
 		view.Set("errorMessage", validationErr.Translate(loggedUser.Language))
 		html.OK(w, r, view.Render("settings"))
 		return
 	}
 
-	err = h.store.UpdateUser(settingsForm.Merge(loggedUser))
+	err = h.store.UpdateUser(r.Context(), settingsForm.Merge(loggedUser))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	sess.SetLanguage(loggedUser.Language)
-	sess.SetTheme(loggedUser.Theme)
-	sess.NewFlashMessage(locale.NewPrinter(request.UserLanguage(r)).Printf("alert.prefs_saved"))
+	sess.SetLanguage(r.Context(), loggedUser.Language)
+	sess.SetTheme(r.Context(), loggedUser.Theme)
+	sess.NewFlashMessage(r.Context(),
+		locale.NewPrinter(request.UserLanguage(r)).Printf("alert.prefs_saved"))
 	html.Redirect(w, r, route.Path(h.router, "settings"))
 }

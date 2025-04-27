@@ -13,13 +13,13 @@ import (
 )
 
 func (h *handler) showFeedsPage(w http.ResponseWriter, r *http.Request) {
-	user, err := h.store.UserByID(request.UserID(r))
+	user, err := h.store.UserByID(r.Context(), request.UserID(r))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	feeds, err := h.store.FeedsWithCounters(user.ID)
+	feeds, err := h.store.FeedsWithCounters(r.Context(), user.ID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -31,8 +31,9 @@ func (h *handler) showFeedsPage(w http.ResponseWriter, r *http.Request) {
 	view.Set("total", len(feeds))
 	view.Set("menu", "feeds")
 	view.Set("user", user)
-	view.Set("countUnread", h.store.CountUnreadEntries(user.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(user.ID))
+	view.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
+	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
+		r.Context(), user.ID))
 
 	html.OK(w, r, view.Render("feeds"))
 }

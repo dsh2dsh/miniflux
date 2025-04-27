@@ -17,14 +17,14 @@ import (
 )
 
 func (h *handler) updateCategory(w http.ResponseWriter, r *http.Request) {
-	loggedUser, err := h.store.UserByID(request.UserID(r))
+	loggedUser, err := h.store.UserByID(r.Context(), request.UserID(r))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
 	categoryID := request.RouteInt64Param(r, "categoryID")
-	category, err := h.store.Category(request.UserID(r), categoryID)
+	category, err := h.store.Category(r.Context(), request.UserID(r), categoryID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -43,22 +43,26 @@ func (h *handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 	view.Set("category", category)
 	view.Set("menu", "categories")
 	view.Set("user", loggedUser)
-	view.Set("countUnread", h.store.CountUnreadEntries(loggedUser.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(loggedUser.ID))
+	view.Set("countUnread", h.store.CountUnreadEntries(
+		r.Context(), loggedUser.ID))
+	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
+		r.Context(), loggedUser.ID))
 
 	categoryRequest := &model.CategoryModificationRequest{
 		Title:        model.SetOptionalField(categoryForm.Title),
 		HideGlobally: model.SetOptionalField(categoryForm.HideGlobally),
 	}
 
-	if validationErr := validator.ValidateCategoryModification(h.store, loggedUser.ID, category.ID, categoryRequest); validationErr != nil {
+	validationErr := validator.ValidateCategoryModification(r.Context(), h.store,
+		loggedUser.ID, category.ID, categoryRequest)
+	if validationErr != nil {
 		view.Set("errorMessage", validationErr.Translate(loggedUser.Language))
 		html.OK(w, r, view.Render("create_category"))
 		return
 	}
 
 	categoryRequest.Patch(category)
-	if err := h.store.UpdateCategory(category); err != nil {
+	if err := h.store.UpdateCategory(r.Context(), category); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}

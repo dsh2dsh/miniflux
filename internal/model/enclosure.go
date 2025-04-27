@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/mediaproxy"
 	"miniflux.app/v2/internal/urllib"
@@ -14,13 +15,13 @@ import (
 
 // Enclosure represents an attachment.
 type Enclosure struct {
-	ID               int64  `json:"id"`
-	UserID           int64  `json:"user_id"`
-	EntryID          int64  `json:"entry_id"`
-	URL              string `json:"url"`
-	MimeType         string `json:"mime_type"`
-	Size             int64  `json:"size"`
-	MediaProgression int64  `json:"media_progression"`
+	ID               int64  `json:"id" db:"id"`
+	UserID           int64  `json:"user_id" db:"user_id"`
+	EntryID          int64  `json:"entry_id" db:"entry_id"`
+	URL              string `json:"url" db:"url"`
+	MimeType         string `json:"mime_type" db:"mime_type"`
+	Size             int64  `json:"size" db:"size"`
+	MediaProgression int64  `json:"media_progression" db:"media_progression"`
 }
 
 type EnclosureUpdateRequest struct {
