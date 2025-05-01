@@ -3,12 +3,7 @@
 
 package model // import "miniflux.app/v2/internal/model"
 
-import (
-	"database/sql/driver"
-	"encoding/json"
-	"errors"
-	"fmt"
-)
+import "fmt"
 
 // SessionData represents the data attached to the session.
 type SessionData struct {
@@ -37,28 +32,6 @@ func (s *SessionData) String() string {
 		s.LastForceRefresh,
 		s.WebAuthnSessionData,
 	)
-}
-
-// Value converts the session data to JSON.
-func (s *SessionData) Value() (driver.Value, error) {
-	b, err := json.Marshal(s)
-	if err != nil {
-		return nil, fmt.Errorf("model: failed marshal: %w", err)
-	}
-	return b, nil
-}
-
-// Scan converts raw JSON data.
-func (s *SessionData) Scan(src any) error {
-	source, ok := src.([]byte)
-	if !ok {
-		return errors.New("session: unable to assert type of src")
-	}
-
-	if err := json.Unmarshal(source, s); err != nil {
-		return fmt.Errorf("session: %w", err)
-	}
-	return nil
 }
 
 // Session represents a session in the system.

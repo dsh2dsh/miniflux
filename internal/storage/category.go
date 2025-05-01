@@ -174,7 +174,7 @@ SELECT c.id, c.user_id, c.title, c.hide_globally,
 	if user.CategoriesSortingOrder == "alphabetical" {
 		query += ` ORDER BY c.title ASC`
 	} else {
-		query += ` ORDER BY count_unread DESC, c.title ASC`
+		query += ` ORDER BY total_unread DESC, c.title ASC`
 	}
 
 	rows, _ := s.db.Query(ctx, query, model.EntryStatusUnread, userID)
