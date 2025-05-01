@@ -95,7 +95,7 @@ Official website: <https://miniflux.app>
   Use "miniflux [command] --help" for more information about a command.
   ```
 
-  * Refactor storage and switch to [pgx](https://github.com/jackc/pgx)
+* Refactor storage and switch to [pgx](https://github.com/jackc/pgx)
 
   `DATABASE_URL` have additional variables for pool configuration:
 
