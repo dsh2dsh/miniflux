@@ -4,15 +4,18 @@
 package html // import "miniflux.app/v2/internal/http/response/html"
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
+	"miniflux.app/v2/internal/logging"
 )
 
 // OK creates a new HTML response with a 200 status code.
-func OK(w http.ResponseWriter, r *http.Request, body interface{}) {
+func OK(w http.ResponseWriter, r *http.Request, body any) {
 	builder := response.New(w, r)
 	builder.WithHeader("Content-Type", "text/html; charset=utf-8")
 	builder.WithHeader("Cache-Control", "no-cache, max-age=0, must-revalidate, no-store")
@@ -22,22 +25,33 @@ func OK(w http.ResponseWriter, r *http.Request, body interface{}) {
 
 // ServerError sends an internal error to the client.
 func ServerError(w http.ResponseWriter, r *http.Request, err error) {
-	slog.Error(http.StatusText(http.StatusInternalServerError),
+	log := logging.FromContext(r.Context()).With(
 		slog.Any("error", err),
 		slog.String("client_ip", request.ClientIP(r)),
 		slog.Group("request",
 			slog.String("method", r.Method),
 			slog.String("uri", r.RequestURI),
-			slog.String("user_agent", r.UserAgent()),
-		),
+			slog.String("user_agent", r.UserAgent())))
+
+	clientClosed := errors.Is(err, context.Canceled) &&
+		errors.Is(r.Context().Err(), context.Canceled)
+	if clientClosed {
+		statusCode := 499
+		log.Debug("client closed request",
+			slog.Group("response", slog.Int("status_code", statusCode)))
+		http.Error(w, err.Error(), statusCode)
+		return
+	}
+
+	statusCode := http.StatusInternalServerError
+	log.Error(http.StatusText(statusCode),
 		slog.Group("response",
-			slog.Int("status_code", http.StatusInternalServerError),
-		),
-	)
+			slog.Int("status_code", http.StatusInternalServerError)))
 
 	builder := response.New(w, r)
-	builder.WithStatus(http.StatusInternalServerError)
-	builder.WithHeader("Content-Security-Policy", response.ContentSecurityPolicyForUntrustedContent)
+	builder.WithStatus(statusCode)
+	builder.WithHeader("Content-Security-Policy",
+		response.ContentSecurityPolicyForUntrustedContent)
 	builder.WithHeader("Content-Type", "text/html; charset=utf-8")
 	builder.WithHeader("Cache-Control", "no-cache, max-age=0, must-revalidate, no-store")
 	builder.WithBody(err)

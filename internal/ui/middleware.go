@@ -6,8 +6,11 @@ package ui // import "miniflux.app/v2/internal/ui"
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+
+	"github.com/gorilla/mux"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/crypto"
@@ -15,11 +18,10 @@ import (
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
+	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/ui/session"
-
-	"github.com/gorilla/mux"
 )
 
 type middleware struct {
@@ -33,31 +35,36 @@ func newMiddleware(router *mux.Router, store *storage.Storage) *middleware {
 
 func (m *middleware) handleUserSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		session := m.getUserSessionFromCookie(r)
+		ctx := r.Context()
+		log := logging.FromContext(ctx)
+
+		session, err := m.getUserSessionFromCookie(r)
+		if err != nil {
+			html.ServerError(w, r, err)
+		}
 
 		if session == nil {
 			if m.isPublicRoute(r) {
 				next.ServeHTTP(w, r)
 			} else {
-				slog.Debug("Redirecting to login page because no user session has been found",
-					slog.Any("url", r.RequestURI),
-				)
+				log.Debug(
+					"Redirecting to login page because no user session has been found",
+					slog.Any("url", r.RequestURI))
 				html.Redirect(w, r, route.Path(m.router, "login"))
 			}
-		} else {
-			slog.Debug("User session found",
-				slog.Any("url", r.RequestURI),
-				slog.Int64("user_id", session.UserID),
-				slog.Int64("user_session_id", session.ID),
-			)
-
-			ctx := r.Context()
-			ctx = context.WithValue(ctx, request.UserIDContextKey, session.UserID)
-			ctx = context.WithValue(ctx, request.IsAuthenticatedContextKey, true)
-			ctx = context.WithValue(ctx, request.UserSessionTokenContextKey, session.Token)
-
-			next.ServeHTTP(w, r.WithContext(ctx))
+			return
 		}
+
+		log.Debug("User session found",
+			slog.Any("url", r.RequestURI),
+			slog.Int64("user_id", session.UserID),
+			slog.Int64("user_session_id", session.ID))
+
+		ctx = context.WithValue(ctx, request.UserIDContextKey, session.UserID)
+		ctx = context.WithValue(ctx, request.IsAuthenticatedContextKey, true)
+		ctx = context.WithValue(ctx, request.UserSessionTokenContextKey,
+			session.Token)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
@@ -178,22 +185,19 @@ func (m *middleware) isPublicRoute(r *http.Request) bool {
 	}
 }
 
-func (m *middleware) getUserSessionFromCookie(r *http.Request) *model.UserSession {
+func (m *middleware) getUserSessionFromCookie(r *http.Request,
+) (*model.UserSession, error) {
 	cookieValue := request.CookieValue(r, cookie.CookieUserSessionID)
 	if cookieValue == "" {
-		return nil
+		return nil, nil
 	}
 
 	session, err := m.store.UserSessionByToken(r.Context(), cookieValue)
 	if err != nil {
-		slog.Error("Unable to fetch user session from the database",
-			slog.Any("cookie_value", cookieValue),
-			slog.Any("error", err),
-		)
-		return nil
+		return nil, fmt.Errorf(
+			"ui: unable to fetch user session from the database: %w", err)
 	}
-
-	return session
+	return session, nil
 }
 
 func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
