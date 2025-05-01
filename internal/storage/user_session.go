@@ -21,7 +21,7 @@ import (
 func (s *Storage) UserSessions(ctx context.Context, userID int64,
 ) (model.UserSessions, error) {
 	rows, _ := s.db.Query(ctx, `
-SELECT id, user_id, token, created_at, user_agent, ip
+SELECT id, user_id, token, created_at, user_agent, abbrev(ip) as ip
   FROM user_sessions
  WHERE user_id=$1 ORDER BY id DESC`,
 		userID)
@@ -70,7 +70,7 @@ INSERT INTO user_sessions (token, user_id, user_agent, ip)
 func (s *Storage) UserSessionByToken(ctx context.Context, token string,
 ) (*model.UserSession, error) {
 	rows, _ := s.db.Query(ctx, `
-SELECT id, user_id, token, created_at, user_agent, ip
+SELECT id, user_id, token, created_at, user_agent, abbrev(ip) as ip
   FROM user_sessions
  WHERE token = $1`,
 		token)
