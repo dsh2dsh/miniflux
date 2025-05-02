@@ -53,28 +53,44 @@ func (f *IconFinder) FindIcon() (*model.Icon, error) {
 		slog.String("feed_icon_url", f.feedIconURL),
 		slog.Bool("prefer_site_icon", f.preferSiteIcon))
 
-	if f.feedIconURL != "" && !f.preferSiteIcon {
-		if icon, err := f.FetchFeedIcon(); err != nil {
-			slog.Debug("Unable to download icon from feed",
-				slog.String("website_url", f.websiteURL),
-				slog.String("feed_icon_url", f.feedIconURL),
-				slog.Any("error", err),
-			)
-		} else if icon != nil {
+	fetchFuncs := make([]func() (*model.Icon, error), 0, 2)
+	if f.preferSiteIcon {
+		fetchFuncs = append(fetchFuncs, f.tryFetchSiteIcon, f.tryFetchFeedIcon)
+	} else {
+		fetchFuncs = append(fetchFuncs, f.tryFetchFeedIcon, f.tryFetchSiteIcon)
+	}
+
+	for _, fetchFn := range fetchFuncs {
+		if icon, err := fetchFn(); err == nil && icon != nil {
 			return icon, nil
 		}
 	}
+	return f.FetchDefaultIcon()
+}
 
-	if icon, err := f.FetchIconsFromHTMLDocument(); err != nil {
-		slog.Debug("Unable to fetch icons from HTML document",
-			slog.String("website_url", f.websiteURL),
-			slog.Any("error", err),
-		)
-	} else if icon != nil {
-		return icon, nil
+func (f *IconFinder) tryFetchFeedIcon() (*model.Icon, error) {
+	if f.feedIconURL == "" {
+		return nil, nil
 	}
 
-	return f.FetchDefaultIcon()
+	icon, err := f.FetchFeedIcon()
+	if err != nil {
+		slog.Debug("Unable to download icon from feed",
+			slog.String("website_url", f.websiteURL),
+			slog.String("feed_icon_url", f.feedIconURL),
+			slog.Any("error", err))
+	}
+	return icon, err
+}
+
+func (f *IconFinder) tryFetchSiteIcon() (*model.Icon, error) {
+	icon, err := f.FetchIconsFromHTMLDocument()
+	if err != nil {
+		slog.Debug("Unable to fetch icons from HTML document",
+			slog.String("website_url", f.websiteURL),
+			slog.Any("error", err))
+	}
+	return icon, err
 }
 
 func (f *IconFinder) FetchDefaultIcon() (*model.Icon, error) {
