@@ -128,7 +128,7 @@ func TestElapsedTime(t *testing.T) {
 		out string
 	}{
 		{time.Time{}, printer.Print("time_elapsed.not_yet")},
-		{time.Now().Add(time.Hour), printer.Print("time_elapsed.not_yet")},
+		{time.Now().Add(time.Hour), time.Now().Add(time.Hour).Format("2006-01-02 15:04:05")},
 		{time.Now(), printer.Print("time_elapsed.now")},
 		{time.Now().Add(-time.Minute), printer.Plural("time_elapsed.minutes", 1, 1)},
 		{time.Now().Add(-time.Minute * 40), printer.Plural("time_elapsed.minutes", 40, 40)},
