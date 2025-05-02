@@ -3,9 +3,7 @@
 
 package timezone // import "miniflux.app/v2/internal/timezone"
 
-import (
-	"time"
-)
+import "time"
 
 // Convert converts provided date time to actual timezone.
 func Convert(tz string, t time.Time) time.Time {
@@ -16,8 +14,8 @@ func Convert(tz string, t time.Time) time.Time {
 			return time.Date(0, time.January, 1, 0, 0, 0, 0, userTimezone)
 		}
 
-		// In this case, the provided date is already converted to the user timezone by Postgres,
-		// but the timezone information is not set in the time struct.
+		// In this case, the provided date is already converted to the user timezone
+		// by Postgres, but the timezone information is not set in the time struct.
 		// We cannot use time.In() because the date will be converted a second time.
 		return time.Date(
 			t.Year(),
@@ -29,17 +27,16 @@ func Convert(tz string, t time.Time) time.Time {
 			t.Nanosecond(),
 			userTimezone,
 		)
-	} else if t.Location() != userTimezone {
-		return t.In(userTimezone)
 	}
 
+	if t.Location() != userTimezone {
+		return t.In(userTimezone)
+	}
 	return t
 }
 
 // Now returns the current time with the given timezone.
-func Now(tz string) time.Time {
-	return time.Now().In(getLocation(tz))
-}
+func Now(tz string) time.Time { return time.Now().In(getLocation(tz)) }
 
 func getLocation(tz string) *time.Location {
 	loc, err := time.LoadLocation(tz)

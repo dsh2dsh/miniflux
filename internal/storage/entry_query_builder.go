@@ -305,7 +305,7 @@ SELECT
 	e.user_id,
 	e.feed_id,
 	e.hash,
-	e.published_at at time zone u.timezone,
+	e.published_at,
 	e.title,
 	e.url,
 	e.comments_url,
