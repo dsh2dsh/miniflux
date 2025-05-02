@@ -90,7 +90,9 @@ ON CONFLICT (user_id, entry_id, md5(url)) DO NOTHING
 
 	ret, err := pgx.CollectExactlyOneRow(rows,
 		pgx.RowToStructByNameLax[model.Enclosure])
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	} else if err != nil {
 		return fmt.Errorf(`unable to create enclosure: %w`, err)
 	}
 	enclosure.ID = ret.ID
