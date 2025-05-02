@@ -41,6 +41,7 @@ func (m *middleware) handleUserSession(next http.Handler) http.Handler {
 		session, err := m.getUserSessionFromCookie(r)
 		if err != nil {
 			html.ServerError(w, r, err)
+			return
 		}
 
 		if session == nil {
