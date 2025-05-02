@@ -133,6 +133,7 @@ type EnvOptions struct {
 	InvidiousInstance                  string   `env:"INVIDIOUS_INSTANCE"`
 	MediaProxyPrivateKey               string   `env:"MEDIA_PROXY_PRIVATE_KEY"`
 	WebAuthn                           bool     `env:"WEBAUTHN"`
+	PreferSiteIcon                     bool     `env:"PREFER_SITE_ICON"`
 
 	// Deprecated
 	Debug                  bool     `env:"DEBUG"`
@@ -727,6 +728,8 @@ func (o *Options) FilterEntryMaxAgeDays() int {
 	return o.env.FilterEntryMaxAgeDays
 }
 
+func (o *Options) PreferSiteIcon() bool { return o.env.PreferSiteIcon }
+
 func (o *Options) Logging() []Log {
 	if len(o.env.Logging) == 0 {
 		return []Log{{
@@ -850,6 +853,7 @@ func (o *Options) SortedOptions(redactSecret bool) []Option {
 		"YOUTUBE_API_KEY":                        secretValue(o.YouTubeApiKey(), redactSecret),
 		"YOUTUBE_EMBED_URL_OVERRIDE":             o.YouTubeEmbedUrlOverride(),
 		"WEBAUTHN":                               o.WebAuthn(),
+		"PREFER_SITE_ICON":                       o.PreferSiteIcon(),
 	}
 
 	keys := make([]string, 0, len(keyValues))

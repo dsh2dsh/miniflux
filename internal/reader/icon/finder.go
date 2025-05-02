@@ -18,28 +18,32 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/PuerkitoBio/goquery"
+	"golang.org/x/image/draw"
+
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/encoding"
 	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/urllib"
-
-	"github.com/PuerkitoBio/goquery"
-	"golang.org/x/image/draw"
 )
 
 type IconFinder struct {
 	requestBuilder *fetcher.RequestBuilder
 	websiteURL     string
 	feedIconURL    string
+	preferSiteIcon bool
 }
 
-func NewIconFinder(requestBuilder *fetcher.RequestBuilder, websiteURL, feedIconURL string) *IconFinder {
+func NewIconFinder(requestBuilder *fetcher.RequestBuilder, websiteURL,
+	feedIconURL string, preferSiteIcon bool,
+) *IconFinder {
 	return &IconFinder{
 		requestBuilder: requestBuilder,
 		websiteURL:     websiteURL,
 		feedIconURL:    feedIconURL,
+		preferSiteIcon: preferSiteIcon,
 	}
 }
 
@@ -47,9 +51,9 @@ func (f *IconFinder) FindIcon() (*model.Icon, error) {
 	slog.Debug("Begin icon discovery process",
 		slog.String("website_url", f.websiteURL),
 		slog.String("feed_icon_url", f.feedIconURL),
-	)
+		slog.Bool("prefer_site_icon", f.preferSiteIcon))
 
-	if f.feedIconURL != "" {
+	if f.feedIconURL != "" && !f.preferSiteIcon {
 		if icon, err := f.FetchFeedIcon(); err != nil {
 			slog.Debug("Unable to download icon from feed",
 				slog.String("website_url", f.websiteURL),
@@ -107,22 +111,22 @@ func (f *IconFinder) FetchFeedIcon() (*model.Icon, error) {
 
 func (f *IconFinder) FetchIconsFromHTMLDocument() (*model.Icon, error) {
 	slog.Debug("Searching icons from HTML document",
-		slog.String("website_url", f.websiteURL),
-	)
+		slog.String("website_url", f.websiteURL))
 
 	rootURL := urllib.RootURL(f.websiteURL)
-
-	responseHandler := fetcher.NewResponseHandler(f.requestBuilder.ExecuteRequest(rootURL))
+	responseHandler := fetcher.NewResponseHandler(
+		f.requestBuilder.ExecuteRequest(rootURL))
 	defer responseHandler.Close()
 
-	if localizedError := responseHandler.LocalizedError(); localizedError != nil {
-		return nil, fmt.Errorf("icon: unable to download website index page: %w", localizedError.Error())
+	localizedError := responseHandler.LocalizedError()
+	if localizedError != nil {
+		return nil, fmt.Errorf("icon: unable to download website index page: %w",
+			localizedError.Error())
 	}
 
 	iconURLs, err := findIconURLsFromHTMLDocument(
 		responseHandler.Body(config.Opts.HTTPClientMaxBodySize()),
-		responseHandler.ContentType(),
-	)
+		responseHandler.ContentType())
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +146,8 @@ func (f *IconFinder) FetchIconsFromHTMLDocument() (*model.Icon, error) {
 
 		iconURL, err = urllib.AbsoluteURL(f.websiteURL, iconURL)
 		if err != nil {
-			return nil, fmt.Errorf(`icon: unable to convert icon URL to absolute URL: %w`, err)
+			return nil, fmt.Errorf(
+				`icon: unable to convert icon URL to absolute URL: %w`, err)
 		}
 
 		if icon, err := f.DownloadIcon(iconURL); err != nil {
@@ -159,7 +164,6 @@ func (f *IconFinder) FetchIconsFromHTMLDocument() (*model.Icon, error) {
 			return icon, nil
 		}
 	}
-
 	return nil, nil
 }
 
@@ -187,20 +191,23 @@ func (f *IconFinder) DownloadIcon(iconURL string) (*model.Icon, error) {
 		Content:  responseBody,
 	}
 
-	icon = resizeIcon(icon)
-
-	return icon, nil
+	const tooBig = 64 << 10
+	if len(icon.Content) < tooBig {
+		slog.Debug("icon don't need to be rescaled",
+			slog.Int("size", len(icon.Content)), slog.Int("limit", tooBig))
+		return icon, nil
+	}
+	return resizeIcon(icon), nil
 }
 
 func resizeIcon(icon *model.Icon) *model.Icon {
-	r := bytes.NewReader(icon.Content)
-
 	if !slices.Contains([]string{"image/jpeg", "image/png", "image/gif"}, icon.MimeType) {
 		slog.Info("icon isn't a png/gif/jpeg/ico, can't resize", slog.String("mimetype", icon.MimeType))
 		return icon
 	}
 
 	// Don't resize icons that we can't decode, or that already have the right size.
+	r := bytes.NewReader(icon.Content)
 	config, _, err := image.DecodeConfig(r)
 	if err != nil {
 		slog.Warn("unable to decode the metadata of the icon", slog.Any("error", err))
@@ -243,11 +250,11 @@ func resizeIcon(icon *model.Icon) *model.Icon {
 	return icon
 }
 
-func findIconURLsFromHTMLDocument(body io.Reader, contentType string) ([]string, error) {
+func findIconURLsFromHTMLDocument(body io.Reader, contentType string,
+) ([]string, error) {
 	queries := []string{
-		"link[rel='icon' i]",
-		"link[rel='shortcut icon' i]",
-		"link[rel='icon shortcut' i]",
+		"link[rel~='icon' i]",
+		"link[rel='apple-touch-icon' i]",
 		"link[rel='apple-touch-icon-precomposed.png']",
 	}
 
@@ -261,11 +268,12 @@ func findIconURLsFromHTMLDocument(body io.Reader, contentType string) ([]string,
 		return nil, fmt.Errorf("icon: unable to read document: %w", err)
 	}
 
-	var iconURLs []string
+	iconURLs := []string{}
+	head := doc.Find("head").First()
 	for _, query := range queries {
-		slog.Debug("Searching icon URL in HTML document", slog.String("query", query))
-
-		doc.Find(query).Each(func(i int, s *goquery.Selection) {
+		slog.Debug("Searching icon URL in HTML document",
+			slog.String("query", query))
+		head.Find(query).Each(func(i int, s *goquery.Selection) {
 			if href, exists := s.Attr("href"); exists {
 				if iconURL := strings.TrimSpace(href); iconURL != "" {
 					iconURLs = append(iconURLs, iconURL)
@@ -276,7 +284,6 @@ func findIconURLsFromHTMLDocument(body io.Reader, contentType string) ([]string,
 			}
 		})
 	}
-
 	return iconURLs, nil
 }
 

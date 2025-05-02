@@ -38,7 +38,8 @@ func (c *IconChecker) fetchAndStoreIcon(ctx context.Context) {
 	requestBuilder.IgnoreTLSErrors(c.feed.AllowSelfSignedCertificates)
 	requestBuilder.DisableHTTP2(c.feed.DisableHTTP2)
 
-	iconFinder := NewIconFinder(requestBuilder, c.feed.SiteURL, c.feed.IconURL)
+	iconFinder := NewIconFinder(requestBuilder, c.feed.SiteURL, c.feed.IconURL,
+		config.Opts.PreferSiteIcon())
 	if icon, err := iconFinder.FindIcon(); err != nil {
 		slog.Debug("Unable to find feed icon",
 			slog.Int64("feed_id", c.feed.ID),

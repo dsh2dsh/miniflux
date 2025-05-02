@@ -116,6 +116,11 @@ Official website: <https://miniflux.app>
 
   [ParseConfig]: https://pkg.go.dev/github.com/jackc/pgx/v5@v5.7.4/pgxpool#ParseConfig
 
+* Optionally prefer site icon, instead of feed icon.
+
+  New option `PREFER_SITE_ICON=true` configures `miniflux` always use
+  auto-detected site icon, instead of icon found in feed description.
+
 Features
 --------
 
