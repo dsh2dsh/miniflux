@@ -6,5 +6,7 @@
 *.rpm
 miniflux-*
 
+/.dir-locals-2.el
 /.env.local
+/.env.*.local
 /e2e_api.*
