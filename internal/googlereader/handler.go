@@ -98,6 +98,12 @@ const (
 	ParamContinuation = "c"
 )
 
+var (
+	errEmptyFeedTitle   = errors.New("googlereader: empty feed title")
+	errFeedNotFound     = errors.New("googlereader: feed not found")
+	errCategoryNotFound = errors.New("googlereader: category not found")
+)
+
 // StreamType represents the possible stream types
 type StreamType int
 
@@ -824,37 +830,53 @@ func unsubscribe(ctx context.Context, streams []Stream, store *storage.Storage,
 	return nil
 }
 
-func rename(ctx context.Context, stream Stream, title string,
+func rename(ctx context.Context, feedStream Stream, title string,
 	store *storage.Storage, userID int64,
 ) error {
+	slog.Debug("[GoogleReader] Renaming feed",
+		slog.Int64("user_id", userID),
+		slog.Any("feed_stream", feedStream),
+		slog.String("new_title", title))
+
 	if title == "" {
-		return errors.New("empty title")
+		return errEmptyFeedTitle
 	}
-	feed, err := getFeed(ctx, stream, store, userID)
+
+	feed, err := getFeed(ctx, feedStream, store, userID)
 	if err != nil {
 		return err
+	} else if feed == nil {
+		return errFeedNotFound
 	}
-	feedModification := model.FeedModificationRequest{
-		Title: &title,
-	}
+
+	feedModification := model.FeedModificationRequest{Title: &title}
 	feedModification.Patch(feed)
 	return store.UpdateFeed(ctx, feed)
 }
 
-func move(ctx context.Context, stream Stream, destination Stream,
+func move(ctx context.Context, feedStream Stream, labelStream Stream,
 	store *storage.Storage, userID int64,
 ) error {
-	feed, err := getFeed(ctx, stream, store, userID)
+	slog.Debug("[GoogleReader] Moving feed",
+		slog.Int64("user_id", userID),
+		slog.Any("feed_stream", feedStream),
+		slog.Any("label_stream", labelStream))
+
+	feed, err := getFeed(ctx, feedStream, store, userID)
 	if err != nil {
 		return err
+	} else if feed == nil {
+		return errFeedNotFound
 	}
-	category, err := getOrCreateCategory(ctx, destination, store, userID)
+
+	category, err := getOrCreateCategory(ctx, labelStream, store, userID)
 	if err != nil {
 		return err
+	} else if category == nil {
+		return errCategoryNotFound
 	}
-	feedModification := model.FeedModificationRequest{
-		CategoryID: &category.ID,
-	}
+
+	feedModification := model.FeedModificationRequest{CategoryID: &category.ID}
 	feedModification.Patch(feed)
 	return store.UpdateFeed(ctx, feed)
 }
@@ -915,7 +937,13 @@ func (h *handler) editSubscriptionHandler(w http.ResponseWriter, r *http.Request
 		if title != "" {
 			err := rename(r.Context(), streamIds[0], title, h.store, userID)
 			if err != nil {
-				json.ServerError(w, r, err)
+				badRequest := errors.Is(err, errFeedNotFound) ||
+					errors.Is(err, errEmptyFeedTitle)
+				if badRequest {
+					json.BadRequest(w, r, err)
+				} else {
+					json.ServerError(w, r, err)
+				}
 				return
 			}
 		}
@@ -928,12 +956,19 @@ func (h *handler) editSubscriptionHandler(w http.ResponseWriter, r *http.Request
 
 			err := move(r.Context(), streamIds[0], newLabel, h.store, userID)
 			if err != nil {
-				json.ServerError(w, r, err)
+				badRequest := errors.Is(err, errFeedNotFound) ||
+					errors.Is(err, errCategoryNotFound)
+				if badRequest {
+					json.BadRequest(w, r, err)
+				} else {
+					json.ServerError(w, r, err)
+				}
 				return
 			}
 		}
 	default:
-		json.ServerError(w, r, fmt.Errorf("googlereader: unrecognized action %s", action))
+		json.BadRequest(w, r, fmt.Errorf(
+			"googlereader: unrecognized action %s", action))
 		return
 	}
 

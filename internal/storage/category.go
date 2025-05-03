@@ -199,8 +199,9 @@ INSERT INTO categories (user_id, title, hide_globally)
 	category, err := pgx.CollectExactlyOneRow(rows,
 		pgx.RowToAddrOfStructByNameLax[model.Category])
 	if err != nil {
-		return nil, fmt.Errorf(`store: unable to create category %q: %w`,
-			request.Title, err)
+		return nil, fmt.Errorf(
+			`store: unable to create category %q for user ID %d: %w`,
+			request.Title, userID, err)
 	}
 	return category, nil
 }

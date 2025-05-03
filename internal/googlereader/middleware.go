@@ -175,14 +175,6 @@ func (m *middleware) apiKeyAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		slog.Info("[GoogleReader] User authenticated successfully",
-			slog.Bool("authentication_successful", true),
-			slog.String("client_ip", clientIP),
-			slog.String("user_agent", r.UserAgent()),
-			slog.Int64("user_id", user.ID),
-			slog.String("username", user.Username),
-		)
-
 		err = m.store.SetLastLogin(r.Context(), integration.UserID)
 		if err != nil {
 			slog.Error("[GoogleReader] Unable to set last login",
