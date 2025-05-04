@@ -46,7 +46,7 @@ func Test_getStreamFilterModifiers_SortDirection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := httptest.NewRequest("", tt.req, nil)
-			got, err := getStreamFilterModifiers(r, &tt.user)
+			got, err := parseStreamFilterFromRequest(r, &tt.user)
 			require.NoError(t, err)
 
 			want := RequestModifiers{
