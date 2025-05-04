@@ -892,7 +892,7 @@ template {
 }
 
 .hide-read-items .item-status-read:not(.current-item) {
-    display: none;
+    display: inherit;
 }
 
 .entry-swipe {
