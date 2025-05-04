@@ -1,12 +1,28 @@
 {{ define "item_meta" }}
 <div class="item-meta">
+
+    {{ if .withInfo }}
     <ul class="item-meta-info">
         <li class="item-meta-info-title">
-            <a href="{{ route "feedEntries" "feedID" .entry.Feed.ID }}" title="{{ .entry.Feed.SiteURL }}" data-feed-link="true">{{ truncate .entry.Feed.Title 35 }}</a>
+            {{ if ne .entry.Feed.Icon.IconID 0 }}
+            {{   $iconSrc := route "feedIcon" "externalIconID" .entry.Feed.Icon.ExternalIconID }}
+            <img src="{{ $iconSrc }}" width="16" height="16" loading="lazy" alt="">
+            {{ end }}
+
+            <a
+              href="{{ route "feedEntries" "feedID" .entry.Feed.ID }}"
+              title="{{ .entry.Feed.SiteURL }}"
+              data-feed-link="true">
+                {{ .entry.Feed.Title }}
+            </a>
+
+            {{ if .entry.Author }}– <em>{{ .entry.Author }}</em>{{ end }}
         </li>
+
         <li class="item-meta-info-timestamp">
             <time datetime="{{ isodate .entry.Date }}" title="{{ isodate .entry.Date }}">{{ elapsed .user.Timezone .entry.Date }}</time>
         </li>
+
         {{ if and .user.ShowReadingTime (gt .entry.ReadingTime 0) }}
         <li class="item-meta-info-reading-time">
             <span>
@@ -15,6 +31,9 @@
         </li>
         {{ end }}
     </ul>
+    {{ end }}
+
+    {{ if .withIcons }}
     <ul class="item-meta-icons">
         <li class="item-meta-icons-read">
             <button
@@ -79,14 +98,16 @@
         {{ if .entry.CommentsURL }}
             <li class="item-meta-icons-comments">
                 <a href="{{ .entry.CommentsURL | safeURL  }}"
-                    aria-describedby="entry-title-{{ .entry.ID }}"
-                    title="{{ t "entry.comments.title" }}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    referrerpolicy="no-referrer"
-                    data-comments-link="true">{{ icon "comment" }}<span class="icon-label">{{ t "entry.comments.label" }}</span></a>
+                   aria-describedby="entry-title-{{ .entry.ID }}"
+                   title="{{ t "entry.comments.title" }}"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   referrerpolicy="no-referrer"
+                   data-comments-link="true">{{ icon "comment" }}<span class="icon-label">{{ t "entry.comments.label" }}</span></a>
             </li>
         {{ end }}
     </ul>
+    {{ end }}
+
 </div>
 {{ end }}

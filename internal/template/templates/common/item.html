@@ -4,16 +4,11 @@
   data-id="{{ .entry.ID }}"
   aria-labelledby="entry-title-{{ .entry.ID }}"
   tabindex="-1">
+    {{ template "item_meta" dict "user" .user "entry" .entry "withInfo" true }}
 
     <header class="item-header" dir="auto">
         <h2 id="entry-title-{{ .entry.ID }}" class="item-title">
-            <a href="{{ .route }}">
-                {{ if ne .entry.Feed.Icon.IconID 0 }}
-                {{   $iconSrc := route "feedIcon" "externalIconID" .entry.Feed.Icon.ExternalIconID }}
-                <img src="{{ $iconSrc }}" width="16" height="16" loading="lazy" alt="">
-                {{ end }}
-                {{ .entry.Title }}
-            </a>
+            <a href="{{ .route }}">{{ .entry.Title }}</a>
         </h2>
         <span class="category">
             <a
@@ -24,6 +19,6 @@
         </span>
     </header>
 
-    {{ template "item_meta" dict "user" .user "entry" .entry "hasSaveEntry" .hasSaveEntry }}
+    {{ template "item_meta" dict "user" .user "entry" .entry "hasSaveEntry" .hasSaveEntry "withIcons" true }}
 </article>
 {{ end }}

@@ -839,16 +839,13 @@ template {
     color: #333;
 }
 
-.item-meta ul {
-    margin-top: 5px;
-}
-
 .item-meta li {
     display: inline-block;
 }
 
 .item-meta-info {
     font-size: 0.85em;
+    margin-bottom: 5px;
 }
 
 .item-meta-info li:not(:last-child):after {
@@ -856,9 +853,16 @@ template {
     color: var(--item-meta-li-color);
 }
 
+.item-meta-info-title img {
+    vertical-align: top;
+}
+
+.item-meta-icons {
+    margin-top: 9px;
+}
+
 .item-meta-icons li {
     margin-right: 8px;
-    margin-top: 4px;
 }
 
 .item-meta-icons li:last-child {
