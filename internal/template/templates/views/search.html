@@ -23,30 +23,8 @@
         </div>
         <div class="items">
             {{ range .entries }}
-            <article
-                class="item entry-item {{ if $.user.EntrySwipe }}entry-swipe{{ end }} item-status-{{ .Status }}"
-                data-id="{{ .ID }}"
-                aria-labelledby="entry-title-{{ .ID }}"
-            >
-                <header class="item-header" dir="auto">
-                    <h2 id="entry-title-{{ .ID }}" class="item-title">
-                        <a href="{{ route "searchEntry" "entryID" .ID }}?q={{ $.searchQuery }}">
-                            {{ if ne .Feed.Icon.IconID 0 }}
-                            <img src="{{ route "feedIcon" "externalIconID" .Feed.Icon.ExternalIconID }}" width="16" height="16" loading="lazy" alt="{{ .Feed.Title }}">
-                            {{ else }}
-                            <span class="sr-only">{{ .Feed.Title }}</span>
-                            {{ end }}
-                            {{ .Title }}
-                        </a>
-                    </h2>
-                    <span class="category">
-                        <a href="{{ route "categoryEntries" "categoryID" .Feed.Category.ID }}">
-                            {{ .Feed.Category.Title }}
-                        </a>
-                    </span>
-                </header>
-                {{ template "item_meta" dict "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry  }}
-            </article>
+            {{   $route := printf "%s?q=%s" (route "unreadEntry" "entryID" .ID) $.searchQuery }}
+            {{   template "item" dict "route" $route "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry }}
             {{ end }}
         </div>
         <div class="pagination-bottom">
