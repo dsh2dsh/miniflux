@@ -22,9 +22,9 @@ var flushSessionsCmd = cobra.Command{
 	},
 }
 
-func flushSessions(store *storage.Storage) error {
+func flushSessions(ctx context.Context, store *storage.Storage) error {
 	fmt.Println("Flushing all sessions (disconnect users)")
-	if err := store.FlushAllSessions(context.Background()); err != nil {
+	if err := store.FlushAllSessions(ctx); err != nil {
 		return err
 	}
 	return nil

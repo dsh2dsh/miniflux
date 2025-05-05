@@ -25,8 +25,7 @@ var resetPassCmd = cobra.Command{
 	},
 }
 
-func resetPassword(store *storage.Storage) error {
-	ctx := context.Background()
+func resetPassword(ctx context.Context, store *storage.Storage) error {
 	username, password := askCredentials()
 	user, err := store.UserByUsername(ctx, username)
 	if err != nil {

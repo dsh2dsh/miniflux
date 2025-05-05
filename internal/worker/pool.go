@@ -5,33 +5,82 @@ package worker // import "miniflux.app/v2/internal/worker"
 
 import (
 	"context"
+	"log/slog"
+	"time"
 
+	"golang.org/x/sync/errgroup"
+
+	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/metric"
 	"miniflux.app/v2/internal/model"
+	"miniflux.app/v2/internal/reader/handler"
 	"miniflux.app/v2/internal/storage"
 )
 
+// NewPool creates a pool of background workers.
+func NewPool(ctx context.Context, store *storage.Storage, n int) *Pool {
+	self := &Pool{
+		ctx:   ctx,
+		queue: make(chan model.Job),
+		store: store,
+	}
+	self.g.SetLimit(n)
+	return self
+}
+
 // Pool handles a pool of workers.
 type Pool struct {
+	ctx   context.Context
 	queue chan model.Job
+	g     errgroup.Group
+
+	store *storage.Storage
 }
 
 // Push send a list of jobs to the queue.
-func (p *Pool) Push(jobs []model.Job) {
+func (self *Pool) Push(jobs []model.Job) {
 	for _, job := range jobs {
-		p.queue <- job
+		select {
+		case <-self.ctx.Done():
+		case self.queue <- job:
+		}
 	}
 }
 
-// NewPool creates a pool of background workers.
-func NewPool(ctx context.Context, store *storage.Storage, nbWorkers int) *Pool {
-	workerPool := &Pool{
-		queue: make(chan model.Job),
+func (self *Pool) Run() error {
+	slog.Info("worker pool started")
+	for {
+		select {
+		case <-self.ctx.Done():
+			slog.Info("worker pool stopped")
+			return nil
+		case job := <-self.queue:
+			self.g.Go(func() error {
+				self.refreshFeed(job)
+				return nil
+			})
+		}
+	}
+}
+
+func (self *Pool) refreshFeed(job model.Job) {
+	slog.Debug("Job received",
+		slog.Int64("user_id", job.UserID),
+		slog.Int64("feed_id", job.FeedID))
+
+	startTime := time.Now()
+	err := handler.RefreshFeed(self.ctx, self.store, job.UserID,
+		job.FeedID, false)
+
+	if !config.Opts.HasMetricsCollector() {
+		return
 	}
 
-	for i := range nbWorkers {
-		worker := &Worker{id: i, store: store}
-		go worker.Run(ctx, workerPool.queue)
+	status := "success"
+	if err != nil {
+		status = "error"
 	}
-
-	return workerPool
+	metric.BackgroundFeedRefreshDuration.
+		WithLabelValues(status).
+		Observe(time.Since(startTime).Seconds())
 }

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright The Miniflux Authors. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-package httpd // import "miniflux.app/v2/internal/http/server"
+package server // import "miniflux.app/v2/internal/http/server"
 
 import (
 	"crypto/tls"
@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
+	"golang.org/x/sync/errgroup"
 
 	"miniflux.app/v2/internal/api"
 	"miniflux.app/v2/internal/config"
@@ -29,7 +31,90 @@ import (
 	"miniflux.app/v2/internal/worker"
 )
 
-func StartWebServer(store *storage.Storage, pool *worker.Pool) *http.Server {
+func Listener() (net.Listener, error) {
+	if !config.Opts.HasHTTPService() {
+		return nil, nil
+	}
+
+	var listener net.Listener
+	listenAddr := config.Opts.ListenAddr()
+
+	switch {
+	case os.Getenv("LISTEN_PID") == strconv.Itoa(os.Getpid()):
+		f := os.NewFile(3, "systemd socket")
+		l, err := net.FileListener(f)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"http/server: create listener from systemd socket: %w", err)
+		}
+		listener = l
+	case strings.HasPrefix(listenAddr, "/"):
+		l, err := unixListener(listenAddr, 0o666)
+		if err != nil {
+			return nil, fmt.Errorf("create unix listener on %q: %w", listenAddr, err)
+		}
+		listener = l
+	}
+	return listener, nil
+}
+
+func unixListener(path string, mode uint32) (*net.UnixListener, error) {
+	if err := unlinkStaleUnix(path); err != nil {
+		return nil, err
+	}
+
+	laddr, err := net.ResolveUnixAddr("unix", path)
+	if err != nil {
+		return nil, fmt.Errorf("http/server: resolve unix address: %w", err)
+	}
+
+	l, err := net.ListenUnix("unix", laddr)
+	if err != nil {
+		return nil, fmt.Errorf("http/server: listen unix: %w", err)
+	}
+
+	l.SetUnlinkOnClose(true)
+	if mode == 0 {
+		return l, nil
+	}
+
+	if err := os.Chmod(path, os.FileMode(mode)); err != nil {
+		return nil, fmt.Errorf(
+			"http/server: change socket mode to %O: %w", mode, err)
+	}
+	return l, nil
+}
+
+func unlinkStaleUnix(path string) error {
+	sockdir := filepath.Dir(path)
+	stat, err := os.Stat(sockdir)
+	switch {
+	case err != nil && os.IsNotExist(err):
+		if err := os.MkdirAll(sockdir, 0o755); err != nil {
+			return fmt.Errorf("http/server: cannot mkdir %q: %w", sockdir, err)
+		}
+		return nil
+	case err != nil:
+		return fmt.Errorf("http/server: cannot stat(2) %q: %w", sockdir, err)
+	case !stat.IsDir():
+		return fmt.Errorf("http/server: not a directory: %q", sockdir)
+	}
+
+	_, err = os.Stat(path)
+	switch {
+	case err == nil:
+		if err := os.Remove(path); err != nil {
+			return fmt.Errorf("http/server: cannot remove stale socket: %w", err)
+		}
+	case !os.IsNotExist(err):
+		return fmt.Errorf("http/server: cannot stat(2): %w", err)
+	}
+	return nil
+}
+
+func StartWebServer(store *storage.Storage, pool *worker.Pool,
+	g *errgroup.Group, listener net.Listener,
+) *http.Server {
 	certFile := config.Opts.CertFile()
 	keyFile := config.Opts.CertKeyFile()
 	certDomain := config.Opts.CertDomain()
@@ -43,61 +128,53 @@ func StartWebServer(store *storage.Storage, pool *worker.Pool) *http.Server {
 
 	switch {
 	case os.Getenv("LISTEN_PID") == strconv.Itoa(os.Getpid()):
-		startSystemdSocketServer(server)
+		startSystemdSocketServer(server, listener, g)
 	case strings.HasPrefix(listenAddr, "/"):
-		startUnixSocketServer(server, listenAddr)
+		startUnixSocketServer(server, listenAddr, listener, g)
 	case certDomain != "":
 		config.Opts.EnableHTTPS()
-		startAutoCertTLSServer(server, certDomain, store)
+		startAutoCertTLSServer(server, certDomain, store, g)
 	case certFile != "" && keyFile != "":
 		config.Opts.EnableHTTPS()
 		server.Addr = listenAddr
-		startTLSServer(server, certFile, keyFile)
+		startTLSServer(server, certFile, keyFile, g)
 	default:
 		server.Addr = listenAddr
-		startHTTPServer(server)
+		startHTTPServer(server, g)
 	}
-
 	return server
 }
 
-func startSystemdSocketServer(server *http.Server) {
-	go func() {
-		f := os.NewFile(3, "systemd socket")
-		listener, err := net.FileListener(f)
-		if err != nil {
-			printErrorAndExit(`Unable to create listener from systemd socket: %v`, err)
-		}
-
+func startSystemdSocketServer(server *http.Server, listener net.Listener,
+	g *errgroup.Group,
+) {
+	g.Go(func() error {
+		defer listener.Close()
 		slog.Info(`Starting server using systemd socket`)
 		if err := server.Serve(listener); err != http.ErrServerClosed {
-			printErrorAndExit(`Server failed to start: %v`, err)
+			slog.Error("failed serve on systemd socket", slog.Any("error", err))
+			return fmt.Errorf(
+				"http/server: failed serve on systemd socket: %w", err)
 		}
-	}()
+		return nil
+	})
 }
 
-func startUnixSocketServer(server *http.Server, socketFile string) {
-	if err := os.Remove(socketFile); err != nil {
-		printErrorAndExit(`Server failed remove socket file %q: %v`,
-			socketFile, err)
-	}
-
-	go func(sock string) {
-		listener, err := net.Listen("unix", sock)
-		if err != nil {
-			printErrorAndExit(`Server failed to start: %v`, err)
-		}
+func startUnixSocketServer(server *http.Server, path string,
+	listener net.Listener, g *errgroup.Group,
+) {
+	g.Go(func() error {
 		defer listener.Close()
-
-		if err := os.Chmod(sock, 0o666); err != nil {
-			printErrorAndExit(`Unable to change socket permission: %v`, err)
-		}
-
-		slog.Info("Starting server using a Unix socket", slog.String("socket", sock))
+		slog.Info("Starting server using a Unix socket",
+			slog.String("socket", path))
 		if err := server.Serve(listener); err != http.ErrServerClosed {
-			printErrorAndExit(`Server failed to start: %v`, err)
+			slog.Error("failed serve on unix socket",
+				slog.String("socket", path), slog.Any("error", err))
+			return fmt.Errorf(
+				"http/server: failed serve on unix socket %q: %w", path, err)
 		}
-	}(socketFile)
+		return nil
+	})
 }
 
 func tlsConfig() *tls.Config {
@@ -120,7 +197,9 @@ func tlsConfig() *tls.Config {
 	}
 }
 
-func startAutoCertTLSServer(server *http.Server, certDomain string, store *storage.Storage) {
+func startAutoCertTLSServer(server *http.Server, certDomain string,
+	store *storage.Storage, g *errgroup.Group,
+) {
 	server.Addr = ":https"
 	certManager := autocert.Manager{
 		Cache:      store.NewCertificateCache(),
@@ -137,46 +216,58 @@ func startAutoCertTLSServer(server *http.Server, certDomain string, store *stora
 		Addr:    ":http",
 	}
 
-	go func() {
+	g.Go(func() error {
 		if err := s.ListenAndServe(); err != http.ErrServerClosed {
-			printErrorAndExit(`Server failed to start: %v`, err)
+			slog.Error("failed serve http-01 challenge", slog.Any("error", err))
+			return fmt.Errorf(
+				"http/server: failed serve http-01 challenge: %w", err)
 		}
-	}()
+		return nil
+	})
 
-	go func() {
+	g.Go(func() error {
 		slog.Info("Starting TLS server using automatic certificate management",
 			slog.String("listen_address", server.Addr),
-			slog.String("domain", certDomain),
-		)
+			slog.String("domain", certDomain))
 		if err := server.ListenAndServeTLS("", ""); err != http.ErrServerClosed {
-			printErrorAndExit(`Server failed to start: %v`, err)
+			slog.Error(
+				"failed serve TLS server with automatic certificate management",
+				slog.Any("error", err))
+			return fmt.Errorf(
+				"http/server: failed serve auto cert TLS server: %w", err)
 		}
-	}()
+		return nil
+	})
 }
 
-func startTLSServer(server *http.Server, certFile, keyFile string) {
+func startTLSServer(server *http.Server, certFile, keyFile string,
+	g *errgroup.Group,
+) {
 	server.TLSConfig = tlsConfig()
-	go func() {
+	g.Go(func() error {
 		slog.Info("Starting TLS server using a certificate",
 			slog.String("listen_address", server.Addr),
 			slog.String("cert_file", certFile),
-			slog.String("key_file", keyFile),
-		)
-		if err := server.ListenAndServeTLS(certFile, keyFile); err != http.ErrServerClosed {
-			printErrorAndExit(`Server failed to start: %v`, err)
+			slog.String("key_file", keyFile))
+		err := server.ListenAndServeTLS(certFile, keyFile)
+		if err != http.ErrServerClosed {
+			slog.Error("failed serve TLS server", slog.Any("error", err))
+			return fmt.Errorf("http/server: failed serve TLS server: %w", err)
 		}
-	}()
+		return nil
+	})
 }
 
-func startHTTPServer(server *http.Server) {
-	go func() {
+func startHTTPServer(server *http.Server, g *errgroup.Group) {
+	g.Go(func() error {
 		slog.Info("Starting HTTP server",
-			slog.String("listen_address", server.Addr),
-		)
+			slog.String("listen_address", server.Addr))
 		if err := server.ListenAndServe(); err != http.ErrServerClosed {
-			printErrorAndExit(`Server failed to start: %v`, err)
+			slog.Error("failed serve plain HTTP server", slog.Any("error", err))
+			return fmt.Errorf("http/server: failed serve plain HTTP server: %w", err)
 		}
-	}()
+		return nil
+	})
 }
 
 func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
@@ -216,11 +307,4 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
 		router.Handle("/metrics", metric.Handler(store)).Name("metrics")
 	}
 	return router
-}
-
-func printErrorAndExit(format string, a ...any) {
-	message := fmt.Sprintf(format, a...)
-	slog.Error(message)
-	fmt.Fprintf(os.Stderr, "%v\n", message)
-	os.Exit(1)
 }

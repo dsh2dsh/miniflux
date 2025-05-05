@@ -25,15 +25,19 @@ var createAdminCmd = cobra.Command{
 	},
 }
 
-func createAdminUserFromEnvironmentVariables(store *storage.Storage) error {
-	return createAdminUser(context.Background(), store,
+func createAdminUserFromEnvironmentVariables(ctx context.Context,
+	store *storage.Storage,
+) error {
+	return createAdminUser(ctx, store,
 		config.Opts.AdminUsername(),
 		config.Opts.AdminPassword())
 }
 
-func createAdminUserFromInteractiveTerminal(store *storage.Storage) error {
+func createAdminUserFromInteractiveTerminal(ctx context.Context,
+	store *storage.Storage,
+) error {
 	username, password := askCredentials()
-	return createAdminUser(context.Background(), store, username, password)
+	return createAdminUser(ctx, store, username, password)
 }
 
 func createAdminUser(ctx context.Context, store *storage.Storage, username,

@@ -20,9 +20,10 @@ var exportUserFeedsCmd = cobra.Command{
 	Args: cobra.ExactArgs(1),
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return withStorage(func(store *storage.Storage) error {
-			return exportUserFeeds(context.Background(), store, args[0])
-		})
+		return withStorage(
+			func(ctx context.Context, store *storage.Storage) error {
+				return exportUserFeeds(ctx, store, args[0])
+			})
 	},
 }
 

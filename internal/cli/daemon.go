@@ -13,8 +13,10 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"miniflux.app/v2/internal/config"
-	httpd "miniflux.app/v2/internal/http/server"
+	"miniflux.app/v2/internal/http/server"
 	"miniflux.app/v2/internal/metric"
 	"miniflux.app/v2/internal/proxyrotator"
 	"miniflux.app/v2/internal/storage"
@@ -23,31 +25,42 @@ import (
 	"miniflux.app/v2/internal/worker"
 )
 
-func RunDaemon() error {
-	return withStorage(func(store *storage.Storage) error {
-		if err := configureDaemon(store); err != nil {
-			return err
-		}
-		startDaemon(context.Background(), store)
-		return nil
-	})
+func NewDaemon(store *storage.Storage) *Daemon {
+	return &Daemon{store: store}
 }
 
-func configureDaemon(store *storage.Storage) error {
+type Daemon struct {
+	store      *storage.Storage
+	g          *errgroup.Group
+	httpServer *http.Server
+}
+
+func (self *Daemon) Run(ctx context.Context) error {
+	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGTERM, os.Interrupt)
+	defer cancel()
+
+	slog.Info("Starting daemon...")
+	if err := self.configure(ctx); err != nil {
+		return err
+	}
+	return self.start(ctx)
+}
+
+func (self *Daemon) configure(ctx context.Context) error {
 	// Run migrations and start the daemon.
-	ctx := context.Background()
 	if config.Opts.RunMigrations() {
-		if err := store.Migrate(ctx); err != nil {
+		if err := self.store.Migrate(ctx); err != nil {
 			return err
 		}
 	}
 
-	if err := store.SchemaUpToDate(ctx); err != nil {
+	if err := self.store.SchemaUpToDate(ctx); err != nil {
 		return err
 	}
 
 	if config.Opts.CreateAdmin() {
-		if err := createAdminUserFromEnvironmentVariables(store); err != nil {
+		err := createAdminUserFromEnvironmentVariables(ctx, self.store)
+		if err != nil {
 			return err
 		}
 	}
@@ -62,88 +75,106 @@ func configureDaemon(store *storage.Storage) error {
 		}
 		proxyrotator.ProxyRotatorInstance = rotatorInstance
 	}
-	return generateBundles()
+	return generateBundles(ctx)
 }
 
-func generateBundles() error {
-	if err := static.CalculateBinaryFileChecksums(); err != nil {
-		return fmt.Errorf("unable to calculate binary file checksums: %w", err)
+func generateBundles(ctx context.Context) error {
+	if err := static.CalculateBinaryFileChecksums(ctx); err != nil {
+		return fmt.Errorf("failed calculate binary file hashes: %w", err)
 	}
 
-	if err := static.GenerateStylesheetsBundles(); err != nil {
-		return fmt.Errorf("unable to generate stylesheets bundles: %w", err)
+	if err := static.GenerateStylesheetsBundles(ctx); err != nil {
+		return fmt.Errorf("failed generate css bundles: %w", err)
 	}
 
-	if err := static.GenerateJavascriptBundles(); err != nil {
-		return fmt.Errorf("unable to generate javascript bundles: %w", err)
+	if err := static.GenerateJavascriptBundles(ctx); err != nil {
+		return fmt.Errorf("failed generate js bundles: %w", err)
 	}
 	return nil
 }
 
-func startDaemon(ctx context.Context, store *storage.Storage) {
-	slog.Info("Starting daemon...")
-
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt)
-	signal.Notify(stop, syscall.SIGTERM)
-
-	pool := worker.NewPool(ctx, store, config.Opts.WorkerPoolSize())
-
-	if config.Opts.HasSchedulerService() && !config.Opts.HasMaintenanceMode() {
-		runScheduler(ctx, store, pool)
+func (self *Daemon) start(ctx context.Context) error {
+	listener, err := server.Listener()
+	if err != nil {
+		return err
 	}
 
-	var httpServer *http.Server
+	self.g, ctx = errgroup.WithContext(ctx)
+	pool := worker.NewPool(ctx, self.store, config.Opts.WorkerPoolSize())
+	self.g.Go(pool.Run)
+	if config.Opts.HasSchedulerService() && !config.Opts.HasMaintenanceMode() {
+		self.runScheduler(ctx, pool)
+	}
+
 	if config.Opts.HasHTTPService() {
-		httpServer = httpd.StartWebServer(store, pool)
+		self.httpServer = server.StartWebServer(self.store, pool, self.g, listener)
 	}
 
 	if config.Opts.HasMetricsCollector() {
-		metric.RegisterMetrics(store)
+		metric.RegisterMetrics(self.store)
 	}
 
 	if systemd.HasNotifySocket() {
-		slog.Debug("Sending readiness notification to Systemd")
-
-		if err := systemd.SdNotify(systemd.SdNotifyReady); err != nil {
-			slog.Error("Unable to send readiness notification to systemd", slog.Any("error", err))
+		if err := self.systemdReady(ctx); err != nil {
+			return err
 		}
+	}
+	return self.wait(ctx)
+}
 
-		if config.Opts.HasWatchdog() && systemd.HasSystemdWatchdog() {
-			slog.Debug("Activating Systemd watchdog")
+func (self *Daemon) systemdReady(ctx context.Context) error {
+	slog.Debug("Sending readiness notification to Systemd")
+	if err := systemd.SdNotify(systemd.SdNotifyReady); err != nil {
+		return fmt.Errorf(
+			"unable to send readiness notification to systemd: %w", err)
+	}
 
-			go func() {
-				interval, err := systemd.WatchdogInterval()
-				if err != nil {
-					slog.Error("Unable to get watchdog interval from systemd", slog.Any("error", err))
-					return
+	if !config.Opts.HasWatchdog() || !systemd.HasSystemdWatchdog() {
+		return nil
+	}
+
+	slog.Debug("Activating Systemd watchdog")
+	interval, err := systemd.WatchdogInterval()
+	if err != nil {
+		return fmt.Errorf("unable to get watchdog interval from systemd: %w", err)
+	}
+
+	self.g.Go(func() error {
+		ticker := time.NewTicker(interval / 3)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-ticker.C:
+				if err := self.store.Ping(ctx); err != nil {
+					slog.Error("Unable to ping database", slog.Any("error", err))
+					continue
 				}
-
-				for {
-					if err := store.Ping(context.Background()); err != nil {
-						slog.Error("Unable to ping database", slog.Any("error", err))
-					} else {
-						if err := systemd.SdNotify(systemd.SdNotifyWatchdog); err != nil {
-							slog.Error("cli: failed notify systemd watchdog",
-								slog.Any("error", err))
-						}
-					}
-
-					time.Sleep(interval / 3)
+				if err := systemd.SdNotify(systemd.SdNotifyWatchdog); err != nil {
+					slog.Error("Unable notify systemd watchdog", slog.Any("error", err))
 				}
-			}()
+			}
+		}
+	})
+	return nil
+}
+
+func (self *Daemon) wait(ctx context.Context) error {
+	<-ctx.Done()
+	if self.httpServer != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		slog.Info("Shutting down the process gracefully...")
+		if err := self.httpServer.Shutdown(ctx); err != nil {
+			slog.Error("failed shutdown http server", slog.Any("error", err))
 		}
 	}
 
-	<-stop
-	slog.Info("Shutting down the process")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if httpServer != nil {
-		if err := httpServer.Shutdown(ctx); err != nil {
-			slog.Error("cli: failed shutdown http server", slog.Any("error", err))
-		}
+	if err := self.g.Wait(); err != nil {
+		slog.Error("process stopped with error", slog.Any("error", err))
+		return fmt.Errorf("process stopped with error: %w", err)
 	}
 	slog.Info("Process gracefully stopped")
+	return nil
 }

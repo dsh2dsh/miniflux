@@ -5,8 +5,10 @@ package static // import "miniflux.app/v2/internal/ui/static"
 
 import (
 	"bytes"
+	"context"
 	"embed"
 	"fmt"
+	"log/slog"
 
 	"miniflux.app/v2/internal/crypto"
 
@@ -35,23 +37,25 @@ var javascriptFiles embed.FS
 var binaryFileChecksums map[string]string
 
 // CalculateBinaryFileChecksums generates hash of embed binary files.
-func CalculateBinaryFileChecksums() error {
-	binaryFileChecksums = make(map[string]string)
-
+func CalculateBinaryFileChecksums(ctx context.Context) error {
+	slog.Info("calculate binary file hashes")
 	dirEntries, err := binaryFiles.ReadDir("bin")
 	if err != nil {
 		return fmt.Errorf("ui/static: failed read bin/: %w", err)
 	}
 
+	binaryFileChecksums = make(map[string]string, len(dirEntries))
 	for _, dirEntry := range dirEntries {
+		if ctx.Err() != nil {
+			return fmt.Errorf("ui/static: break loop over binary files: %w",
+				context.Cause(ctx))
+		}
 		data, err := LoadBinaryFile(dirEntry.Name())
 		if err != nil {
 			return err
 		}
-
 		binaryFileChecksums[dirEntry.Name()] = crypto.HashFromBytes(data)
 	}
-
 	return nil
 }
 
@@ -74,7 +78,11 @@ func GetBinaryFileChecksum(filename string) (string, error) {
 }
 
 // GenerateStylesheetsBundles creates CSS bundles.
-func GenerateStylesheetsBundles() error {
+func GenerateStylesheetsBundles(ctx context.Context) error {
+	slog.Info("generate css bundles")
+	minifier := minify.New()
+	minifier.AddFunc("text/css", css.Minify)
+
 	bundles := map[string][]string{
 		"light_serif":       {"css/light.css", "css/serif.css", "css/common.css"},
 		"light_sans_serif":  {"css/light.css", "css/sans_serif.css", "css/common.css"},
@@ -83,16 +91,16 @@ func GenerateStylesheetsBundles() error {
 		"system_serif":      {"css/system.css", "css/serif.css", "css/common.css"},
 		"system_sans_serif": {"css/system.css", "css/sans_serif.css", "css/common.css"},
 	}
-
-	StylesheetBundles = make(map[string][]byte)
-	StylesheetBundleChecksums = make(map[string]string)
-
-	minifier := minify.New()
-	minifier.AddFunc("text/css", css.Minify)
+	StylesheetBundles = make(map[string][]byte, len(bundles))
+	StylesheetBundleChecksums = make(map[string]string, len(bundles))
 
 	for bundle, srcFiles := range bundles {
 		var buffer bytes.Buffer
 		for _, srcFile := range srcFiles {
+			if ctx.Err() != nil {
+				return fmt.Errorf("ui/static: break loop over css files: %w",
+					context.Cause(ctx))
+			}
 			fileData, err := stylesheetFiles.ReadFile(srcFile)
 			if err != nil {
 				return fmt.Errorf("ui/static: failed read %q: %w", srcFile, err)
@@ -112,7 +120,12 @@ func GenerateStylesheetsBundles() error {
 }
 
 // GenerateJavascriptBundles creates JS bundles.
-func GenerateJavascriptBundles() error {
+func GenerateJavascriptBundles(ctx context.Context) error {
+	slog.Info("generate js bundles")
+	jsMinifier := js.Minifier{Version: 2020}
+	minifier := minify.New()
+	minifier.AddFunc("text/javascript", jsMinifier.Minify)
+
 	bundles := map[string][]string{
 		"app": {
 			"js/tt.js", // has to be first
@@ -129,35 +142,27 @@ func GenerateJavascriptBundles() error {
 		},
 	}
 
-	prefixes := map[string]string{
-		"app": "(function(){'use strict';",
-	}
+	prefixes := map[string]string{"app": "(function(){'use strict';"}
+	suffixes := map[string]string{"app": "})();"}
 
-	suffixes := map[string]string{
-		"app": "})();",
-	}
-
-	JavascriptBundles = make(map[string][]byte)
-	JavascriptBundleChecksums = make(map[string]string)
-
-	jsMinifier := js.Minifier{Version: 2020}
-
-	minifier := minify.New()
-	minifier.AddFunc("text/javascript", jsMinifier.Minify)
+	JavascriptBundles = make(map[string][]byte, len(bundles))
+	JavascriptBundleChecksums = make(map[string]string, len(bundles))
 
 	for bundle, srcFiles := range bundles {
 		var buffer bytes.Buffer
-
 		if prefix, found := prefixes[bundle]; found {
 			buffer.WriteString(prefix)
 		}
 
 		for _, srcFile := range srcFiles {
+			if ctx.Err() != nil {
+				return fmt.Errorf("ui/static: break loop over js files: %w",
+					context.Cause(ctx))
+			}
 			fileData, err := javascriptFiles.ReadFile(srcFile)
 			if err != nil {
 				return fmt.Errorf("ui/static: failed read %q: %w", srcFile, err)
 			}
-
 			buffer.Write(fileData)
 		}
 

@@ -22,10 +22,11 @@ var cleanupTasksCmd = cobra.Command{
 	Args:  cobra.ExactArgs(0),
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return withStorage(func(store *storage.Storage) error {
-			runCleanupTasks(context.Background(), store)
-			return nil
-		})
+		return withStorage(
+			func(ctx context.Context, store *storage.Storage) error {
+				runCleanupTasks(ctx, store)
+				return nil
+			})
 	},
 }
 

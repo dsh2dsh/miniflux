@@ -32,7 +32,12 @@ var Cmd = cobra.Command{
 
 	PersistentPreRunE: persistentPreRunE,
 
-	RunE: func(cmd *cobra.Command, args []string) error { return RunDaemon() },
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return withStorage(
+			func(ctx context.Context, store *storage.Storage) error {
+				return NewDaemon(store).Run(ctx)
+			})
+	},
 
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
 		if logCloser != nil {
@@ -54,9 +59,10 @@ var migrateCmd = cobra.Command{
 	Args:  cobra.ExactArgs(0),
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return withStorage(func(store *storage.Storage) error {
-			return store.Migrate(context.Background())
-		})
+		return withStorage(
+			func(ctx context.Context, store *storage.Storage) error {
+				return store.Migrate(ctx)
+			})
 	},
 }
 
@@ -66,9 +72,10 @@ var resetFeedErrorsCmd = cobra.Command{
 	Args:  cobra.ExactArgs(0),
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return withStorage(func(store *storage.Storage) error {
-			return store.ResetFeedErrors(context.Background())
-		})
+		return withStorage(
+			func(ctx context.Context, store *storage.Storage) error {
+				return store.ResetFeedErrors(ctx)
+			})
 	},
 }
 
@@ -78,9 +85,10 @@ var resetFeedNextCmd = cobra.Command{
 	Args:  cobra.ExactArgs(0),
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return withStorage(func(store *storage.Storage) error {
-			return store.ResetNextCheckAt(context.Background())
-		})
+		return withStorage(
+			func(ctx context.Context, store *storage.Storage) error {
+				return store.ResetNextCheckAt(ctx)
+			})
 	},
 }
 
@@ -128,7 +136,8 @@ func printErrorAndExit(err error) {
 	os.Exit(1)
 }
 
-func withStorage(fn func(store *storage.Storage) error) error {
+func withStorage(fn func(ctx context.Context, store *storage.Storage) error,
+) error {
 	if config.Opts.IsDefaultDatabaseURL() {
 		slog.Info("The default value for DATABASE_URL is used")
 	}
@@ -147,7 +156,7 @@ func withStorage(fn func(store *storage.Storage) error) error {
 	if err := store.Ping(ctx); err != nil {
 		return err
 	}
-	return fn(store)
+	return fn(ctx, store)
 }
 
 func Execute() {
