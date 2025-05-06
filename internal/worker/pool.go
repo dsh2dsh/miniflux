@@ -11,6 +11,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/metric"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/handler"
@@ -42,13 +43,16 @@ func (self *Pool) Push(jobs []model.Job) {
 	for _, job := range jobs {
 		select {
 		case <-self.ctx.Done():
+			return
 		case self.queue <- job:
 		}
 	}
+	logging.FromContext(self.ctx).Info("sent a batch of feeds to the queue",
+		slog.Int("nb_jobs", len(jobs)))
 }
 
 func (self *Pool) Run() error {
-	slog.Info("worker pool started")
+	logging.FromContext(self.ctx).Info("worker pool started")
 	for {
 		select {
 		case <-self.ctx.Done():
@@ -64,7 +68,7 @@ func (self *Pool) Run() error {
 }
 
 func (self *Pool) refreshFeed(job model.Job) {
-	slog.Debug("Job received",
+	logging.FromContext(self.ctx).Debug("Job received",
 		slog.Int64("user_id", job.UserID),
 		slog.Int64("feed_id", job.FeedID))
 
