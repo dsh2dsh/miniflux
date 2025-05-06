@@ -848,6 +848,10 @@ template {
     margin-bottom: 5px;
 }
 
+.item-meta-info li {
+    margin-bottom: 4px;
+}
+
 .item-meta-info li:not(:last-child):after {
     content: "|";
     color: var(--item-meta-li-color);
@@ -858,11 +862,12 @@ template {
 }
 
 .item-meta-icons {
-    margin-top: 9px;
+    margin-top: 5px;
 }
 
 .item-meta-icons li {
     margin-right: 8px;
+    margin-top: 4px;
 }
 
 .item-meta-icons li:last-child {
