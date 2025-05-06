@@ -7,13 +7,13 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 
 	"github.com/spf13/cobra"
 
 	"miniflux.app/v2/internal/cli/logger"
 	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/version"
 )
@@ -33,10 +33,7 @@ var Cmd = cobra.Command{
 	PersistentPreRunE: persistentPreRunE,
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return withStorage(
-			func(ctx context.Context, store *storage.Storage) error {
-				return NewDaemon(store).Run(ctx)
-			})
+		return NewDaemon().Run()
 	},
 
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
@@ -138,25 +135,34 @@ func printErrorAndExit(err error) {
 
 func withStorage(fn func(ctx context.Context, store *storage.Storage) error,
 ) error {
+	ctx := context.Background()
+	store, err := makeStorage(ctx)
+	if err != nil {
+		return err
+	}
+	defer store.Close(ctx)
+	return fn(ctx, store)
+}
+
+func makeStorage(ctx context.Context) (*storage.Storage, error) {
 	if config.Opts.IsDefaultDatabaseURL() {
-		slog.Info("The default value for DATABASE_URL is used")
+		logging.FromContext(ctx).Info("The default value for DATABASE_URL is used")
 	}
 
-	ctx := context.Background()
 	store, err := storage.New(ctx,
 		config.Opts.DatabaseURL(),
 		config.Opts.DatabaseMaxConns(),
 		config.Opts.DatabaseMinConns(),
 		config.Opts.DatabaseConnectionLifetime())
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer store.Close(ctx)
 
 	if err := store.Ping(ctx); err != nil {
-		return err
+		store.Close(ctx)
+		return nil, err
 	}
-	return fn(ctx, store)
+	return store, nil
 }
 
 func Execute() {

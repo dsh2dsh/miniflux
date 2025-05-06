@@ -25,9 +25,7 @@ import (
 	"miniflux.app/v2/internal/worker"
 )
 
-func NewDaemon(store *storage.Storage) *Daemon {
-	return &Daemon{store: store}
-}
+func NewDaemon() *Daemon { return &Daemon{} }
 
 type Daemon struct {
 	store      *storage.Storage
@@ -35,18 +33,37 @@ type Daemon struct {
 	httpServer *http.Server
 }
 
-func (self *Daemon) Run(ctx context.Context) error {
-	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGTERM, os.Interrupt)
+func (self *Daemon) Run() error {
+	ctx, cancel := signal.NotifyContext(context.Background(),
+		syscall.SIGTERM, os.Interrupt)
 	defer cancel()
 
 	slog.Info("Starting daemon...")
+	defer self.close(ctx)
+
 	if err := self.configure(ctx); err != nil {
 		return err
 	}
-	return self.start(ctx)
+
+	if err := self.start(ctx); err != nil {
+		return err
+	}
+	return self.wait(ctx)
+}
+
+func (self *Daemon) close(ctx context.Context) {
+	if self.store != nil {
+		self.store.Close(ctx)
+	}
 }
 
 func (self *Daemon) configure(ctx context.Context) error {
+	store, err := makeStorage(ctx)
+	if err != nil {
+		return err
+	}
+	self.store = store
+
 	// Run migrations and start the daemon.
 	if config.Opts.RunMigrations() {
 		if err := self.store.Migrate(ctx); err != nil {
@@ -119,7 +136,7 @@ func (self *Daemon) start(ctx context.Context) error {
 			return err
 		}
 	}
-	return self.wait(ctx)
+	return nil
 }
 
 func (self *Daemon) systemdReady(ctx context.Context) error {
