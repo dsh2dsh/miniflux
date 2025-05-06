@@ -49,10 +49,12 @@ func runCleanupTasks(ctx context.Context, store *storage.Storage) {
 	} else {
 		slog.Info("Archiving read entries completed",
 			slog.Int64("read_entries_archived", rowsAffected),
-		)
+			slog.Duration("elapsed", time.Since(startTime)))
 
 		if config.Opts.HasMetricsCollector() {
-			metric.ArchiveEntriesDuration.WithLabelValues(model.EntryStatusRead).Observe(time.Since(startTime).Seconds())
+			metric.ArchiveEntriesDuration.
+				WithLabelValues(model.EntryStatusRead).
+				Observe(time.Since(startTime).Seconds())
 		}
 	}
 
@@ -65,10 +67,12 @@ func runCleanupTasks(ctx context.Context, store *storage.Storage) {
 	} else {
 		slog.Info("Archiving unread entries completed",
 			slog.Int64("unread_entries_archived", rowsAffected),
-		)
+			slog.Duration("elapsed", time.Since(startTime)))
 
 		if config.Opts.HasMetricsCollector() {
-			metric.ArchiveEntriesDuration.WithLabelValues(model.EntryStatusUnread).Observe(time.Since(startTime).Seconds())
+			metric.ArchiveEntriesDuration.
+				WithLabelValues(model.EntryStatusUnread).
+				Observe(time.Since(startTime).Seconds())
 		}
 	}
 }

@@ -76,15 +76,13 @@ func (self *Pool) refreshFeed(job model.Job) {
 	err := handler.RefreshFeed(self.ctx, self.store, job.UserID,
 		job.FeedID, false)
 
-	if !config.Opts.HasMetricsCollector() {
-		return
+	if config.Opts.HasMetricsCollector() {
+		status := "success"
+		if err != nil {
+			status = "error"
+		}
+		metric.BackgroundFeedRefreshDuration.
+			WithLabelValues(status).
+			Observe(time.Since(startTime).Seconds())
 	}
-
-	status := "success"
-	if err != nil {
-		status = "error"
-	}
-	metric.BackgroundFeedRefreshDuration.
-		WithLabelValues(status).
-		Observe(time.Since(startTime).Seconds())
 }
