@@ -55,7 +55,7 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 			continue
 		}
 
-		if cleanedURL, err := urlcleaner.RemoveTrackingParameters(entry.URL); err == nil {
+		if cleanedURL, err := urlcleaner.RemoveTrackingParameters(feed.FeedURL, feed.SiteURL, entry.URL); err == nil {
 			entry.URL = cleanedURL
 		}
 
