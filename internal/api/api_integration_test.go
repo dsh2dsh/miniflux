@@ -6,2287 +6,956 @@ package api // import "miniflux.app/v2/internal/api"
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"math/rand"
-	"os"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/caarlos0/env/v11"
+	dotenv "github.com/dsh2dsh/expx-dotenv"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 
 	miniflux "miniflux.app/v2/client"
 )
 
-const skipIntegrationTestsMessage = `Set TEST_MINIFLUX_* environment variables to run the API integration tests`
-
-type integrationTestConfig struct {
-	testBaseURL           string
-	testAdminUsername     string
-	testAdminPassword     string
-	testRegularUsername   string
-	testRegularPassword   string
-	testFeedURL           string
-	testFeedTitle         string
-	testSubscriptionTitle string
-	testWebsiteURL        string
-}
-
-func newIntegrationTestConfig() *integrationTestConfig {
-	getDefaultEnvValues := func(key, defaultValue string) string {
-		value := os.Getenv(key)
-		if value == "" {
-			return defaultValue
-		}
-		return value
-	}
-
-	return &integrationTestConfig{
-		testBaseURL:           getDefaultEnvValues("TEST_MINIFLUX_BASE_URL", ""),
-		testAdminUsername:     getDefaultEnvValues("TEST_MINIFLUX_ADMIN_USERNAME", ""),
-		testAdminPassword:     getDefaultEnvValues("TEST_MINIFLUX_ADMIN_PASSWORD", ""),
-		testRegularUsername:   getDefaultEnvValues("TEST_MINIFLUX_REGULAR_USERNAME_PREFIX", "regular_test_user"),
-		testRegularPassword:   getDefaultEnvValues("TEST_MINIFLUX_REGULAR_PASSWORD", "regular_test_user_password"),
-		testFeedURL:           getDefaultEnvValues("TEST_MINIFLUX_FEED_URL", "https://miniflux.app/feed.xml"),
-		testFeedTitle:         getDefaultEnvValues("TEST_MINIFLUX_FEED_TITLE", "Miniflux"),
-		testSubscriptionTitle: getDefaultEnvValues("TEST_MINIFLUX_SUBSCRIPTION_TITLE", "Miniflux Releases"),
-		testWebsiteURL:        getDefaultEnvValues("TEST_MINIFLUX_WEBSITE_URL", "https://miniflux.app/"),
-	}
-}
-
-func (c *integrationTestConfig) isConfigured() bool {
-	return c.testBaseURL != "" && c.testAdminUsername != "" && c.testAdminPassword != "" && c.testFeedURL != "" && c.testFeedTitle != "" && c.testSubscriptionTitle != "" && c.testWebsiteURL != ""
-}
-
-func (c *integrationTestConfig) genRandomUsername() string {
-	return fmt.Sprintf("%s_%10d", c.testRegularUsername, rand.Int())
-}
-
-func TestIncorrectEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	client := miniflux.NewClient("incorrect url")
-	if _, err := client.Users(); err == nil {
-		t.Fatal(`Using an incorrect URL should raise an error`)
-	}
-
-	client = miniflux.NewClient("")
-	if _, err := client.Users(); err == nil {
-		t.Fatal(`Using an empty URL should raise an error`)
-	}
-}
-
 func TestHealthcheckEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	client := miniflux.NewClient(testConfig.testBaseURL)
-	if err := client.Healthcheck(); err != nil {
-		t.Fatal(err)
-	}
+	cfg := NewIntegrationConfig(t)
+	client := miniflux.NewClient(cfg.BaseURL)
+	require.NoError(t, client.Healthcheck())
 }
 
-func TestVersionEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
+func NewIntegrationConfig(t *testing.T) *IntegrationConfig {
+	t.Helper()
+
+	c := &IntegrationConfig{
+		RegularUsername:   "regular_test_user",
+		RegularPassword:   "regular_test_user_password",
+		FeedURL:           "http://127.0.0.1:8000/releases.atom",
+		FeedTitle:         "Release notes from v2",
+		SubscriptionTitle: "Miniflux Releases",
+		WebsiteURL:        "http://127.0.0.1:8000",
+		TestListenAddr:    "127.0.0.1:8000",
 	}
 
-	client := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	version, err := client.Version()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if version.Version == "" {
-		t.Fatal(`Version should not be empty`)
-	}
-
-	if version.Commit == "" {
-		t.Fatal(`Commit should not be empty`)
-	}
-
-	if version.BuildDate == "" {
-		t.Fatal(`Build date should not be empty`)
-	}
-
-	if version.GoVersion == "" {
-		t.Fatal(`Go version should not be empty`)
-	}
-
-	if version.Compiler == "" {
-		t.Fatal(`Compiler should not be empty`)
-	}
-
-	if version.Arch == "" {
-		t.Fatal(`Arch should not be empty`)
-	}
-
-	if version.OS == "" {
-		t.Fatal(`OS should not be empty`)
-	}
+	err := dotenv.New().Load(func() error { return env.Parse(c) })
+	require.NoError(t, err)
+	return c
 }
 
-func TestInvalidCredentials(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
+type IntegrationConfig struct {
+	BaseURL           string `env:"TEST_MINIFLUX_BASE_URL,required"`
+	AdminUsername     string `env:"ADMIN_USERNAME,required"`
+	AdminPassword     string `env:"ADMIN_PASSWORD,required"`
+	RegularUsername   string `env:"TEST_MINIFLUX_REGULAR_USERNAME_PREFIX"`
+	RegularPassword   string `env:"TEST_MINIFLUX_REGULAR_PASSWORD"`
+	FeedURL           string `env:"TEST_MINIFLUX_FEED_URL"`
+	FeedTitle         string `env:"TEST_MINIFLUX_FEED_TITLE"`
+	SubscriptionTitle string `env:"TEST_MINIFLUX_SUBSCRIPTION_TITLE"`
+	WebsiteURL        string `env:"TEST_MINIFLUX_WEBSITE_URL"`
+	TestListenAddr    string `env:"TEST_LISTEN_ADDR"`
+}
+
+func (c *IntegrationConfig) Configured() bool { return true }
+
+func (c *IntegrationConfig) RandomUsername() string {
+	return fmt.Sprintf("%s_%10d", c.RegularUsername, rand.Int())
+}
+
+func TestEndpointSuite(t *testing.T) {
+	cfg := NewIntegrationConfig(t)
+	admin := miniflux.NewClient(cfg.BaseURL, cfg.AdminUsername,
+		cfg.AdminPassword)
+	require.NotNil(t, admin)
+	require.NoError(t, admin.Healthcheck())
+
+	l, err := net.Listen("tcp", cfg.TestListenAddr)
+	require.NoError(t, err)
+	ts := httptest.NewUnstartedServer(http.FileServer(http.Dir("testdata")))
+	ts.Listener = l
+	ts.Start()
+	defer ts.Close()
+	t.Log("httptest.Server listens on", ts.URL)
+
+	e2e := &EndpointTestSuite{
+		cfg:   cfg,
+		admin: admin,
+	}
+	suite.Run(t, e2e)
+}
+
+type EndpointTestSuite struct {
+	suite.Suite
+
+	cfg   *IntegrationConfig
+	admin *miniflux.Client
+
+	user   *miniflux.User
+	client *miniflux.Client
+}
+
+func (self *EndpointTestSuite) SetupTest() {
+	username := self.cfg.RandomUsername()
+	user, err := self.admin.CreateUser(username, self.cfg.RegularPassword, false)
+	self.Require().NoError(err)
+	self.Require().NotNil(user)
+	self.Require().Equal(username, user.Username, "Invalid username")
+	self.user = user
+
+	client := miniflux.NewClient(self.cfg.BaseURL, user.Username,
+		self.cfg.RegularPassword)
+	self.Require().NotNil(client)
+	self.client = client
+}
+
+func (self *EndpointTestSuite) TearDownTest() {
+	if self.user == nil {
+		return
 	}
 
-	client := miniflux.NewClient(testConfig.testBaseURL, "invalid", "invalid")
+	self.Require().NoError(self.admin.DeleteUser(self.user.ID))
+	self.user = nil
+	self.client = nil
+}
+
+func (self *EndpointTestSuite) TestVersionEndpoint() {
+	version, err := self.admin.Version()
+	self.Require().NoError(err)
+	self.Require().NotNil(version)
+
+	self.NotEmpty(version.Version, "Version should not be empty")
+	self.NotEmpty(version.Commit, "Commit should not be empty")
+	self.NotEmpty(version.OS, "OS should not be empty")
+}
+
+func (self *EndpointTestSuite) TestInvalidCredentials() {
+	client := miniflux.NewClient(self.cfg.BaseURL, "invalid", "invalid")
+	self.Require().NotNil(client)
+
 	_, err := client.Users()
-	if err == nil {
-		t.Fatal(`Using bad credentials should raise an error`)
-	}
-
-	if !errors.Is(err, miniflux.ErrNotAuthorized) {
-		t.Fatal(`A "Not Authorized" error should be raised`)
-	}
+	self.Require().Error(err, "Using bad credentials should raise an error")
+	self.ErrorIs(err, miniflux.ErrNotAuthorized,
+		`A "Not Authorized" error should be raised`)
 }
 
-func TestGetMeEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	client := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	user, err := client.Me()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if user.Username != testConfig.testAdminUsername {
-		t.Fatalf(`Invalid username, got %q instead of %q`, user.Username, testConfig.testAdminUsername)
-	}
+func (self *EndpointTestSuite) TestGetMeEndpoint() {
+	user, err := self.admin.Me()
+	self.Require().NoError(err)
+	self.Equal(self.cfg.AdminUsername, user.Username)
 }
 
-func TestGetUsersEndpointAsAdmin(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestGetUsersEndpointAsAdmin() {
+	users, err := self.admin.Users()
+	self.Require().NoError(err)
 
-	client := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	users, err := client.Users()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(users) == 0 {
-		t.Fatal(`Users should not be empty`)
-	}
-
-	if users[0].ID == 0 {
-		t.Fatalf(`Invalid userID, got "%v"`, users[0].ID)
-	}
-
-	if users[0].Username != testConfig.testAdminUsername {
-		t.Fatalf(`Invalid username, got "%v" instead of "%v"`, users[0].Username, testConfig.testAdminUsername)
-	}
-
-	if users[0].Password != "" {
-		t.Fatalf(`Invalid password, got "%v"`, users[0].Password)
-	}
-
-	if users[0].Language != "en_US" {
-		t.Fatalf(`Invalid language, got "%v"`, users[0].Language)
-	}
-
-	if users[0].Theme != "light_serif" {
-		t.Fatalf(`Invalid theme, got "%v"`, users[0].Theme)
-	}
-
-	if users[0].Timezone != "UTC" {
-		t.Fatalf(`Invalid timezone, got "%v"`, users[0].Timezone)
-	}
-
-	if !users[0].IsAdmin {
-		t.Fatalf(`Invalid role, got "%v"`, users[0].IsAdmin)
-	}
-
-	if users[0].EntriesPerPage != 100 {
-		t.Fatalf(`Invalid entries per page, got "%v"`, users[0].EntriesPerPage)
-	}
-
-	if users[0].DisplayMode != "standalone" {
-		t.Fatalf(`Invalid web app display mode, got "%v"`, users[0].DisplayMode)
-	}
-
-	if users[0].GestureNav != "tap" {
-		t.Fatalf(`Invalid gesture navigation, got "%v"`, users[0].GestureNav)
-	}
-
-	if users[0].DefaultReadingSpeed != 265 {
-		t.Fatalf(`Invalid default reading speed, got "%v"`, users[0].DefaultReadingSpeed)
-	}
-
-	if users[0].CJKReadingSpeed != 500 {
-		t.Fatalf(`Invalid cjk reading speed, got "%v"`, users[0].CJKReadingSpeed)
-	}
+	self.Require().NotEmpty(users, "Users should not be empty")
+	self.NotEmpty(users[0].ID, "Invalid userID")
+	self.Equal(self.cfg.AdminUsername, users[0].Username, "Invalid username")
+	self.Empty(users[0].Password, "Invalid password")
+	self.Equal("en_US", users[0].Language, "Invalid language")
+	self.Equal("light_serif", users[0].Theme, "Invalid theme")
+	self.Equal("UTC", users[0].Timezone, "Invalid timezone")
+	self.True(users[0].IsAdmin, "Invalid role")
+	self.Equal(100, users[0].EntriesPerPage, "Invalid entries per page")
+	self.Equal("standalone", users[0].DisplayMode, "Invalid web app display mode")
+	self.Equal("tap", users[0].GestureNav, "Invalid gesture navigation")
+	self.Equal(265, users[0].DefaultReadingSpeed, "Invalid default reading speed")
+	self.Equal(500, users[0].CJKReadingSpeed, "Invalid cjk reading speed")
 }
 
-func TestGetUsersEndpointAsRegularUser(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-	_, err = regularUserClient.Users()
-	if err == nil {
-		t.Fatal(`Regular users should not have access to the users endpoint`)
-	}
+func (self *EndpointTestSuite) TestGetUsersEndpointAsRegularUser() {
+	_, err := self.client.Users()
+	self.Require().Error(err,
+		"Regular users should not have access to the users endpoint")
 }
 
-func TestCreateUserEndpointAsAdmin(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	client := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	username := testConfig.genRandomUsername()
-	regularTestUser, err := client.CreateUser(username, testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer client.DeleteUser(regularTestUser.ID)
-
-	if regularTestUser.Username != username {
-		t.Fatalf(`Invalid username, got "%v" instead of "%v"`, regularTestUser.Username, username)
-	}
-
-	if regularTestUser.Password != "" {
-		t.Fatalf(`Invalid password, got "%v"`, regularTestUser.Password)
-	}
-
-	if regularTestUser.Language != "en_US" {
-		t.Fatalf(`Invalid language, got "%v"`, regularTestUser.Language)
-	}
-
-	if regularTestUser.Theme != "light_serif" {
-		t.Fatalf(`Invalid theme, got "%v"`, regularTestUser.Theme)
-	}
-
-	if regularTestUser.Timezone != "UTC" {
-		t.Fatalf(`Invalid timezone, got "%v"`, regularTestUser.Timezone)
-	}
-
-	if regularTestUser.IsAdmin {
-		t.Fatalf(`Invalid role, got "%v"`, regularTestUser.IsAdmin)
-	}
-
-	if regularTestUser.EntriesPerPage != 100 {
-		t.Fatalf(`Invalid entries per page, got "%v"`, regularTestUser.EntriesPerPage)
-	}
-
-	if regularTestUser.DisplayMode != "standalone" {
-		t.Fatalf(`Invalid web app display mode, got "%v"`, regularTestUser.DisplayMode)
-	}
-
-	if regularTestUser.GestureNav != "tap" {
-		t.Fatalf(`Invalid gesture navigation, got "%v"`, regularTestUser.GestureNav)
-	}
-
-	if regularTestUser.DefaultReadingSpeed != 265 {
-		t.Fatalf(`Invalid default reading speed, got "%v"`, regularTestUser.DefaultReadingSpeed)
-	}
-
-	if regularTestUser.CJKReadingSpeed != 500 {
-		t.Fatalf(`Invalid cjk reading speed, got "%v"`, regularTestUser.CJKReadingSpeed)
-	}
+func (self *EndpointTestSuite) TestCreateUserEndpointAsAdmin() {
+	self.Empty(self.user.Password, "Invalid password")
+	self.Equal("en_US", self.user.Language, "Invalid language")
+	self.Equal("light_serif", self.user.Theme, "Invalid theme")
+	self.Equal("UTC", self.user.Timezone, "Invalid timezone")
+	self.False(self.user.IsAdmin, "Invalid role")
+	self.Equal(100, self.user.EntriesPerPage, "Invalid entries per page")
+	self.Equal("standalone", self.user.DisplayMode,
+		"Invalid web app display mode")
+	self.Equal("tap", self.user.GestureNav, "Invalid gesture navigation")
+	self.Equal(265, self.user.DefaultReadingSpeed,
+		"Invalid default reading speed")
+	self.Equal(500, self.user.CJKReadingSpeed, "Invalid cjk reading speed")
 }
 
-func TestCreateUserEndpointAsRegularUser(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-	_, err = regularUserClient.CreateUser(regularTestUser.Username, testConfig.testRegularPassword, false)
-	if err == nil {
-		t.Fatal(`Regular users should not have access to the create user endpoint`)
-	}
+func (self *EndpointTestSuite) TestCreateUserEndpointAsRegularUser() {
+	_, err := self.client.CreateUser(self.cfg.RandomUsername(),
+		self.cfg.RegularPassword, false)
+	self.Require().Error(err,
+		"Regular users should not have access to the create user endpoint")
 }
 
-func TestCannotCreateDuplicateUser(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	client := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	_, err := client.CreateUser(testConfig.testAdminUsername, testConfig.testAdminPassword, true)
-	if err == nil {
-		t.Fatal(`Duplicated users should not be allowed`)
-	}
+func (self *EndpointTestSuite) TestCannotCreateDuplicateUser() {
+	_, err := self.admin.CreateUser(self.cfg.AdminUsername,
+		self.cfg.AdminPassword, true)
+	self.Require().Error(err, "Duplicated users should not be allowed")
 }
 
-func TestRemoveUserEndpointAsAdmin(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	client := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	user, err := client.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := client.DeleteUser(user.ID); err != nil {
-		t.Fatal(err)
-	}
+func (self *EndpointTestSuite) TestRemoveUserEndpointAsAdmin() {
+	user, err := self.admin.CreateUser(self.cfg.RandomUsername(),
+		self.cfg.RegularPassword, false)
+	self.Require().NoError(err)
+	self.Require().NotNil(user)
+	self.Require().NoError(self.admin.DeleteUser(user.ID))
 }
 
-func TestRemoveUserEndpointAsRegularUser(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-	err = regularUserClient.DeleteUser(regularTestUser.ID)
-	if err == nil {
-		t.Fatal(`Regular users should not have access to the remove user endpoint`)
-	}
+func (self *EndpointTestSuite) TestRemoveUserEndpointAsRegularUser() {
+	err := self.client.DeleteUser(self.user.ID)
+	self.Require().Error(err,
+		"Regular users should not have access to the remove user endpoint")
 }
 
-func TestGetUserByIDEndpointAsAdmin(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestGetUserByIDEndpointAsAdmin() {
+	user, err := self.admin.Me()
+	self.Require().NoError(err)
+	self.Require().NotNil(user)
 
-	client := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	user, err := client.Me()
-	if err != nil {
-		t.Fatal(err)
-	}
+	userByID, err := self.admin.UserByID(user.ID)
+	self.Require().NoError(err)
+	self.Require().NotNil(userByID)
 
-	userByID, err := client.UserByID(user.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if userByID.ID != user.ID {
-		t.Errorf(`Invalid userID, got "%v" instead of "%v"`, userByID.ID, user.ID)
-	}
-
-	if userByID.Username != user.Username {
-		t.Errorf(`Invalid username, got "%v" instead of "%v"`, userByID.Username, user.Username)
-	}
-
-	if userByID.Password != "" {
-		t.Errorf(`The password field must be empty, got "%v"`, userByID.Password)
-	}
-
-	if userByID.Language != user.Language {
-		t.Errorf(`Invalid language, got "%v"`, userByID.Language)
-	}
-
-	if userByID.Theme != user.Theme {
-		t.Errorf(`Invalid theme, got "%v"`, userByID.Theme)
-	}
-
-	if userByID.Timezone != user.Timezone {
-		t.Errorf(`Invalid timezone, got "%v"`, userByID.Timezone)
-	}
-
-	if userByID.IsAdmin != user.IsAdmin {
-		t.Errorf(`Invalid role, got "%v"`, userByID.IsAdmin)
-	}
-
-	if userByID.EntriesPerPage != user.EntriesPerPage {
-		t.Errorf(`Invalid entries per page, got "%v"`, userByID.EntriesPerPage)
-	}
-
-	if userByID.DisplayMode != user.DisplayMode {
-		t.Errorf(`Invalid web app display mode, got "%v"`, userByID.DisplayMode)
-	}
-
-	if userByID.GestureNav != user.GestureNav {
-		t.Errorf(`Invalid gesture navigation, got "%v"`, userByID.GestureNav)
-	}
-
-	if userByID.DefaultReadingSpeed != user.DefaultReadingSpeed {
-		t.Errorf(`Invalid default reading speed, got "%v"`, userByID.DefaultReadingSpeed)
-	}
-
-	if userByID.CJKReadingSpeed != user.CJKReadingSpeed {
-		t.Errorf(`Invalid cjk reading speed, got "%v"`, userByID.CJKReadingSpeed)
-	}
-
-	if userByID.EntryDirection != user.EntryDirection {
-		t.Errorf(`Invalid entry direction, got "%v"`, userByID.EntryDirection)
-	}
-
-	if userByID.EntryOrder != user.EntryOrder {
-		t.Errorf(`Invalid entry order, got "%v"`, userByID.EntryOrder)
-	}
+	self.Equal(user.ID, userByID.ID, "Invalid userID")
+	self.Equal(user.Username, userByID.Username, "Invalid username")
+	self.Empty(userByID.Password, "The password field must be empty")
+	self.Equal(user.Language, userByID.Language, "Invalid language")
+	self.Equal(user.Theme, userByID.Theme, "Invalid theme")
+	self.Equal(user.Timezone, userByID.Timezone, "Invalid timezone")
+	self.Equal(user.IsAdmin, userByID.IsAdmin, "Invalid role")
+	self.Equal(user.EntriesPerPage, userByID.EntriesPerPage,
+		"Invalid entries per page")
+	self.Equal(user.DisplayMode, userByID.DisplayMode,
+		"Invalid web app display mode")
+	self.Equal(user.GestureNav, userByID.GestureNav,
+		"Invalid gesture navigation")
+	self.Equal(user.DefaultReadingSpeed, userByID.DefaultReadingSpeed,
+		"Invalid default reading speed")
+	self.Equal(user.CJKReadingSpeed, userByID.CJKReadingSpeed,
+		"Invalid cjk reading speed")
+	self.Equal(user.EntryDirection, userByID.EntryDirection,
+		"Invalid entry direction")
+	self.Equal(user.EntryOrder, userByID.EntryOrder, "Invalid entry order")
 }
 
-func TestGetUserByIDEndpointAsRegularUser(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-	_, err = regularUserClient.UserByID(regularTestUser.ID)
-	if err == nil {
-		t.Fatal(`Regular users should not have access to the user by ID endpoint`)
-	}
+func (self *EndpointTestSuite) TestGetUserByIDEndpointAsRegularUser() {
+	_, err := self.client.UserByID(self.user.ID)
+	self.Require().Error(err,
+		"Regular users should not have access to the user by ID endpoint")
 }
 
-func TestGetUserByUsernameEndpointAsAdmin(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestGetUserByUsernameEndpointAsAdmin() {
+	user, err := self.admin.Me()
+	self.Require().NoError(err)
+	self.Require().NotNil(user)
 
-	client := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	user, err := client.Me()
-	if err != nil {
-		t.Fatal(err)
-	}
+	userByUsername, err := self.admin.UserByUsername(user.Username)
+	self.Require().NoError(err)
 
-	userByUsername, err := client.UserByUsername(user.Username)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if userByUsername.ID != user.ID {
-		t.Errorf(`Invalid userID, got "%v" instead of "%v"`, userByUsername.ID, user.ID)
-	}
-
-	if userByUsername.Username != user.Username {
-		t.Errorf(`Invalid username, got "%v" instead of "%v"`, userByUsername.Username, user.Username)
-	}
-
-	if userByUsername.Password != "" {
-		t.Errorf(`The password field must be empty, got "%v"`, userByUsername.Password)
-	}
-
-	if userByUsername.Language != user.Language {
-		t.Errorf(`Invalid language, got "%v"`, userByUsername.Language)
-	}
-
-	if userByUsername.Theme != user.Theme {
-		t.Errorf(`Invalid theme, got "%v"`, userByUsername.Theme)
-	}
-
-	if userByUsername.Timezone != user.Timezone {
-		t.Errorf(`Invalid timezone, got "%v"`, userByUsername.Timezone)
-	}
-
-	if userByUsername.IsAdmin != user.IsAdmin {
-		t.Errorf(`Invalid role, got "%v"`, userByUsername.IsAdmin)
-	}
-
-	if userByUsername.EntriesPerPage != user.EntriesPerPage {
-		t.Errorf(`Invalid entries per page, got "%v"`, userByUsername.EntriesPerPage)
-	}
-
-	if userByUsername.DisplayMode != user.DisplayMode {
-		t.Errorf(`Invalid web app display mode, got "%v"`, userByUsername.DisplayMode)
-	}
-
-	if userByUsername.GestureNav != user.GestureNav {
-		t.Errorf(`Invalid gesture navigation, got "%v"`, userByUsername.GestureNav)
-	}
-
-	if userByUsername.DefaultReadingSpeed != user.DefaultReadingSpeed {
-		t.Errorf(`Invalid default reading speed, got "%v"`, userByUsername.DefaultReadingSpeed)
-	}
-
-	if userByUsername.CJKReadingSpeed != user.CJKReadingSpeed {
-		t.Errorf(`Invalid cjk reading speed, got "%v"`, userByUsername.CJKReadingSpeed)
-	}
-
-	if userByUsername.EntryDirection != user.EntryDirection {
-		t.Errorf(`Invalid entry direction, got "%v"`, userByUsername.EntryDirection)
-	}
+	self.Equal(user.ID, userByUsername.ID, "Invalid userID")
+	self.Equal(user.Username, userByUsername.Username, "Invalid username")
+	self.Empty(userByUsername.Password, "The password field must be empty")
+	self.Equal(user.Language, userByUsername.Language, "Invalid language")
+	self.Equal(user.Theme, userByUsername.Theme, "Invalid theme")
+	self.Equal(user.Timezone, userByUsername.Timezone, "Invalid timezone")
+	self.Equal(user.IsAdmin, userByUsername.IsAdmin, "Invalid role")
+	self.Equal(user.EntriesPerPage, userByUsername.EntriesPerPage,
+		"Invalid entries per page")
+	self.Equal(user.DisplayMode, userByUsername.DisplayMode, "Invalid web app display mode")
+	self.Equal(user.GestureNav, userByUsername.GestureNav,
+		"Invalid gesture navigation")
+	self.Equal(user.DefaultReadingSpeed, userByUsername.DefaultReadingSpeed,
+		"Invalid default reading speed")
+	self.Equal(user.CJKReadingSpeed, userByUsername.CJKReadingSpeed,
+		"Invalid cjk reading speed")
+	self.Equal(user.EntryDirection, userByUsername.EntryDirection,
+		"Invalid entry direction")
 }
 
-func TestGetUserByUsernameEndpointAsRegularUser(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-	_, err = regularUserClient.UserByUsername(regularTestUser.Username)
-	if err == nil {
-		t.Fatal(`Regular users should not have access to the user by username endpoint`)
-	}
+func (self *EndpointTestSuite) TestGetUserByUsernameEndpointAsRegularUser() {
+	_, err := self.client.UserByUsername(self.user.Username)
+	self.Require().Error(err,
+		"Regular users should not have access to the user by username endpoint")
 }
 
-func TestUpdateUserEndpointByChangingDefaultTheme(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	userUpdateRequest := &miniflux.UserModificationRequest{
+func (self *EndpointTestSuite) TestUpdateUserEndpointByChangingDefaultTheme() {
+	userUpdateRequest := miniflux.UserModificationRequest{
 		Theme: miniflux.SetOptionalField("dark_serif"),
 	}
 
-	updatedUser, err := regularUserClient.UpdateUser(regularTestUser.ID, userUpdateRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if updatedUser.Theme != "dark_serif" {
-		t.Fatalf(`Invalid theme, got "%v"`, updatedUser.Theme)
-	}
+	updatedUser, err := self.client.UpdateUser(self.user.ID, &userUpdateRequest)
+	self.Require().NoError(err)
+	self.Equal("dark_serif", updatedUser.Theme, "Invalid theme")
 }
 
-func TestUpdateUserEndpointByChangingExternalFonts(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	userUpdateRequest := &miniflux.UserModificationRequest{
+func (self *EndpointTestSuite) TestUpdateUserEndpointByChangingExternalFonts() {
+	userUpdateRequest := miniflux.UserModificationRequest{
 		ExternalFontHosts: miniflux.SetOptionalField("  fonts.example.org  "),
 	}
 
-	updatedUser, err := regularUserClient.UpdateUser(regularTestUser.ID, userUpdateRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if updatedUser.ExternalFontHosts != "fonts.example.org" {
-		t.Fatalf(`Invalid external font hosts, got "%v"`, updatedUser.ExternalFontHosts)
-	}
+	updatedUser, err := self.client.UpdateUser(self.user.ID, &userUpdateRequest)
+	self.Require().NoError(err)
+	self.Equal("fonts.example.org", updatedUser.ExternalFontHosts,
+		"Invalid external font hosts")
 }
 
-func TestUpdateUserEndpointByChangingExternalFontsWithInvalidValue(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	userUpdateRequest := &miniflux.UserModificationRequest{
+func (self *EndpointTestSuite) TestUpdateUserEndpointByChangingExternalFontsWithInvalidValue() {
+	userUpdateRequest := miniflux.UserModificationRequest{
 		ExternalFontHosts: miniflux.SetOptionalField("'self' *"),
 	}
 
-	if _, err := regularUserClient.UpdateUser(regularTestUser.ID, userUpdateRequest); err == nil {
-		t.Fatal(`Updating the user with an invalid external font host should raise an error`)
-	}
+	_, err := self.client.UpdateUser(self.user.ID, &userUpdateRequest)
+	self.Require().Error(err,
+		"Updating the user with an invalid external font host should raise an error")
 }
 
-func TestUpdateUserEndpointByChangingCustomJS(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
+func (self *EndpointTestSuite) TestUpdateUserEndpointByChangingCustomJS() {
+	const js = "alert('Hello, World!');"
+	userUpdateRequest := miniflux.UserModificationRequest{
+		CustomJS: miniflux.SetOptionalField(js),
 	}
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	userUpdateRequest := &miniflux.UserModificationRequest{
-		CustomJS: miniflux.SetOptionalField("alert('Hello, World!');"),
-	}
-
-	updatedUser, err := regularUserClient.UpdateUser(regularTestUser.ID, userUpdateRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if updatedUser.CustomJS != "alert('Hello, World!');" {
-		t.Fatalf(`Invalid custom JS, got %q`, updatedUser.CustomJS)
-	}
+	updatedUser, err := self.client.UpdateUser(self.user.ID, &userUpdateRequest)
+	self.Require().NoError(err)
+	self.Equal(js, updatedUser.CustomJS, "Invalid custom JS")
 }
 
-func TestUpdateUserEndpointByChangingDefaultThemeToInvalidValue(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	userUpdateRequest := &miniflux.UserModificationRequest{
+func (self *EndpointTestSuite) TestUpdateUserEndpointByChangingDefaultThemeToInvalidValue() {
+	userUpdateRequest := miniflux.UserModificationRequest{
 		Theme: miniflux.SetOptionalField("invalid_theme"),
 	}
 
-	_, err = regularUserClient.UpdateUser(regularTestUser.ID, userUpdateRequest)
-	if err == nil {
-		t.Fatal(`Updating the user with an invalid theme should raise an error`)
-	}
+	_, err := self.client.UpdateUser(self.user.ID, &userUpdateRequest)
+	self.Require().Error(err,
+		"Updating the user with an invalid theme should raise an error")
 }
 
-func TestRegularUsersCannotUpdateOtherUsers(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestRegularUsersCannotUpdateOtherUsers() {
+	adminUser, err := self.admin.Me()
+	self.Require().NoError(err)
+	self.Require().NotNil(adminUser)
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	adminUser, err := adminClient.Me()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	userUpdateRequest := &miniflux.UserModificationRequest{
+	userUpdateRequest := miniflux.UserModificationRequest{
 		Theme: miniflux.SetOptionalField("dark_serif"),
 	}
 
-	_, err = regularUserClient.UpdateUser(adminUser.ID, userUpdateRequest)
-	if err == nil {
-		t.Fatal(`Regular users should not be able to update other users`)
-	}
+	_, err = self.client.UpdateUser(adminUser.ID, &userUpdateRequest)
+	self.Require().Error(err,
+		"Regular users should not be able to update other users")
 }
 
-func TestMarkUserAsReadEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestMarkUserAsReadEndpoint() {
+	feedID := self.createFeed()
+	self.Require().NoError(self.client.MarkAllAsRead(self.user.ID))
+	self.checkFeedIsRead(feedID)
+}
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
+func (self *EndpointTestSuite) createFeed() int64 {
+	self.T().Helper()
 
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
+	feedID, err := self.client.CreateFeed(&miniflux.FeedCreationRequest{
+		FeedURL: self.cfg.FeedURL,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	self.Require().NoError(err)
+	self.NotZero(feedID, "Invalid feedID")
+	return feedID
+}
 
-	if err := regularUserClient.MarkAllAsRead(regularTestUser.ID); err != nil {
-		t.Fatal(err)
-	}
+func (self *EndpointTestSuite) checkFeedIsRead(feedID int64) {
+	self.T().Helper()
 
-	results, err := regularUserClient.FeedEntries(feedID, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	results, err := self.client.FeedEntries(feedID, nil)
+	self.Require().NoError(err)
+	self.Require().NotNil(results)
+	self.T().Log("Got entries:", len(results.Entries))
 
-	for _, entry := range results.Entries {
-		if entry.Status != miniflux.EntryStatusRead {
-			t.Errorf(`Status for entry %d was %q instead of %q`, entry.ID, entry.Status, miniflux.EntryStatusRead)
-		}
+	i := slices.IndexFunc(results.Entries, func(entry *miniflux.Entry) bool {
+		return entry.Status != miniflux.EntryStatusRead
+	})
+
+	if !self.Equal(-1, i) {
+		entry := results.Entries[i]
+		self.T().Logf("Status for entry %d was %q instead of %q",
+			entry.ID, entry.Status, miniflux.EntryStatusRead)
 	}
 }
 
-func TestCannotMarkUserAsReadAsOtherUser(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestCannotMarkUserAsReadAsOtherUser() {
+	adminUser, err := self.admin.Me()
+	self.Require().NoError(err)
+	self.Require().NotNil(adminUser)
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	adminUser, err := adminClient.Me()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-	if err := regularUserClient.MarkAllAsRead(adminUser.ID); err == nil {
-		t.Fatalf(`Non-admin users should not be able to mark another user as read`)
-	}
+	err = self.client.MarkAllAsRead(adminUser.ID)
+	self.Require().Error(err,
+		"Non-admin users should not be able to mark another user as read")
 }
 
-func TestCreateCategoryEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
+func (self *EndpointTestSuite) TestCreateCategoryEndpoint() {
 	categoryName := "My category"
-	category, err := regularUserClient.CreateCategory(categoryName)
-	if err != nil {
-		t.Fatal(err)
-	}
+	category, err := self.client.CreateCategory(categoryName)
+	self.Require().NoError(err)
+	self.Require().NotNil(category)
 
-	if category.ID == 0 {
-		t.Errorf(`Invalid categoryID, got "%v"`, category.ID)
-	}
-
-	if category.UserID <= 0 {
-		t.Errorf(`Invalid userID, got "%v"`, category.UserID)
-	}
-
-	if category.Title != categoryName {
-		t.Errorf(`Invalid title, got "%v" instead of "%v"`, category.Title, categoryName)
-	}
-
-	if category.HideGlobally {
-		t.Errorf(`Invalid hide globally value, got "%v"`, category.HideGlobally)
-	}
+	self.NotEmpty(category.ID, "Invalid categoryID")
+	self.Positive(category.UserID, "Invalid userID")
+	self.Equal(categoryName, category.Title, "Invalid title")
+	self.False(category.HideGlobally, "Invalid hide globally value")
 }
 
-func TestCreateCategoryWithEmptyTitle(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	client := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	_, err := client.CreateCategory("")
-	if err == nil {
-		t.Fatalf(`Creating a category with an empty title should raise an error`)
-	}
+func (self *EndpointTestSuite) TestCreateCategoryWithEmptyTitle() {
+	_, err := self.client.CreateCategory("")
+	self.T().Log(err)
+	self.Require().Error(err,
+		"Creating a category with an empty title should raise an error")
 }
 
-func TestCannotCreateDuplicatedCategory(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
+func (self *EndpointTestSuite) TestCannotCreateDuplicatedCategory() {
 	categoryName := "My category"
+	_, err := self.client.CreateCategory(categoryName)
+	self.Require().NoError(err)
 
-	if _, err := regularUserClient.CreateCategory(categoryName); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err = regularUserClient.CreateCategory(categoryName); err == nil {
-		t.Fatalf(`Duplicated categories should not be allowed`)
-	}
+	_, err = self.client.CreateCategory(categoryName)
+	self.T().Log(err)
+	self.Require().Error(err, "Duplicated categories should not be allowed")
 }
 
-func TestCreateCategoryWithOptions(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	newCategory, err := regularUserClient.CreateCategoryWithOptions(&miniflux.CategoryCreationRequest{
+func (self *EndpointTestSuite) TestCreateCategoryWithOptions() {
+	categoryCreate := miniflux.CategoryCreationRequest{
 		Title:        "My category",
 		HideGlobally: true,
+	}
+	newCategory, err := self.client.CreateCategoryWithOptions(&categoryCreate)
+	self.Require().NoError(err,
+		"Creating a category with options should not raise an error")
+
+	categories, err := self.client.Categories()
+	self.Require().NoError(err)
+
+	i := slices.IndexFunc(categories, func(c *miniflux.Category) bool {
+		return c.ID == newCategory.ID
 	})
-	if err != nil {
-		t.Fatalf(`Creating a category with options should not raise an error: %v`, err)
-	}
+	self.Require().GreaterOrEqual(i, 0)
 
-	categories, err := regularUserClient.Categories()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for _, category := range categories {
-		if category.ID == newCategory.ID {
-			if category.Title != newCategory.Title {
-				t.Errorf(`Invalid title, got %q instead of %q`, category.Title, newCategory.Title)
-			}
-			if category.HideGlobally != true {
-				t.Errorf(`Invalid hide globally value, got "%v"`, category.HideGlobally)
-			}
-			break
-		}
-	}
+	category := categories[i]
+	self.Equal(newCategory.Title, category.Title, "Invalid title")
+	self.True(category.HideGlobally, "Invalid hide globally value")
 }
 
-func TestUpdateCategoryEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestUpdateCategoryEndpoint() {
+	category, err := self.client.CreateCategory("My category")
+	self.Require().NoError(err)
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	categoryName := "My category"
-	category, err := regularUserClient.CreateCategory(categoryName)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	updatedCategory, err := regularUserClient.UpdateCategory(category.ID, "new title")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if updatedCategory.ID != category.ID {
-		t.Errorf(`Invalid categoryID, got "%v"`, updatedCategory.ID)
-	}
-
-	if updatedCategory.UserID != regularTestUser.ID {
-		t.Errorf(`Invalid userID, got "%v"`, updatedCategory.UserID)
-	}
-
-	if updatedCategory.Title != "new title" {
-		t.Errorf(`Invalid title, got "%v" instead of "%v"`, updatedCategory.Title, "new title")
-	}
-
-	if updatedCategory.HideGlobally {
-		t.Errorf(`Invalid hide globally value, got "%v"`, updatedCategory.HideGlobally)
-	}
+	const title = "new title"
+	updatedCategory, err := self.client.UpdateCategory(category.ID, title)
+	self.Require().NoError(err)
+	self.Equal(category.ID, updatedCategory.ID, "Invalid categoryID")
+	self.Equal(self.user.ID, updatedCategory.UserID, "Invalid userID")
+	self.Equal(title, updatedCategory.Title, "Invalid title")
+	self.False(updatedCategory.HideGlobally, "Invalid hide globally value")
 }
 
-func TestUpdateCategoryWithOptions(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
+func (self *EndpointTestSuite) TestUpdateCategoryWithOptions() {
+	categoryCreate := miniflux.CategoryCreationRequest{Title: "My category"}
+	newCategory, err := self.client.CreateCategoryWithOptions(&categoryCreate)
+	self.Require().NoError(err,
+		"Creating a category with options should not raise an error")
+
+	const title = "new title"
+	categoryModify := miniflux.CategoryModificationRequest{
+		Title: miniflux.SetOptionalField(title),
 	}
+	updatedCategory, err := self.client.UpdateCategoryWithOptions(
+		newCategory.ID, &categoryModify)
+	self.Require().NoError(err)
+	self.Equal(newCategory.ID, updatedCategory.ID, "Invalid categoryID")
+	self.Equal(title, updatedCategory.Title, "Invalid title")
+	self.False(updatedCategory.HideGlobally, "Invalid hide globally value")
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	newCategory, err := regularUserClient.CreateCategoryWithOptions(&miniflux.CategoryCreationRequest{
-		Title: "My category",
-	})
-	if err != nil {
-		t.Fatalf(`Creating a category with options should not raise an error: %v`, err)
-	}
-
-	updatedCategory, err := regularUserClient.UpdateCategoryWithOptions(newCategory.ID, &miniflux.CategoryModificationRequest{
-		Title: miniflux.SetOptionalField("new title"),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if updatedCategory.ID != newCategory.ID {
-		t.Errorf(`Invalid categoryID, got "%v"`, updatedCategory.ID)
-	}
-
-	if updatedCategory.Title != "new title" {
-		t.Errorf(`Invalid title, got "%v" instead of "%v"`, updatedCategory.Title, "new title")
-	}
-
-	if updatedCategory.HideGlobally {
-		t.Errorf(`Invalid hide globally value, got "%v"`, updatedCategory.HideGlobally)
-	}
-
-	updatedCategory, err = regularUserClient.UpdateCategoryWithOptions(newCategory.ID, &miniflux.CategoryModificationRequest{
+	categoryModify = miniflux.CategoryModificationRequest{
 		HideGlobally: miniflux.SetOptionalField(true),
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
+	updatedCategory, err = self.client.UpdateCategoryWithOptions(
+		newCategory.ID, &categoryModify)
+	self.Require().NoError(err)
+	self.Equal(newCategory.ID, updatedCategory.ID, "Invalid categoryID")
+	self.Equal(title, updatedCategory.Title, "Invalid title")
+	self.True(updatedCategory.HideGlobally, "Invalid hide globally value")
 
-	if updatedCategory.ID != newCategory.ID {
-		t.Errorf(`Invalid categoryID, got "%v"`, updatedCategory.ID)
-	}
-
-	if updatedCategory.Title != "new title" {
-		t.Errorf(`Invalid title, got "%v" instead of "%v"`, updatedCategory.Title, "new title")
-	}
-
-	if !updatedCategory.HideGlobally {
-		t.Errorf(`Invalid hide globally value, got "%v"`, updatedCategory.HideGlobally)
-	}
-
-	updatedCategory, err = regularUserClient.UpdateCategoryWithOptions(newCategory.ID, &miniflux.CategoryModificationRequest{
+	categoryModify = miniflux.CategoryModificationRequest{
 		HideGlobally: miniflux.SetOptionalField(false),
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
-
-	if updatedCategory.ID != newCategory.ID {
-		t.Errorf(`Invalid categoryID, got %q`, updatedCategory.ID)
-	}
-
-	if updatedCategory.Title != "new title" {
-		t.Errorf(`Invalid title, got %q instead of %q`, updatedCategory.Title, "new title")
-	}
-
-	if updatedCategory.HideGlobally {
-		t.Errorf(`Invalid hide globally value, got "%v"`, updatedCategory.HideGlobally)
-	}
+	updatedCategory, err = self.client.UpdateCategoryWithOptions(
+		newCategory.ID, &categoryModify)
+	self.Require().NoError(err)
+	self.Equal(newCategory.ID, updatedCategory.ID, "Invalid categoryID")
+	self.Equal(title, updatedCategory.Title, "Invalid title")
+	self.False(updatedCategory.HideGlobally, "Invalid hide globally value")
 }
 
-func TestUpdateInexistingCategory(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	client := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	_, err := client.UpdateCategory(123456789, "new title")
-	if err == nil {
-		t.Fatalf(`Updating an inexisting category should raise an error`)
-	}
+func (self *EndpointTestSuite) TestUpdateInexistingCategory() {
+	_, err := self.admin.UpdateCategory(123456789, "new title")
+	self.T().Log(err)
+	self.Require().Error(err,
+		"Updating an inexisting category should raise an error")
 }
 
-func TestDeleteCategoryEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
+func (self *EndpointTestSuite) TestDeleteCategoryEndpoint() {
 	categoryName := "My category"
-	category, err := regularUserClient.CreateCategory(categoryName)
-	if err != nil {
-		t.Fatal(err)
-	}
+	category, err := self.client.CreateCategory(categoryName)
+	self.Require().NoError(err)
 
-	if err := regularUserClient.DeleteCategory(category.ID); err != nil {
-		t.Fatal(err)
-	}
+	err = self.client.DeleteCategory(category.ID)
+	self.Require().NoError(err)
 }
 
-func TestCannotDeleteInexistingCategory(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	client := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	err := client.DeleteCategory(123456789)
-	if err == nil {
-		t.Fatalf(`Deleting an inexisting category should raise an error`)
-	}
+func (self *EndpointTestSuite) TestCannotDeleteInexistingCategory() {
+	err := self.admin.DeleteCategory(123456789)
+	self.T().Log(err)
+	self.Require().Error(err,
+		"Deleting an inexisting category should raise an error")
 }
 
-func TestCannotDeleteCategoryOfAnotherUser(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestCannotDeleteCategoryOfAnotherUser() {
+	category, err := self.client.CreateCategory("My category")
+	self.Require().NoError(err)
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	category, err := regularUserClient.CreateCategory("My category")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = adminClient.DeleteCategory(category.ID)
-	if err == nil {
-		t.Fatalf(`Regular users should not be able to delete categories of other users`)
-	}
+	err = self.admin.DeleteCategory(category.ID)
+	self.T().Log(err)
+	self.Require().Error(err,
+		"Regular users should not be able to delete categories of other users")
 }
 
-func TestGetCategoriesEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestGetCategoriesEndpoint() {
+	category, err := self.client.CreateCategory("My category")
+	self.Require().NoError(err)
+	self.Require().NotNil(category)
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	category, err := regularUserClient.CreateCategory("My category")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	categories, err := regularUserClient.Categories()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(categories) != 2 {
-		t.Fatalf(`Invalid number of categories, got %d instead of %d`, len(categories), 1)
-	}
-
-	if categories[0].UserID != regularTestUser.ID {
-		t.Fatalf(`Invalid userID, got %d`, categories[0].UserID)
-	}
-
-	if categories[0].Title != "All" {
-		t.Fatalf(`Invalid title, got %q instead of %q`, categories[0].Title, "All")
-	}
-
-	if categories[1].ID != category.ID {
-		t.Fatalf(`Invalid categoryID, got %d`, categories[0].ID)
-	}
-
-	if categories[1].UserID != regularTestUser.ID {
-		t.Fatalf(`Invalid userID, got %d`, categories[0].UserID)
-	}
-
-	if categories[1].Title != "My category" {
-		t.Fatalf(`Invalid title, got %q instead of %q`, categories[0].Title, "My category")
-	}
+	categories, err := self.client.Categories()
+	self.Require().NoError(err)
+	self.Len(categories, 2, "Invalid number of categories")
+	self.Equal(self.user.ID, categories[0].UserID, "Invalid userID")
+	self.Equal("All", categories[0].Title, "Invalid title")
+	self.Equal(category.ID, categories[1].ID)
+	self.Equal(self.user.ID, categories[1].UserID, "Invalid userID")
+	self.Equal("My category", categories[1].Title, "Invalid title")
 }
 
-func TestMarkCategoryAsReadEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestMarkCategoryAsReadEndpoint() {
+	category, err := self.client.CreateCategory("My category")
+	self.Require().NoError(err)
+	self.Require().NotNil(category)
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-	category, err := regularUserClient.CreateCategory("My category")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL:    testConfig.testFeedURL,
+	feedCreate := miniflux.FeedCreationRequest{
+		FeedURL:    self.cfg.FeedURL,
 		CategoryID: category.ID,
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
+	feedID, err := self.client.CreateFeed(&feedCreate)
+	self.Require().NoError(err)
 
-	if err := regularUserClient.MarkCategoryAsRead(category.ID); err != nil {
-		t.Fatal(err)
-	}
-
-	results, err := regularUserClient.FeedEntries(feedID, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for _, entry := range results.Entries {
-		if entry.Status != miniflux.EntryStatusRead {
-			t.Errorf(`Status for entry %d was %q instead of %q`, entry.ID, entry.Status, miniflux.EntryStatusRead)
-		}
-	}
+	self.Require().NoError(self.client.MarkCategoryAsRead(category.ID))
+	self.checkFeedIsRead(feedID)
 }
 
-func TestCreateFeedEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestCreateFeedEndpoint() {
+	category, err := self.client.CreateCategory("My category")
+	self.Require().NoError(err)
+	self.Require().NotNil(category)
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-	category, err := regularUserClient.CreateCategory("My category")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL:    testConfig.testFeedURL,
+	feedCreate := miniflux.FeedCreationRequest{
+		FeedURL:    self.cfg.FeedURL,
 		CategoryID: category.ID,
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
-
-	if feedID == 0 {
-		t.Errorf(`Invalid feedID, got "%v"`, feedID)
-	}
+	feedID, err := self.client.CreateFeed(&feedCreate)
+	self.Require().NoError(err)
+	self.NotEmpty(feedID, "Invalid feedID")
 }
 
-func TestCannotCreateDuplicatedFeed(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
+func (self *EndpointTestSuite) TestCannotCreateDuplicatedFeed() {
+	self.createFeed()
+	feedCreate := miniflux.FeedCreationRequest{
+		FeedURL: self.cfg.FeedURL,
 	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if feedID == 0 {
-		t.Fatalf(`Invalid feedID, got "%v"`, feedID)
-	}
-
-	_, err = regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err == nil {
-		t.Fatalf(`Duplicated feeds should not be allowed`)
-	}
+	_, err := self.client.CreateFeed(&feedCreate)
+	self.T().Log(err)
+	self.Require().Error(err, "Duplicated feeds should not be allowed")
 }
 
-func TestCreateFeedWithInexistingCategory(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	_, err = regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL:    testConfig.testFeedURL,
+func (self *EndpointTestSuite) TestCreateFeedWithInexistingCategory() {
+	feedCreate := miniflux.FeedCreationRequest{
+		FeedURL:    self.cfg.FeedURL,
 		CategoryID: 123456789,
-	})
-
-	if err == nil {
-		t.Fatalf(`Creating a feed with an inexisting category should raise an error`)
 	}
+	_, err := self.client.CreateFeed(&feedCreate)
+	self.T().Log(err)
+	self.Require().Error(err,
+		"Creating a feed with an inexisting category should raise an error")
 }
 
-func TestCreateFeedWithEmptyFeedURL(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	client := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	_, err := client.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: "",
-	})
-	if err == nil {
-		t.Fatalf(`Creating a feed with an empty feed URL should raise an error`)
-	}
+func (self *EndpointTestSuite) TestCreateFeedWithEmptyFeedURL() {
+	_, err := self.admin.CreateFeed(&miniflux.FeedCreationRequest{})
+	self.T().Log(err)
+	self.Require().Error(err,
+		"Creating a feed with an empty feed URL should raise an error")
 }
 
-func TestCreateFeedWithInvalidFeedURL(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	client := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	_, err := client.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: "invalid_feed_url",
-	})
-	if err == nil {
-		t.Fatalf(`Creating a feed with an invalid feed URL should raise an error`)
-	}
+func (self *EndpointTestSuite) TestCreateFeedWithInvalidFeedURL() {
+	feedCreate := miniflux.FeedCreationRequest{FeedURL: "invalid_feed_url"}
+	_, err := self.client.CreateFeed(&feedCreate)
+	self.T().Log(err)
+	self.Require().Error(err,
+		"Creating a feed with an invalid feed URL should raise an error")
 }
 
-func TestCreateDisabledFeed(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL:  testConfig.testFeedURL,
+func (self *EndpointTestSuite) TestCreateDisabledFeed() {
+	feedCreate := miniflux.FeedCreationRequest{
+		FeedURL:  self.cfg.FeedURL,
 		Disabled: true,
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
+	feedID, err := self.client.CreateFeed(&feedCreate)
+	self.Require().NoError(err)
 
-	feed, err := regularUserClient.Feed(feedID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !feed.Disabled {
-		t.Fatalf(`The feed should be disabled`)
-	}
+	feed, err := self.client.Feed(feedID)
+	self.Require().NoError(err)
+	self.Require().NotNil(feed)
+	self.True(feed.Disabled, "The feed should be disabled")
 }
 
-func TestCreateFeedWithDisabledHTTPCache(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL:         testConfig.testFeedURL,
+func (self *EndpointTestSuite) TestCreateFeedWithDisabledHTTPCache() {
+	feedCreate := miniflux.FeedCreationRequest{
+		FeedURL:         self.cfg.FeedURL,
 		IgnoreHTTPCache: true,
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
+	feedID, err := self.client.CreateFeed(&feedCreate)
+	self.Require().NoError(err)
 
-	feed, err := regularUserClient.Feed(feedID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !feed.IgnoreHTTPCache {
-		t.Fatalf(`The feed should ignore the HTTP cache`)
-	}
+	feed, err := self.client.Feed(feedID)
+	self.Require().NoError(err)
+	self.Require().NotNil(feed)
+	self.True(feed.IgnoreHTTPCache, "The feed should ignore the HTTP cache")
 }
 
-func TestCreateFeedWithScraperRule(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL:      testConfig.testFeedURL,
+func (self *EndpointTestSuite) TestCreateFeedWithScraperRule() {
+	feedCreate := miniflux.FeedCreationRequest{
+		FeedURL:      self.cfg.FeedURL,
 		ScraperRules: "article",
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
+	feedID, err := self.client.CreateFeed(&feedCreate)
+	self.Require().NoError(err)
 
-	feed, err := regularUserClient.Feed(feedID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if feed.ScraperRules != "article" {
-		t.Fatalf(`The feed should have the scraper rules set to "article"`)
-	}
+	feed, err := self.client.Feed(feedID)
+	self.Require().NoError(err)
+	self.Require().NotNil(feed)
+	self.Equal("article", feed.ScraperRules,
+		`The feed should have the scraper rules set to "article"`)
 }
 
-func TestUpdateFeedEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
+func (self *EndpointTestSuite) TestUpdateFeedEndpoint() {
+	feedID := self.createFeed()
+
+	const url = "https://example.org/feed.xml"
+	feedModify := miniflux.FeedModificationRequest{
+		FeedURL: miniflux.SetOptionalField(url),
 	}
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	feedUpdateRequest := &miniflux.FeedModificationRequest{
-		FeedURL: miniflux.SetOptionalField("https://example.org/feed.xml"),
-	}
-
-	updatedFeed, err := regularUserClient.UpdateFeed(feedID, feedUpdateRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if updatedFeed.FeedURL != "https://example.org/feed.xml" {
-		t.Fatalf(`Invalid feed URL, got "%v"`, updatedFeed.FeedURL)
-	}
+	updatedFeed, err := self.client.UpdateFeed(feedID, &feedModify)
+	self.Require().NoError(err)
+	self.Require().NotNil(updatedFeed)
+	self.Equal(url, updatedFeed.FeedURL, "Invalid feed URL")
 }
 
-func TestCannotHaveDuplicateFeedWhenUpdatingFeed(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestCannotHaveDuplicateFeedWhenUpdatingFeed() {
+	self.createFeed()
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	if _, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{FeedURL: testConfig.testFeedURL}); err != nil {
-		t.Fatal(err)
-	}
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
+	feedCreate := miniflux.FeedCreationRequest{
 		FeedURL: "https://github.com/miniflux/v2/commits.atom",
-	})
-	if err != nil {
-		t.Fatal(err)
+	}
+	feedID, err := self.client.CreateFeed(&feedCreate)
+	self.Require().NoError(err)
+
+	feedModify := miniflux.FeedModificationRequest{
+		FeedURL: miniflux.SetOptionalField(self.cfg.FeedURL),
 	}
 
-	feedUpdateRequest := &miniflux.FeedModificationRequest{
-		FeedURL: miniflux.SetOptionalField(testConfig.testFeedURL),
-	}
-
-	if _, err := regularUserClient.UpdateFeed(feedID, feedUpdateRequest); err == nil {
-		t.Fatalf(`Duplicated feeds should not be allowed`)
-	}
+	_, err = self.client.UpdateFeed(feedID, &feedModify)
+	self.T().Log(err)
+	self.Require().Error(err, "Duplicated feeds should not be allowed")
 }
 
-func TestUpdateFeedWithInvalidCategory(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestUpdateFeedWithInvalidCategory() {
+	feedID := self.createFeed()
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	feedUpdateRequest := &miniflux.FeedModificationRequest{
+	feedModify := miniflux.FeedModificationRequest{
 		CategoryID: miniflux.SetOptionalField(int64(123456789)),
 	}
 
-	if _, err := regularUserClient.UpdateFeed(feedID, feedUpdateRequest); err == nil {
-		t.Fatalf(`Updating a feed with an inexisting category should raise an error`)
-	}
+	_, err := self.client.UpdateFeed(feedID, &feedModify)
+	self.T().Log(err)
+	self.Require().Error(err,
+		"Updating a feed with an inexisting category should raise an error")
 }
 
-func TestMarkFeedAsReadEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := regularUserClient.MarkFeedAsRead(feedID); err != nil {
-		t.Fatal(err)
-	}
-
-	results, err := regularUserClient.FeedEntries(feedID, nil)
-	if err != nil {
-		t.Fatalf(`Failed to get updated entries: %v`, err)
-	}
-
-	for _, entry := range results.Entries {
-		if entry.Status != miniflux.EntryStatusRead {
-			t.Errorf(`Status for entry %d was %q instead of %q`, entry.ID, entry.Status, miniflux.EntryStatusRead)
-		}
-	}
+func (self *EndpointTestSuite) TestMarkFeedAsReadEndpoint() {
+	feedID := self.createFeed()
+	self.Require().NoError(self.client.MarkFeedAsRead(feedID))
+	self.checkFeedIsRead(feedID)
 }
 
-func TestFetchCountersEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestFetchCountersEndpoint() {
+	feedID := self.createFeed()
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
+	counters, err := self.client.FetchCounters()
+	self.Require().NoError(err)
+	self.Require().NotNil(counters)
 
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	counters, err := regularUserClient.FetchCounters()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if value, ok := counters.ReadCounters[feedID]; ok && value != 0 {
-		t.Errorf(`Invalid read counter, got %d`, value)
-	}
-
-	if value, ok := counters.UnreadCounters[feedID]; !ok || value == 0 {
-		t.Errorf(`Invalid unread counter, got %d`, value)
-	}
+	self.Zero(counters.ReadCounters[feedID], "Invalid read counter")
+	self.Positive(counters.UnreadCounters[feedID], "Invalid unread counter")
 }
 
-func TestDeleteFeedEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := regularUserClient.DeleteFeed(feedID); err != nil {
-		t.Fatal(err)
-	}
+func (self *EndpointTestSuite) TestDeleteFeedEndpoint() {
+	feedID := self.createFeed()
+	err := self.client.DeleteFeed(feedID)
+	self.Require().NoError(err)
 }
 
-func TestRefreshAllFeedsEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	if err := regularUserClient.RefreshAllFeeds(); err != nil {
-		t.Fatal(err)
-	}
+func (self *EndpointTestSuite) TestRefreshAllFeedsEndpoint() {
+	self.createFeed()
+	self.Require().NoError(self.client.RefreshAllFeeds())
 }
 
-func TestRefreshFeedEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := regularUserClient.RefreshFeed(feedID); err != nil {
-		t.Fatal(err)
-	}
+func (self *EndpointTestSuite) TestRefreshFeedEndpoint() {
+	feedID := self.createFeed()
+	self.Require().NoError(self.client.RefreshFeed(feedID))
 }
 
-func TestGetFeedEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	feed, err := regularUserClient.Feed(feedID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if feed.ID != feedID {
-		t.Fatalf(`Invalid feedID, got %d`, feed.ID)
-	}
-
-	if feed.FeedURL != testConfig.testFeedURL {
-		t.Fatalf(`Invalid feed URL, got %q`, feed.FeedURL)
-	}
-
-	if feed.SiteURL != testConfig.testWebsiteURL {
-		t.Fatalf(`Invalid site URL, got %q`, feed.SiteURL)
-	}
-
-	if feed.Title != testConfig.testFeedTitle {
-		t.Fatalf(`Invalid title, got %q`, feed.Title)
-	}
+func (self *EndpointTestSuite) TestGetFeedEndpoint() {
+	feedID := self.createFeed()
+	feed, err := self.client.Feed(feedID)
+	self.Require().NoError(err)
+	self.Require().NotNil(feed)
+	self.Equal(feedID, feed.ID, "Invalid feedID")
+	self.Equal(self.cfg.FeedURL, feed.FeedURL, "Invalid feed URL")
+	self.Equal(self.cfg.WebsiteURL, feed.SiteURL, "Invalid site URL")
+	self.Equal(self.cfg.FeedTitle, feed.Title, "Invalid title")
 }
 
-func TestGetFeedIcon(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestGetFeedIcon() {
+	feedID := self.createFeed()
+	icon, err := self.client.FeedIcon(feedID)
+	self.Require().NoError(err)
+	self.Require().NotNil(icon)
+	self.NotEmpty(icon.MimeType, "Invalid mime type")
+	self.NotEmpty(icon.Data, "Invalid data")
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	icon, err := regularUserClient.FeedIcon(feedID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if icon == nil {
-		t.Fatalf(`Invalid icon, got nil`)
-	}
-
-	if icon.MimeType == "" {
-		t.Fatalf(`Invalid mime type, got %q`, icon.MimeType)
-	}
-
-	if len(icon.Data) == 0 {
-		t.Fatalf(`Invalid data, got empty`)
-	}
-
-	icon, err = regularUserClient.Icon(icon.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if icon == nil {
-		t.Fatalf(`Invalid icon, got nil`)
-	}
-
-	if icon.MimeType == "" {
-		t.Fatalf(`Invalid mime type, got %q`, icon.MimeType)
-	}
-
-	if len(icon.Data) == 0 {
-		t.Fatalf(`Invalid data, got empty`)
-	}
+	icon, err = self.client.Icon(icon.ID)
+	self.Require().NoError(err)
+	self.Require().NotNil(icon)
+	self.NotEmpty(icon.MimeType, "Invalid mime type")
+	self.NotEmpty(icon.Data, "Invalid data")
 }
 
-func TestGetFeedIconWithInexistingFeedID(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	client := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	_, err := client.FeedIcon(123456789)
-	if err == nil {
-		t.Fatalf(`Fetching the icon of an inexisting feed should raise an error`)
-	}
+func (self *EndpointTestSuite) TestGetFeedIconWithInexistingFeedID() {
+	_, err := self.admin.FeedIcon(123456789)
+	self.Require().Error(err, "Fetching the icon of an inexisting feed should raise an error")
 }
 
-func TestGetFeedsEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	feeds, err := regularUserClient.Feeds()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(feeds) != 1 {
-		t.Fatalf(`Invalid number of feeds, got %d`, len(feeds))
-	}
-
-	if feeds[0].ID != feedID {
-		t.Fatalf(`Invalid feedID, got %d`, feeds[0].ID)
-	}
-
-	if feeds[0].FeedURL != testConfig.testFeedURL {
-		t.Fatalf(`Invalid feed URL, got %q`, feeds[0].FeedURL)
-	}
+func (self *EndpointTestSuite) TestGetFeedsEndpoint() {
+	feedID := self.createFeed()
+	feeds, err := self.client.Feeds()
+	self.Require().NoError(err)
+	self.Len(feeds, 1, "Invalid number of feeds")
+	self.Equal(feedID, feeds[0].ID, "Invalid feedID")
+	self.Equal(self.cfg.FeedURL, feeds[0].FeedURL, "Invalid feed URL")
 }
 
-func TestGetCategoryFeedsEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestGetCategoryFeedsEndpoint() {
+	category, err := self.client.CreateCategory("My category")
+	self.Require().NoError(err)
+	self.Require().NotNil(category)
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	category, err := regularUserClient.CreateCategory("My category")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL:    testConfig.testFeedURL,
+	feedID, err := self.client.CreateFeed(&miniflux.FeedCreationRequest{
+		FeedURL:    self.cfg.FeedURL,
 		CategoryID: category.ID,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	self.Require().NoError(err)
+	self.Require().NotEmpty(feedID)
 
-	feeds, err := regularUserClient.CategoryFeeds(category.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(feeds) != 1 {
-		t.Fatalf(`Invalid number of feeds, got %d`, len(feeds))
-	}
-
-	if feeds[0].ID != feedID {
-		t.Fatalf(`Invalid feedID, got %d`, feeds[0].ID)
-	}
-
-	if feeds[0].FeedURL != testConfig.testFeedURL {
-		t.Fatalf(`Invalid feed URL, got %q`, feeds[0].FeedURL)
-	}
+	feeds, err := self.client.CategoryFeeds(category.ID)
+	self.Require().NoError(err)
+	self.Require().Len(feeds, 1, "Invalid number of feeds")
+	self.Equal(feedID, feeds[0].ID, "Invalid feedID")
+	self.Equal(self.cfg.FeedURL, feeds[0].FeedURL, "Invalid feed URL")
 }
 
-func TestExportEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	if _, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{FeedURL: testConfig.testFeedURL}); err != nil {
-		t.Fatal(err)
-	}
-
-	exportedData, err := regularUserClient.Export()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(exportedData) == 0 {
-		t.Fatalf(`Invalid exported data, got empty`)
-	}
-
-	if !strings.HasPrefix(string(exportedData), "<?xml") {
-		t.Fatalf(`Invalid OPML export, got %q`, string(exportedData))
-	}
+func (self *EndpointTestSuite) TestExportEndpoint() {
+	self.createFeed()
+	exportedData, err := self.client.Export()
+	self.Require().NoError(err)
+	self.NotEmpty(exportedData, "Invalid exported data")
+	self.True(strings.HasPrefix(string(exportedData), "<?xml"),
+		"Invalid OPML export")
 }
 
-func TestImportEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
+func (self *EndpointTestSuite) TestImportEndpoint() {
 	data := `<?xml version="1.0" encoding="UTF-8"?>
-    <opml version="2.0">
-        <body>
-            <outline text="Test Category">
-				<outline title="Test" text="Test" xmlUrl="` + testConfig.testFeedURL + `" htmlUrl="` + testConfig.testWebsiteURL + `"></outline>
-			</outline>
-		</body>
-	</opml>`
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
+<opml version="2.0">
+  <body>
+    <outline text="Test Category">
+      <outline title="Test" text="Test" xmlUrl="` + self.cfg.FeedURL + `" htmlUrl="` + self.cfg.WebsiteURL + `"></outline>
+    </outline>
+  </body>
+</opml>`
 
 	bytesReader := bytes.NewReader([]byte(data))
-	if err := regularUserClient.Import(io.NopCloser(bytesReader)); err != nil {
-		t.Fatal(err)
-	}
+	self.Require().NoError(self.client.Import(io.NopCloser(bytesReader)))
 }
 
-func TestDiscoverSubscriptionsEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	client := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	subscriptions, err := client.Discover(testConfig.testWebsiteURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(subscriptions) == 0 {
-		t.Fatalf(`Invalid number of subscriptions, got %d`, len(subscriptions))
-	}
-
-	if subscriptions[0].Title != testConfig.testSubscriptionTitle {
-		t.Fatalf(`Invalid title, got %q`, subscriptions[0].Title)
-	}
-
-	if subscriptions[0].URL != testConfig.testFeedURL {
-		t.Fatalf(`Invalid URL, got %q`, subscriptions[0].URL)
-	}
+func (self *EndpointTestSuite) TestDiscoverSubscriptionsEndpoint() {
+	subscriptions, err := self.admin.Discover(self.cfg.WebsiteURL)
+	self.Require().NoError(err)
+	self.Require().NotEmpty(subscriptions, "Invalid number of subscriptions")
+	self.Equal(self.cfg.SubscriptionTitle, subscriptions[0].Title,
+		"Invalid title")
+	self.Equal(self.cfg.FeedURL, subscriptions[0].URL, "Invalid URL")
 }
 
-func TestDiscoverSubscriptionsWithInvalidURL(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	client := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	_, err := client.Discover("invalid_url")
-	if err == nil {
-		t.Fatalf(`Discovering subscriptions with an invalid URL should raise an error`)
-	}
+func (self *EndpointTestSuite) TestDiscoverSubscriptionsWithInvalidURL() {
+	_, err := self.admin.Discover("invalid_url")
+	self.T().Log(err)
+	self.Require().Error(err,
+		"Discovering subscriptions with an invalid URL should raise an error")
 }
 
-func TestDiscoverSubscriptionsWithNoSubscription(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	client := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-	_, err := client.Discover(testConfig.testBaseURL)
-	if !errors.Is(err, miniflux.ErrNotFound) {
-		t.Fatalf(`Discovering subscriptions with no subscription should raise a 404 error`)
-	}
+func (self *EndpointTestSuite) TestDiscoverSubscriptionsWithNoSubscription() {
+	_, err := self.admin.Discover(self.cfg.BaseURL)
+	self.Require().ErrorIs(err, miniflux.ErrNotFound,
+		"Discovering subscriptions with no subscription should raise a 404 error")
 }
 
-func TestGetAllFeedEntriesEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	results, err := regularUserClient.FeedEntries(feedID, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(results.Entries) == 0 {
-		t.Fatalf(`Invalid number of entries, got %d`, len(results.Entries))
-	}
-
-	if results.Total == 0 {
-		t.Fatalf(`Invalid total, got %d`, results.Total)
-	}
-
-	if results.Entries[0].FeedID != feedID {
-		t.Fatalf(`Invalid feedID, got %d`, results.Entries[0].FeedID)
-	}
-
-	if results.Entries[0].Feed.FeedURL != testConfig.testFeedURL {
-		t.Fatalf(`Invalid feed URL, got %q`, results.Entries[0].Feed.FeedURL)
-	}
-
-	if results.Entries[0].Title == "" {
-		t.Fatalf(`Invalid title, got empty`)
-	}
+func (self *EndpointTestSuite) TestGetAllFeedEntriesEndpoint() {
+	feedID := self.createFeed()
+	results, err := self.client.FeedEntries(feedID, nil)
+	self.Require().NoError(err)
+	self.Require().NotNil(results)
+	self.T().Log("Got entries:", len(results.Entries))
+	self.Require().NotEmpty(results.Entries, "Invalid number of entries")
+	self.NotZero(results.Total, "Invalid total")
+	self.Equal(feedID, results.Entries[0].Feed.ID, "Invalid feedID")
+	self.Equal(self.cfg.FeedURL, results.Entries[0].Feed.FeedURL,
+		"Invalid feed URL")
+	self.NotEmpty(results.Entries[0].Title, "Invalid title")
 }
 
-func TestGetAllCategoryEntriesEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestGetAllCategoryEntriesEndpoint() {
+	category, err := self.client.CreateCategory("My category")
+	self.Require().NoError(err)
+	self.Require().NotNil(category)
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	category, err := regularUserClient.CreateCategory("My category")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL:    testConfig.testFeedURL,
+	feedID, err := self.client.CreateFeed(&miniflux.FeedCreationRequest{
+		FeedURL:    self.cfg.FeedURL,
 		CategoryID: category.ID,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	self.Require().NoError(err)
+	self.Require().NotZero(feedID)
 
-	results, err := regularUserClient.CategoryEntries(category.ID, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(results.Entries) == 0 {
-		t.Fatalf(`Invalid number of entries, got %d`, len(results.Entries))
-	}
-
-	if results.Total == 0 {
-		t.Fatalf(`Invalid total, got %d`, results.Total)
-	}
-
-	if results.Entries[0].FeedID != feedID {
-		t.Fatalf(`Invalid feedID, got %d`, results.Entries[0].FeedID)
-	}
-
-	if results.Entries[0].Feed.FeedURL != testConfig.testFeedURL {
-		t.Fatalf(`Invalid feed URL, got %q`, results.Entries[0].Feed.FeedURL)
-	}
-
-	if results.Entries[0].Title == "" {
-		t.Fatalf(`Invalid title, got empty`)
-	}
+	results, err := self.client.CategoryEntries(category.ID, nil)
+	self.Require().NoError(err)
+	self.Require().NotNil(results)
+	self.T().Log("Got entries:", len(results.Entries))
+	self.Require().NotEmpty(results.Entries, "Invalid number of entries")
+	self.NotZero(results.Total, "Invalid total")
+	self.Equal(feedID, results.Entries[0].Feed.ID, "Invalid feedID")
+	self.Equal(self.cfg.FeedURL, results.Entries[0].Feed.FeedURL,
+		"Invalid feed URL")
+	self.NotEmpty(results.Entries[0].Title, "Invalid title")
 }
 
-func TestGetAllEntriesEndpointWithFilter(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestGetAllEntriesEndpointWithFilter() {
+	feedID := self.createFeed()
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
+	result, err := self.client.Entries(&miniflux.Filter{FeedID: feedID})
+	self.Require().NoError(err)
+	self.Require().NotNil(result)
+	self.T().Log("Got entries:", len(result.Entries))
+	self.Require().NotEmpty(result.Entries, "Invalid number of entries")
+	self.NotZero(result.Total, "Invalid total")
+	self.Equal(feedID, result.Entries[0].Feed.ID, "Invalid feedID")
+	self.Equal(self.cfg.FeedURL, result.Entries[0].Feed.FeedURL,
+		"Invalid feed URL")
+	self.NotEmpty(result.Entries[0].Title, "Invalid title")
 
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
+	recent, err := self.client.Entries(&miniflux.Filter{
+		Order:     "published_at",
+		Direction: "desc",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	self.Require().NoError(err)
+	self.Require().NotNil(recent)
+	self.T().Log("Got entries:", len(recent.Entries))
+	self.Require().NotEmpty(recent.Entries, "Invalid number of entries")
+	self.NotZero(recent.Total, "Invalid total")
+	self.NotEqual(result.Entries[0].Title, recent.Entries[0].Title,
+		"Invalid order, got the same title")
 
-	feedEntries, err := regularUserClient.Entries(&miniflux.Filter{FeedID: feedID})
-	if err != nil {
-		t.Fatal(err)
-	}
+	searched, err := self.client.Entries(&miniflux.Filter{Search: "2.2.2"})
+	self.Require().NoError(err)
+	self.Require().NotNil(searched)
+	self.Equal(1, searched.Total, "Invalid total")
 
-	if len(feedEntries.Entries) == 0 {
-		t.Fatalf(`Invalid number of entries, got %d`, len(feedEntries.Entries))
-	}
+	_, err = self.client.Entries(&miniflux.Filter{Status: "invalid"})
+	self.T().Log(err)
+	self.Require().Error(err, "Using invalid status should raise an error")
 
-	if feedEntries.Total == 0 {
-		t.Fatalf(`Invalid total, got %d`, feedEntries.Total)
-	}
+	_, err = self.client.Entries(&miniflux.Filter{Direction: "invalid"})
+	self.T().Log(err)
+	self.Require().Error(err, "Using invalid direction should raise an error")
 
-	if feedEntries.Entries[0].FeedID != feedID {
-		t.Fatalf(`Invalid feedID, got %d`, feedEntries.Entries[0].FeedID)
-	}
-
-	if feedEntries.Entries[0].Feed.FeedURL != testConfig.testFeedURL {
-		t.Fatalf(`Invalid feed URL, got %q`, feedEntries.Entries[0].Feed.FeedURL)
-	}
-
-	if feedEntries.Entries[0].Title == "" {
-		t.Fatalf(`Invalid title, got empty`)
-	}
-
-	recentEntries, err := regularUserClient.Entries(&miniflux.Filter{Order: "published_at", Direction: "desc"})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(recentEntries.Entries) == 0 {
-		t.Fatalf(`Invalid number of entries, got %d`, len(recentEntries.Entries))
-	}
-
-	if recentEntries.Total == 0 {
-		t.Fatalf(`Invalid total, got %d`, recentEntries.Total)
-	}
-
-	if feedEntries.Entries[0].Title == recentEntries.Entries[0].Title {
-		t.Fatalf(`Invalid order, got the same title`)
-	}
-
-	searchedEntries, err := regularUserClient.Entries(&miniflux.Filter{Search: "2.0.8"})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if searchedEntries.Total != 1 {
-		t.Fatalf(`Invalid total, got %d`, searchedEntries.Total)
-	}
-
-	if _, err := regularUserClient.Entries(&miniflux.Filter{Status: "invalid"}); err == nil {
-		t.Fatal(`Using invalid status should raise an error`)
-	}
-
-	if _, err = regularUserClient.Entries(&miniflux.Filter{Direction: "invalid"}); err == nil {
-		t.Fatal(`Using invalid direction should raise an error`)
-	}
-
-	if _, err = regularUserClient.Entries(&miniflux.Filter{Order: "invalid"}); err == nil {
-		t.Fatal(`Using invalid order should raise an error`)
-	}
+	_, err = self.client.Entries(&miniflux.Filter{Order: "invalid"})
+	self.T().Log(err)
+	self.Require().Error(err, "Using invalid order should raise an error")
 }
 
-func TestGetGlobalEntriesEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL:      testConfig.testFeedURL,
+func (self *EndpointTestSuite) TestGetGlobalEntriesEndpoint() {
+	feedID, err := self.client.CreateFeed(&miniflux.FeedCreationRequest{
+		FeedURL:      self.cfg.FeedURL,
 		HideGlobally: true,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	self.Require().NoError(err)
+	self.Require().NotZero(feedID)
 
-	feedIDEntry, err := regularUserClient.Feed(feedID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if feedIDEntry.HideGlobally != true {
-		t.Fatalf(`Expected feed to have globally_hidden set to true, was false.`)
-	}
+	feedIDEntry, err := self.client.Feed(feedID)
+	self.Require().NoError(err)
+	self.Require().NotNil(feedIDEntry)
+	self.True(feedIDEntry.HideGlobally,
+		"Expected feed to have globally_hidden set to true")
 
 	/* Not filtering on GloballyVisible should return all entries */
-	feedEntries, err := regularUserClient.Entries(&miniflux.Filter{FeedID: feedID})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(feedEntries.Entries) == 0 {
-		t.Fatalf(`Expected entries but response contained none.`)
-	}
+	feedEntries, err := self.client.Entries(&miniflux.Filter{FeedID: feedID})
+	self.Require().NoError(err)
+	self.Require().NotNil(feedEntries)
+	self.NotEmpty(feedEntries.Entries,
+		"Expected entries but response contained none")
 
 	/* Feed is hidden globally, so this should be empty */
-	globallyVisibleEntries, err := regularUserClient.Entries(&miniflux.Filter{GloballyVisible: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(globallyVisibleEntries.Entries) != 0 {
-		t.Fatalf(`Expected no entries, got %d`, len(globallyVisibleEntries.Entries))
-	}
+	globallyVisibleEntries, err := self.client.Entries(
+		&miniflux.Filter{GloballyVisible: true})
+	self.Require().NoError(err)
+	self.Require().NotNil(globallyVisibleEntries)
+	self.Empty(globallyVisibleEntries.Entries, "Expected no entries")
 }
 
-func TestUpdateEnclosureEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	result, err := regularUserClient.FeedEntries(feedID, nil)
-	if err != nil {
-		t.Fatalf(`Failed to get entries: %v`, err)
-	}
+func (self *EndpointTestSuite) TestUpdateEnclosureEndpoint() {
+	feedID := self.createFeed()
+	result, err := self.client.FeedEntries(feedID, nil)
+	self.Require().NoError(err, "Failed to get entries")
+	self.Require().NotNil(result)
 
 	var enclosure *miniflux.Enclosure
 	for _, entry := range result.Entries {
@@ -2297,53 +966,25 @@ func TestUpdateEnclosureEndpoint(t *testing.T) {
 	}
 
 	if enclosure == nil {
-		t.Skip(`Skipping test, missing enclosure in feed.`)
+		self.T().Skip(`Skipping test, missing enclosure in feed.`)
 	}
 
-	err = regularUserClient.UpdateEnclosure(enclosure.ID, &miniflux.EnclosureUpdateRequest{
-		MediaProgression: 20,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = self.client.UpdateEnclosure(enclosure.ID,
+		&miniflux.EnclosureUpdateRequest{MediaProgression: 20})
+	self.Require().NoError(err)
 
-	updatedEnclosure, err := regularUserClient.Enclosure(enclosure.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if updatedEnclosure.MediaProgression != 20 {
-		t.Fatalf(`Failed to update media_progression, expected %d but got %d`, 20, updatedEnclosure.MediaProgression)
-	}
+	updatedEnclosure, err := self.client.Enclosure(enclosure.ID)
+	self.Require().NoError(err)
+	self.Require().NotNil(updatedEnclosure)
+	self.Equal(int64(20), updatedEnclosure.MediaProgression,
+		"Failed to update media_progression")
 }
 
-func TestGetEnclosureEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	result, err := regularUserClient.FeedEntries(feedID, nil)
-	if err != nil {
-		t.Fatalf(`Failed to get entries: %v`, err)
-	}
+func (self *EndpointTestSuite) TestGetEnclosureEndpoint() {
+	feedID := self.createFeed()
+	result, err := self.client.FeedEntries(feedID, nil)
+	self.Require().NoError(err, "Failed to get entries")
+	self.Require().NotNil(result)
 
 	var expectedEnclosure *miniflux.Enclosure
 	for _, entry := range result.Entries {
@@ -2354,379 +995,158 @@ func TestGetEnclosureEndpoint(t *testing.T) {
 	}
 
 	if expectedEnclosure == nil {
-		t.Skip(`Skipping test, missing enclosure in feed.`)
+		self.T().Skip(`Skipping test, missing enclosure in feed.`)
 	}
 
-	enclosure, err := regularUserClient.Enclosure(expectedEnclosure.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
+	enclosure, err := self.client.Enclosure(expectedEnclosure.ID)
+	self.Require().NoError(err)
+	self.Require().NotNil(enclosure)
+	self.Equal(expectedEnclosure.ID, enclosure.ID, "Invalid enclosureID")
 
-	if enclosure.ID != expectedEnclosure.ID {
-		t.Fatalf(`Invalid enclosureID, got %d while expecting %d`, enclosure.ID, expectedEnclosure.ID)
-	}
-
-	if _, err = regularUserClient.Enclosure(99999); err == nil {
-		t.Fatalf(`Fetching an inexisting enclosure should raise an error`)
-	}
+	_, err = self.client.Enclosure(99999)
+	self.T().Log(err)
+	self.Require().Error(err,
+		"Fetching an inexisting enclosure should raise an error")
 }
 
-func TestGetEntryEndpoints(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestGetEntryEndpoints() {
+	feedID := self.createFeed()
+	result, err := self.client.FeedEntries(feedID, nil)
+	self.Require().NoError(err, "Failed to get entries")
+	self.Require().NotNil(result)
+	self.Require().NotEmpty(result.Entries)
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
+	entry, err := self.client.FeedEntry(feedID, result.Entries[0].ID)
+	self.Require().NoError(err)
+	self.Require().NotNil(entry)
+	self.Equal(result.Entries[0].ID, entry.ID, "Invalid entryID")
+	self.Equal(feedID, entry.FeedID, "Invalid feedID")
+	self.Equal(self.cfg.FeedURL, entry.Feed.FeedURL, "Invalid feed URL")
 
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
+	entry, err = self.client.Entry(result.Entries[0].ID)
+	self.Require().NoError(err)
+	self.Require().NotNil(entry)
+	self.Equal(result.Entries[0].ID, entry.ID, "Invalid entryID")
 
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	result, err := regularUserClient.FeedEntries(feedID, nil)
-	if err != nil {
-		t.Fatalf(`Failed to get entries: %v`, err)
-	}
-
-	entry, err := regularUserClient.FeedEntry(feedID, result.Entries[0].ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if entry.ID != result.Entries[0].ID {
-		t.Fatalf(`Invalid entryID, got %d`, entry.ID)
-	}
-
-	if entry.FeedID != feedID {
-		t.Fatalf(`Invalid feedID, got %d`, entry.FeedID)
-	}
-
-	if entry.Feed.FeedURL != testConfig.testFeedURL {
-		t.Fatalf(`Invalid feed URL, got %q`, entry.Feed.FeedURL)
-	}
-
-	entry, err = regularUserClient.Entry(result.Entries[0].ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if entry.ID != result.Entries[0].ID {
-		t.Fatalf(`Invalid entryID, got %d`, entry.ID)
-	}
-
-	entry, err = regularUserClient.CategoryEntry(result.Entries[0].Feed.Category.ID, result.Entries[0].ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if entry.ID != result.Entries[0].ID {
-		t.Fatalf(`Invalid entryID, got %d`, entry.ID)
-	}
+	entry, err = self.client.CategoryEntry(
+		result.Entries[0].Feed.Category.ID, result.Entries[0].ID)
+	self.Require().NoError(err)
+	self.Require().NotNil(entry)
+	self.Equal(result.Entries[0].ID, entry.ID, "Invalid entryID")
 }
 
-func TestUpdateEntryStatusEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestUpdateEntryStatusEndpoint() {
+	feedID := self.createFeed()
+	result, err := self.client.FeedEntries(feedID, nil)
+	self.Require().NoError(err, "Failed to get entries")
+	self.Require().NotNil(result)
+	self.Require().NotEmpty(result.Entries)
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
+	err = self.client.UpdateEntries([]int64{result.Entries[0].ID},
+		miniflux.EntryStatusRead)
+	self.Require().NoError(err)
 
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	result, err := regularUserClient.FeedEntries(feedID, nil)
-	if err != nil {
-		t.Fatalf(`Failed to get entries: %v`, err)
-	}
-
-	if err := regularUserClient.UpdateEntries([]int64{result.Entries[0].ID}, miniflux.EntryStatusRead); err != nil {
-		t.Fatal(err)
-	}
-
-	entry, err := regularUserClient.Entry(result.Entries[0].ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if entry.Status != miniflux.EntryStatusRead {
-		t.Fatalf(`Invalid status, got %q`, entry.Status)
-	}
+	entry, err := self.client.Entry(result.Entries[0].ID)
+	self.Require().NoError(err)
+	self.Require().NotNil(entry)
+	self.Equal(miniflux.EntryStatusRead, entry.Status, "Invalid status")
 }
 
-func TestUpdateEntryEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestUpdateEntryEndpoint() {
+	feedID := self.createFeed()
+	result, err := self.client.FeedEntries(feedID, nil)
+	self.Require().NoError(err, "Failed to get entries")
+	self.Require().NotNil(result)
+	self.Require().NotEmpty(result.Entries)
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	result, err := regularUserClient.FeedEntries(feedID, nil)
-	if err != nil {
-		t.Fatalf(`Failed to get entries: %v`, err)
-	}
-
-	entryUpdateRequest := &miniflux.EntryModificationRequest{
+	entryUpdate := miniflux.EntryModificationRequest{
 		Title:   miniflux.SetOptionalField("New title"),
 		Content: miniflux.SetOptionalField("New content"),
 	}
 
-	updatedEntry, err := regularUserClient.UpdateEntry(result.Entries[0].ID, entryUpdateRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
+	updatedEntry, err := self.client.UpdateEntry(
+		result.Entries[0].ID, &entryUpdate)
+	self.Require().NoError(err)
+	self.Require().NotNil(updatedEntry)
+	self.Equal("New title", updatedEntry.Title, "Invalid title")
+	self.Equal("New content", updatedEntry.Content, "Invalid content")
 
-	if updatedEntry.Title != "New title" {
-		t.Errorf(`Invalid title, got %q`, updatedEntry.Title)
-	}
-
-	if updatedEntry.Content != "New content" {
-		t.Errorf(`Invalid content, got %q`, updatedEntry.Content)
-	}
-
-	entry, err := regularUserClient.Entry(result.Entries[0].ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if entry.Title != "New title" {
-		t.Errorf(`Invalid title, got %q`, entry.Title)
-	}
-
-	if entry.Content != "New content" {
-		t.Errorf(`Invalid content, got %q`, entry.Content)
-	}
+	entry, err := self.client.Entry(result.Entries[0].ID)
+	self.Require().NoError(err)
+	self.Require().NotNil(entry)
+	self.Equal("New title", entry.Title, "Invalid title")
+	self.Equal("New content", entry.Content, "Invalid content")
 }
 
-func TestToggleBookmarkEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestToggleBookmarkEndpoint() {
+	feedID := self.createFeed()
+	result, err := self.client.FeedEntries(feedID, &miniflux.Filter{Limit: 1})
+	self.Require().NoError(err, "Failed to get entries")
+	self.Require().NotNil(result)
+	self.Require().NotEmpty(result.Entries)
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
+	self.Require().NoError(self.client.ToggleBookmark(result.Entries[0].ID))
 
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	result, err := regularUserClient.FeedEntries(feedID, &miniflux.Filter{Limit: 1})
-	if err != nil {
-		t.Fatalf(`Failed to get entries: %v`, err)
-	}
-
-	if err := regularUserClient.ToggleBookmark(result.Entries[0].ID); err != nil {
-		t.Fatal(err)
-	}
-
-	entry, err := regularUserClient.Entry(result.Entries[0].ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !entry.Starred {
-		t.Fatalf(`The entry should be bookmarked`)
-	}
+	entry, err := self.client.Entry(result.Entries[0].ID)
+	self.Require().NoError(err)
+	self.Require().NotNil(entry)
+	self.True(entry.Starred, "The entry should be bookmarked")
 }
 
-func TestSaveEntryEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestSaveEntryEndpoint() {
+	feedID := self.createFeed()
+	result, err := self.client.FeedEntries(feedID, &miniflux.Filter{Limit: 1})
+	self.Require().NoError(err, "Failed to get entries")
+	self.Require().NotNil(result)
+	self.Require().NotEmpty(result.Entries)
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	result, err := regularUserClient.FeedEntries(feedID, &miniflux.Filter{Limit: 1})
-	if err != nil {
-		t.Fatalf(`Failed to get entries: %v`, err)
-	}
-
-	if err := regularUserClient.SaveEntry(result.Entries[0].ID); !errors.Is(err, miniflux.ErrBadRequest) {
-		t.Fatalf(`Saving an entry should raise a bad request error because no integration is configured`)
-	}
+	self.Require().ErrorIs(
+		self.client.SaveEntry(result.Entries[0].ID), miniflux.ErrBadRequest,
+		"Saving an entry should raise a bad request error because no integration is configured")
 }
 
-func TestFetchIntegrationsStatusEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
-
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	hasIntegrations, err := regularUserClient.IntegrationsStatus()
-	if err != nil {
-		t.Fatalf("Failed to fetch integrations status: %v", err)
-	}
-
-	if hasIntegrations {
-		t.Fatalf("New user should not have integrations configured")
-	}
+func (self *EndpointTestSuite) TestFetchIntegrationsStatusEndpoint() {
+	hasIntegrations, err := self.client.IntegrationsStatus()
+	self.Require().NoError(err, "Failed to fetch integrations status")
+	self.False(hasIntegrations,
+		"New user should not have integrations configured")
 }
 
-func TestFetchContentEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestFetchContentEndpoint() {
+	feedID := self.createFeed()
+	result, err := self.client.FeedEntries(feedID, &miniflux.Filter{Limit: 1})
+	self.Require().NoError(err, "Failed to get entries")
+	self.Require().NotNil(result)
+	self.Require().NotEmpty(result.Entries)
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
-
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
-
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
-
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	result, err := regularUserClient.FeedEntries(feedID, &miniflux.Filter{Limit: 1})
-	if err != nil {
-		t.Fatalf(`Failed to get entries: %v`, err)
-	}
-
-	content, err := regularUserClient.FetchEntryOriginalContent(result.Entries[0].ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if content == "" {
-		t.Fatalf(`Invalid content, got empty`)
-	}
+	content, err := self.client.FetchEntryOriginalContent(result.Entries[0].ID)
+	self.Require().NoError(err)
+	self.NotEmpty(content, "Invalid content")
 }
 
-func TestFlushHistoryEndpoint(t *testing.T) {
-	testConfig := newIntegrationTestConfig()
-	if !testConfig.isConfigured() {
-		t.Skip(skipIntegrationTestsMessage)
-	}
+func (self *EndpointTestSuite) TestFlushHistoryEndpoint() {
+	feedID := self.createFeed()
+	result, err := self.client.FeedEntries(feedID, &miniflux.Filter{Limit: 3})
+	self.Require().NoError(err, "Failed to get entries")
+	self.Require().NotNil(result)
+	self.Require().NotEmpty(result.Entries)
 
-	adminClient := miniflux.NewClient(testConfig.testBaseURL, testConfig.testAdminUsername, testConfig.testAdminPassword)
+	err = self.client.UpdateEntries(
+		[]int64{result.Entries[0].ID, result.Entries[1].ID},
+		miniflux.EntryStatusRead)
+	self.Require().NoError(err)
 
-	regularTestUser, err := adminClient.CreateUser(testConfig.genRandomUsername(), testConfig.testRegularPassword, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer adminClient.DeleteUser(regularTestUser.ID)
+	self.Require().NoError(self.client.FlushHistory())
 
-	regularUserClient := miniflux.NewClient(testConfig.testBaseURL, regularTestUser.Username, testConfig.testRegularPassword)
+	readEntries, err := self.client.Entries(
+		&miniflux.Filter{Status: miniflux.EntryStatusRead})
+	self.Require().NoError(err)
+	self.Require().NotNil(readEntries)
+	self.Zero(readEntries.Total, "Invalid total")
 
-	feedID, err := regularUserClient.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: testConfig.testFeedURL,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	result, err := regularUserClient.FeedEntries(feedID, &miniflux.Filter{Limit: 3})
-	if err != nil {
-		t.Fatalf(`Failed to get entries: %v`, err)
-	}
-
-	if err := regularUserClient.UpdateEntries([]int64{result.Entries[0].ID, result.Entries[1].ID}, miniflux.EntryStatusRead); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := regularUserClient.FlushHistory(); err != nil {
-		t.Fatal(err)
-	}
-
-	readEntries, err := regularUserClient.Entries(&miniflux.Filter{Status: miniflux.EntryStatusRead})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if readEntries.Total != 0 {
-		t.Fatalf(`Invalid total, got %d`, readEntries.Total)
-	}
-
-	removedEntries, err := regularUserClient.Entries(&miniflux.Filter{Status: miniflux.EntryStatusRemoved})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if removedEntries.Total != 2 {
-		t.Fatalf(`Invalid total, got %d`, removedEntries.Total)
-	}
+	removedEntries, err := self.client.Entries(
+		&miniflux.Filter{Status: miniflux.EntryStatusRemoved})
+	self.Require().NoError(err)
+	self.Require().NotNil(removedEntries)
+	self.Equal(2, removedEntries.Total, "Invalid total")
 }
