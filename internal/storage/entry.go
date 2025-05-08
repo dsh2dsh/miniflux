@@ -138,9 +138,117 @@ RETURNING id, status, created_at, changed_at`,
 	for _, enclosure := range entry.Enclosures {
 		enclosure.EntryID = entry.ID
 		enclosure.UserID = entry.UserID
-		if err := s.createEnclosure(ctx, tx, enclosure); err != nil {
-			return err
+	}
+	if err := s.createEnclosures(ctx, tx, entry.Enclosures); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Storage) createEntries(ctx context.Context, tx pgx.Tx,
+	entries model.Entries,
+) error {
+	switch len(entries) {
+	case 0:
+		return nil
+	case 1, 2:
+		for _, e := range entries {
+			if err := s.createEntry(ctx, tx, e); err != nil {
+				return err
+			}
 		}
+		return nil
+	}
+
+	byHash := make(map[string]*model.Entry, len(entries))
+	hashes := make([]string, len(entries))
+	now := time.Now()
+
+	_, err := tx.CopyFrom(ctx, pgx.Identifier{"entries"},
+		[]string{
+			"title",
+			"hash",
+			"url",
+			"comments_url",
+			"published_at",
+			"content",
+			"author",
+			"user_id",
+			"feed_id",
+			"reading_time",
+			"tags",
+			"changed_at",
+		},
+		pgx.CopyFromSlice(len(entries), func(i int) ([]any, error) {
+			e := entries[i]
+			byHash[e.Hash] = e
+			hashes[i] = e.Hash
+			return []any{
+				e.Title,
+				e.Hash,
+				e.URL,
+				e.CommentsURL,
+				e.Date,
+				e.Content,
+				e.Author,
+				e.UserID,
+				e.FeedID,
+				e.ReadingTime,
+				removeEmpty(removeDuplicates(e.Tags)),
+				now,
+			}, nil
+		}))
+	if err != nil {
+		return fmt.Errorf("storage: copy from entries: %w", err)
+	}
+
+	feedID := entries[0].FeedID
+	rows, _ := tx.Query(ctx, `
+SELECT id, hash, status, created_at, changed_at
+  FROM entries
+ WHERE feed_id = $1 AND hash = ANY($2)`, feedID, hashes)
+
+	var id int64
+	var hash, status string
+	var createdAt, changedAt time.Time
+	ids := make([]int64, 0, len(entries))
+
+	_, err = pgx.ForEachRow(rows,
+		[]any{&id, &hash, &status, &createdAt, &changedAt},
+		func() error {
+			ids = append(ids, id)
+			e := byHash[hash]
+			e.ID = id
+			e.Status = status
+			e.CreatedAt = createdAt
+			e.ChangedAt = changedAt
+			for _, enc := range e.Enclosures {
+				enc.EntryID = e.ID
+				enc.UserID = e.UserID
+			}
+			return nil
+		})
+	if err != nil {
+		return fmt.Errorf("storage: returned entries: %w", err)
+	}
+
+	err = s.createEnclosures(ctx, tx, entries.Enclosures())
+	if err != nil {
+		return err
+	}
+	return s.buildDocVectors(ctx, tx, ids)
+}
+
+func (s *Storage) buildDocVectors(ctx context.Context, tx pgx.Tx, ids []int64,
+) error {
+	_, err := tx.Exec(ctx, `
+UPDATE entries
+   SET document_vectors =
+     setweight(to_tsvector(left(coalesce(title,   ''), 500000)), 'A') ||
+     setweight(to_tsvector(left(coalesce(content, ''), 500000)), 'B')
+ WHERE id = ANY($1)`, ids)
+	if err != nil {
+		return fmt.Errorf("storage: build document vectors: %w", err)
 	}
 	return nil
 }

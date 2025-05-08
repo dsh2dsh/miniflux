@@ -36,8 +36,8 @@ func NewIntegrationConfig(t *testing.T) *IntegrationConfig {
 	c := &IntegrationConfig{
 		RegularUsername:   "regular_test_user",
 		RegularPassword:   "regular_test_user_password",
-		FeedURL:           "http://127.0.0.1:8000/releases.atom",
-		FeedTitle:         "Release notes from v2",
+		FeedURL:           "http://127.0.0.1:8000/feed.xml",
+		FeedTitle:         "Miniflux",
 		SubscriptionTitle: "Miniflux Releases",
 		WebsiteURL:        "http://127.0.0.1:8000",
 		TestListenAddr:    "127.0.0.1:8000",
@@ -964,10 +964,7 @@ func (self *EndpointTestSuite) TestUpdateEnclosureEndpoint() {
 			break
 		}
 	}
-
-	if enclosure == nil {
-		self.T().Skip(`Skipping test, missing enclosure in feed.`)
-	}
+	self.Require().NotNil(enclosure, "missing enclosure in feed")
 
 	err = self.client.UpdateEnclosure(enclosure.ID,
 		&miniflux.EnclosureUpdateRequest{MediaProgression: 20})
@@ -993,10 +990,7 @@ func (self *EndpointTestSuite) TestGetEnclosureEndpoint() {
 			break
 		}
 	}
-
-	if expectedEnclosure == nil {
-		self.T().Skip(`Skipping test, missing enclosure in feed.`)
-	}
+	self.Require().NotNil(expectedEnclosure, "missing enclosure in feed")
 
 	enclosure, err := self.client.Enclosure(expectedEnclosure.ID)
 	self.Require().NoError(err)

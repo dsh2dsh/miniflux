@@ -260,6 +260,28 @@ func (s *Storage) FeedByID(ctx context.Context, userID, feedID int64,
 
 // CreateFeed creates a new feed.
 func (s *Storage) CreateFeed(ctx context.Context, feed *model.Feed) error {
+	if err := s.createFeed(ctx, feed); err != nil {
+		return err
+	} else if len(feed.Entries) == 0 {
+		return nil
+	}
+
+	for _, entry := range feed.Entries {
+		entry.FeedID = feed.ID
+		entry.UserID = feed.UserID
+	}
+
+	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		return s.createEntries(ctx, tx, feed.Entries)
+	})
+	if err != nil {
+		return fmt.Errorf("unable to create entries(%v, feed #%d): %w",
+			len(feed.Entries), feed.ID, err)
+	}
+	return nil
+}
+
+func (s *Storage) createFeed(ctx context.Context, feed *model.Feed) error {
 	err := s.db.QueryRow(ctx, `
 INSERT INTO feeds (
   feed_url,
@@ -323,22 +345,6 @@ RETURNING id`,
 		feed.ProxyURL).Scan(&feed.ID)
 	if err != nil {
 		return fmt.Errorf(`store: unable to create feed %q: %w`, feed.FeedURL, err)
-	}
-
-	for _, entry := range feed.Entries {
-		entry.FeedID = feed.ID
-		entry.UserID = feed.UserID
-		err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-			if entryExists, err := s.entryExists(ctx, tx, entry); err != nil {
-				return err
-			} else if entryExists {
-				return nil
-			}
-			return s.createEntry(ctx, tx, entry)
-		})
-		if err != nil {
-			return fmt.Errorf("store: unable to create entries: %w", err)
-		}
 	}
 	return nil
 }

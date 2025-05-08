@@ -69,6 +69,21 @@ func (e *Entry) ShouldMarkAsReadOnView(user *User) bool {
 // Entries represents a list of entries.
 type Entries []*Entry
 
+func (self Entries) Enclosures() []*Enclosure {
+	size := 0
+	for _, e := range self {
+		size += len(e.Enclosures)
+	}
+
+	encList := make([]*Enclosure, 0, size)
+	for _, e := range self {
+		if len(e.Enclosures) > 0 {
+			encList = append(encList, e.Enclosures...)
+		}
+	}
+	return encList
+}
+
 // EntriesStatusUpdateRequest represents a request to change entries status.
 type EntriesStatusUpdateRequest struct {
 	EntryIDs []int64 `json:"entry_ids"`

@@ -90,6 +90,27 @@ func (el EnclosureList) ProxifyEnclosureURL(router *mux.Router) {
 	}
 }
 
+func (el EnclosureList) Uniq() (EnclosureList, map[int64]map[string]*Enclosure) {
+	encList := make([]*Enclosure, 0, len(el))
+	mapped := make(map[int64]map[string]*Enclosure)
+
+	for _, enc := range el {
+		if enc.URL = strings.TrimSpace(enc.URL); enc.URL == "" {
+			continue
+		}
+		if byURL, ok := mapped[enc.EntryID]; ok {
+			if _, seen := byURL[enc.URL]; seen {
+				continue
+			}
+			byURL[enc.URL] = enc
+		} else {
+			mapped[enc.EntryID] = map[string]*Enclosure{enc.URL: enc}
+		}
+		encList = append(encList, enc)
+	}
+	return encList, mapped
+}
+
 func (e *Enclosure) ProxifyEnclosureURL(router *mux.Router) {
 	proxyOption := config.Opts.MediaProxyMode()
 

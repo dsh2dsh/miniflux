@@ -7,6 +7,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -71,11 +73,68 @@ SELECT id, user_id, entry_id, url, size, mime_type, media_progression
 	return enclosure, nil
 }
 
+func (s *Storage) createEnclosures(ctx context.Context, tx pgx.Tx,
+	enclosures model.EnclosureList,
+) error {
+	enclosures, mapped := enclosures.Uniq()
+	switch len(enclosures) {
+	case 0:
+		return nil
+	case 1:
+		return s.createEnclosure(ctx, tx, enclosures[0])
+	}
+
+	_, err := tx.CopyFrom(ctx, pgx.Identifier{"enclosures"},
+		[]string{
+			"url",
+			"size",
+			"mime_type",
+			"entry_id",
+			"user_id",
+			"media_progression",
+		},
+		pgx.CopyFromSlice(len(enclosures), func(i int) ([]any, error) {
+			e := enclosures[i]
+			return []any{
+				e.URL,
+				e.Size,
+				e.MimeType,
+				e.EntryID,
+				e.UserID,
+				e.MediaProgression,
+			}, nil
+		}))
+	if err != nil {
+		return fmt.Errorf("storage: copy from enclosures: %w", err)
+	}
+
+	rows, _ := tx.Query(ctx,
+		`SELECT id, entry_id, url FROM enclosures WHERE entry_id = ANY($1)`,
+		slices.Collect(maps.Keys(mapped)))
+
+	var id, entryID int64
+	var url string
+
+	_, err = pgx.ForEachRow(rows, []any{&id, &entryID, &url},
+		func() error {
+			if byURL, ok := mapped[entryID]; ok {
+				if enc, ok := byURL[url]; ok {
+					enc.ID = id
+				}
+			}
+			return nil
+		})
+	if err != nil {
+		return fmt.Errorf("storage: returned enclosures: %w", err)
+	}
+	return nil
+}
+
 func (s *Storage) createEnclosure(ctx context.Context, tx pgx.Tx,
 	enclosure *model.Enclosure,
 ) error {
-	enclosureURL := strings.TrimSpace(enclosure.URL)
-	if enclosureURL == "" {
+	url := strings.TrimSpace(enclosure.URL)
+	if url == "" {
 		return nil
 	}
 
@@ -85,8 +144,12 @@ INSERT INTO enclosures
      VALUES ($1,  $2,   $3,        $4,       $5,      $6)
 ON CONFLICT (user_id, entry_id, md5(url)) DO NOTHING
   RETURNING id`,
-		enclosureURL, enclosure.Size, enclosure.MimeType, enclosure.EntryID,
-		enclosure.UserID, enclosure.MediaProgression)
+		url,
+		enclosure.Size,
+		enclosure.MimeType,
+		enclosure.EntryID,
+		enclosure.UserID,
+		enclosure.MediaProgression)
 
 	ret, err := pgx.CollectExactlyOneRow(rows,
 		pgx.RowToStructByNameLax[model.Enclosure])
@@ -106,9 +169,9 @@ func (s *Storage) updateEnclosures(ctx context.Context, tx pgx.Tx,
 		return nil
 	}
 
-	sqlValues := make([]string, len(entry.Enclosures))
+	urls := make([]string, len(entry.Enclosures))
 	for i, enclosure := range entry.Enclosures {
-		sqlValues[i] = strings.TrimSpace(enclosure.URL)
+		urls[i] = strings.TrimSpace(enclosure.URL)
 		if err := s.createEnclosure(ctx, tx, enclosure); err != nil {
 			return err
 		}
@@ -116,7 +179,7 @@ func (s *Storage) updateEnclosures(ctx context.Context, tx pgx.Tx,
 
 	_, err := tx.Exec(ctx, `
 DELETE FROM enclosures WHERE user_id=$1 AND entry_id=$2 AND url <> ALL($3)`,
-		entry.UserID, entry.ID, sqlValues)
+		entry.UserID, entry.ID, urls)
 	if err != nil {
 		return fmt.Errorf(`unable to delete old enclosures: %w`, err)
 	}

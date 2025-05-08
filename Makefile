@@ -212,7 +212,9 @@ kill-e2e:
 	rm "e2e_api.pid"
 
 clean-e2e: kill-e2e
+.if !defined(KEEP_LOG)
 	rm "e2e_api.log"
+.endif
 	dropdb -U postgres miniflux_test
 
 clean-e2e-error: kill-e2e
