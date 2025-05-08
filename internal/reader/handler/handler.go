@@ -12,6 +12,7 @@ import (
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/integration"
 	"miniflux.app/v2/internal/locale"
+	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/proxyrotator"
 	"miniflux.app/v2/internal/reader/fetcher"
@@ -349,10 +350,18 @@ func RefreshFeed(ctx context.Context, store *storage.Storage,
 		originalFeed.Entries = updatedFeed.Entries
 		processor.ProcessFeedEntries(ctx, store, originalFeed, userID, forceRefresh)
 
-		// We don't update existing entries when the crawler is enabled (we crawl only inexisting entries). Unless it is forced to refresh
+		// We don't update existing entries when the crawler is enabled (we crawl
+		// only inexisting entries). Unless it is forced to refresh.
 		updateExistingEntries := forceRefresh || !originalFeed.Crawler
-		newEntries, storeErr := store.RefreshFeedEntries(ctx,
-			originalFeed.UserID, originalFeed.ID, originalFeed.Entries, updateExistingEntries)
+		newEntries, storeErr := store.RefreshFeedEntries(
+			logging.With(ctx,
+				slog.Int64("user_id", userID),
+				slog.Group("feed",
+					slog.Int64("id", feedID),
+					slog.String("url", originalFeed.FeedURL)),
+				slog.Bool("update_existing", updateExistingEntries)),
+			originalFeed.UserID, originalFeed.ID, originalFeed.Entries,
+			updateExistingEntries)
 		if storeErr != nil {
 			localizedError := locale.NewLocalizedErrorWrapper(storeErr, "error.database_error", storeErr)
 			user, storeErr := store.UserByID(ctx, userID)

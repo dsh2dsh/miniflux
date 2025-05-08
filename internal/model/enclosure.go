@@ -111,6 +111,14 @@ func (el EnclosureList) Uniq() (EnclosureList, map[int64]map[string]*Enclosure) 
 	return encList, mapped
 }
 
+func (el EnclosureList) URLs() []string {
+	urls := make([]string, len(el))
+	for i, e := range el {
+		urls[i] = e.URL
+	}
+	return urls
+}
+
 func (e *Enclosure) ProxifyEnclosureURL(router *mux.Router) {
 	proxyOption := config.Opts.MediaProxyMode()
 

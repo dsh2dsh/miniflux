@@ -89,60 +89,217 @@ UPDATE entries
 	return nil
 }
 
-// createEntry add a new entry.
-func (s *Storage) createEntry(ctx context.Context, tx pgx.Tx,
-	entry *model.Entry,
-) error {
-	rows, _ := tx.Query(ctx, `
-INSERT INTO entries (
-  title,
-  hash,
-  url,
-  comments_url,
-  published_at,
-  content,
-  author,
-  user_id,
-  feed_id,
-  reading_time,
-  tags,
-  changed_at,
-  document_vectors)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now(),
-        setweight(to_tsvector(left(coalesce($1, ''), 500000)), 'A') || setweight(to_tsvector(left(coalesce($6, ''), 500000)), 'B'))
-RETURNING id, status, created_at, changed_at`,
-		entry.Title,
-		entry.Hash,
-		entry.URL,
-		entry.CommentsURL,
-		entry.Date,
-		entry.Content,
-		entry.Author,
-		entry.UserID,
-		entry.FeedID,
-		entry.ReadingTime,
-		removeEmpty(removeDuplicates(entry.Tags)))
+func (s *Storage) IsNewEntry(ctx context.Context, feedID int64,
+	entryHash string,
+) bool {
+	rows, _ := s.db.Query(ctx,
+		`SELECT EXISTS(SELECT FROM entries WHERE feed_id=$1 AND hash=$2)`,
+		feedID, entryHash)
 
-	created, err := pgx.CollectExactlyOneRow(rows,
-		pgx.RowToStructByNameLax[model.Entry])
+	result, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[bool])
 	if err != nil {
-		return fmt.Errorf(`unable to create entry %q (feed #%d): %w`,
-			entry.URL, entry.FeedID, err)
+		logging.FromContext(ctx).Error("store: unable to check if entry is new",
+			slog.Int64("feed_id", feedID),
+			slog.String("hash", entryHash),
+			slog.Any("error", err))
+		return false
+	}
+	return !result
+}
+
+func (s *Storage) GetReadTime(ctx context.Context, feedID int64,
+	entryHash string,
+) int {
+	// Note: This query uses entries_feed_id_hash_key index
+	rows, _ := s.db.Query(ctx,
+		`SELECT reading_time FROM entries WHERE feed_id=$1 AND hash=$2`,
+		feedID, entryHash)
+
+	readingTime, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[int])
+	if err != nil {
+		logging.FromContext(ctx).Error("store: unable to fetch entry reading_time",
+			slog.Int64("feed_id", feedID),
+			slog.String("hash", entryHash),
+			slog.Any("error", err))
+		return 0
+	}
+	return readingTime
+}
+
+// RefreshFeedEntries updates feed entries while refreshing a feed.
+func (s *Storage) RefreshFeedEntries(ctx context.Context, userID, feedID int64,
+	entries model.Entries, updateExisting bool,
+) (model.Entries, error) {
+	hashes := make([]string, len(entries))
+	for i, e := range entries {
+		e.UserID, e.FeedID = userID, feedID
+		hashes[i] = e.Hash
 	}
 
-	entry.ID = created.ID
-	entry.Status = created.Status
-	entry.CreatedAt = created.CreatedAt
-	entry.ChangedAt = created.ChangedAt
+	i, err := s.refreshIndex(ctx, feedID, entries)
+	if err != nil {
+		return nil, err
+	}
 
-	for _, enclosure := range entry.Enclosures {
-		enclosure.EntryID = entry.ID
-		enclosure.UserID = entry.UserID
+	log := logging.FromContext(ctx).With(slog.Int("count", len(entries)))
+
+	var created model.Entries
+	if i < len(entries) {
+		log.Info("storage: refreshing feed entries", slog.Int("skip", i))
+		l, err := s.refreshEntries(ctx, feedID, hashes[i:], entries[i:],
+			updateExisting)
+		if err != nil {
+			return nil, err
+		}
+		created = l
+	} else {
+		log.Info("storage: skip refreshing feed entries", slog.Int("removed", i))
 	}
-	if err := s.createEnclosures(ctx, tx, entry.Enclosures); err != nil {
-		return err
+
+	if err := s.cleanupEntries(ctx, feedID, hashes); err != nil {
+		return nil, err
 	}
-	return nil
+	return created, nil
+}
+
+func (s *Storage) refreshIndex(ctx context.Context, feedID int64,
+	entries model.Entries,
+) (int, error) {
+	latest, err := s.latestRemovedEntryHash(ctx, feedID)
+	if err != nil || latest == "" {
+		return 0, err
+	}
+
+	i := slices.IndexFunc(entries, func(e *model.Entry) bool {
+		return e.Hash == latest
+	})
+
+	if i < 0 {
+		return 0, nil
+	}
+	return i + 1, nil
+}
+
+func (s *Storage) latestRemovedEntryHash(ctx context.Context, feedID int64,
+) (string, error) {
+	rows, _ := s.db.Query(ctx, `
+SELECT hash
+  FROM entries
+ WHERE feed_id = $1 AND status = $2
+ ORDER BY id DESC LIMIT 1`, feedID, model.EntryStatusRemoved)
+
+	hash, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[string])
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	} else if err != nil {
+		return "", fmt.Errorf(
+			"storage: looking for latest removed entry: %w", err)
+	}
+	return hash, nil
+}
+
+func (s *Storage) refreshEntries(ctx context.Context, feedID int64,
+	hashes []string, entries model.Entries, update bool,
+) (model.Entries, error) {
+	var created model.Entries
+	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		known, unknown, err := s.knownEntries(ctx, tx, feedID, hashes, entries)
+		if err != nil {
+			return err
+		}
+
+		if update {
+			for _, e := range known {
+				if err := s.updateEntry(ctx, tx, e); err != nil {
+					return err
+				}
+			}
+		}
+
+		if len(unknown) == 0 {
+			return nil
+		}
+
+		if err := s.createEntries(ctx, tx, unknown); err != nil {
+			return err
+		}
+		created = unknown
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("unable refresh feed entries: %w", err)
+	}
+	return created, nil
+}
+
+func (s *Storage) knownEntries(ctx context.Context, tx pgx.Tx, feedID int64,
+	hashes []string, entries []*model.Entry,
+) ([]*model.Entry, []*model.Entry, error) {
+	rows, _ := tx.Query(ctx,
+		`SELECT hash FROM entries WHERE feed_id = $1 AND hash=ANY($2)`,
+		feedID, hashes)
+
+	knownHashes := make(map[string]struct{}, len(entries))
+	var hash string
+	_, err := pgx.ForEachRow(rows, []any{&hash}, func() error {
+		knownHashes[hash] = struct{}{}
+		return nil
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, entries, nil
+	} else if err != nil {
+		return nil, nil, fmt.Errorf("storage: check entries exist: %w", err)
+	}
+
+	knownEntries := make([]*model.Entry, 0, len(knownHashes))
+	newEntries := make([]*model.Entry, 0, len(entries)-len(knownHashes))
+	for _, e := range entries {
+		if _, ok := knownHashes[e.Hash]; ok {
+			knownEntries = append(knownEntries, e)
+		} else {
+			newEntries = append(newEntries, e)
+		}
+	}
+	return knownEntries, newEntries, nil
+}
+
+// updateEntry updates an entry when a feed is refreshed.
+//
+// Note: we do not update the published date because some feeds do not contains
+// any date, it default to time.Now() which could change the order of items on
+// the history page.
+func (s *Storage) updateEntry(ctx context.Context, tx pgx.Tx, e *model.Entry,
+) error {
+	err := tx.QueryRow(ctx, `
+UPDATE entries
+   SET title = $1,
+       url = $2,
+       comments_url = $3,
+       content = $4,
+       author = $5,
+       reading_time = $6,
+       tags = $10,
+       document_vectors =
+         setweight(to_tsvector(left(coalesce($1, ''), 500000)), 'A') ||
+         setweight(to_tsvector(left(coalesce($4, ''), 500000)), 'B')
+ WHERE user_id=$7 AND feed_id=$8 AND hash=$9
+RETURNING id`,
+		e.Title,
+		e.URL,
+		e.CommentsURL,
+		e.Content,
+		e.Author,
+		e.ReadingTime,
+		e.UserID, e.FeedID, e.Hash,
+		removeEmpty(removeDuplicates(e.Tags))).Scan(&e.ID)
+	if err != nil {
+		return fmt.Errorf("storage: update entry %q: %w", e.URL, err)
+	}
+
+	for _, enc := range e.Enclosures {
+		enc.UserID, enc.EntryID = e.UserID, e.ID
+	}
+	return s.updateEnclosures(ctx, tx, e)
 }
 
 func (s *Storage) createEntries(ctx context.Context, tx pgx.Tx,
@@ -239,6 +396,58 @@ SELECT id, hash, status, created_at, changed_at
 	return s.buildDocVectors(ctx, tx, ids)
 }
 
+// createEntry add a new entry.
+func (s *Storage) createEntry(ctx context.Context, tx pgx.Tx, e *model.Entry,
+) error {
+	rows, _ := tx.Query(ctx, `
+INSERT INTO entries (
+  title,
+  hash,
+  url,
+  comments_url,
+  published_at,
+  content,
+  author,
+  user_id,
+  feed_id,
+  reading_time,
+  tags,
+  changed_at,
+  document_vectors)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now(),
+        setweight(to_tsvector(left(coalesce($1, ''), 500000)), 'A') ||
+        setweight(to_tsvector(left(coalesce($6, ''), 500000)), 'B'))
+RETURNING id, status, created_at, changed_at`,
+		e.Title,
+		e.Hash,
+		e.URL,
+		e.CommentsURL,
+		e.Date,
+		e.Content,
+		e.Author,
+		e.UserID,
+		e.FeedID,
+		e.ReadingTime,
+		removeEmpty(removeDuplicates(e.Tags)))
+
+	created, err := pgx.CollectExactlyOneRow(rows,
+		pgx.RowToStructByNameLax[model.Entry])
+	if err != nil {
+		return fmt.Errorf("storage: create entry %q (feed #%d): %w",
+			e.URL, e.FeedID, err)
+	}
+
+	e.ID = created.ID
+	e.Status = created.Status
+	e.CreatedAt = created.CreatedAt
+	e.ChangedAt = created.ChangedAt
+
+	for _, enc := range e.Enclosures {
+		enc.EntryID, enc.UserID = e.ID, e.UserID
+	}
+	return s.createEnclosures(ctx, tx, e.Enclosures)
+}
+
 func (s *Storage) buildDocVectors(ctx context.Context, tx pgx.Tx, ids []int64,
 ) error {
 	_, err := tx.Exec(ctx, `
@@ -253,158 +462,18 @@ UPDATE entries
 	return nil
 }
 
-// updateEntry updates an entry when a feed is refreshed.
-//
-// Note: we do not update the published date because some feeds do not contains
-// any date, it default to time.Now() which could change the order of items on
-// the history page.
-func (s *Storage) updateEntry(ctx context.Context, tx pgx.Tx,
-	entry *model.Entry,
-) error {
-	rows, _ := tx.Query(ctx, `
-UPDATE entries
-   SET title=$1,
-       url=$2,
-       comments_url=$3,
-       content=$4,
-       author=$5,
-       reading_time=$6,
-       tags=$10,
-       document_vectors = setweight(to_tsvector(left(coalesce($1, ''), 500000)), 'A') || setweight(to_tsvector(left(coalesce($4, ''), 500000)), 'B')
- WHERE user_id=$7 AND feed_id=$8 AND hash=$9
-RETURNING id`,
-		entry.Title,
-		entry.URL,
-		entry.CommentsURL,
-		entry.Content,
-		entry.Author,
-		entry.ReadingTime,
-		entry.UserID, entry.FeedID, entry.Hash,
-		removeEmpty(removeDuplicates(entry.Tags)))
-
-	updated, err := pgx.CollectExactlyOneRow(rows,
-		pgx.RowToStructByNameLax[model.Entry])
-	if err != nil {
-		return fmt.Errorf(`unable to update entry %q: %w`, entry.URL, err)
-	}
-	entry.ID = updated.ID
-
-	for _, enclosure := range entry.Enclosures {
-		enclosure.UserID = entry.UserID
-		enclosure.EntryID = entry.ID
-	}
-	return s.updateEnclosures(ctx, tx, entry)
-}
-
-// entryExists checks if an entry already exists based on its hash when
-// refreshing a feed.
-func (s *Storage) entryExists(ctx context.Context, tx pgx.Tx,
-	entry *model.Entry,
-) (bool, error) {
-	// Note: This query uses entries_feed_id_hash_key index (filtering on user_id
-	// is not necessary).
-	rows, _ := tx.Query(ctx,
-		`SELECT EXISTS(SELECT FROM entries WHERE feed_id=$1 AND hash=$2)`,
-		entry.FeedID, entry.Hash)
-
-	result, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[bool])
-	if err != nil {
-		return false, fmt.Errorf(`unable to check if entry exists: %w`, err)
-	}
-	return result, nil
-}
-
-func (s *Storage) IsNewEntry(ctx context.Context, feedID int64,
-	entryHash string,
-) bool {
-	rows, _ := s.db.Query(ctx,
-		`SELECT EXISTS(SELECT FROM entries WHERE feed_id=$1 AND hash=$2)`,
-		feedID, entryHash)
-
-	result, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[bool])
-	if err != nil {
-		logging.FromContext(ctx).Error("store: unable to check if entry is new",
-			slog.Int64("feed_id", feedID),
-			slog.String("hash", entryHash),
-			slog.Any("error", err))
-		return false
-	}
-	return !result
-}
-
-func (s *Storage) GetReadTime(ctx context.Context, feedID int64,
-	entryHash string,
-) int {
-	// Note: This query uses entries_feed_id_hash_key index
-	rows, _ := s.db.Query(ctx,
-		`SELECT reading_time FROM entries WHERE feed_id=$1 AND hash=$2`,
-		feedID, entryHash)
-
-	readingTime, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[int])
-	if err != nil {
-		logging.FromContext(ctx).Error("store: unable to fetch entry reading_time",
-			slog.Int64("feed_id", feedID),
-			slog.String("hash", entryHash),
-			slog.Any("error", err))
-		return 0
-	}
-	return readingTime
-}
-
 // cleanupEntries deletes from the database entries marked as "removed" and not
 // visible anymore in the feed.
 func (s *Storage) cleanupEntries(ctx context.Context, feedID int64,
-	entryHashes []string,
+	hashes []string,
 ) error {
 	_, err := s.db.Exec(ctx, `
 DELETE FROM entries WHERE feed_id=$1 AND status=$2 AND NOT (hash=ANY($3))`,
-		feedID, model.EntryStatusRemoved, entryHashes)
+		feedID, model.EntryStatusRemoved, hashes)
 	if err != nil {
 		return fmt.Errorf(`store: unable to cleanup entries: %w`, err)
 	}
 	return nil
-}
-
-// RefreshFeedEntries updates feed entries while refreshing a feed.
-func (s *Storage) RefreshFeedEntries(ctx context.Context, userID, feedID int64,
-	entries []*model.Entry, updateExistingEntries bool,
-) (newEntries []*model.Entry, err error) {
-	entryHashes := make([]string, len(entries))
-	for i, entry := range entries {
-		entry.UserID = userID
-		entry.FeedID = feedID
-
-		err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-			entryExists, err := s.entryExists(ctx, tx, entry)
-			if err != nil {
-				return err
-			}
-
-			if entryExists {
-				if updateExistingEntries {
-					if err := s.updateEntry(ctx, tx, entry); err != nil {
-						return err
-					}
-				}
-				return nil
-			}
-
-			if err := s.createEntry(ctx, tx, entry); err != nil {
-				return err
-			}
-			newEntries = append(newEntries, entry)
-			return nil
-		})
-		if err != nil {
-			return nil, fmt.Errorf(`store: unable to refresh feed entries: %w`, err)
-		}
-		entryHashes[i] = entry.Hash
-	}
-
-	if err := s.cleanupEntries(ctx, feedID, entryHashes); err != nil {
-		return nil, err
-	}
-	return newEntries, nil
 }
 
 // ArchiveEntries changes the status of entries to "removed" after the given

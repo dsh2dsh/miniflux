@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -118,8 +117,8 @@ func (s *Storage) createEnclosures(ctx context.Context, tx pgx.Tx,
 	_, err = pgx.ForEachRow(rows, []any{&id, &entryID, &url},
 		func() error {
 			if byURL, ok := mapped[entryID]; ok {
-				if enc, ok := byURL[url]; ok {
-					enc.ID = id
+				if e, ok := byURL[url]; ok {
+					e.ID = id
 				}
 			}
 			return nil
@@ -131,59 +130,81 @@ func (s *Storage) createEnclosures(ctx context.Context, tx pgx.Tx,
 }
 
 func (s *Storage) createEnclosure(ctx context.Context, tx pgx.Tx,
-	enclosure *model.Enclosure,
+	e *model.Enclosure,
 ) error {
-	url := strings.TrimSpace(enclosure.URL)
-	if url == "" {
-		return nil
-	}
-
-	rows, _ := tx.Query(ctx, `
+	err := tx.QueryRow(ctx, `
 INSERT INTO enclosures
 	          (url, size, mime_type, entry_id, user_id, media_progression)
      VALUES ($1,  $2,   $3,        $4,       $5,      $6)
 ON CONFLICT (user_id, entry_id, md5(url)) DO NOTHING
   RETURNING id`,
-		url,
-		enclosure.Size,
-		enclosure.MimeType,
-		enclosure.EntryID,
-		enclosure.UserID,
-		enclosure.MediaProgression)
-
-	ret, err := pgx.CollectExactlyOneRow(rows,
-		pgx.RowToStructByNameLax[model.Enclosure])
+		e.URL,
+		e.Size,
+		e.MimeType,
+		e.EntryID,
+		e.UserID,
+		e.MediaProgression).Scan(&e.ID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	} else if err != nil {
 		return fmt.Errorf(`unable to create enclosure: %w`, err)
 	}
-	enclosure.ID = ret.ID
 	return nil
 }
 
 func (s *Storage) updateEnclosures(ctx context.Context, tx pgx.Tx,
 	entry *model.Entry,
 ) error {
-	if len(entry.Enclosures) == 0 {
+	enclosures, _ := entry.Enclosures.Uniq()
+	if len(enclosures) == 0 {
 		return nil
 	}
 
-	urls := make([]string, len(entry.Enclosures))
-	for i, enclosure := range entry.Enclosures {
-		urls[i] = strings.TrimSpace(enclosure.URL)
-		if err := s.createEnclosure(ctx, tx, enclosure); err != nil {
-			return err
-		}
+	known, unknown, err := s.knownEnclosures(ctx, tx, entry.UserID, entry.ID,
+		enclosures)
+	if err != nil {
+		return err
 	}
 
-	_, err := tx.Exec(ctx, `
-DELETE FROM enclosures WHERE user_id=$1 AND entry_id=$2 AND url <> ALL($3)`,
-		entry.UserID, entry.ID, urls)
+	_, err = tx.Exec(ctx, `
+DELETE FROM enclosures
+ WHERE user_id=$1 AND entry_id=$2 AND url <> ALL($3)`,
+		entry.UserID, entry.ID, known.URLs())
 	if err != nil {
-		return fmt.Errorf(`unable to delete old enclosures: %w`, err)
+		return fmt.Errorf("storage: delete unknown enclosures: %w", err)
 	}
-	return nil
+	return s.createEnclosures(ctx, tx, unknown)
+}
+
+func (s *Storage) knownEnclosures(ctx context.Context, tx pgx.Tx,
+	userID, entryID int64, enclosures model.EnclosureList,
+) (model.EnclosureList, model.EnclosureList, error) {
+	rows, _ := tx.Query(ctx,
+		`SELECT url FROM enclosures WHERE user_id = $1 and entry_id = $2`,
+		userID, entryID)
+
+	knownURLs := make(map[string]struct{}, len(enclosures))
+	var url string
+	_, err := pgx.ForEachRow(rows, []any{&url}, func() error {
+		knownURLs[url] = struct{}{}
+		return nil
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, enclosures, nil
+	} else if err != nil {
+		return nil, nil, fmt.Errorf("storage: check known enclosures: %w", err)
+	}
+
+	known := make([]*model.Enclosure, 0, len(knownURLs))
+	unknown := make([]*model.Enclosure, 0, len(enclosures)-len(knownURLs))
+	for _, e := range enclosures {
+		if _, ok := knownURLs[e.URL]; ok {
+			known = append(known, e)
+		} else {
+			unknown = append(unknown, e)
+		}
+	}
+	return known, unknown, nil
 }
 
 func (s *Storage) UpdateEnclosure(ctx context.Context,
@@ -191,13 +212,13 @@ func (s *Storage) UpdateEnclosure(ctx context.Context,
 ) error {
 	_, err := s.db.Exec(ctx, `
 UPDATE enclosures
-   SET url=$1,
-       size=$2,
-       mime_type=$3,
-       entry_id=$4,
-       user_id=$5,
-       media_progression=$6
- WHERE id=$7`,
+   SET url = $1,
+       size = $2,
+       mime_type = $3,
+       entry_id = $4,
+       user_id = $5,
+       media_progression = $6
+ WHERE id = $7`,
 		enclosure.URL,
 		enclosure.Size,
 		enclosure.MimeType,

@@ -361,10 +361,18 @@ func (self *EndpointTestSuite) TestMarkUserAsReadEndpoint() {
 
 func (self *EndpointTestSuite) createFeed() int64 {
 	self.T().Helper()
+	return self.createFeedWith(miniflux.FeedCreationRequest{})
+}
 
-	feedID, err := self.client.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL: self.cfg.FeedURL,
-	})
+func (self *EndpointTestSuite) createFeedWith(r miniflux.FeedCreationRequest,
+) int64 {
+	self.T().Helper()
+
+	if r.FeedURL == "" {
+		r.FeedURL = self.cfg.FeedURL
+	}
+
+	feedID, err := self.client.CreateFeed(&r)
 	self.Require().NoError(err)
 	self.NotZero(feedID, "Invalid feedID")
 	return feedID
@@ -400,15 +408,19 @@ func (self *EndpointTestSuite) TestCannotMarkUserAsReadAsOtherUser() {
 }
 
 func (self *EndpointTestSuite) TestCreateCategoryEndpoint() {
-	categoryName := "My category"
-	category, err := self.client.CreateCategory(categoryName)
-	self.Require().NoError(err)
-	self.Require().NotNil(category)
-
+	category := self.createCategory()
 	self.NotEmpty(category.ID, "Invalid categoryID")
 	self.Positive(category.UserID, "Invalid userID")
-	self.Equal(categoryName, category.Title, "Invalid title")
+	self.Equal("My category", category.Title, "Invalid title")
 	self.False(category.HideGlobally, "Invalid hide globally value")
+}
+
+func (self *EndpointTestSuite) createCategory() *miniflux.Category {
+	self.T().Helper()
+	category, err := self.client.CreateCategory("My category")
+	self.Require().NoError(err)
+	self.Require().NotNil(category)
+	return category
 }
 
 func (self *EndpointTestSuite) TestCreateCategoryWithEmptyTitle() {
@@ -419,11 +431,8 @@ func (self *EndpointTestSuite) TestCreateCategoryWithEmptyTitle() {
 }
 
 func (self *EndpointTestSuite) TestCannotCreateDuplicatedCategory() {
-	categoryName := "My category"
-	_, err := self.client.CreateCategory(categoryName)
-	self.Require().NoError(err)
-
-	_, err = self.client.CreateCategory(categoryName)
+	category := self.createCategory()
+	_, err := self.client.CreateCategory(category.Title)
 	self.T().Log(err)
 	self.Require().Error(err, "Duplicated categories should not be allowed")
 }
@@ -451,8 +460,7 @@ func (self *EndpointTestSuite) TestCreateCategoryWithOptions() {
 }
 
 func (self *EndpointTestSuite) TestUpdateCategoryEndpoint() {
-	category, err := self.client.CreateCategory("My category")
-	self.Require().NoError(err)
+	category := self.createCategory()
 
 	const title = "new title"
 	updatedCategory, err := self.client.UpdateCategory(category.ID, title)
@@ -509,12 +517,8 @@ func (self *EndpointTestSuite) TestUpdateInexistingCategory() {
 }
 
 func (self *EndpointTestSuite) TestDeleteCategoryEndpoint() {
-	categoryName := "My category"
-	category, err := self.client.CreateCategory(categoryName)
-	self.Require().NoError(err)
-
-	err = self.client.DeleteCategory(category.ID)
-	self.Require().NoError(err)
+	category := self.createCategory()
+	self.Require().NoError(self.client.DeleteCategory(category.ID))
 }
 
 func (self *EndpointTestSuite) TestCannotDeleteInexistingCategory() {
@@ -525,19 +529,15 @@ func (self *EndpointTestSuite) TestCannotDeleteInexistingCategory() {
 }
 
 func (self *EndpointTestSuite) TestCannotDeleteCategoryOfAnotherUser() {
-	category, err := self.client.CreateCategory("My category")
-	self.Require().NoError(err)
-
-	err = self.admin.DeleteCategory(category.ID)
+	category := self.createCategory()
+	err := self.admin.DeleteCategory(category.ID)
 	self.T().Log(err)
 	self.Require().Error(err,
 		"Regular users should not be able to delete categories of other users")
 }
 
 func (self *EndpointTestSuite) TestGetCategoriesEndpoint() {
-	category, err := self.client.CreateCategory("My category")
-	self.Require().NoError(err)
-	self.Require().NotNil(category)
+	category := self.createCategory()
 
 	categories, err := self.client.Categories()
 	self.Require().NoError(err)
@@ -550,51 +550,35 @@ func (self *EndpointTestSuite) TestGetCategoriesEndpoint() {
 }
 
 func (self *EndpointTestSuite) TestMarkCategoryAsReadEndpoint() {
-	category, err := self.client.CreateCategory("My category")
-	self.Require().NoError(err)
-	self.Require().NotNil(category)
-
-	feedCreate := miniflux.FeedCreationRequest{
-		FeedURL:    self.cfg.FeedURL,
+	category := self.createCategory()
+	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
 		CategoryID: category.ID,
-	}
-	feedID, err := self.client.CreateFeed(&feedCreate)
-	self.Require().NoError(err)
-
+	})
 	self.Require().NoError(self.client.MarkCategoryAsRead(category.ID))
 	self.checkFeedIsRead(feedID)
 }
 
 func (self *EndpointTestSuite) TestCreateFeedEndpoint() {
-	category, err := self.client.CreateCategory("My category")
-	self.Require().NoError(err)
-	self.Require().NotNil(category)
-
-	feedCreate := miniflux.FeedCreationRequest{
-		FeedURL:    self.cfg.FeedURL,
+	category := self.createCategory()
+	self.createFeedWith(miniflux.FeedCreationRequest{
 		CategoryID: category.ID,
-	}
-	feedID, err := self.client.CreateFeed(&feedCreate)
-	self.Require().NoError(err)
-	self.NotEmpty(feedID, "Invalid feedID")
+	})
 }
 
 func (self *EndpointTestSuite) TestCannotCreateDuplicatedFeed() {
 	self.createFeed()
-	feedCreate := miniflux.FeedCreationRequest{
+	_, err := self.client.CreateFeed(&miniflux.FeedCreationRequest{
 		FeedURL: self.cfg.FeedURL,
-	}
-	_, err := self.client.CreateFeed(&feedCreate)
+	})
 	self.T().Log(err)
 	self.Require().Error(err, "Duplicated feeds should not be allowed")
 }
 
 func (self *EndpointTestSuite) TestCreateFeedWithInexistingCategory() {
-	feedCreate := miniflux.FeedCreationRequest{
+	_, err := self.client.CreateFeed(&miniflux.FeedCreationRequest{
 		FeedURL:    self.cfg.FeedURL,
 		CategoryID: 123456789,
-	}
-	_, err := self.client.CreateFeed(&feedCreate)
+	})
 	self.T().Log(err)
 	self.Require().Error(err,
 		"Creating a feed with an inexisting category should raise an error")
@@ -608,20 +592,18 @@ func (self *EndpointTestSuite) TestCreateFeedWithEmptyFeedURL() {
 }
 
 func (self *EndpointTestSuite) TestCreateFeedWithInvalidFeedURL() {
-	feedCreate := miniflux.FeedCreationRequest{FeedURL: "invalid_feed_url"}
-	_, err := self.client.CreateFeed(&feedCreate)
+	_, err := self.client.CreateFeed(&miniflux.FeedCreationRequest{
+		FeedURL: "invalid_feed_url",
+	})
 	self.T().Log(err)
 	self.Require().Error(err,
 		"Creating a feed with an invalid feed URL should raise an error")
 }
 
 func (self *EndpointTestSuite) TestCreateDisabledFeed() {
-	feedCreate := miniflux.FeedCreationRequest{
-		FeedURL:  self.cfg.FeedURL,
+	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
 		Disabled: true,
-	}
-	feedID, err := self.client.CreateFeed(&feedCreate)
-	self.Require().NoError(err)
+	})
 
 	feed, err := self.client.Feed(feedID)
 	self.Require().NoError(err)
@@ -630,12 +612,9 @@ func (self *EndpointTestSuite) TestCreateDisabledFeed() {
 }
 
 func (self *EndpointTestSuite) TestCreateFeedWithDisabledHTTPCache() {
-	feedCreate := miniflux.FeedCreationRequest{
-		FeedURL:         self.cfg.FeedURL,
+	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
 		IgnoreHTTPCache: true,
-	}
-	feedID, err := self.client.CreateFeed(&feedCreate)
-	self.Require().NoError(err)
+	})
 
 	feed, err := self.client.Feed(feedID)
 	self.Require().NoError(err)
@@ -644,12 +623,9 @@ func (self *EndpointTestSuite) TestCreateFeedWithDisabledHTTPCache() {
 }
 
 func (self *EndpointTestSuite) TestCreateFeedWithScraperRule() {
-	feedCreate := miniflux.FeedCreationRequest{
-		FeedURL:      self.cfg.FeedURL,
+	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
 		ScraperRules: "article",
-	}
-	feedID, err := self.client.CreateFeed(&feedCreate)
-	self.Require().NoError(err)
+	})
 
 	feed, err := self.client.Feed(feedID)
 	self.Require().NoError(err)
@@ -674,18 +650,15 @@ func (self *EndpointTestSuite) TestUpdateFeedEndpoint() {
 
 func (self *EndpointTestSuite) TestCannotHaveDuplicateFeedWhenUpdatingFeed() {
 	self.createFeed()
-
-	feedCreate := miniflux.FeedCreationRequest{
+	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
 		FeedURL: "https://github.com/miniflux/v2/commits.atom",
-	}
-	feedID, err := self.client.CreateFeed(&feedCreate)
-	self.Require().NoError(err)
+	})
 
 	feedModify := miniflux.FeedModificationRequest{
 		FeedURL: miniflux.SetOptionalField(self.cfg.FeedURL),
 	}
 
-	_, err = self.client.UpdateFeed(feedID, &feedModify)
+	_, err := self.client.UpdateFeed(feedID, &feedModify)
 	self.T().Log(err)
 	self.Require().Error(err, "Duplicated feeds should not be allowed")
 }
@@ -736,6 +709,22 @@ func (self *EndpointTestSuite) TestRefreshFeedEndpoint() {
 	self.Require().NoError(self.client.RefreshFeed(feedID))
 }
 
+func (self *EndpointTestSuite) TestRefreshFeedEndpoint_IgnoreHTTPCache() {
+	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
+		IgnoreHTTPCache: true,
+	})
+	self.Require().NoError(self.client.RefreshFeed(feedID))
+}
+
+func (self *EndpointTestSuite) TestRefreshFeedEndpoint_flushHistory() {
+	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
+		IgnoreHTTPCache: true,
+	})
+	self.Require().NoError(self.client.MarkFeedAsRead(feedID))
+	self.Require().NoError(self.client.FlushHistory())
+	self.Require().NoError(self.client.RefreshFeed(feedID))
+}
+
 func (self *EndpointTestSuite) TestGetFeedEndpoint() {
 	feedID := self.createFeed()
 	feed, err := self.client.Feed(feedID)
@@ -777,16 +766,10 @@ func (self *EndpointTestSuite) TestGetFeedsEndpoint() {
 }
 
 func (self *EndpointTestSuite) TestGetCategoryFeedsEndpoint() {
-	category, err := self.client.CreateCategory("My category")
-	self.Require().NoError(err)
-	self.Require().NotNil(category)
-
-	feedID, err := self.client.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL:    self.cfg.FeedURL,
+	category := self.createCategory()
+	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
 		CategoryID: category.ID,
 	})
-	self.Require().NoError(err)
-	self.Require().NotEmpty(feedID)
 
 	feeds, err := self.client.CategoryFeeds(category.ID)
 	self.Require().NoError(err)
@@ -855,16 +838,10 @@ func (self *EndpointTestSuite) TestGetAllFeedEntriesEndpoint() {
 }
 
 func (self *EndpointTestSuite) TestGetAllCategoryEntriesEndpoint() {
-	category, err := self.client.CreateCategory("My category")
-	self.Require().NoError(err)
-	self.Require().NotNil(category)
-
-	feedID, err := self.client.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL:    self.cfg.FeedURL,
+	category := self.createCategory()
+	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
 		CategoryID: category.ID,
 	})
-	self.Require().NoError(err)
-	self.Require().NotZero(feedID)
 
 	results, err := self.client.CategoryEntries(category.ID, nil)
 	self.Require().NoError(err)
@@ -923,12 +900,9 @@ func (self *EndpointTestSuite) TestGetAllEntriesEndpointWithFilter() {
 }
 
 func (self *EndpointTestSuite) TestGetGlobalEntriesEndpoint() {
-	feedID, err := self.client.CreateFeed(&miniflux.FeedCreationRequest{
-		FeedURL:      self.cfg.FeedURL,
+	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
 		HideGlobally: true,
 	})
-	self.Require().NoError(err)
-	self.Require().NotZero(feedID)
 
 	feedIDEntry, err := self.client.Feed(feedID)
 	self.Require().NoError(err)
