@@ -39,24 +39,27 @@ type Pool struct {
 }
 
 // Push send a list of jobs to the queue.
-func (self *Pool) Push(jobs []model.Job) {
+func (self *Pool) Push(ctx context.Context, jobs []model.Job) {
 	for _, job := range jobs {
 		select {
 		case <-self.ctx.Done():
 			return
+		case <-ctx.Done():
+			return
 		case self.queue <- job:
 		}
 	}
-	logging.FromContext(self.ctx).Info("sent a batch of feeds to the queue",
+	logging.FromContext(ctx).Info("worker: sent a batch of feeds to the queue",
 		slog.Int("nb_jobs", len(jobs)))
 }
 
 func (self *Pool) Run() error {
-	logging.FromContext(self.ctx).Info("worker pool started")
+	log := logging.FromContext(self.ctx)
+	log.Info("worker pool started")
 	for {
 		select {
 		case <-self.ctx.Done():
-			slog.Info("worker pool stopped")
+			log.Info("worker pool stopped")
 			return nil
 		case job := <-self.queue:
 			self.g.Go(func() error {
@@ -68,7 +71,7 @@ func (self *Pool) Run() error {
 }
 
 func (self *Pool) refreshFeed(job model.Job) {
-	logging.FromContext(self.ctx).Debug("Job received",
+	logging.FromContext(self.ctx).Debug("worker: job received",
 		slog.Int64("user_id", job.UserID),
 		slog.Int64("feed_id", job.FeedID))
 

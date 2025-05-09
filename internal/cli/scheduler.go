@@ -55,7 +55,7 @@ func (self *Daemon) feedScheduler(ctx context.Context, pool *worker.Pool,
 					slog.Any("error", err))
 			} else if len(jobs) > 0 {
 				slog.Info("Created a batch of feeds", slog.Int("nb_jobs", len(jobs)))
-				pool.Push(jobs)
+				pool.Push(ctx, jobs)
 			}
 		}
 	}

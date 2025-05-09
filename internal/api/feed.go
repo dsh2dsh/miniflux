@@ -93,8 +93,7 @@ func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
 		slog.Int("nb_jobs", len(jobs)),
 	)
 
-	go h.pool.Push(jobs)
-
+	h.pool.Push(r.Context(), jobs)
 	json.NoContent(w, r)
 }
 

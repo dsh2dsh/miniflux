@@ -58,8 +58,7 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request) int64 
 			slog.Int("nb_jobs", len(jobs)),
 		)
 
-		go h.pool.Push(jobs)
-
+		h.pool.Push(r.Context(), jobs)
 		sess.SetLastForceRefresh(r.Context())
 		sess.NewFlashMessage(r.Context(),
 			printer.Print("alert.background_feed_refresh"))
