@@ -167,7 +167,7 @@ func (s *Storage) refreshEntries(ctx context.Context, tx pgx.Tx, feedID int64,
 		return nil, err
 	}
 
-	logging.FromContext(ctx).Debug("storage: refresh feed entries",
+	logging.FromContext(ctx).Info("storage: refresh feed entries",
 		slog.Int("count", len(entries)),
 		slog.Int("update", len(unread)),
 		slog.Int("create", len(unknown)))
