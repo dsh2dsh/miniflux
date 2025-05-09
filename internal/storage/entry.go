@@ -141,11 +141,12 @@ func (s *Storage) RefreshFeedEntries(ctx context.Context, userID, feedID int64,
 		return nil, err
 	}
 
-	log := logging.FromContext(ctx).With(slog.Int("count", len(entries)))
+	log := logging.FromContext(ctx).With(
+		slog.Int("count", len(entries)), slog.Int("skip", i))
 
 	var created model.Entries
 	if i < len(entries) {
-		log.Info("storage: refreshing feed entries", slog.Int("skip", i))
+		log.Info("storage: refreshing feed entries")
 		l, err := s.refreshEntries(ctx, feedID, hashes[i:], entries[i:],
 			updateExisting)
 		if err != nil {
@@ -153,7 +154,7 @@ func (s *Storage) RefreshFeedEntries(ctx context.Context, userID, feedID int64,
 		}
 		created = l
 	} else {
-		log.Info("storage: skip refreshing feed entries", slog.Int("removed", i))
+		log.Info("storage: skip refreshing feed entries")
 	}
 
 	if err := s.cleanupEntries(ctx, feedID, hashes); err != nil {
@@ -165,13 +166,13 @@ func (s *Storage) RefreshFeedEntries(ctx context.Context, userID, feedID int64,
 func (s *Storage) refreshIndex(ctx context.Context, feedID int64,
 	entries model.Entries,
 ) (int, error) {
-	latest, err := s.latestRemovedEntryHash(ctx, feedID)
-	if err != nil || latest == "" {
+	skipHash, err := s.skipRefreshEntryHash(ctx, feedID)
+	if err != nil || skipHash == "" {
 		return 0, err
 	}
 
 	i := slices.IndexFunc(entries, func(e *model.Entry) bool {
-		return e.Hash == latest
+		return e.Hash == skipHash
 	})
 
 	if i < 0 {
@@ -180,13 +181,13 @@ func (s *Storage) refreshIndex(ctx context.Context, feedID int64,
 	return i + 1, nil
 }
 
-func (s *Storage) latestRemovedEntryHash(ctx context.Context, feedID int64,
+func (s *Storage) skipRefreshEntryHash(ctx context.Context, feedID int64,
 ) (string, error) {
 	rows, _ := s.db.Query(ctx, `
 SELECT hash
   FROM entries
- WHERE feed_id = $1 AND status = $2
- ORDER BY id DESC LIMIT 1`, feedID, model.EntryStatusRemoved)
+ WHERE feed_id = $1 AND status <> $2
+ ORDER BY id DESC LIMIT 1`, feedID, model.EntryStatusUnread)
 
 	hash, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[string])
 	if errors.Is(err, pgx.ErrNoRows) {

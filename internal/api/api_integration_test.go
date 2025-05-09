@@ -725,6 +725,14 @@ func (self *EndpointTestSuite) TestRefreshFeedEndpoint_flushHistory() {
 	self.Require().NoError(self.client.RefreshFeed(feedID))
 }
 
+func (self *EndpointTestSuite) TestRefreshFeedEndpoint_markedRead() {
+	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
+		IgnoreHTTPCache: true,
+	})
+	self.Require().NoError(self.client.MarkFeedAsRead(feedID))
+	self.Require().NoError(self.client.RefreshFeed(feedID))
+}
+
 func (self *EndpointTestSuite) TestGetFeedEndpoint() {
 	feedID := self.createFeed()
 	feed, err := self.client.Feed(feedID)
