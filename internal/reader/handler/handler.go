@@ -388,13 +388,9 @@ func RefreshFeed(ctx context.Context, store *storage.Storage,
 
 		originalFeed.EtagHeader = responseHandler.ETag()
 		originalFeed.LastModifiedHeader = responseHandler.LastModified()
-
-		originalFeed.IconURL = updatedFeed.IconURL
-		iconChecker := icon.NewIconChecker(store, originalFeed)
 		if forceRefresh {
-			iconChecker.UpdateOrCreateFeedIcon(ctx)
-		} else {
-			iconChecker.CreateFeedIconIfMissing(ctx)
+			originalFeed.IconURL = updatedFeed.IconURL
+			icon.NewIconChecker(store, originalFeed).UpdateOrCreateFeedIcon(ctx)
 		}
 	} else {
 		slog.Debug("Feed not modified",
