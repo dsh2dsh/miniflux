@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -33,7 +34,11 @@ var Cmd = cobra.Command{
 	PersistentPreRunE: persistentPreRunE,
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return NewDaemon().Run()
+		if err := NewDaemon().Run(); err != nil {
+			slog.Error("daemon exited with error", slog.Any("error", err))
+			return err
+		}
+		return nil
 	},
 
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
