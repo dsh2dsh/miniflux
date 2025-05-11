@@ -261,7 +261,7 @@ RETURNING id`,
 		e.Author,
 		e.ReadingTime,
 		e.UserID, e.FeedID, e.Hash,
-		removeEmpty(removeDuplicates(e.Tags))).Scan(&e.ID)
+		removeDuplicates(e.Tags)).Scan(&e.ID)
 	if err != nil {
 		return fmt.Errorf("storage: update entry %q: %w", e.URL, err)
 	}
@@ -321,7 +321,7 @@ func (s *Storage) createEntries(ctx context.Context, tx pgx.Tx,
 				e.UserID,
 				e.FeedID,
 				e.ReadingTime,
-				removeEmpty(removeDuplicates(e.Tags)),
+				removeDuplicates(e.Tags),
 				now,
 			}, nil
 		}))
@@ -398,7 +398,7 @@ RETURNING id, status, created_at, changed_at`,
 		e.UserID,
 		e.FeedID,
 		e.ReadingTime,
-		removeEmpty(removeDuplicates(e.Tags)))
+		removeDuplicates(e.Tags))
 
 	created, err := pgx.CollectExactlyOneRow(rows,
 		pgx.RowToStructByNameLax[model.Entry])
@@ -717,13 +717,20 @@ func (s *Storage) UnshareEntry(ctx context.Context, userID, entryID int64,
 	return nil
 }
 
-func removeDuplicates(l []string) []string {
-	slices.Sort(l)
-	return slices.Compact(l)
-}
-
-func removeEmpty(l []string) []string {
-	return slices.DeleteFunc(l, func(s string) bool {
-		return strings.TrimSpace(s) == ""
-	})
+func removeDuplicates(items []string) []string {
+	seen := make(map[string]struct{}, len(items))
+	for i, s := range items {
+		if s = strings.TrimSpace(s); s != "" {
+			if _, found := seen[s]; !found {
+				seen[s] = struct{}{}
+			} else {
+				s = ""
+			}
+		}
+		items[i] = s
+	}
+	if len(seen) < len(items) {
+		items = slices.DeleteFunc(items, func(s string) bool { return s == "" })
+	}
+	return items
 }
