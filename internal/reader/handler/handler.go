@@ -424,12 +424,14 @@ func refreshFeed(ctx context.Context, store *storage.Storage, userID int64,
 		return false, lerr
 	}
 
-	if integrations, err := store.Integration(ctx, userID); err != nil {
-		log.Error(
-			"Fetching integrations failed; the refresh process will go on, but no integrations will run this time",
-			slog.Any("error", err))
-	} else if integrations != nil && len(newEntries) > 0 {
-		integration.PushEntries(feed, newEntries, integrations)
+	if len(newEntries) > 0 {
+		if integrations, err := store.Integration(ctx, userID); err != nil {
+			log.Error(
+				"Fetching integrations failed; the refresh process will go on, but no integrations will run this time",
+				slog.Any("error", err))
+		} else if integrations != nil {
+			integration.PushEntries(feed, newEntries, integrations)
+		}
 	}
 
 	feed.EtagHeader = resp.ETag()

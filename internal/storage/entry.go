@@ -138,16 +138,19 @@ func (s *Storage) RefreshFeedEntries(ctx context.Context, userID, feedID int64,
 
 	start := time.Now()
 	var created model.Entries
-	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		l, err := s.refreshEntries(ctx, tx, feedID, hashes, entries, updateExisting)
+	if len(entries) > 0 {
+		err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+			l, err := s.refreshEntries(ctx, tx, feedID, hashes, entries,
+				updateExisting)
+			if err != nil {
+				return err
+			}
+			created = l
+			return nil
+		})
 		if err != nil {
-			return err
+			return nil, fmt.Errorf("unable refresh feed(#%d) entries: %w", feedID, err)
 		}
-		created = l
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("unable refresh feed(#%d) entries: %w", feedID, err)
 	}
 
 	if err := s.cleanupEntries(ctx, feedID, hashes); err != nil {
