@@ -158,7 +158,7 @@ func (f *Feed) ScheduleNextCheck(weeklyCount int, refreshDelayInMinutes int) int
 func (f *Feed) ContentChanged(body []byte) bool {
 	oldSize, oldHash := f.Extra.Size, f.Extra.Hash
 	f.Extra.Size, f.Extra.Hash = uint64(len(body)), xxhash.Sum64(body)
-	return f.Extra.Size != oldSize && f.Extra.Hash != oldHash
+	return f.Extra.Size != oldSize || f.Extra.Hash != oldHash
 }
 
 // FeedCreationRequest represents the request to create a feed.

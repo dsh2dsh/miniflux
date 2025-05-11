@@ -291,13 +291,17 @@ func RefreshFeed(ctx context.Context, store *storage.Storage, userID,
 
 	refreshAnyway := ignoreHTTPCache ||
 		resp.IsModified(feed.EtagHeader, feed.LastModifiedHeader)
+	var modified bool
 	if refreshAnyway {
-		lerr := refreshFeed(ctx, store, userID, feed, resp, weeklyCount,
+		ok, lerr := refreshFeed(ctx, store, userID, feed, resp, weeklyCount,
 			forceRefresh)
 		if lerr != nil {
 			return lerr
 		}
-	} else {
+		modified = ok
+	}
+
+	if !modified {
 		slog.Debug("Feed not modified",
 			slog.Int64("user_id", userID), slog.Int64("feed_id", feedID))
 		// Last-Modified may be updated even if ETag is not. In this case, per
@@ -306,7 +310,6 @@ func RefreshFeed(ctx context.Context, store *storage.Storage, userID,
 			feed.LastModifiedHeader = resp.LastModified()
 		}
 	}
-
 	feed.ResetErrorCounter()
 
 	if err := store.UpdateFeed(ctx, feed); err != nil {
@@ -327,7 +330,7 @@ func RefreshFeed(ctx context.Context, store *storage.Storage, userID,
 func refreshFeed(ctx context.Context, store *storage.Storage, userID int64,
 	feed *model.Feed, resp *fetcher.ResponseHandler, weeklyCount int,
 	forceRefresh bool,
-) *locale.LocalizedErrorWrapper {
+) (bool, *locale.LocalizedErrorWrapper) {
 	log := logging.FromContext(ctx).With(
 		slog.Int64("user_id", userID),
 		slog.Int64("feed_id", feed.ID))
@@ -340,14 +343,15 @@ func refreshFeed(ctx context.Context, store *storage.Storage, userID int64,
 	if lerr != nil {
 		log.Warn("Unable to fetch feed",
 			slog.String("feed_url", feed.FeedURL), slog.Any("error", lerr))
-		return lerr
+		return false, lerr
 	}
 
-	if !feed.ContentChanged(body) {
-		log.Debug("Feed content not modified",
+	if !feed.ContentChanged(body) && !forceRefresh {
+		log.Info("Feed content not modified",
 			slog.Uint64("size", feed.Extra.Size),
-			slog.String("hash", strconv.FormatUint(feed.Extra.Hash, 16)))
-		return nil
+			slog.String("hash", strconv.FormatUint(feed.Extra.Hash, 16)),
+			slog.String("feed_url", feed.FeedURL))
+		return false, nil
 	}
 
 	remoteFeed, err := parser.ParseFeed(resp.EffectiveURL(),
@@ -362,14 +366,16 @@ func refreshFeed(ctx context.Context, store *storage.Storage, userID int64,
 
 		user, err := store.UserByID(ctx, userID)
 		if err != nil {
-			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
+			return false, locale.NewLocalizedErrorWrapper(err,
+				"error.database_error", err)
 		}
 
 		feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
 		if err := store.UpdateFeedError(ctx, feed); err != nil {
-			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
+			return false, locale.NewLocalizedErrorWrapper(err,
+				"error.database_error", err)
 		}
-		return lerr
+		return false, lerr
 	}
 
 	// Use the RSS TTL value, or the Cache-Control or Expires HTTP headers if
@@ -407,13 +413,15 @@ func refreshFeed(ctx context.Context, store *storage.Storage, userID int64,
 		lerr := locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
 		user, err := store.UserByID(ctx, userID)
 		if err != nil {
-			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
+			return false, locale.NewLocalizedErrorWrapper(err,
+				"error.database_error", err)
 		}
 		feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
 		if err := store.UpdateFeedError(ctx, feed); err != nil {
-			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
+			return false, locale.NewLocalizedErrorWrapper(err,
+				"error.database_error", err)
 		}
-		return lerr
+		return false, lerr
 	}
 
 	if integrations, err := store.Integration(ctx, userID); err != nil {
@@ -430,5 +438,5 @@ func refreshFeed(ctx context.Context, store *storage.Storage, userID int64,
 		feed.IconURL = remoteFeed.IconURL
 		icon.NewIconChecker(store, feed).UpdateOrCreateFeedIcon(ctx)
 	}
-	return nil
+	return true, nil
 }
