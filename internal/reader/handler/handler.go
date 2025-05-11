@@ -269,7 +269,7 @@ func RefreshFeed(ctx context.Context, store *storage.Storage, userID,
 			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
 		}
 		feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
-		if err := store.UpdateFeedError(ctx, feed); err != nil {
+		if err := store.IncFeedError(ctx, feed); err != nil {
 			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
 		}
 		return lerr
@@ -283,7 +283,7 @@ func RefreshFeed(ctx context.Context, store *storage.Storage, userID,
 			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
 		}
 		feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
-		if err := store.UpdateFeedError(ctx, feed); err != nil {
+		if err := store.IncFeedError(ctx, feed); err != nil {
 			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
 		}
 		return lerr
@@ -319,7 +319,7 @@ func RefreshFeed(ctx context.Context, store *storage.Storage, userID,
 			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
 		}
 		feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
-		if err := store.UpdateFeedError(ctx, feed); err != nil {
+		if err := store.IncFeedError(ctx, feed); err != nil {
 			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
 		}
 		return lerr
@@ -371,7 +371,7 @@ func refreshFeed(ctx context.Context, store *storage.Storage, userID int64,
 		}
 
 		feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
-		if err := store.UpdateFeedError(ctx, feed); err != nil {
+		if err := store.IncFeedError(ctx, feed); err != nil {
 			return false, locale.NewLocalizedErrorWrapper(err,
 				"error.database_error", err)
 		}
@@ -417,7 +417,7 @@ func refreshFeed(ctx context.Context, store *storage.Storage, userID int64,
 				"error.database_error", err)
 		}
 		feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
-		if err := store.UpdateFeedError(ctx, feed); err != nil {
+		if err := store.IncFeedError(ctx, feed); err != nil {
 			return false, locale.NewLocalizedErrorWrapper(err,
 				"error.database_error", err)
 		}

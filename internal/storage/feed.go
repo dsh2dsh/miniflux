@@ -439,25 +439,28 @@ WHERE id = $38 AND user_id = $39`,
 	return nil
 }
 
-// UpdateFeedError updates feed errors.
-func (s *Storage) UpdateFeedError(ctx context.Context, feed *model.Feed,
+// IncFeedError updates feed errors.
+func (s *Storage) IncFeedError(ctx context.Context, feed *model.Feed,
 ) error {
-	_, err := s.db.Exec(ctx, `
+	rows, _ := s.db.Query(ctx, `
 UPDATE feeds
-   SET parsing_error_msg=$1,
-	     parsing_error_count=$2,
-	     checked_at=$3,
-	     next_check_at=$4
- WHERE id=$5 AND user_id=$6`,
+   SET parsing_error_msg = $1,
+       parsing_error_count = parsing_error_count + 1,
+       checked_at = $2,
+       next_check_at = $3
+ WHERE id = $4 AND user_id = $5
+RETURNING parsing_error_count`,
 		feed.ParsingErrorMsg,
-		feed.ParsingErrorCount,
 		feed.CheckedAt,
 		feed.NextCheckAt,
 		feed.ID, feed.UserID)
+
+	errCount, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[int])
 	if err != nil {
-		return fmt.Errorf(`store: unable to update feed error #%d (%s): %w`,
+		return fmt.Errorf("storage: unable to update feed error #%d (%s): %w",
 			feed.ID, feed.FeedURL, err)
 	}
+	feed.ParsingErrorCount = errCount
 	return nil
 }
 

@@ -111,8 +111,7 @@ func (f *Feed) WithTranslatedErrorMessage(message string) {
 
 // ResetErrorCounter removes all previous errors.
 func (f *Feed) ResetErrorCounter() {
-	f.ParsingErrorCount = 0
-	f.ParsingErrorMsg = ""
+	f.ParsingErrorCount, f.ParsingErrorMsg = 0, ""
 }
 
 // CheckedNow set attribute values when the feed is refreshed.
