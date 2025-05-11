@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strconv"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/integration"
@@ -174,6 +175,7 @@ func CreateFeed(ctx context.Context, store *storage.Storage, userID int64,
 	subscription.FeedURL = responseHandler.EffectiveURL()
 	subscription.ProxyURL = feedCreationRequest.ProxyURL
 	subscription.WithCategoryID(feedCreationRequest.CategoryID)
+	subscription.ContentChanged(responseBody)
 	subscription.CheckedNow()
 
 	processor.ProcessFeedEntries(ctx, store, subscription, userID, true)
@@ -194,230 +196,239 @@ func CreateFeed(ctx context.Context, store *storage.Storage, userID int64,
 }
 
 // RefreshFeed refreshes a feed.
-func RefreshFeed(ctx context.Context, store *storage.Storage,
-	userID, feedID int64, forceRefresh bool,
+func RefreshFeed(ctx context.Context, store *storage.Storage, userID,
+	feedID int64, forceRefresh bool,
 ) *locale.LocalizedErrorWrapper {
 	slog.Debug("Begin feed refresh process",
 		slog.Int64("user_id", userID),
 		slog.Int64("feed_id", feedID),
-		slog.Bool("force_refresh", forceRefresh),
-	)
+		slog.Bool("force_refresh", forceRefresh))
 
-	originalFeed, storeErr := store.FeedByID(ctx, userID, feedID)
-	if storeErr != nil {
-		return locale.NewLocalizedErrorWrapper(storeErr, "error.database_error", storeErr)
+	feed, err := store.FeedByID(ctx, userID, feedID)
+	if err != nil {
+		return locale.NewLocalizedErrorWrapper(err,
+			"error.database_error", err)
+	} else if feed == nil {
+		return locale.NewLocalizedErrorWrapper(ErrFeedNotFound,
+			"error.feed_not_found")
 	}
 
-	if originalFeed == nil {
-		return locale.NewLocalizedErrorWrapper(ErrFeedNotFound, "error.feed_not_found")
-	}
-
-	weeklyEntryCount := 0
-	refreshDelayInMinutes := 0
+	weeklyCount := 0
+	refreshDelay := 0
 	if config.Opts.PollingScheduler() == model.SchedulerEntryFrequency {
-		var weeklyCountErr error
-		weeklyEntryCount, weeklyCountErr = store.WeeklyFeedEntryCount(
-			ctx, userID, feedID)
-		if weeklyCountErr != nil {
-			return locale.NewLocalizedErrorWrapper(weeklyCountErr, "error.database_error", weeklyCountErr)
+		cnt, err := store.WeeklyFeedEntryCount(ctx, userID, feedID)
+		if err != nil {
+			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
 		}
+		weeklyCount = cnt
 	}
 
-	originalFeed.CheckedNow()
-	originalFeed.ScheduleNextCheck(weeklyEntryCount, refreshDelayInMinutes)
+	feed.CheckedNow()
+	feed.ScheduleNextCheck(weeklyCount, refreshDelay)
 
-	requestBuilder := fetcher.NewRequestBuilder()
-	requestBuilder.WithUsernameAndPassword(originalFeed.Username, originalFeed.Password)
-	requestBuilder.WithUserAgent(originalFeed.UserAgent, config.Opts.HTTPClientUserAgent())
-	requestBuilder.WithCookie(originalFeed.Cookie)
-	requestBuilder.WithTimeout(config.Opts.HTTPClientTimeout())
-	requestBuilder.WithProxyRotator(proxyrotator.ProxyRotatorInstance)
-	requestBuilder.WithCustomFeedProxyURL(originalFeed.ProxyURL)
-	requestBuilder.WithCustomApplicationProxyURL(config.Opts.HTTPClientProxyURL())
-	requestBuilder.UseCustomApplicationProxyURL(originalFeed.FetchViaProxy)
-	requestBuilder.IgnoreTLSErrors(originalFeed.AllowSelfSignedCertificates)
-	requestBuilder.DisableHTTP2(originalFeed.DisableHTTP2)
+	r := fetcher.NewRequestBuilder().
+		WithUsernameAndPassword(feed.Username, feed.Password).
+		WithUserAgent(feed.UserAgent, config.Opts.HTTPClientUserAgent()).
+		WithCookie(feed.Cookie).
+		WithTimeout(config.Opts.HTTPClientTimeout()).
+		WithProxyRotator(proxyrotator.ProxyRotatorInstance).
+		WithCustomFeedProxyURL(feed.ProxyURL).
+		WithCustomApplicationProxyURL(config.Opts.HTTPClientProxyURL()).
+		UseCustomApplicationProxyURL(feed.FetchViaProxy).
+		IgnoreTLSErrors(feed.AllowSelfSignedCertificates).
+		DisableHTTP2(feed.DisableHTTP2)
 
-	ignoreHTTPCache := originalFeed.IgnoreHTTPCache || forceRefresh
+	ignoreHTTPCache := feed.IgnoreHTTPCache || forceRefresh
 	if !ignoreHTTPCache {
-		requestBuilder.WithETag(originalFeed.EtagHeader)
-		requestBuilder.WithLastModified(originalFeed.LastModifiedHeader)
+		r.WithETag(feed.EtagHeader).WithLastModified(feed.LastModifiedHeader)
 	}
 
-	responseHandler := fetcher.NewResponseHandler(requestBuilder.ExecuteRequest(originalFeed.FeedURL))
-	defer responseHandler.Close()
+	resp := fetcher.NewResponseHandler(r.ExecuteRequest(feed.FeedURL))
+	defer resp.Close()
 
-	if responseHandler.IsRateLimited() {
-		retryDelayInSeconds := responseHandler.ParseRetryDelay()
-		refreshDelayInMinutes = retryDelayInSeconds / 60
-		calculatedNextCheckIntervalInMinutes := originalFeed.ScheduleNextCheck(weeklyEntryCount, refreshDelayInMinutes)
-
+	if resp.IsRateLimited() {
+		retryDelaySeconds := resp.ParseRetryDelay()
+		refreshDelay = retryDelaySeconds / 60
+		nextCheck := feed.ScheduleNextCheck(weeklyCount, refreshDelay)
 		slog.Warn("Feed is rate limited",
-			slog.String("feed_url", originalFeed.FeedURL),
-			slog.Int("retry_delay_in_seconds", retryDelayInSeconds),
-			slog.Int("refresh_delay_in_minutes", refreshDelayInMinutes),
-			slog.Int("calculated_next_check_interval_in_minutes", calculatedNextCheckIntervalInMinutes),
-			slog.Time("new_next_check_at", originalFeed.NextCheckAt),
-		)
+			slog.String("feed_url", feed.FeedURL),
+			slog.Int("retry_delay_in_seconds", retryDelaySeconds),
+			slog.Int("refresh_delay_in_minutes", refreshDelay),
+			slog.Int("calculated_next_check_interval_in_minutes", nextCheck),
+			slog.Time("new_next_check_at", feed.NextCheckAt))
 	}
 
-	if localizedError := responseHandler.LocalizedError(); localizedError != nil {
+	if lerr := resp.LocalizedError(); lerr != nil {
 		slog.Warn("Unable to fetch feed",
 			slog.Int64("user_id", userID),
 			slog.Int64("feed_id", feedID),
-			slog.String("feed_url", originalFeed.FeedURL),
-			slog.Any("error", localizedError.Error()),
-		)
-		user, storeErr := store.UserByID(ctx, userID)
-		if storeErr != nil {
-			return locale.NewLocalizedErrorWrapper(storeErr, "error.database_error", storeErr)
-		}
-		originalFeed.WithTranslatedErrorMessage(localizedError.Translate(user.Language))
-		if err := store.UpdateFeedError(ctx, originalFeed); err != nil {
+			slog.String("feed_url", feed.FeedURL),
+			slog.Any("error", lerr))
+		user, err := store.UserByID(ctx, userID)
+		if err != nil {
 			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
 		}
-		return localizedError
-	}
-
-	if store.AnotherFeedURLExists(ctx, userID, originalFeed.ID, responseHandler.EffectiveURL()) {
-		localizedError := locale.NewLocalizedErrorWrapper(ErrDuplicatedFeed, "error.duplicated_feed")
-		user, storeErr := store.UserByID(ctx, userID)
-		if storeErr != nil {
-			return locale.NewLocalizedErrorWrapper(storeErr, "error.database_error", storeErr)
-		}
-		originalFeed.WithTranslatedErrorMessage(localizedError.Translate(user.Language))
-		if err := store.UpdateFeedError(ctx, originalFeed); err != nil {
+		feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
+		if err := store.UpdateFeedError(ctx, feed); err != nil {
 			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
 		}
-		return localizedError
+		return lerr
 	}
 
-	if ignoreHTTPCache || responseHandler.IsModified(originalFeed.EtagHeader, originalFeed.LastModifiedHeader) {
-		slog.Debug("Feed modified",
-			slog.Int64("user_id", userID),
-			slog.Int64("feed_id", feedID),
-			slog.String("etag_header", originalFeed.EtagHeader),
-			slog.String("last_modified_header", originalFeed.LastModifiedHeader),
-		)
-
-		responseBody, localizedError := responseHandler.ReadBody(config.Opts.HTTPClientMaxBodySize())
-		if localizedError != nil {
-			slog.Warn("Unable to fetch feed", slog.String("feed_url", originalFeed.FeedURL), slog.Any("error", localizedError.Error()))
-			return localizedError
+	if store.AnotherFeedURLExists(ctx, userID, feed.ID, resp.EffectiveURL()) {
+		lerr := locale.NewLocalizedErrorWrapper(ErrDuplicatedFeed,
+			"error.duplicated_feed")
+		user, err := store.UserByID(ctx, userID)
+		if err != nil {
+			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
 		}
-
-		updatedFeed, parseErr := parser.ParseFeed(responseHandler.EffectiveURL(), bytes.NewReader(responseBody))
-		if parseErr != nil {
-			localizedError := locale.NewLocalizedErrorWrapper(parseErr, "error.unable_to_parse_feed", parseErr)
-
-			if errors.Is(parseErr, parser.ErrFeedFormatNotDetected) {
-				localizedError = locale.NewLocalizedErrorWrapper(parseErr, "error.feed_format_not_detected", parseErr)
-			}
-			user, storeErr := store.UserByID(ctx, userID)
-			if storeErr != nil {
-				return locale.NewLocalizedErrorWrapper(storeErr, "error.database_error", storeErr)
-			}
-
-			originalFeed.WithTranslatedErrorMessage(localizedError.Translate(user.Language))
-			if err := store.UpdateFeedError(ctx, originalFeed); err != nil {
-				return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
-			}
-			return localizedError
+		feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
+		if err := store.UpdateFeedError(ctx, feed); err != nil {
+			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
 		}
+		return lerr
+	}
 
-		// Use the RSS TTL value, or the Cache-Control or Expires HTTP headers if available.
-		// Otherwise, we use the default value from the configuration (min interval parameter).
-		feedTTLValue := updatedFeed.TTL
-		cacheControlMaxAgeValue := responseHandler.CacheControlMaxAgeInMinutes()
-		expiresValue := responseHandler.ExpiresInMinutes()
-		refreshDelayInMinutes = max(feedTTLValue, cacheControlMaxAgeValue, expiresValue)
-
-		// Set the next check at with updated arguments.
-		calculatedNextCheckIntervalInMinutes := originalFeed.ScheduleNextCheck(weeklyEntryCount, refreshDelayInMinutes)
-
-		slog.Debug("Updated next check date",
-			slog.Int64("user_id", userID),
-			slog.Int64("feed_id", feedID),
-			slog.String("feed_url", originalFeed.FeedURL),
-			slog.Int("feed_ttl_minutes", feedTTLValue),
-			slog.Int("cache_control_max_age_in_minutes", cacheControlMaxAgeValue),
-			slog.Int("expires_in_minutes", expiresValue),
-			slog.Int("refresh_delay_in_minutes", refreshDelayInMinutes),
-			slog.Int("calculated_next_check_interval_in_minutes", calculatedNextCheckIntervalInMinutes),
-			slog.Time("new_next_check_at", originalFeed.NextCheckAt),
-		)
-
-		originalFeed.Entries = updatedFeed.Entries
-		processor.ProcessFeedEntries(ctx, store, originalFeed, userID, forceRefresh)
-
-		// We don't update existing entries when the crawler is enabled (we crawl
-		// only inexisting entries). Unless it is forced to refresh.
-		updateExistingEntries := forceRefresh || !originalFeed.Crawler
-		newEntries, storeErr := store.RefreshFeedEntries(
-			logging.With(ctx,
-				slog.Int64("user_id", userID),
-				slog.Group("feed",
-					slog.Int64("id", feedID),
-					slog.String("url", originalFeed.FeedURL)),
-				slog.Bool("update_existing", updateExistingEntries)),
-			originalFeed.UserID, originalFeed.ID, originalFeed.Entries,
-			updateExistingEntries)
-		if storeErr != nil {
-			localizedError := locale.NewLocalizedErrorWrapper(storeErr, "error.database_error", storeErr)
-			user, storeErr := store.UserByID(ctx, userID)
-			if storeErr != nil {
-				return locale.NewLocalizedErrorWrapper(storeErr, "error.database_error", storeErr)
-			}
-			originalFeed.WithTranslatedErrorMessage(localizedError.Translate(user.Language))
-			if err := store.UpdateFeedError(ctx, originalFeed); err != nil {
-				return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
-			}
-			return localizedError
-		}
-
-		userIntegrations, intErr := store.Integration(ctx, userID)
-		if intErr != nil {
-			slog.Error("Fetching integrations failed; the refresh process will go on, but no integrations will run this time",
-				slog.Int64("user_id", userID),
-				slog.Int64("feed_id", feedID),
-				slog.Any("error", intErr),
-			)
-		} else if userIntegrations != nil && len(newEntries) > 0 {
-			go integration.PushEntries(originalFeed, newEntries, userIntegrations)
-		}
-
-		originalFeed.EtagHeader = responseHandler.ETag()
-		originalFeed.LastModifiedHeader = responseHandler.LastModified()
-		if forceRefresh {
-			originalFeed.IconURL = updatedFeed.IconURL
-			icon.NewIconChecker(store, originalFeed).UpdateOrCreateFeedIcon(ctx)
+	refreshAnyway := ignoreHTTPCache ||
+		resp.IsModified(feed.EtagHeader, feed.LastModifiedHeader)
+	if refreshAnyway {
+		lerr := refreshFeed(ctx, store, userID, feed, resp, weeklyCount,
+			forceRefresh)
+		if lerr != nil {
+			return lerr
 		}
 	} else {
 		slog.Debug("Feed not modified",
-			slog.Int64("user_id", userID),
-			slog.Int64("feed_id", feedID),
-		)
-
+			slog.Int64("user_id", userID), slog.Int64("feed_id", feedID))
 		// Last-Modified may be updated even if ETag is not. In this case, per
 		// RFC9111 sections 3.2 and 4.3.4, the stored response must be updated.
-		if responseHandler.LastModified() != "" {
-			originalFeed.LastModifiedHeader = responseHandler.LastModified()
+		if resp.LastModified() != "" {
+			feed.LastModifiedHeader = resp.LastModified()
 		}
 	}
 
-	originalFeed.ResetErrorCounter()
+	feed.ResetErrorCounter()
 
-	if storeErr := store.UpdateFeed(ctx, originalFeed); storeErr != nil {
-		localizedError := locale.NewLocalizedErrorWrapper(storeErr, "error.database_error", storeErr)
-		user, storeErr := store.UserByID(ctx, userID)
-		if storeErr != nil {
-			return locale.NewLocalizedErrorWrapper(storeErr, "error.database_error", storeErr)
-		}
-		originalFeed.WithTranslatedErrorMessage(localizedError.Translate(user.Language))
-		if err := store.UpdateFeedError(ctx, originalFeed); err != nil {
+	if err := store.UpdateFeed(ctx, feed); err != nil {
+		lerr := locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
+		user, err := store.UserByID(ctx, userID)
+		if err != nil {
 			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
 		}
-		return localizedError
+		feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
+		if err := store.UpdateFeedError(ctx, feed); err != nil {
+			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
+		}
+		return lerr
+	}
+	return nil
+}
+
+func refreshFeed(ctx context.Context, store *storage.Storage, userID int64,
+	feed *model.Feed, resp *fetcher.ResponseHandler, weeklyCount int,
+	forceRefresh bool,
+) *locale.LocalizedErrorWrapper {
+	log := logging.FromContext(ctx).With(
+		slog.Int64("user_id", userID),
+		slog.Int64("feed_id", feed.ID))
+
+	log.Debug("Feed modified",
+		slog.String("etag_header", feed.EtagHeader),
+		slog.String("last_modified_header", feed.LastModifiedHeader))
+
+	body, lerr := resp.ReadBody(config.Opts.HTTPClientMaxBodySize())
+	if lerr != nil {
+		log.Warn("Unable to fetch feed",
+			slog.String("feed_url", feed.FeedURL), slog.Any("error", lerr))
+		return lerr
+	}
+
+	if !feed.ContentChanged(body) {
+		log.Debug("Feed content not modified",
+			slog.Uint64("size", feed.Extra.Size),
+			slog.String("hash", strconv.FormatUint(feed.Extra.Hash, 16)))
+		return nil
+	}
+
+	remoteFeed, err := parser.ParseFeed(resp.EffectiveURL(),
+		bytes.NewReader(body))
+	if err != nil {
+		lerr := locale.NewLocalizedErrorWrapper(err,
+			"error.unable_to_parse_feed", err)
+		if errors.Is(err, parser.ErrFeedFormatNotDetected) {
+			lerr = locale.NewLocalizedErrorWrapper(err,
+				"error.feed_format_not_detected", err)
+		}
+
+		user, err := store.UserByID(ctx, userID)
+		if err != nil {
+			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
+		}
+
+		feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
+		if err := store.UpdateFeedError(ctx, feed); err != nil {
+			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
+		}
+		return lerr
+	}
+
+	// Use the RSS TTL value, or the Cache-Control or Expires HTTP headers if
+	// available. Otherwise, we use the default value from the configuration (min
+	// interval parameter).
+	ttl := remoteFeed.TTL
+	cacheControl := resp.CacheControlMaxAgeInMinutes()
+	expires := resp.ExpiresInMinutes()
+	refreshDelay := max(ttl, cacheControl, expires)
+
+	// Set the next check at with updated arguments.
+	nextCheck := feed.ScheduleNextCheck(weeklyCount, refreshDelay)
+
+	log.Debug("Updated next check date",
+		slog.String("feed_url", feed.FeedURL),
+		slog.Int("feed_ttl_minutes", ttl),
+		slog.Int("cache_control_max_age_in_minutes", cacheControl),
+		slog.Int("expires_in_minutes", expires),
+		slog.Int("refresh_delay_in_minutes", refreshDelay),
+		slog.Int("calculated_next_check_interval_in_minutes", nextCheck),
+		slog.Time("new_next_check_at", feed.NextCheckAt))
+
+	feed.Entries = remoteFeed.Entries
+	processor.ProcessFeedEntries(ctx, store, feed, userID, forceRefresh)
+
+	// We don't update existing entries when the crawler is enabled (we crawl
+	// only inexisting entries). Unless it is forced to refresh.
+	update := forceRefresh || !feed.Crawler
+	newEntries, err := store.RefreshFeedEntries(
+		logging.WithLogger(ctx, log.With(
+			slog.String("feed_url", feed.FeedURL),
+			slog.Bool("update_existing", update))),
+		feed.UserID, feed.ID, feed.Entries, update)
+	if err != nil {
+		lerr := locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
+		user, err := store.UserByID(ctx, userID)
+		if err != nil {
+			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
+		}
+		feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
+		if err := store.UpdateFeedError(ctx, feed); err != nil {
+			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
+		}
+		return lerr
+	}
+
+	if integrations, err := store.Integration(ctx, userID); err != nil {
+		log.Error(
+			"Fetching integrations failed; the refresh process will go on, but no integrations will run this time",
+			slog.Any("error", err))
+	} else if integrations != nil && len(newEntries) > 0 {
+		integration.PushEntries(feed, newEntries, integrations)
+	}
+
+	feed.EtagHeader = resp.ETag()
+	feed.LastModifiedHeader = resp.LastModified()
+	if forceRefresh {
+		feed.IconURL = remoteFeed.IconURL
+		icon.NewIconChecker(store, feed).UpdateOrCreateFeedIcon(ctx)
 	}
 	return nil
 }

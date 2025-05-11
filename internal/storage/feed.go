@@ -311,9 +311,10 @@ INSERT INTO feeds (
   webhook_url,
   disable_http2,
   description,
-  proxy_url)
+  proxy_url,
+  extra)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-        $17, $18, $19, $20, $21, $22,  $23, $24, $25, $26, $27, $28)
+        $17, $18, $19, $20, $21, $22,  $23, $24, $25, $26, $27, $28, $29)
 RETURNING id`,
 		feed.FeedURL,
 		feed.SiteURL,
@@ -342,7 +343,8 @@ RETURNING id`,
 		feed.WebhookURL,
 		feed.DisableHTTP2,
 		feed.Description,
-		feed.ProxyURL).Scan(&feed.ID)
+		feed.ProxyURL,
+		feed.Extra).Scan(&feed.ID)
 	if err != nil {
 		return fmt.Errorf(`store: unable to create feed %q: %w`, feed.FeedURL, err)
 	}
@@ -389,8 +391,9 @@ SET
 	ntfy_topic=$33,
 	pushover_enabled=$34,
 	pushover_priority=$35,
-	proxy_url=$36
-WHERE id=$37 AND user_id=$38`,
+	proxy_url=$36,
+  extra = $37
+WHERE id = $38 AND user_id = $39`,
 		feed.FeedURL,
 		feed.SiteURL,
 		feed.Title,
@@ -427,6 +430,7 @@ WHERE id=$37 AND user_id=$38`,
 		feed.PushoverEnabled,
 		feed.PushoverPriority,
 		feed.ProxyURL,
+		feed.Extra,
 		feed.ID, feed.UserID)
 	if err != nil {
 		return fmt.Errorf(`store: unable to update feed #%d (%s): %w`,

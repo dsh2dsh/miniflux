@@ -642,4 +642,8 @@ SELECT id
 
 	// 108
 	sqlMigration(`ALTER TABLE feeds ADD COLUMN proxy_url text default ''`),
+
+	// 109
+	sqlMigration(`
+ALTER TABLE feeds ADD COLUMN extra jsonb NOT NULL DEFAULT '{}'::jsonb`),
 }

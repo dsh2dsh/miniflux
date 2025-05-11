@@ -9,6 +9,8 @@ import (
 	"math"
 	"time"
 
+	"github.com/cespare/xxhash/v2"
+
 	"miniflux.app/v2/internal/config"
 )
 
@@ -60,6 +62,7 @@ type Feed struct {
 	PushoverEnabled             bool      `json:"pushover_enabled" db:"pushover_enabled"`
 	PushoverPriority            int       `json:"pushover_priority" db:"pushover_priority"`
 	ProxyURL                    string    `json:"proxy_url" db:"proxy_url"`
+	Extra                       FeedExtra `json:"extra,omitzero" db:"extra"`
 
 	// Non-persisted attributes
 	Category *Category `json:"category,omitempty"`
@@ -72,6 +75,11 @@ type Feed struct {
 	UnreadCount            int    `json:"-" db:"-"`
 	ReadCount              int    `json:"-" db:"-"`
 	NumberOfVisibleEntries int    `json:"-" db:"-"`
+}
+
+type FeedExtra struct {
+	Size uint64 `json:"size,omitempty"`
+	Hash uint64 `json:"hash,omitempty"`
 }
 
 type FeedCounters struct {
@@ -110,7 +118,6 @@ func (f *Feed) ResetErrorCounter() {
 // CheckedNow set attribute values when the feed is refreshed.
 func (f *Feed) CheckedNow() {
 	f.CheckedAt = time.Now()
-
 	if f.SiteURL == "" {
 		f.SiteURL = f.FeedURL
 	}
@@ -146,6 +153,12 @@ func (f *Feed) ScheduleNextCheck(weeklyCount int, refreshDelayInMinutes int) int
 
 	f.NextCheckAt = time.Now().Add(time.Minute * time.Duration(intervalMinutes))
 	return intervalMinutes
+}
+
+func (f *Feed) ContentChanged(body []byte) bool {
+	oldSize, oldHash := f.Extra.Size, f.Extra.Hash
+	f.Extra.Size, f.Extra.Hash = uint64(len(body)), xxhash.Sum64(body)
+	return f.Extra.Size != oldSize && f.Extra.Hash != oldHash
 }
 
 // FeedCreationRequest represents the request to create a feed.

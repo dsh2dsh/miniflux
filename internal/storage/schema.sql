@@ -3,7 +3,7 @@
 CREATE TABLE schema_version (
     version text NOT NULL
 );
-INSERT INTO schema_version (version) VALUES('108');
+INSERT INTO schema_version (version) VALUES('109');
 
 CREATE TABLE acme_cache (
     key character varying(400) NOT NULL PRIMARY KEY,
@@ -121,6 +121,7 @@ CREATE TABLE feeds (
     pushover_priority integer DEFAULT 0,
     ntfy_topic text DEFAULT '',
     proxy_url text DEFAULT '',
+    extra jsonb NOT NULL DEFAULT '{}'::jsonb,
     UNIQUE (user_id, feed_url)
 );
 

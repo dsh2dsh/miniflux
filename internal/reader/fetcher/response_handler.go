@@ -26,9 +26,12 @@ type ResponseHandler struct {
 	clientErr    error
 }
 
-func NewResponseHandler(httpResponse *http.Response, clientErr error) *ResponseHandler {
+func NewResponseHandler(httpResponse *http.Response, clientErr error,
+) *ResponseHandler {
 	return &ResponseHandler{httpResponse: httpResponse, clientErr: clientErr}
 }
+
+func (r *ResponseHandler) Err() error { return r.clientErr }
 
 func (r *ResponseHandler) EffectiveURL() string {
 	return r.httpResponse.Request.URL.String()
@@ -127,9 +130,29 @@ func (r *ResponseHandler) IsRedirect() bool {
 }
 
 func (r *ResponseHandler) Close() {
-	if r.httpResponse != nil && r.httpResponse.Body != nil && r.clientErr == nil {
-		r.httpResponse.Body.Close()
+	if r.Err() != nil {
+		return
 	}
+	BodyClose(r.httpResponse.Body)
+}
+
+// maxPostHandlerReadBytes is the max number of Request.Body bytes not
+// consumed by a handler that the server will read from the client
+// in order to keep a connection alive. If there are more bytes
+// than this, the server, to be paranoid, instead sends a
+// "Connection close" response.
+//
+// This number is approximately what a typical machine's TCP buffer
+// size is anyway.  (if we have the bytes on the machine, we might as
+// well read them)
+//
+// See: net/http/server.go
+const maxPostHandlerReadBytes = 256 << 10
+
+// https://github.com/golang/go/issues/60240
+func BodyClose(r io.ReadCloser) {
+	_, _ = io.CopyN(io.Discard, r, maxPostHandlerReadBytes+1)
+	r.Close()
 }
 
 func (r *ResponseHandler) getReader(maxBodySize int64) io.ReadCloser {
