@@ -79,8 +79,20 @@ func ValidateUserModification(ctx context.Context, store *storage.Storage,
 		}
 	}
 
+	if changes.EntryOrder != nil {
+		if err := ValidateEntryOrder(*changes.EntryOrder); err != nil {
+			return locale.NewLocalizedError("error.invalid_entry_order")
+		}
+	}
+
 	if changes.EntriesPerPage != nil {
 		if err := validateEntriesPerPage(*changes.EntriesPerPage); err != nil {
+			return err
+		}
+	}
+
+	if changes.CategoriesSortingOrder != nil {
+		if err := validateCategoriesSortingOrder(*changes.CategoriesSortingOrder); err != nil {
 			return err
 		}
 	}
@@ -217,6 +229,13 @@ func validateEntryDirection(direction string) *locale.LocalizedError {
 func validateEntriesPerPage(entriesPerPage int) *locale.LocalizedError {
 	if entriesPerPage < 1 {
 		return locale.NewLocalizedError("error.entries_per_page_invalid")
+	}
+	return nil
+}
+
+func validateCategoriesSortingOrder(order string) *locale.LocalizedError {
+	if order != "alphabetical" && order != "unread_count" {
+		return locale.NewLocalizedError("error.invalid_categories_sorting_order")
 	}
 	return nil
 }
