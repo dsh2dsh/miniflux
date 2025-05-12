@@ -316,3 +316,13 @@ func (f *FeedModificationRequest) Patch(feed *Feed) {
 
 // Feeds is a list of feed
 type Feeds []*Feed
+
+type FeedRefreshed struct {
+	CreatedEntries Entries
+	UpdatedEntires Entries
+
+	StorageElapsed time.Duration
+
+	Refreshed   bool
+	NotModified int
+}

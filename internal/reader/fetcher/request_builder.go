@@ -4,6 +4,7 @@
 package fetcher // import "miniflux.app/v2/internal/reader/fetcher"
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
@@ -23,6 +24,7 @@ const (
 )
 
 type RequestBuilder struct {
+	ctx              context.Context
 	headers          http.Header
 	clientProxyURL   *url.URL
 	useClientProxy   bool
@@ -39,6 +41,11 @@ func NewRequestBuilder() *RequestBuilder {
 		headers:       make(http.Header),
 		clientTimeout: defaultHTTPClientTimeout,
 	}
+}
+
+func (r *RequestBuilder) WithContext(ctx context.Context) *RequestBuilder {
+	r.ctx = ctx
+	return r
 }
 
 func (r *RequestBuilder) WithHeader(key, value string) *RequestBuilder {
@@ -199,9 +206,9 @@ func (r *RequestBuilder) ExecuteRequest(requestURL string) (*http.Response, erro
 
 	client.Transport = transport
 
-	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
+	req, err := r.req(requestURL)
 	if err != nil {
-		return nil, fmt.Errorf("reader/fetcher: %w", err)
+		return nil, err
 	}
 
 	req.Header = r.headers
@@ -225,4 +232,17 @@ func (r *RequestBuilder) ExecuteRequest(requestURL string) (*http.Response, erro
 		return nil, fmt.Errorf("reader/fetcher: %w", err)
 	}
 	return resp, nil
+}
+
+func (r *RequestBuilder) req(requestURL string) (req *http.Request, err error) {
+	if r.ctx != nil {
+		req, err = http.NewRequestWithContext(r.ctx, http.MethodGet, requestURL,
+			nil)
+	} else {
+		req, err = http.NewRequest(http.MethodGet, requestURL, nil)
+	}
+	if err != nil {
+		err = fmt.Errorf("reader/fetcher: %w", err)
+	}
+	return
 }

@@ -6,6 +6,7 @@ package worker // import "miniflux.app/v2/internal/worker"
 import (
 	"context"
 	"log/slog"
+	"math/rand/v2"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -40,7 +41,12 @@ type Pool struct {
 
 // Push send a list of jobs to the queue.
 func (self *Pool) Push(ctx context.Context, jobs []model.Job) {
-	for _, job := range jobs {
+	rand.Shuffle(len(jobs), func(i, j int) {
+		jobs[i], jobs[j] = jobs[j], jobs[i]
+	})
+
+	for i, job := range jobs {
+		job.SetIndex(i)
 		select {
 		case <-self.ctx.Done():
 			return
@@ -71,13 +77,13 @@ func (self *Pool) Run() error {
 }
 
 func (self *Pool) refreshFeed(job model.Job) {
-	logging.FromContext(self.ctx).Debug("worker: job received",
-		slog.Int64("user_id", job.UserID),
-		slog.Int64("feed_id", job.FeedID))
+	log := logging.FromContext(self.ctx).With(slog.Int("job", job.Index()))
+	log.Debug("worker: job received",
+		slog.Int64("user_id", job.UserID), slog.Int64("feed_id", job.FeedID))
 
 	startTime := time.Now()
-	err := handler.RefreshFeed(self.ctx, self.store, job.UserID,
-		job.FeedID, false)
+	err := handler.RefreshFeed(logging.WithLogger(self.ctx, log),
+		self.store, job.UserID, job.FeedID, false)
 
 	if config.Opts.HasMetricsCollector() {
 		status := "success"

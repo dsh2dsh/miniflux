@@ -129,7 +129,7 @@ func (s *Storage) GetReadTime(ctx context.Context, feedID int64,
 // RefreshFeedEntries updates feed entries while refreshing a feed.
 func (s *Storage) RefreshFeedEntries(ctx context.Context, userID, feedID int64,
 	entries model.Entries, updateExisting bool,
-) (model.Entries, error) {
+) (refreshed model.FeedRefreshed, err error) {
 	hashes := make([]string, len(entries))
 	for i, e := range entries {
 		e.UserID, e.FeedID = userID, feedID
@@ -137,60 +137,54 @@ func (s *Storage) RefreshFeedEntries(ctx context.Context, userID, feedID int64,
 	}
 
 	start := time.Now()
-	var created model.Entries
+
 	if len(entries) > 0 {
-		err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-			l, err := s.refreshEntries(ctx, tx, feedID, hashes, entries,
+		err = pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+			r, err := s.refreshEntries(ctx, tx, feedID, hashes, entries,
 				updateExisting)
 			if err != nil {
 				return err
 			}
-			created = l
+			refreshed = r
 			return nil
 		})
 		if err != nil {
-			return nil, fmt.Errorf("unable refresh feed(#%d) entries: %w", feedID, err)
+			return refreshed, fmt.Errorf(
+				"unable refresh feed(#%d) entries: %w", feedID, err)
 		}
 	}
 
-	if err := s.cleanupEntries(ctx, feedID, hashes); err != nil {
-		return nil, err
+	if err = s.cleanupEntries(ctx, feedID, hashes); err != nil {
+		return
 	}
 
-	logging.FromContext(ctx).Debug("storage: feed entries refreshed",
-		slog.Duration("elapsed", time.Since(start)))
-	return created, nil
+	refreshed.StorageElapsed = time.Since(start)
+	return
 }
 
 func (s *Storage) refreshEntries(ctx context.Context, tx pgx.Tx, feedID int64,
 	hashes []string, entries model.Entries, update bool,
-) (model.Entries, error) {
+) (refreshed model.FeedRefreshed, err error) {
 	updated, unknown, err := s.knownEntries(ctx, tx, feedID, hashes, entries)
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	logging.FromContext(ctx).Info("storage: refresh feed entries",
-		slog.Int("count", len(entries)),
-		slog.Int("update", len(updated)),
-		slog.Int("create", len(unknown)))
+	refreshed.CreatedEntries = unknown
+	refreshed.UpdatedEntires = updated
 
 	if update {
 		for _, e := range updated {
-			if err := s.updateEntry(ctx, tx, e); err != nil {
-				return nil, err
+			if err = s.updateEntry(ctx, tx, e); err != nil {
+				return
 			}
 		}
 	}
 
 	if len(unknown) == 0 {
-		return nil, nil
+		return
 	}
-
-	if err := s.createEntries(ctx, tx, unknown); err != nil {
-		return nil, err
-	}
-	return unknown, nil
+	return refreshed, s.createEntries(ctx, tx, unknown)
 }
 
 func (s *Storage) knownEntries(ctx context.Context, tx pgx.Tx, feedID int64,
