@@ -203,7 +203,8 @@ func (self *Refresh) respLocalizedError(ctx context.Context,
 ) *locale.LocalizedErrorWrapper {
 	if lerr := resp.LocalizedError(); lerr != nil {
 		logging.FromContext(ctx).Warn("Unable to fetch feed",
-			slog.String("feed_url", self.feed.FeedURL), slog.Any("error", lerr))
+			slog.String("feed_url", self.feed.FeedURL),
+			slog.Any("error", lerr.Error()))
 		return self.incFeedError(ctx, lerr)
 	}
 	return nil
@@ -244,7 +245,8 @@ func (self *Refresh) refreshFeed(ctx context.Context,
 	body, lerr := resp.ReadBody(config.Opts.HTTPClientMaxBodySize())
 	if lerr != nil {
 		log.Warn("Unable to fetch feed",
-			slog.String("feed_url", self.feed.FeedURL), slog.Any("error", lerr))
+			slog.String("feed_url", self.feed.FeedURL),
+			slog.Any("error", lerr.Error()))
 		return refreshed, lerr
 	}
 	resp.Close()

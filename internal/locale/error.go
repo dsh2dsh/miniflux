@@ -19,9 +19,8 @@ func NewLocalizedErrorWrapper(originalErr error, translationKey string, translat
 	}
 }
 
-func (l *LocalizedErrorWrapper) Error() error {
-	return l.originalErr
-}
+func (l *LocalizedErrorWrapper) Unwrap() error { return l.originalErr }
+func (l *LocalizedErrorWrapper) Error() error  { return l.originalErr }
 
 func (l *LocalizedErrorWrapper) Translate(language string) string {
 	if l.translationKey == "" {

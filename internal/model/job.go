@@ -7,9 +7,4 @@ package model // import "miniflux.app/v2/internal/model"
 type Job struct {
 	UserID int64 `db:"user_id"`
 	FeedID int64 `db:"id"`
-
-	index int
 }
-
-func (self *Job) Index() int     { return self.index }
-func (self *Job) SetIndex(i int) { self.index = i }

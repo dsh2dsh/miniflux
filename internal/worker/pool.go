@@ -7,6 +7,7 @@ import (
 	"context"
 	"log/slog"
 	"math/rand/v2"
+	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -23,7 +24,7 @@ import (
 func NewPool(ctx context.Context, store *storage.Storage, n int) *Pool {
 	self := &Pool{
 		ctx:   ctx,
-		queue: make(chan model.Job),
+		queue: make(chan queueItem),
 		store: store,
 	}
 	self.g.SetLimit(n)
@@ -33,30 +34,56 @@ func NewPool(ctx context.Context, store *storage.Storage, n int) *Pool {
 // Pool handles a pool of workers.
 type Pool struct {
 	ctx   context.Context
-	queue chan model.Job
+	queue chan queueItem
 	g     errgroup.Group
 
 	store *storage.Storage
 }
 
+type queueItem struct {
+	*model.Job
+
+	index int
+	begin func()
+	end   func()
+}
+
+func NewItem(job *model.Job, index int, begin, end func()) queueItem {
+	return queueItem{
+		Job:   job,
+		index: index,
+		begin: begin,
+		end:   end,
+	}
+}
+
 // Push send a list of jobs to the queue.
 func (self *Pool) Push(ctx context.Context, jobs []model.Job) {
+	log := logging.FromContext(ctx).With(slog.Int("jobs", len(jobs)))
+	log.Info("worker: created a batch of feeds")
+
 	rand.Shuffle(len(jobs), func(i, j int) {
 		jobs[i], jobs[j] = jobs[j], jobs[i]
 	})
 
-	for i, job := range jobs {
-		job.SetIndex(i)
+	var wg sync.WaitGroup
+	beginJob := func() { wg.Add(1) }
+	startTime := time.Now()
+
+jobsLoop:
+	for i := range jobs {
 		select {
 		case <-self.ctx.Done():
-			return
+			break jobsLoop
 		case <-ctx.Done():
-			return
-		case self.queue <- job:
+			break jobsLoop
+		case self.queue <- NewItem(&jobs[i], i, beginJob, wg.Done):
 		}
 	}
-	logging.FromContext(ctx).Info("worker: sent a batch of feeds to the queue",
-		slog.Int("nb_jobs", len(jobs)))
+
+	wg.Wait()
+	log.Info("worker: refreshed a batch of feeds",
+		slog.Duration("elapsed", time.Since(startTime)))
 }
 
 func (self *Pool) Run() error {
@@ -69,15 +96,17 @@ func (self *Pool) Run() error {
 			return nil
 		case job := <-self.queue:
 			self.g.Go(func() error {
+				job.begin()
 				self.refreshFeed(job)
+				job.end()
 				return nil
 			})
 		}
 	}
 }
 
-func (self *Pool) refreshFeed(job model.Job) {
-	log := logging.FromContext(self.ctx).With(slog.Int("job", job.Index()))
+func (self *Pool) refreshFeed(job queueItem) {
+	log := logging.FromContext(self.ctx).With(slog.Int("job", job.index))
 	log.Debug("worker: job received",
 		slog.Int64("user_id", job.UserID), slog.Int64("feed_id", job.FeedID))
 
