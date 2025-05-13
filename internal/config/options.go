@@ -134,6 +134,7 @@ type EnvOptions struct {
 	MediaProxyPrivateKey               string   `env:"MEDIA_PROXY_PRIVATE_KEY"`
 	WebAuthn                           bool     `env:"WEBAUTHN"`
 	PreferSiteIcon                     bool     `env:"PREFER_SITE_ICON"`
+	ConnectionsPerSever                int      `env:"CONNECTIONS_PER_SERVER" validate:"min=1"`
 
 	// Deprecated
 	Debug                  bool     `env:"DEBUG"`
@@ -199,6 +200,7 @@ func NewOptions() *Options {
 			MetricsAllowedNetworks:             []string{"127.0.0.1/8"},
 			Watchdog:                           true,
 			InvidiousInstance:                  "yewtu.be",
+			ConnectionsPerSever:                8,
 		},
 
 		rootURL: defaultBaseURL,
@@ -730,6 +732,10 @@ func (o *Options) FilterEntryMaxAgeDays() int {
 
 func (o *Options) PreferSiteIcon() bool { return o.env.PreferSiteIcon }
 
+func (o *Options) ConnectionsPerServer() int {
+	return o.env.ConnectionsPerSever
+}
+
 func (o *Options) Logging() []Log {
 	if len(o.env.Logging) == 0 {
 		return []Log{{
@@ -786,6 +792,7 @@ func (o *Options) SortedOptions(redactSecret bool) []Option {
 		"CLEANUP_ARCHIVE_UNREAD_DAYS":            o.CleanupArchiveUnreadDays(),
 		"CLEANUP_FREQUENCY_HOURS":                o.CleanupFrequencyHours(),
 		"CLEANUP_REMOVE_SESSIONS_DAYS":           o.CleanupRemoveSessionsDays(),
+		"CONNECTIONS_PER_SERVER":                 o.ConnectionsPerServer(),
 		"CREATE_ADMIN":                           o.CreateAdmin(),
 		"DATABASE_CONNECTION_LIFETIME":           o.env.DatabaseConnectionLifetime,
 		"DATABASE_MAX_CONNS":                     o.DatabaseMaxConns(),

@@ -121,6 +121,17 @@ Official website: <https://miniflux.app>
   New option `PREFER_SITE_ICON=true` configures `miniflux` always use
   auto-detected site icon, instead of icon found in feed description.
 
+* Limit max number of connections per server.
+
+  By default the maximum is 8 connections per server. This limit can be changed
+  by adding `CONNECTIONS_PER_SERVER` to the config, like
+
+  ```
+  CONNECTIONS_PER_SERVER=10
+  ```
+
+  which increases the limit to 10 connections per server.
+
 Features
 --------
 

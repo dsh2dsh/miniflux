@@ -5,6 +5,7 @@ package subscription // import "miniflux.app/v2/internal/reader/subscription"
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"log/slog"
 	"net/url"
@@ -45,31 +46,42 @@ func (f *SubscriptionFinder) FeedResponseInfo() *model.FeedCreationRequestFromSu
 	return f.feedResponseInfo
 }
 
-func (f *SubscriptionFinder) FindSubscriptions(websiteURL, rssBridgeURL string) (Subscriptions, *locale.LocalizedErrorWrapper) {
-	responseHandler := fetcher.NewResponseHandler(f.requestBuilder.ExecuteRequest(websiteURL))
-	defer responseHandler.Close()
+func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
+	websiteURL, rssBridgeURL string,
+) (Subscriptions, *locale.LocalizedErrorWrapper) {
+	resp, err := fetcher.NewResponseSemaphore(ctx, f.requestBuilder, websiteURL)
+	if err != nil {
+		return nil, locale.NewLocalizedErrorWrapper(err,
+			"error.http_body_read", err)
+	}
+	defer resp.Close()
 
-	if localizedError := responseHandler.LocalizedError(); localizedError != nil {
-		slog.Warn("Unable to find subscriptions", slog.String("website_url", websiteURL), slog.Any("error", localizedError.Error()))
-		return nil, localizedError
+	if lerr := resp.LocalizedError(); lerr != nil {
+		slog.Warn("Unable to find subscriptions",
+			slog.String("website_url", websiteURL), slog.Any("error", lerr.Error()))
+		return nil, lerr
 	}
 
-	responseBody, localizedError := responseHandler.ReadBody(config.Opts.HTTPClientMaxBodySize())
-	if localizedError != nil {
-		slog.Warn("Unable to find subscriptions", slog.String("website_url", websiteURL), slog.Any("error", localizedError.Error()))
-		return nil, localizedError
+	body, lerr := resp.ReadBody(config.Opts.HTTPClientMaxBodySize())
+	if lerr != nil {
+		slog.Warn("Unable to find subscriptions",
+			slog.String("website_url", websiteURL), slog.Any("error", lerr.Error()))
+		return nil, lerr
 	}
+	resp.Close()
 
 	f.feedResponseInfo = &model.FeedCreationRequestFromSubscriptionDiscovery{
-		Content:      bytes.NewReader(responseBody),
-		ETag:         responseHandler.ETag(),
-		LastModified: responseHandler.LastModified(),
+		Content:      body,
+		ETag:         resp.ETag(),
+		LastModified: resp.LastModified(),
 	}
 
 	// Step 1) Check if the website URL is already a feed.
-	if feedFormat, _ := parser.DetectFeedFormat(f.feedResponseInfo.Content); feedFormat != parser.FormatUnknown {
+	feedFormat, _ := parser.DetectFeedFormat(bytes.NewReader(body))
+	if feedFormat != parser.FormatUnknown {
 		f.feedDownloaded = true
-		return Subscriptions{NewSubscription(responseHandler.EffectiveURL(), responseHandler.EffectiveURL(), feedFormat)}, nil
+		s := NewSubscription(resp.EffectiveURL(), resp.EffectiveURL(), feedFormat)
+		return Subscriptions{s}, nil
 	}
 
 	// Step 2) Check if the website URL is a YouTube channel.
@@ -93,9 +105,9 @@ func (f *SubscriptionFinder) FindSubscriptions(websiteURL, rssBridgeURL string) 
 	// Step 4) Parse web page to find feeds from HTML meta tags.
 	slog.Debug("Try to detect feeds from HTML meta tags",
 		slog.String("website_url", websiteURL),
-		slog.String("content_type", responseHandler.ContentType()),
+		slog.String("content_type", resp.ContentType()),
 	)
-	if subscriptions, localizedError := f.FindSubscriptionsFromWebPage(websiteURL, responseHandler.ContentType(), bytes.NewReader(responseBody)); localizedError != nil {
+	if subscriptions, localizedError := f.FindSubscriptionsFromWebPage(websiteURL, resp.ContentType(), bytes.NewReader(body)); localizedError != nil {
 		return nil, localizedError
 	} else if len(subscriptions) > 0 {
 		slog.Debug("Subscriptions found from web page", slog.String("website_url", websiteURL), slog.Any("subscriptions", subscriptions))

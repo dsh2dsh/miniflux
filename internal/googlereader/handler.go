@@ -435,7 +435,9 @@ func (h *handler) quickAddHandler(w http.ResponseWriter, r *http.Request) {
 		rssBridgeURL = intg.RSSBridgeURL
 	}
 
-	subscriptions, localizedError := mfs.NewSubscriptionFinder(requestBuilder).FindSubscriptions(feedURL, rssBridgeURL)
+	subscriptions, localizedError := mfs.
+		NewSubscriptionFinder(requestBuilder).
+		FindSubscriptions(r.Context(), feedURL, rssBridgeURL)
 	if localizedError != nil {
 		json.ServerError(w, r, localizedError.Error())
 		return

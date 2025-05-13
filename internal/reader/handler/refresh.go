@@ -68,7 +68,11 @@ func (self *Refresh) RefreshFeed(ctx context.Context,
 	self.feed.CheckedNow()
 	self.feed.ScheduleNextCheck(weeklyCount, 0)
 
-	resp := self.responseHandler(ctx)
+	resp, err := self.response(ctx)
+	if err != nil {
+		return locale.NewLocalizedErrorWrapper(err, "error.unable_to_parse_feed",
+			err)
+	}
 	defer resp.Close()
 
 	if resp.IsRateLimited() {
@@ -143,11 +147,11 @@ func (self *Refresh) weeklyCount(ctx context.Context) (int,
 	return weeklyCount, nil
 }
 
-func (self *Refresh) responseHandler(ctx context.Context,
-) *fetcher.ResponseHandler {
+func (self *Refresh) response(ctx context.Context) (*fetcher.ResponseSemaphore,
+	error,
+) {
 	f := self.feed
 	r := fetcher.NewRequestBuilder().
-		WithContext(ctx).
 		WithUsernameAndPassword(f.Username, f.Password).
 		WithUserAgent(f.UserAgent, config.Opts.HTTPClientUserAgent()).
 		WithCookie(f.Cookie).
@@ -160,13 +164,17 @@ func (self *Refresh) responseHandler(ctx context.Context,
 		DisableHTTP2(f.DisableHTTP2)
 
 	if !self.ignoreHTTPCache() {
-		r.WithETag(f.EtagHeader).
-			WithLastModified(f.LastModifiedHeader)
+		r.WithETag(f.EtagHeader).WithLastModified(f.LastModifiedHeader)
 	}
-	return fetcher.NewResponseHandler(r.ExecuteRequest(f.FeedURL))
+
+	resp, err := fetcher.NewResponseSemaphore(ctx, r, f.FeedURL)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
-func (self *Refresh) refreshAnyway(resp *fetcher.ResponseHandler) bool {
+func (self *Refresh) refreshAnyway(resp *fetcher.ResponseSemaphore) bool {
 	return self.ignoreHTTPCache() ||
 		resp.IsModified(self.feed.EtagHeader, self.feed.LastModifiedHeader)
 }
@@ -176,7 +184,7 @@ func (self *Refresh) ignoreHTTPCache() bool {
 }
 
 func (self *Refresh) logRateLimited(ctx context.Context,
-	resp *fetcher.ResponseHandler, weeklyCount int,
+	resp *fetcher.ResponseSemaphore, weeklyCount int,
 ) {
 	retryDelaySeconds := resp.ParseRetryDelay()
 	refreshDelay := retryDelaySeconds / 60
@@ -191,7 +199,7 @@ func (self *Refresh) logRateLimited(ctx context.Context,
 }
 
 func (self *Refresh) respLocalizedError(ctx context.Context,
-	resp *fetcher.ResponseHandler,
+	resp *fetcher.ResponseSemaphore,
 ) *locale.LocalizedErrorWrapper {
 	if lerr := resp.LocalizedError(); lerr != nil {
 		logging.FromContext(ctx).Warn("Unable to fetch feed",
@@ -226,7 +234,7 @@ func (self *Refresh) anotherFeedURLExists(ctx context.Context, url string,
 }
 
 func (self *Refresh) refreshFeed(ctx context.Context,
-	resp *fetcher.ResponseHandler, weeklyCount int,
+	resp *fetcher.ResponseSemaphore, weeklyCount int,
 ) (refreshed model.FeedRefreshed, _ *locale.LocalizedErrorWrapper) {
 	log := logging.FromContext(ctx)
 	log.Debug("Feed modified",
@@ -239,6 +247,7 @@ func (self *Refresh) refreshFeed(ctx context.Context,
 			slog.String("feed_url", self.feed.FeedURL), slog.Any("error", lerr))
 		return refreshed, lerr
 	}
+	resp.Close()
 
 	if !self.feed.ContentChanged(body) && !self.force {
 		refreshed.NotModified = notModifiedContent

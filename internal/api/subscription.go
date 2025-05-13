@@ -47,10 +47,10 @@ func (h *handler) discoverSubscriptions(w http.ResponseWriter, r *http.Request) 
 	requestBuilder.IgnoreTLSErrors(subscriptionDiscoveryRequest.AllowSelfSignedCertificates)
 	requestBuilder.DisableHTTP2(subscriptionDiscoveryRequest.DisableHTTP2)
 
-	subscriptions, localizedError := subscription.NewSubscriptionFinder(requestBuilder).FindSubscriptions(
-		subscriptionDiscoveryRequest.URL,
-		rssbridgeURL,
-	)
+	subscriptions, localizedError := subscription.
+		NewSubscriptionFinder(requestBuilder).
+		FindSubscriptions(r.Context(), subscriptionDiscoveryRequest.URL,
+			rssbridgeURL)
 
 	if localizedError != nil {
 		json.ServerError(w, r, localizedError.Error())

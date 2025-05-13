@@ -5,7 +5,6 @@ package model // import "miniflux.app/v2/internal/model"
 
 import (
 	"fmt"
-	"io"
 	"math"
 	"time"
 
@@ -185,7 +184,7 @@ type FeedCreationRequest struct {
 }
 
 type FeedCreationRequestFromSubscriptionDiscovery struct {
-	Content      io.ReadSeeker
+	Content      []byte
 	ETag         string
 	LastModified string
 

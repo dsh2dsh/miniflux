@@ -7,8 +7,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
-	"io"
 	"log/slog"
 
 	"miniflux.app/v2/internal/config"
@@ -49,15 +47,8 @@ func CreateFeedFromSubscriptionDiscovery(ctx context.Context,
 			"error.duplicated_feed")
 	}
 
-	body, err := io.ReadAll(r.Content)
-	if err != nil {
-		return nil, locale.NewLocalizedErrorWrapper(
-			fmt.Errorf("unable to read response body: %w", err),
-			"error.http_body_read", err)
-	}
-
 	return createFeed(logging.WithLogger(ctx, log), store, userID,
-		&r.FeedCreationRequest, r.FeedURL, r.ETag, r.LastModified, body)
+		&r.FeedCreationRequest, r.FeedURL, r.ETag, r.LastModified, r.Content)
 }
 
 // CreateFeed fetch, parse and store a new feed.
@@ -76,7 +67,6 @@ func CreateFeed(ctx context.Context, store *storage.Storage, userID int64,
 	}
 
 	requestBuilder := fetcher.NewRequestBuilder().
-		WithContext(ctx).
 		WithUsernameAndPassword(r.Username, r.Password).
 		WithUserAgent(r.UserAgent, config.Opts.HTTPClientUserAgent()).
 		WithCookie(r.Cookie).
@@ -88,7 +78,12 @@ func CreateFeed(ctx context.Context, store *storage.Storage, userID int64,
 		IgnoreTLSErrors(r.AllowSelfSignedCertificates).
 		DisableHTTP2(r.DisableHTTP2)
 
-	resp := fetcher.NewResponseHandler(requestBuilder.ExecuteRequest(r.FeedURL))
+	resp, err := fetcher.NewResponseSemaphore(ctx, requestBuilder, r.FeedURL)
+	if err != nil {
+		return nil, locale.NewLocalizedErrorWrapper(err,
+			"error.unable_to_parse_feed",
+			err)
+	}
 	defer resp.Close()
 
 	if lerr := resp.LocalizedError(); lerr != nil {
@@ -106,6 +101,7 @@ func CreateFeed(ctx context.Context, store *storage.Storage, userID int64,
 		log.Warn("Unable to fetch feed", slog.Any("error", lerr.Error()))
 		return nil, lerr
 	}
+	resp.Close()
 
 	return createFeed(logging.WithLogger(ctx, log), store, userID, r,
 		resp.EffectiveURL(), resp.ETag(), resp.LastModified(), body)
