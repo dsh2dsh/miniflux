@@ -6,6 +6,8 @@ It's simple, fast, lightweight and super easy to install.
 
 Official website: <https://miniflux.app>
 
+This project is an opinionated fork of Miniflux.
+
 ## Changes from [upstream](https://github.com/miniflux/v2):
 
 * Google Reader API applies user's `Entry sorting` as default sort direction.
