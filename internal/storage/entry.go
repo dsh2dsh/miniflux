@@ -191,22 +191,16 @@ func (s *Storage) knownEntries(ctx context.Context, tx pgx.Tx, feedID int64,
 	hashes []string, entries []*model.Entry,
 ) ([]*model.Entry, []*model.Entry, error) {
 	rows, _ := tx.Query(ctx, `
-SELECT hash, status, published_at
-  FROM entries
- WHERE feed_id = $1 AND hash=ANY($2)`,
+SELECT hash, published_at FROM entries WHERE feed_id = $1 AND hash=ANY($2)`,
 		feedID, hashes)
 
-	type knownStatus struct {
-		Status string
-		Date   time.Time
-	}
-	knownHashes := make(map[string]knownStatus, len(entries))
-
-	var hash, status string
+	knownHashes := make(map[string]time.Time, len(entries))
+	var hash string
 	var publishedAt time.Time
-	_, err := pgx.ForEachRow(rows, []any{&hash, &status, &publishedAt},
+
+	_, err := pgx.ForEachRow(rows, []any{&hash, &publishedAt},
 		func() error {
-			knownHashes[hash] = knownStatus{Status: status, Date: publishedAt}
+			knownHashes[hash] = publishedAt
 			return nil
 		})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -217,10 +211,8 @@ SELECT hash, status, published_at
 
 	var updatedEntries, newEntries []*model.Entry
 	for _, e := range entries {
-		if known, ok := knownHashes[e.Hash]; ok {
-			updated := known.Status == model.EntryStatusUnread &&
-				known.Date.Before(e.Date)
-			if updated {
+		if publishedAt, ok := knownHashes[e.Hash]; ok {
+			if publishedAt.Before(e.Date) {
 				updatedEntries = append(updatedEntries, e)
 			}
 		} else {
@@ -246,6 +238,7 @@ UPDATE entries
        author = $5,
        reading_time = $6,
        tags = $10,
+       status = 'unread',
        document_vectors =
          setweight(to_tsvector(left(coalesce($1, ''), 500000)), 'A') ||
          setweight(to_tsvector(left(coalesce($4, ''), 500000)), 'B')
