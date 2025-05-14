@@ -144,14 +144,12 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request) {
 	userID := request.UserID(r)
 	categoryID := request.RouteInt64Param(r, "categoryID")
 
-	batchBuilder := h.store.NewBatchBuilder()
-	batchBuilder.WithErrorLimit(config.Opts.PollingParsingErrorLimit())
-	batchBuilder.WithoutDisabledFeeds()
-	batchBuilder.WithUserID(userID)
-	batchBuilder.WithCategoryID(categoryID)
-	batchBuilder.WithNextCheckExpired()
-
-	jobs, err := batchBuilder.FetchJobs(r.Context())
+	err := h.store.NewBatchBuilder().
+		WithErrorLimit(config.Opts.PollingParsingErrorLimit()).
+		WithoutDisabledFeeds().
+		WithUserID(userID).
+		WithCategoryID(categoryID).
+		ResetNextCheckAt(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -160,10 +158,8 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request) {
 	slog.Info(
 		"Triggered a manual refresh of all feeds for a given category from the API",
 		slog.Int64("user_id", userID),
-		slog.Int64("category_id", categoryID),
-		slog.Int("nb_jobs", len(jobs)),
-	)
+		slog.Int64("category_id", categoryID))
 
-	h.pool.Push(r.Context(), jobs)
+	h.pool.Wakeup()
 	json.NoContent(w, r)
 }

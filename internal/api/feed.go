@@ -75,13 +75,11 @@ func (h *handler) refreshFeed(w http.ResponseWriter, r *http.Request) {
 func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
 	userID := request.UserID(r)
 
-	batchBuilder := h.store.NewBatchBuilder()
-	batchBuilder.WithErrorLimit(config.Opts.PollingParsingErrorLimit())
-	batchBuilder.WithoutDisabledFeeds()
-	batchBuilder.WithNextCheckExpired()
-	batchBuilder.WithUserID(userID)
-
-	jobs, err := batchBuilder.FetchJobs(r.Context())
+	err := h.store.NewBatchBuilder().
+		WithErrorLimit(config.Opts.PollingParsingErrorLimit()).
+		WithoutDisabledFeeds().
+		WithUserID(userID).
+		ResetNextCheckAt(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -89,11 +87,9 @@ func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info(
 		"Triggered a manual refresh of all feeds from the API",
-		slog.Int64("user_id", userID),
-		slog.Int("nb_jobs", len(jobs)),
-	)
+		slog.Int64("user_id", userID))
 
-	h.pool.Push(r.Context(), jobs)
+	h.pool.Wakeup()
 	json.NoContent(w, r)
 }
 

@@ -9,14 +9,13 @@ import (
 	"time"
 
 	"miniflux.app/v2/internal/config"
-	"miniflux.app/v2/internal/worker"
 )
 
-func (self *Daemon) runScheduler(ctx context.Context, pool *worker.Pool) {
+func (self *Daemon) runScheduler(ctx context.Context) {
 	slog.Info(`Starting background scheduler...`)
 
 	self.g.Go(func() error {
-		self.feedScheduler(ctx, pool,
+		self.feedScheduler(ctx,
 			config.Opts.PollingFrequency(),
 			config.Opts.BatchSize(),
 			config.Opts.PollingParsingErrorLimit())
@@ -29,7 +28,7 @@ func (self *Daemon) runScheduler(ctx context.Context, pool *worker.Pool) {
 	})
 }
 
-func (self *Daemon) feedScheduler(ctx context.Context, pool *worker.Pool,
+func (self *Daemon) feedScheduler(ctx context.Context,
 	freq, batchSize, errorLimit int,
 ) {
 	d := time.Duration(freq) * time.Minute
@@ -37,26 +36,39 @@ func (self *Daemon) feedScheduler(ctx context.Context, pool *worker.Pool,
 
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
+
+forLoop:
 	for {
 		select {
 		case <-ctx.Done():
-			slog.Info("feed scheduler stopped")
-			return
+			break forLoop
 		case <-ticker.C:
-			// Generate a batch of feeds for any user that has feeds to refresh.
-			batchBuilder := self.store.NewBatchBuilder()
-			batchBuilder.WithBatchSize(batchSize)
-			batchBuilder.WithErrorLimit(errorLimit)
-			batchBuilder.WithoutDisabledFeeds()
-			batchBuilder.WithNextCheckExpired()
-
-			if jobs, err := batchBuilder.FetchJobs(ctx); err != nil {
-				slog.Error("Unable to fetch jobs from database",
-					slog.Any("error", err))
-			} else if len(jobs) > 0 {
-				pool.Push(ctx, jobs)
-			}
+			slog.Info("feed scheduler got tick")
+			self.refreshFeeds(ctx, batchSize, errorLimit)
+		case <-self.pool.WakeupSignal():
+			slog.Info("feed scheduler got wakeup signal")
+			self.refreshFeeds(ctx, batchSize, errorLimit)
 		}
+	}
+	slog.Info("feed scheduler stopped",
+		slog.Any("reason", context.Cause(ctx)))
+}
+
+func (self *Daemon) refreshFeeds(ctx context.Context,
+	batchSize, errorLimit int,
+) {
+	// Generate a batch of feeds for any user that has feeds to refresh.
+	batch := self.store.NewBatchBuilder().
+		WithBatchSize(batchSize).
+		WithErrorLimit(errorLimit).
+		WithoutDisabledFeeds().
+		WithNextCheckExpired()
+
+	self.pool.WithWakeup()
+	if jobs, err := batch.FetchJobs(ctx); err != nil {
+		slog.Error("Unable to fetch jobs from database", slog.Any("error", err))
+	} else if len(jobs) > 0 {
+		self.pool.Push(ctx, jobs)
 	}
 }
 

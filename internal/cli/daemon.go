@@ -31,6 +31,7 @@ type Daemon struct {
 	store      *storage.Storage
 	g          *errgroup.Group
 	httpServer *http.Server
+	pool       *worker.Pool
 }
 
 func (self *Daemon) Run() error {
@@ -117,14 +118,15 @@ func (self *Daemon) start(ctx context.Context) error {
 	}
 
 	self.g, ctx = errgroup.WithContext(ctx)
-	pool := worker.NewPool(ctx, self.store, config.Opts.WorkerPoolSize())
-	self.g.Go(pool.Run)
+	self.pool = worker.NewPool(ctx, self.store, config.Opts.WorkerPoolSize())
+	self.g.Go(self.pool.Run)
 	if config.Opts.HasSchedulerService() && !config.Opts.HasMaintenanceMode() {
-		self.runScheduler(ctx, pool)
+		self.runScheduler(ctx)
 	}
 
 	if config.Opts.HasHTTPService() {
-		self.httpServer = server.StartWebServer(self.store, pool, self.g, listener)
+		self.httpServer = server.StartWebServer(self.store, self.pool,
+			self.g, listener)
 	}
 
 	if config.Opts.HasMetricsCollector() {

@@ -28,7 +28,7 @@ func NewPool(ctx context.Context, store *storage.Storage, n int) *Pool {
 		store: store,
 	}
 	self.g.SetLimit(n)
-	return self
+	return self.WithWakeup()
 }
 
 // Pool handles a pool of workers.
@@ -38,6 +38,10 @@ type Pool struct {
 	g     errgroup.Group
 
 	store *storage.Storage
+
+	mu           sync.Mutex
+	wakeupCtx    context.Context
+	wakeupSignal func()
 }
 
 type queueItem struct {
@@ -55,6 +59,28 @@ func NewItem(job *model.Job, index int, begin, end func()) queueItem {
 		begin: begin,
 		end:   end,
 	}
+}
+
+func (self *Pool) WithWakeup() *Pool {
+	self.mu.Lock()
+	if self.wakeupSignal != nil {
+		self.wakeupSignal()
+	}
+	self.wakeupCtx, self.wakeupSignal = context.WithCancel(context.Background())
+	self.mu.Unlock()
+	return self
+}
+
+func (self *Pool) Wakeup() {
+	self.mu.Lock()
+	self.wakeupSignal()
+	self.mu.Unlock()
+}
+
+func (self *Pool) WakeupSignal() <-chan struct{} {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	return self.wakeupCtx.Done()
 }
 
 // Push send a list of jobs to the queue.
@@ -89,11 +115,12 @@ jobsLoop:
 func (self *Pool) Run() error {
 	log := logging.FromContext(self.ctx)
 	log.Info("worker pool started")
+
+forLoop:
 	for {
 		select {
 		case <-self.ctx.Done():
-			log.Info("worker pool stopped")
-			return nil
+			break forLoop
 		case job := <-self.queue:
 			self.g.Go(func() error {
 				job.begin()
@@ -103,6 +130,16 @@ func (self *Pool) Run() error {
 			})
 		}
 	}
+
+	log.Info("worker: waiting all jobs completed",
+		slog.Any("reason", context.Cause(self.ctx)))
+	self.Wakeup()
+	if err := self.g.Wait(); err != nil {
+		log.Error("worker pool stopped with error", slog.Any("error", err))
+	} else {
+		log.Info("worker pool stopped")
+	}
+	return nil
 }
 
 func (self *Pool) refreshFeed(job queueItem) {

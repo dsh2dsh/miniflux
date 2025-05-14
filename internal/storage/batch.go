@@ -54,7 +54,7 @@ func (b *BatchBuilder) WithErrorLimit(limit int) *BatchBuilder {
 }
 
 func (b *BatchBuilder) WithNextCheckExpired() *BatchBuilder {
-	b.conditions = append(b.conditions, "next_check_at < now()")
+	b.conditions = append(b.conditions, "next_check_at <= now()")
 	return b
 }
 
@@ -79,4 +79,15 @@ func (b *BatchBuilder) FetchJobs(ctx context.Context) ([]model.Job, error) {
 		return nil, fmt.Errorf(`store: unable to fetch batch of jobs: %w`, err)
 	}
 	return jobs, nil
+}
+
+func (b *BatchBuilder) ResetNextCheckAt(ctx context.Context) error {
+	query := `UPDATE feeds SET next_check_at=now()`
+	if len(b.conditions) > 0 {
+		query += " WHERE " + strings.Join(b.conditions, " AND ")
+	}
+	if _, err := b.db.Exec(ctx, query, b.args...); err != nil {
+		return fmt.Errorf("storage: failed reset next check: %w", err)
+	}
+	return nil
 }
