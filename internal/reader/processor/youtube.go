@@ -59,8 +59,8 @@ func fetchYouTubeWatchTimeForSingleEntry(websiteURL string) (int, error) {
 	defer responseHandler.Close()
 
 	if localizedError := responseHandler.LocalizedError(); localizedError != nil {
-		slog.Warn("Unable to fetch YouTube page", slog.String("website_url", websiteURL), slog.Any("error", localizedError.Error()))
-		return 0, localizedError.Error()
+		slog.Warn("Unable to fetch YouTube page", slog.String("website_url", websiteURL), slog.Any("error", localizedError))
+		return 0, localizedError
 	}
 
 	doc, docErr := goquery.NewDocumentFromReader(responseHandler.Body(config.Opts.HTTPClientMaxBodySize()))
@@ -140,8 +140,8 @@ func fetchYouTubeWatchTimeFromApiInBulk(videoIDs []string) (map[string]time.Dura
 	defer responseHandler.Close()
 
 	if localizedError := responseHandler.LocalizedError(); localizedError != nil {
-		slog.Warn("Unable to fetch contentDetails from YouTube API", slog.Any("error", localizedError.Error()))
-		return nil, localizedError.Error()
+		slog.Warn("Unable to fetch contentDetails from YouTube API", slog.Any("error", localizedError))
+		return nil, localizedError
 	}
 
 	var videos youtubeVideoListResponse

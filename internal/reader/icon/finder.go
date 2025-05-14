@@ -137,7 +137,7 @@ func (f *IconFinder) FetchIconsFromHTMLDocument() (*model.Icon, error) {
 	localizedError := responseHandler.LocalizedError()
 	if localizedError != nil {
 		return nil, fmt.Errorf("icon: unable to download website index page: %w",
-			localizedError.Error())
+			localizedError)
 	}
 
 	iconURLs, err := findIconURLsFromHTMLDocument(
@@ -193,12 +193,12 @@ func (f *IconFinder) DownloadIcon(iconURL string) (*model.Icon, error) {
 	defer responseHandler.Close()
 
 	if localizedError := responseHandler.LocalizedError(); localizedError != nil {
-		return nil, fmt.Errorf("icon: unable to download website icon: %w", localizedError.Error())
+		return nil, fmt.Errorf("icon: unable to download website icon: %w", localizedError)
 	}
 
 	responseBody, localizedError := responseHandler.ReadBody(config.Opts.HTTPClientMaxBodySize())
 	if localizedError != nil {
-		return nil, fmt.Errorf("icon: unable to read response body: %w", localizedError.Error())
+		return nil, fmt.Errorf("icon: unable to read response body: %w", localizedError)
 	}
 
 	icon := &model.Icon{

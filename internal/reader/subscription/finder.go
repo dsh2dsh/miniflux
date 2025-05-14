@@ -58,14 +58,14 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 
 	if lerr := resp.LocalizedError(); lerr != nil {
 		slog.Warn("Unable to find subscriptions",
-			slog.String("website_url", websiteURL), slog.Any("error", lerr.Error()))
+			slog.String("website_url", websiteURL), slog.Any("error", lerr))
 		return nil, lerr
 	}
 
 	body, lerr := resp.ReadBody(config.Opts.HTTPClientMaxBodySize())
 	if lerr != nil {
 		slog.Warn("Unable to find subscriptions",
-			slog.String("website_url", websiteURL), slog.Any("error", lerr.Error()))
+			slog.String("website_url", websiteURL), slog.Any("error", lerr))
 		return nil, lerr
 	}
 	resp.Close()
@@ -247,7 +247,7 @@ func (f *SubscriptionFinder) FindSubscriptionsFromWellKnownURLs(websiteURL strin
 			if localizedError != nil {
 				slog.Debug("Ignore invalid feed URL during feed discovery",
 					slog.String("fullURL", fullURL),
-					slog.Any("error", localizedError.Error()),
+					slog.Any("error", localizedError),
 				)
 				continue
 			}

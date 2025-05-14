@@ -11,6 +11,8 @@ type LocalizedErrorWrapper struct {
 	translationArgs []any
 }
 
+var _ error = (*LocalizedErrorWrapper)(nil)
+
 func NewLocalizedErrorWrapper(originalErr error, translationKey string, translationArgs ...any) *LocalizedErrorWrapper {
 	return &LocalizedErrorWrapper{
 		originalErr:     originalErr,
@@ -19,12 +21,12 @@ func NewLocalizedErrorWrapper(originalErr error, translationKey string, translat
 	}
 }
 
+func (l *LocalizedErrorWrapper) Error() string { return l.originalErr.Error() }
 func (l *LocalizedErrorWrapper) Unwrap() error { return l.originalErr }
-func (l *LocalizedErrorWrapper) Error() error  { return l.originalErr }
 
 func (l *LocalizedErrorWrapper) Translate(language string) string {
 	if l.translationKey == "" {
-		return l.originalErr.Error()
+		return l.Error()
 	}
 	return NewPrinter(language).Printf(l.translationKey, l.translationArgs...)
 }

@@ -439,7 +439,7 @@ func (h *handler) quickAddHandler(w http.ResponseWriter, r *http.Request) {
 		NewSubscriptionFinder(requestBuilder).
 		FindSubscriptions(r.Context(), feedURL, rssBridgeURL)
 	if localizedError != nil {
-		json.ServerError(w, r, localizedError.Error())
+		json.ServerError(w, r, localizedError)
 		return
 	}
 
@@ -519,7 +519,7 @@ func subscribe(ctx context.Context, newFeed Stream, category Stream,
 
 	created, localizedError := mff.CreateFeed(ctx, store, userID, &feedRequest)
 	if localizedError != nil {
-		return nil, localizedError.Error()
+		return nil, localizedError
 	}
 
 	if title != "" {

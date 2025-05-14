@@ -107,7 +107,7 @@ func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
 	defer responseHandler.Close()
 
 	if localizedError := responseHandler.LocalizedError(); localizedError != nil {
-		slog.Warn("Unable to fetch OPML file", slog.String("opml_file_url", opmlFileURL), slog.Any("error", localizedError.Error()))
+		slog.Warn("Unable to fetch OPML file", slog.String("opml_file_url", opmlFileURL), slog.Any("error", localizedError))
 		view.Set("errorMessage", localizedError.Translate(user.Language))
 		html.OK(w, r, view.Render("import"))
 		return

@@ -23,8 +23,8 @@ func ScrapeWebsite(requestBuilder *fetcher.RequestBuilder, pageURL, rules string
 	defer responseHandler.Close()
 
 	if localizedError := responseHandler.LocalizedError(); localizedError != nil {
-		slog.Warn("Unable to scrape website", slog.String("website_url", pageURL), slog.Any("error", localizedError.Error()))
-		return "", "", localizedError.Error()
+		slog.Warn("Unable to scrape website", slog.String("website_url", pageURL), slog.Any("error", localizedError))
+		return "", "", localizedError
 	}
 
 	if !isAllowedContentType(responseHandler.ContentType()) {

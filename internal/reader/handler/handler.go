@@ -87,7 +87,7 @@ func CreateFeed(ctx context.Context, store *storage.Storage, userID int64,
 	defer resp.Close()
 
 	if lerr := resp.LocalizedError(); lerr != nil {
-		log.Warn("Unable to fetch feed", slog.Any("error", lerr.Error()))
+		log.Warn("Unable to fetch feed", slog.Any("error", lerr))
 		return nil, lerr
 	}
 
@@ -98,7 +98,7 @@ func CreateFeed(ctx context.Context, store *storage.Storage, userID int64,
 
 	body, lerr := resp.ReadBody(config.Opts.HTTPClientMaxBodySize())
 	if lerr != nil {
-		log.Warn("Unable to fetch feed", slog.Any("error", lerr.Error()))
+		log.Warn("Unable to fetch feed", slog.Any("error", lerr))
 		return nil, lerr
 	}
 	resp.Close()

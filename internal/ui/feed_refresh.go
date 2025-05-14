@@ -27,7 +27,7 @@ func (h *handler) refreshFeed(w http.ResponseWriter, r *http.Request) {
 			slog.Int64("user_id", request.UserID(r)),
 			slog.Int64("feed_id", feedID),
 			slog.Bool("force_refresh", forceRefresh),
-			slog.Any("error", localizedError.Error()),
+			slog.Any("error", localizedError),
 		)
 	}
 

@@ -62,11 +62,11 @@ func fetchBilibiliWatchTime(websiteURL string) (int, error) {
 		slog.Warn("Unable to fetch Bilibili API",
 			slog.String("website_url", websiteURL),
 			slog.String("api_url", bilibiliApiURL),
-			slog.Any("error", localizedError.Error()))
-		return 0, localizedError.Error()
+			slog.Any("error", localizedError))
+		return 0, localizedError
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	doc := json.NewDecoder(responseHandler.Body(config.Opts.HTTPClientMaxBodySize()))
 	if docErr := doc.Decode(&result); docErr != nil {
 		return 0, fmt.Errorf("failed to decode API response: %w", docErr)

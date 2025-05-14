@@ -53,7 +53,7 @@ func (h *handler) discoverSubscriptions(w http.ResponseWriter, r *http.Request) 
 			rssbridgeURL)
 
 	if localizedError != nil {
-		json.ServerError(w, r, localizedError.Error())
+		json.ServerError(w, r, localizedError)
 		return
 	}
 

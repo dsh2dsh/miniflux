@@ -46,7 +46,7 @@ func (h *handler) createFeed(w http.ResponseWriter, r *http.Request) {
 	feed, localizedError := feedHandler.CreateFeed(r.Context(),
 		h.store, userID, &feedCreationRequest)
 	if localizedError != nil {
-		json.ServerError(w, r, localizedError.Error())
+		json.ServerError(w, r, localizedError)
 		return
 	}
 
@@ -65,7 +65,7 @@ func (h *handler) refreshFeed(w http.ResponseWriter, r *http.Request) {
 	localizedError := feedHandler.RefreshFeed(r.Context(), h.store, userID,
 		feedID, false)
 	if localizedError != nil {
-		json.ServerError(w, r, localizedError.Error())
+		json.ServerError(w, r, localizedError)
 		return
 	}
 
