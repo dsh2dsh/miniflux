@@ -239,6 +239,8 @@ UPDATE entries
        reading_time = $6,
        tags = $10,
        status = 'unread',
+       published_at = $11,
+       changed_at = now(),
        document_vectors =
          setweight(to_tsvector(left(coalesce($1, ''), 500000)), 'A') ||
          setweight(to_tsvector(left(coalesce($4, ''), 500000)), 'B')
@@ -250,6 +252,7 @@ RETURNING id`,
 		e.Content,
 		e.Author,
 		e.ReadingTime,
+		e.Date,
 		e.UserID, e.FeedID, e.Hash,
 		removeDuplicates(e.Tags)).Scan(&e.ID)
 	if err != nil {
@@ -452,8 +455,8 @@ UPDATE entries
    SELECT id
      FROM entries
     WHERE status=$2 AND starred is false AND share_code=''
-          AND created_at < now () - $3::interval
-    ORDER BY created_at ASC LIMIT $4)`,
+          AND changed_at < now () - $3::interval
+    ORDER BY changed_at ASC LIMIT $4)`,
 		model.EntryStatusRemoved, status,
 		strconv.FormatInt(int64(days), 10)+" days", limit)
 	if err != nil {
