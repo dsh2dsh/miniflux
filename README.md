@@ -134,6 +134,14 @@ This project is an opinionated fork of Miniflux.
 
   which increases the limit to 10 connections per server.
 
+* Changed a little how article items looks like.
+
+  Light theme:
+  ![Light theme](images/light.png)
+
+  Dark theme:
+  ![Dark theme](images/dark.png)
+
 Features
 --------
 
