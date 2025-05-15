@@ -142,6 +142,8 @@ This project is an opinionated fork of Miniflux.
   Dark theme:
   ![Dark theme](images/dark.png)
 
+* Republished entries now marked as unread.
+
 Features
 --------
 
