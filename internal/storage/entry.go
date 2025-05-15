@@ -137,6 +137,7 @@ func (s *Storage) RefreshFeedEntries(ctx context.Context, userID, feedID int64,
 	}
 
 	start := time.Now()
+	ctx = withTraceStats(ctx)
 
 	if len(entries) > 0 {
 		err = pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
@@ -159,6 +160,9 @@ func (s *Storage) RefreshFeedEntries(ctx context.Context, userID, feedID int64,
 	}
 
 	refreshed.StorageElapsed = time.Since(start)
+	if t := traceStatsFrom(ctx); t != nil {
+		refreshed.StorageQueries = t.queries
+	}
 	return
 }
 

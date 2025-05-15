@@ -360,9 +360,14 @@ func (self *Refresh) logFeedRefresh(log *slog.Logger,
 	case refreshed.Refreshed:
 		msg = "Feed refreshed"
 		log = log.With(
+			slog.Uint64("size", self.feed.Extra.Size),
+			slog.String("hash", strconv.FormatUint(self.feed.Extra.Hash, 16)),
+			slog.Int("entries", len(self.feed.Entries)),
 			slog.Int("updated", len(refreshed.UpdatedEntires)),
 			slog.Int("created", len(refreshed.CreatedEntries)),
-			slog.Duration("storage_elapsed", refreshed.StorageElapsed))
+			slog.Group("storage",
+				slog.Int("queries", refreshed.StorageQueries),
+				slog.Duration("elapsed", refreshed.StorageElapsed)))
 	case refreshed.NotModified == notModifiedHeaders:
 		msg = "Response not modified"
 		log = log.With(

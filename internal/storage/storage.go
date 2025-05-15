@@ -23,6 +23,7 @@ func New(ctx context.Context, connString string, maxConns, minConns int,
 	if err != nil {
 		return nil, fmt.Errorf("storage: parse connection string: %w", err)
 	}
+	c.ConnConfig.Tracer = queryTracer{}
 
 	c.MaxConns = int32(maxConns)
 	c.MinConns = int32(minConns)

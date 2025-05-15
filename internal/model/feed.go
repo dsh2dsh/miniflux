@@ -321,6 +321,7 @@ type FeedRefreshed struct {
 	UpdatedEntires Entries
 
 	StorageElapsed time.Duration
+	StorageQueries int
 
 	Refreshed   bool
 	NotModified int
