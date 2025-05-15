@@ -5,16 +5,15 @@ package cli // import "miniflux.app/v2/internal/cli"
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
-	"sync"
-	"time"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 
 	"miniflux.app/v2/internal/config"
-	"miniflux.app/v2/internal/model"
-	feedHandler "miniflux.app/v2/internal/reader/handler"
 	"miniflux.app/v2/internal/storage"
+	"miniflux.app/v2/internal/worker"
 )
 
 var refreshFeedsCmd = cobra.Command{
@@ -23,78 +22,46 @@ var refreshFeedsCmd = cobra.Command{
 	Args:  cobra.ExactArgs(0),
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return withStorage(
-			func(ctx context.Context, store *storage.Storage) error {
-				refreshFeeds(ctx, store)
-				return nil
-			})
+		return withStorage(runRefreshFeeds)
 	},
 }
 
-func refreshFeeds(ctx context.Context, store *storage.Storage) {
-	var wg sync.WaitGroup
+func runRefreshFeeds(ctx context.Context, store *storage.Storage) error {
+	if err := store.SchemaUpToDate(ctx); err != nil {
+		return err
+	}
 
-	startTime := time.Now()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
+	pool := worker.NewPool(ctx, store, config.Opts.WorkerPoolSize())
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(pool.Run)
+
+	refreshFeeds(ctx, store, pool,
+		config.Opts.BatchSize(),
+		config.Opts.PollingParsingErrorLimit())
+
+	cancel()
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("waiting for worker pool: %w", err)
+	}
+	return nil
+}
+
+func refreshFeeds(ctx context.Context, store *storage.Storage,
+	pool *worker.Pool, batchSize, errorLimit int,
+) {
 	// Generate a batch of feeds for any user that has feeds to refresh.
-	batchBuilder := store.NewBatchBuilder()
-	batchBuilder.WithBatchSize(config.Opts.BatchSize())
-	batchBuilder.WithErrorLimit(config.Opts.PollingParsingErrorLimit())
-	batchBuilder.WithoutDisabledFeeds()
-	batchBuilder.WithNextCheckExpired()
+	batch := store.NewBatchBuilder().
+		WithBatchSize(batchSize).
+		WithErrorLimit(errorLimit).
+		WithoutDisabledFeeds().
+		WithNextCheckExpired()
 
-	jobs, err := batchBuilder.FetchJobs(ctx)
-	if err != nil {
+	if jobs, err := batch.FetchJobs(ctx); err != nil {
 		slog.Error("Unable to fetch jobs from database", slog.Any("error", err))
-		return
+	} else if len(jobs) > 0 {
+		pool.Push(ctx, jobs)
 	}
-
-	nbJobs := len(jobs)
-
-	slog.Info("Created a batch of feeds",
-		slog.Int("nb_jobs", nbJobs),
-		slog.Int("batch_size", config.Opts.BatchSize()),
-	)
-
-	jobQueue := make(chan model.Job, nbJobs)
-
-	slog.Info("Starting a pool of workers",
-		slog.Int("nb_workers", config.Opts.WorkerPoolSize()),
-	)
-
-	for i := range config.Opts.WorkerPoolSize() {
-		wg.Add(1)
-		go func(workerID int) {
-			defer wg.Done()
-			for job := range jobQueue {
-				slog.Info("Refreshing feed",
-					slog.Int64("feed_id", job.FeedID),
-					slog.Int64("user_id", job.UserID),
-					slog.Int("worker_id", workerID),
-				)
-
-				localizedError := feedHandler.RefreshFeed(ctx, store, job.UserID,
-					job.FeedID, false)
-				if localizedError != nil {
-					slog.Warn("Unable to refresh feed",
-						slog.Int64("feed_id", job.FeedID),
-						slog.Int64("user_id", job.UserID),
-						slog.Any("error", localizedError),
-					)
-				}
-			}
-		}(i)
-	}
-
-	for _, job := range jobs {
-		jobQueue <- job
-	}
-	close(jobQueue)
-
-	wg.Wait()
-
-	slog.Info("Refreshed a batch of feeds",
-		slog.Int("nb_feeds", nbJobs),
-		slog.String("duration", time.Since(startTime).String()),
-	)
 }

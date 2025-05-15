@@ -23,12 +23,13 @@ import (
 // NewPool creates a pool of background workers.
 func NewPool(ctx context.Context, store *storage.Storage, n int) *Pool {
 	self := &Pool{
-		ctx:   ctx,
-		queue: make(chan queueItem),
-		store: store,
+		ctx:      ctx,
+		queue:    make(chan queueItem),
+		store:    store,
+		wakeupCh: make(chan struct{}, 1),
 	}
 	self.g.SetLimit(n)
-	return self.WithWakeup()
+	return self
 }
 
 // Pool handles a pool of workers.
@@ -39,9 +40,7 @@ type Pool struct {
 
 	store *storage.Storage
 
-	mu           sync.Mutex
-	wakeupCtx    context.Context
-	wakeupSignal func()
+	wakeupCh chan struct{}
 }
 
 type queueItem struct {
@@ -61,27 +60,14 @@ func NewItem(job *model.Job, index int, begin, end func()) queueItem {
 	}
 }
 
-func (self *Pool) WithWakeup() *Pool {
-	self.mu.Lock()
-	if self.wakeupSignal != nil {
-		self.wakeupSignal()
-	}
-	self.wakeupCtx, self.wakeupSignal = context.WithCancel(context.Background())
-	self.mu.Unlock()
-	return self
-}
-
 func (self *Pool) Wakeup() {
-	self.mu.Lock()
-	self.wakeupSignal()
-	self.mu.Unlock()
+	select {
+	case self.wakeupCh <- struct{}{}:
+	default:
+	}
 }
 
-func (self *Pool) WakeupSignal() <-chan struct{} {
-	self.mu.Lock()
-	defer self.mu.Unlock()
-	return self.wakeupCtx.Done()
-}
+func (self *Pool) WakeupSignal() <-chan struct{} { return self.wakeupCh }
 
 // Push send a list of jobs to the queue.
 func (self *Pool) Push(ctx context.Context, jobs []model.Job) {

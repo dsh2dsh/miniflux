@@ -44,32 +44,14 @@ forLoop:
 			break forLoop
 		case <-ticker.C:
 			slog.Info("feed scheduler got tick")
-			self.refreshFeeds(ctx, batchSize, errorLimit)
+			refreshFeeds(ctx, self.store, self.pool, batchSize, errorLimit)
 		case <-self.pool.WakeupSignal():
 			slog.Info("feed scheduler got wakeup signal")
-			self.refreshFeeds(ctx, batchSize, errorLimit)
+			refreshFeeds(ctx, self.store, self.pool, batchSize, errorLimit)
 		}
 	}
 	slog.Info("feed scheduler stopped",
 		slog.Any("reason", context.Cause(ctx)))
-}
-
-func (self *Daemon) refreshFeeds(ctx context.Context,
-	batchSize, errorLimit int,
-) {
-	// Generate a batch of feeds for any user that has feeds to refresh.
-	batch := self.store.NewBatchBuilder().
-		WithBatchSize(batchSize).
-		WithErrorLimit(errorLimit).
-		WithoutDisabledFeeds().
-		WithNextCheckExpired()
-
-	self.pool.WithWakeup()
-	if jobs, err := batch.FetchJobs(ctx); err != nil {
-		slog.Error("Unable to fetch jobs from database", slog.Any("error", err))
-	} else if len(jobs) > 0 {
-		self.pool.Push(ctx, jobs)
-	}
 }
 
 func (self *Daemon) cleanupScheduler(ctx context.Context, freq int) {
