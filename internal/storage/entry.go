@@ -238,9 +238,9 @@ UPDATE entries
        author = $5,
        reading_time = $6,
        tags = $10,
-       status = 'unread',
        changed_at = now(),
        published_at = $11,
+       status = $12,
        document_vectors =
          setweight(to_tsvector(left(coalesce($1, ''), 500000)), 'A') ||
          setweight(to_tsvector(left(coalesce($4, ''), 500000)), 'B')
@@ -255,7 +255,8 @@ RETURNING id, status, changed_at`,
 		e.UserID, e.FeedID, e.Hash,
 		removeDuplicates(e.Tags),
 		e.Date,
-	).Scan(&e.ID, e.Status, e.ChangedAt)
+		model.EntryStatusUnread,
+	).Scan(&e.ID, &e.Status, &e.ChangedAt)
 	if err != nil {
 		return fmt.Errorf("storage: update entry %q: %w", e.URL, err)
 	}
