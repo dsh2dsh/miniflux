@@ -15,6 +15,7 @@ type FeedForm struct {
 	FeedURL                     string
 	SiteURL                     string
 	Title                       string
+	CommentsURLTemplate         string
 	Description                 string
 	ScraperRules                string
 	RewriteRules                string
@@ -79,6 +80,7 @@ func (f FeedForm) Merge(feed *model.Feed) *model.Feed {
 	feed.PushoverEnabled = f.PushoverEnabled
 	feed.PushoverPriority = f.PushoverPriority
 	feed.ProxyURL = f.ProxyURL
+	feed.Extra.CommentsURLTemplate = f.CommentsURLTemplate
 	return feed
 }
 
@@ -103,6 +105,7 @@ func NewFeedForm(r *http.Request) *FeedForm {
 		FeedURL:                     r.FormValue("feed_url"),
 		SiteURL:                     r.FormValue("site_url"),
 		Title:                       r.FormValue("title"),
+		CommentsURLTemplate:         r.FormValue("comments_url_template"),
 		Description:                 r.FormValue("description"),
 		ScraperRules:                r.FormValue("scraper_rules"),
 		UserAgent:                   r.FormValue("user_agent"),

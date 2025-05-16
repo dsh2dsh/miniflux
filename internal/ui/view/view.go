@@ -17,11 +17,11 @@ import (
 type View struct {
 	tpl    *template.Engine
 	r      *http.Request
-	params map[string]interface{}
+	params map[string]any
 }
 
 // Set adds a new template argument.
-func (v *View) Set(param string, value interface{}) *View {
+func (v *View) Set(param string, value any) *View {
 	v.params[param] = value
 	return v
 }

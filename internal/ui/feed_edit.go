@@ -26,9 +26,7 @@ func (h *handler) showEditFeedPage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
-	}
-
-	if feed == nil {
+	} else if feed == nil {
 		html.NotFound(w, r)
 		return
 	}
@@ -43,6 +41,7 @@ func (h *handler) showEditFeedPage(w http.ResponseWriter, r *http.Request) {
 		SiteURL:                     feed.SiteURL,
 		FeedURL:                     feed.FeedURL,
 		Title:                       feed.Title,
+		CommentsURLTemplate:         feed.Extra.CommentsURLTemplate,
 		Description:                 feed.Description,
 		ScraperRules:                feed.ScraperRules,
 		RewriteRules:                feed.RewriteRules,

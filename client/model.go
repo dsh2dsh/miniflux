@@ -145,7 +145,7 @@ type Feed struct {
 	FeedURL                     string    `json:"feed_url"`
 	SiteURL                     string    `json:"site_url"`
 	Title                       string    `json:"title"`
-	CheckedAt                   time.Time `json:"checked_at,omitempty"`
+	CheckedAt                   time.Time `json:"checked_at,omitzero"`
 	EtagHeader                  string    `json:"etag_header,omitempty"`
 	LastModifiedHeader          string    `json:"last_modified_header,omitempty"`
 	ParsingErrorMsg             string    `json:"parsing_error_message,omitempty"`
@@ -167,6 +167,14 @@ type Feed struct {
 	HideGlobally                bool      `json:"hide_globally"`
 	DisableHTTP2                bool      `json:"disable_http2"`
 	ProxyURL                    string    `json:"proxy_url"`
+	Extra                       FeedExtra `json:"extra,omitzero" db:"extra"`
+}
+
+type FeedExtra struct {
+	Size uint64 `json:"size,omitempty"`
+	Hash uint64 `json:"hash,omitempty"`
+
+	CommentsURLTemplate string `json:"comments_url_template,omitempty"`
 }
 
 // FeedCreationRequest represents the request to create a feed.
@@ -213,6 +221,7 @@ type FeedModificationRequest struct {
 	HideGlobally                *bool   `json:"hide_globally"`
 	DisableHTTP2                *bool   `json:"disable_http2"`
 	ProxyURL                    *string `json:"proxy_url"`
+	CommentsURLTemplate         *string `json:"comments_url_template,omitempty"`
 }
 
 // FeedIcon represents the feed icon.

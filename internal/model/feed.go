@@ -22,6 +22,10 @@ const (
 	DefaultFeedSortingDirection = "desc"
 )
 
+func NewFeed() *Feed {
+	return &Feed{Category: &Category{}, Icon: &FeedIcon{}}
+}
+
 // Feed represents a feed in the application.
 type Feed struct {
 	ID                          int64     `json:"id" db:"id"`
@@ -79,6 +83,8 @@ type Feed struct {
 type FeedExtra struct {
 	Size uint64 `json:"size,omitempty"`
 	Hash uint64 `json:"hash,omitempty"`
+
+	CommentsURLTemplate string `json:"comments_url_template,omitempty"`
 }
 
 type FeedCounters struct {
@@ -216,6 +222,7 @@ type FeedModificationRequest struct {
 	HideGlobally                *bool   `json:"hide_globally"`
 	DisableHTTP2                *bool   `json:"disable_http2"`
 	ProxyURL                    *string `json:"proxy_url"`
+	CommentsURLTemplate         *string `json:"comments_url_template,omitempty"`
 }
 
 // Patch updates a feed with modified values.
@@ -310,6 +317,10 @@ func (f *FeedModificationRequest) Patch(feed *Feed) {
 
 	if f.ProxyURL != nil {
 		feed.ProxyURL = *f.ProxyURL
+	}
+
+	if f.CommentsURLTemplate != nil {
+		feed.Extra.CommentsURLTemplate = *f.CommentsURLTemplate
 	}
 }
 

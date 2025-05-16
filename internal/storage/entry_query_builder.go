@@ -301,41 +301,42 @@ func (e *EntryQueryBuilder) GetEntries(ctx context.Context,
 ) (model.Entries, error) {
 	query := `
 SELECT
-	e.id,
-	e.user_id,
-	e.feed_id,
-	e.hash,
-	e.published_at,
-	e.title,
-	e.url,
-	e.comments_url,
-	e.author,
-	e.share_code,
-	e.content,
-	e.status,
-	e.starred,
-	e.reading_time,
-	e.created_at,
-	e.changed_at,
-	e.tags,
-	f.title as feed_title,
-	f.feed_url,
-	f.site_url,
-	f.description,
-	f.checked_at,
-	f.category_id,
-	c.title as category_title,
-	c.hide_globally as category_hidden,
-	f.scraper_rules,
-	f.rewrite_rules,
-	f.crawler,
-	f.user_agent,
-	f.cookie,
-	f.hide_globally,
-	f.no_media_player,
-	fi.icon_id,
-	i.external_id AS icon_external_id,
-	u.timezone
+  e.id,
+  e.user_id,
+  e.feed_id,
+  e.hash,
+  e.published_at,
+  e.title,
+  e.url,
+  e.comments_url,
+  e.author,
+  e.share_code,
+  e.content,
+  e.status,
+  e.starred,
+  e.reading_time,
+  e.created_at,
+  e.changed_at,
+  e.tags,
+  f.title as feed_title,
+  f.feed_url,
+  f.site_url,
+  f.description,
+  f.checked_at,
+  f.category_id,
+  c.title as category_title,
+  c.hide_globally as category_hidden,
+  f.scraper_rules,
+  f.rewrite_rules,
+  f.crawler,
+  f.user_agent,
+  f.cookie,
+  f.hide_globally,
+  f.no_media_player,
+  f.extra ->> 'comments_url_template',
+  fi.icon_id,
+  i.external_id AS icon_external_id,
+  u.timezone
 FROM entries e
      LEFT JOIN feeds f ON f.id=e.feed_id
      LEFT JOIN categories c ON c.id=f.category_id
@@ -346,17 +347,17 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 
 	rows, err := e.db.Query(ctx, query, e.args...)
 	if err != nil {
-		return nil, fmt.Errorf("store: unable to get entries: %w", err)
+		return nil, fmt.Errorf("storage: unable to get entries: %w", err)
 	}
 	defer rows.Close()
 
-	entries := make(model.Entries, 0)
-	entryMap := make(map[int64]*model.Entry)
+	var entries model.Entries
 	var entryIDs []int64
+	entryMap := make(map[int64]*model.Entry)
 
 	for rows.Next() {
 		var iconID pgtype.Int8
-		var externalIconID pgtype.Text
+		var externalIconID, commentsURLTemplate pgtype.Text
 		var tz string
 
 		entry := model.NewEntry()
@@ -393,12 +394,13 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 			&entry.Feed.Cookie,
 			&entry.Feed.HideGlobally,
 			&entry.Feed.NoMediaPlayer,
+			&commentsURLTemplate,
 			&iconID,
 			&externalIconID,
 			&tz,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("store: unable to fetch entry row: %w", err)
+			return nil, fmt.Errorf("storage: unable to fetch entry row: %w", err)
 		}
 
 		if iconID.Valid && externalIconID.Valid && externalIconID.String != "" {
@@ -407,6 +409,10 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 			entry.Feed.Icon.ExternalIconID = externalIconID.String
 		} else {
 			entry.Feed.Icon.IconID = 0
+		}
+
+		if commentsURLTemplate.Valid {
+			entry.Feed.Extra.CommentsURLTemplate = commentsURLTemplate.String
 		}
 
 		// Make sure that timestamp fields contain timezone information (API)
@@ -425,19 +431,36 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 		entryIDs = append(entryIDs, entry.ID)
 	}
 
-	if e.fetchEnclosures && len(entryIDs) > 0 {
-		enclosures, err := e.store.GetEnclosuresForEntries(ctx, entryIDs)
-		if err != nil {
-			return nil, fmt.Errorf("store: unable to fetch enclosures: %w", err)
-		}
-
-		for entryID, entryEnclosures := range enclosures {
-			if entry, exists := entryMap[entryID]; exists {
-				entry.Enclosures = entryEnclosures
-			}
+	if e.fetchEnclosures {
+		if err := e.fillEnclosures(ctx, entryIDs, entryMap); err != nil {
+			return nil, err
 		}
 	}
+
+	if err := entries.MakeCommentURLs(); err != nil {
+		return nil, err
+	}
 	return entries, nil
+}
+
+func (e *EntryQueryBuilder) fillEnclosures(ctx context.Context,
+	entryIDs []int64, entryMap map[int64]*model.Entry,
+) error {
+	if len(entryIDs) == 0 {
+		return nil
+	}
+
+	enclosures, err := e.store.GetEnclosuresForEntries(ctx, entryIDs)
+	if err != nil {
+		return err
+	}
+
+	for entryID, entryEnclosures := range enclosures {
+		if entry, exists := entryMap[entryID]; exists {
+			entry.Enclosures = entryEnclosures
+		}
+	}
+	return nil
 }
 
 // GetEntryIDs returns a list of entry IDs that match the condition.

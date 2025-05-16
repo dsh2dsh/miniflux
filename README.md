@@ -142,7 +142,15 @@ This project is an opinionated fork of Miniflux.
   Dark theme:
   ![Dark theme](images/dark.png)
 
-* Republished entries now marked as unread.
+* Republished entries marked as unread.
+
+* Custom comments URL per feed.
+
+  Any feed can be configured with custom comments URL instead of feed's comment
+  URL via edit feed UI. The new setting expected to be a templated string like:
+  `{{ .URL }}/comments/`. This example appends `/comments/` to entry URL and use
+  it as comments URL of this entry. As a shortcut, if the template begins with
+  `/` it directly appends to entry URL, like in previous example.
 
 Features
 --------

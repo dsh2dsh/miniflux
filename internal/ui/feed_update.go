@@ -29,9 +29,7 @@ func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
-	}
-
-	if feed == nil {
+	} else if feed == nil {
 		html.NotFound(w, r)
 		return
 	}
@@ -58,15 +56,16 @@ func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
 	view.Set("defaultUserAgent", config.Opts.HTTPClientUserAgent())
 
 	feedModificationRequest := &model.FeedModificationRequest{
-		FeedURL:         model.OptionalString(feedForm.FeedURL),
-		SiteURL:         model.OptionalString(feedForm.SiteURL),
-		Title:           model.OptionalString(feedForm.Title),
-		Description:     model.OptionalString(feedForm.Description),
-		CategoryID:      model.OptionalNumber(feedForm.CategoryID),
-		BlocklistRules:  model.OptionalString(feedForm.BlocklistRules),
-		KeeplistRules:   model.OptionalString(feedForm.KeeplistRules),
-		UrlRewriteRules: model.OptionalString(feedForm.UrlRewriteRules),
-		ProxyURL:        model.OptionalString(feedForm.ProxyURL),
+		FeedURL:             model.OptionalString(feedForm.FeedURL),
+		SiteURL:             model.OptionalString(feedForm.SiteURL),
+		Title:               model.OptionalString(feedForm.Title),
+		CommentsURLTemplate: model.OptionalString(feedForm.CommentsURLTemplate),
+		Description:         model.OptionalString(feedForm.Description),
+		CategoryID:          model.OptionalNumber(feedForm.CategoryID),
+		BlocklistRules:      model.OptionalString(feedForm.BlocklistRules),
+		KeeplistRules:       model.OptionalString(feedForm.KeeplistRules),
+		UrlRewriteRules:     model.OptionalString(feedForm.UrlRewriteRules),
+		ProxyURL:            model.OptionalString(feedForm.ProxyURL),
 	}
 
 	validationErr := validator.ValidateFeedModification(r.Context(),

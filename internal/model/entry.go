@@ -4,6 +4,12 @@
 package model // import "miniflux.app/v2/internal/model"
 
 import (
+	"bytes"
+	"fmt"
+	"net/url"
+	"path"
+	"strings"
+	"text/template"
 	"time"
 )
 
@@ -41,12 +47,9 @@ type Entry struct {
 
 func NewEntry() *Entry {
 	return &Entry{
-		Enclosures: make(EnclosureList, 0),
-		Tags:       make([]string, 0),
-		Feed: &Feed{
-			Category: &Category{},
-			Icon:     &FeedIcon{},
-		},
+		Enclosures: EnclosureList{},
+		Tags:       []string{},
+		Feed:       NewFeed(),
 	}
 }
 
@@ -66,6 +69,36 @@ func (e *Entry) ShouldMarkAsReadOnView(user *User) bool {
 	return user.MarkReadOnView
 }
 
+func (e *Entry) SetCommentsURL(rawURL string) (err error) {
+	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" {
+		e.CommentsURL = rawURL
+		return nil
+	}
+
+	var u *url.URL
+	switch {
+	case path.IsAbs(rawURL):
+		u, err = url.Parse(e.URL)
+		if err != nil {
+			return fmt.Errorf("model: parse entry url %q: %w", e.URL, err)
+		}
+		u = u.JoinPath(rawURL)
+	default:
+		u, err = url.Parse(rawURL)
+		if err != nil {
+			return fmt.Errorf("model: parse new comments url %q: %w", rawURL, err)
+		}
+		u.Path = path.Clean(u.Path)
+	}
+
+	if strings.HasSuffix(rawURL, "/") && !strings.HasSuffix(u.Path, "/") {
+		u.Path += "/"
+	}
+	e.CommentsURL = u.String()
+	return nil
+}
+
 // Entries represents a list of entries.
 type Entries []*Entry
 
@@ -82,6 +115,43 @@ func (self Entries) Enclosures() []*Enclosure {
 		}
 	}
 	return encList
+}
+
+func (self Entries) MakeCommentURLs() error {
+	feedTemplates := make(map[int64]*template.Template)
+	var b bytes.Buffer
+	for _, e := range self {
+		t, ok := feedTemplates[e.FeedID]
+		if !ok {
+			s := strings.TrimSpace(e.Feed.Extra.CommentsURLTemplate)
+			if s == "" {
+				feedTemplates[e.FeedID] = nil
+				continue
+			}
+
+			t2, err := template.New("").Parse(s)
+			if err != nil {
+				return fmt.Errorf(
+					"model: parse comments_url_template %q (feed: %v): %w",
+					s, e.FeedID, err)
+			}
+			t = t2
+			feedTemplates[e.FeedID] = t
+		} else if t == nil {
+			continue
+		}
+
+		if err := t.Execute(&b, e); err != nil {
+			return fmt.Errorf(
+				"model: execute comments_url_template (entry: %v): %w", e.ID, err)
+		}
+
+		if err := e.SetCommentsURL(b.String()); err != nil {
+			return err
+		}
+		b.Reset()
+	}
+	return nil
 }
 
 // EntriesStatusUpdateRequest represents a request to change entries status.

@@ -63,6 +63,13 @@
             <label for="form-feed-url">{{ t "form.feed.label.feed_url" }}</label>
             <input type="url" name="feed_url" id="form-feed-url" placeholder="https://domain.tld/" value="{{ .form.FeedURL }}" spellcheck="false" required>
 
+            <label for="form-comments-url-template">Comments URL template</label>
+            <input type="text" name="comments_url_template"
+                   id="form-comments-url-template"
+                   placeholder="https://domain.tld/"
+                   value="{{ .form.CommentsURLTemplate }}"
+                   spellcheck="false" />
+
             <label for="form-description">{{ t "form.feed.label.description" }}</label>
             <textarea name="description" id="form-description" cols="40" rows="10" >{{ .form.Description }}</textarea>
 
