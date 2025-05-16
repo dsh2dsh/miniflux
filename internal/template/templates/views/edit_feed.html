@@ -264,6 +264,12 @@
             {{ end }}
             <li><strong>{{ t "page.edit_feed.etag_header" }} </strong>{{ if .feed.EtagHeader }}{{ .feed.EtagHeader }}{{ else }}{{ t "page.edit_feed.no_header" }}{{ end }}</li>
             <li><strong>{{ t "page.edit_feed.last_modified_header" }} </strong>{{ if .feed.LastModifiedHeader }}{{ .feed.LastModifiedHeader }}{{ else }}{{ t "page.edit_feed.no_header" }}{{ end }}</li>
+            <li>
+                <strong>Size:</strong> {{ formatFileSizeUint .feed.Extra.Size }}
+            </li>
+            <li>
+                <strong>Hash:</strong> {{ printf "%x" .feed.Extra.Hash }}
+            </li>
         </ul>
     </div>
 
