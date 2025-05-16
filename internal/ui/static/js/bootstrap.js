@@ -113,6 +113,15 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }, true);
 
+    onClick("a[data-comments-link='true']", (event) => {
+        handleEntryStatus("next", event.target, true);
+    }, true);
+    onAuxClick("a[data-comments-link='true']", (event) => {
+        if (event.button === 1) {
+            handleEntryStatus("next", event.target, true);
+        }
+    }, true);
+
     checkMenuToggleModeByLayout();
     window.addEventListener("resize", checkMenuToggleModeByLayout, { passive: true });
 

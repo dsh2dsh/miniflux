@@ -441,7 +441,14 @@ function openCommentLink(openLinkInCurrentTab) {
     } else {
         const currentItemCommentsLink = document.querySelector(".current-item :is(a, button)[data-comments-link]");
         if (currentItemCommentsLink !== null) {
-            openNewTab(currentItemCommentsLink.getAttribute("href"));
+          openNewTab(currentItemCommentsLink.getAttribute("href"));
+
+          const currentItem = document.querySelector(".current-item");
+          // If we are not on the list of starred items, move to the next item
+          if (document.location.href !== document.querySelector(':is(a, button)[data-page=starred]').href) {
+            goToListItem(1);
+          }
+          markEntryAsRead(currentItem);
         }
     }
 }

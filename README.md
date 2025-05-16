@@ -152,6 +152,10 @@ This project is an opinionated fork of Miniflux.
   it as comments URL of this entry. As a shortcut, if the template begins with
   `/` it directly appends to entry URL, like in previous example.
 
+* Click on comments URL mark this entry as read.
+
+  If mark entries as read when viewed enabled in user settings.
+
 Features
 --------
 
