@@ -33,15 +33,16 @@ type funcMap struct {
 // Map returns a map of template functions that are compiled during template parsing.
 func (f *funcMap) Map() template.FuncMap {
 	return template.FuncMap{
-		"formatFileSize":   formatFileSize,
-		"dict":             dict,
-		"hasKey":           hasKey,
-		"truncate":         truncate,
-		"isEmail":          isEmail,
-		"baseURL":          config.Opts.BaseURL,
-		"rootURL":          config.Opts.RootURL,
-		"disableLocalAuth": config.Opts.DisableLocalAuth,
-		"oidcProviderName": config.Opts.OIDCProviderName,
+		"formatFileSize":     formatFileSize[int64],
+		"formatFileSizeUint": formatFileSize[uint64],
+		"dict":               dict,
+		"hasKey":             hasKey,
+		"truncate":           truncate,
+		"isEmail":            isEmail,
+		"baseURL":            config.Opts.BaseURL,
+		"rootURL":            config.Opts.RootURL,
+		"disableLocalAuth":   config.Opts.DisableLocalAuth,
+		"oidcProviderName":   config.Opts.OIDCProviderName,
 		"hasOAuth2Provider": func(provider string) bool {
 			return config.Opts.OAuth2Provider() == provider
 		},
@@ -212,12 +213,12 @@ func elapsedTime(printer *locale.Printer, tz string, t time.Time) string {
 	}
 }
 
-func formatFileSize(b int64) string {
+func formatFileSize[T int64 | uint64](b T) string {
 	const unit = 1024
 	if b < unit {
 		return fmt.Sprintf("%d B", b)
 	}
 	base := math.Log(float64(b)) / math.Log(unit)
 	number := math.Pow(unit, base-math.Floor(base))
-	return fmt.Sprintf("%.1f %ciB", number, "KMGTPE"[int64(base)-1])
+	return fmt.Sprintf("%.1f %ciB", number, "KMGTPE"[int(base)-1])
 }
