@@ -333,7 +333,7 @@ SELECT
   f.cookie,
   f.hide_globally,
   f.no_media_player,
-  f.extra ->> 'comments_url_template',
+  COALESCE(f.extra ->> 'comments_url_template', ''),
   fi.icon_id,
   i.external_id AS icon_external_id,
   u.timezone
@@ -353,11 +353,12 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 
 	var entries model.Entries
 	var entryIDs []int64
+	var hasCommentsURLTemplate bool
 	entryMap := make(map[int64]*model.Entry)
 
 	for rows.Next() {
 		var iconID pgtype.Int8
-		var externalIconID, commentsURLTemplate pgtype.Text
+		var externalIconID pgtype.Text
 		var tz string
 
 		entry := model.NewEntry()
@@ -394,7 +395,7 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 			&entry.Feed.Cookie,
 			&entry.Feed.HideGlobally,
 			&entry.Feed.NoMediaPlayer,
-			&commentsURLTemplate,
+			&entry.Feed.Extra.CommentsURLTemplate,
 			&iconID,
 			&externalIconID,
 			&tz,
@@ -403,16 +404,15 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 			return nil, fmt.Errorf("storage: unable to fetch entry row: %w", err)
 		}
 
+		hasCommentsURLTemplate = hasCommentsURLTemplate ||
+			entry.Feed.Extra.CommentsURLTemplate != ""
+
 		if iconID.Valid && externalIconID.Valid && externalIconID.String != "" {
 			entry.Feed.Icon.FeedID = entry.FeedID
 			entry.Feed.Icon.IconID = iconID.Int64
 			entry.Feed.Icon.ExternalIconID = externalIconID.String
 		} else {
 			entry.Feed.Icon.IconID = 0
-		}
-
-		if commentsURLTemplate.Valid {
-			entry.Feed.Extra.CommentsURLTemplate = commentsURLTemplate.String
 		}
 
 		// Make sure that timestamp fields contain timezone information (API)
@@ -437,8 +437,8 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 		}
 	}
 
-	if err := entries.MakeCommentURLs(); err != nil {
-		return nil, err
+	if hasCommentsURLTemplate {
+		entries.MakeCommentURLs(ctx)
 	}
 	return entries, nil
 }

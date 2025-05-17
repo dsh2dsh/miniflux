@@ -5,7 +5,6 @@ package validator // import "miniflux.app/v2/internal/validator"
 
 import (
 	"context"
-	"text/template"
 
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
@@ -111,7 +110,8 @@ func ValidateFeedModification(ctx context.Context, store *storage.Storage,
 
 	if request.CommentsURLTemplate != nil {
 		if s := *request.CommentsURLTemplate; s != "" {
-			_, err := template.New("").Parse(s)
+			f := model.Feed{Extra: model.FeedExtra{CommentsURLTemplate: s}}
+			_, err := f.CommentsURLTemplate()
 			if err != nil {
 				return locale.NewLocalizedError(
 					"Invalid Comments URL template: " + err.Error())

@@ -6,6 +6,8 @@ package model // import "miniflux.app/v2/internal/model"
 import (
 	"fmt"
 	"math"
+	"strings"
+	"text/template"
 	"time"
 
 	"github.com/cespare/xxhash/v2"
@@ -163,6 +165,26 @@ func (f *Feed) ContentChanged(body []byte) bool {
 	oldSize, oldHash := f.Extra.Size, f.Extra.Hash
 	f.Extra.Size, f.Extra.Hash = uint64(len(body)), xxhash.Sum64(body)
 	return f.Extra.Size != oldSize || f.Extra.Hash != oldHash
+}
+
+func (f *Feed) CommentsURLTemplate() (*template.Template, error) {
+	s := strings.TrimSpace(f.Extra.CommentsURLTemplate)
+	if s == "" {
+		return nil, nil
+	}
+
+	t, err := template.New("").Funcs(commentsURLTemplateFuncMap).Parse(s)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"model: parsing comments_url_template %q: %w", s, err)
+	}
+	return t, nil
+}
+
+var commentsURLTemplateFuncMap = template.FuncMap{
+	"replace": func(s, from, to string) string {
+		return strings.Replace(s, from, to, 1)
+	},
 }
 
 // FeedCreationRequest represents the request to create a feed.

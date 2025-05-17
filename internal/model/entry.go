@@ -5,12 +5,16 @@ package model // import "miniflux.app/v2/internal/model"
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"path"
 	"strings"
 	"text/template"
 	"time"
+
+	"miniflux.app/v2/internal/logging"
 )
 
 // Entry statuses and default sorting order.
@@ -117,41 +121,50 @@ func (self Entries) Enclosures() []*Enclosure {
 	return encList
 }
 
-func (self Entries) MakeCommentURLs() error {
+func (self Entries) MakeCommentURLs(ctx context.Context) {
+	log := logging.FromContext(ctx)
 	feedTemplates := make(map[int64]*template.Template)
 	var b bytes.Buffer
+
 	for _, e := range self {
 		t, ok := feedTemplates[e.FeedID]
 		if !ok {
-			s := strings.TrimSpace(e.Feed.Extra.CommentsURLTemplate)
-			if s == "" {
+			t2, err := e.Feed.CommentsURLTemplate()
+			switch {
+			case err != nil:
+				log.Error("model: failed parse comments_url_template",
+					slog.Int64("feed_id", e.FeedID),
+					slog.Any("error", err))
+				fallthrough
+			case t2 == nil:
 				feedTemplates[e.FeedID] = nil
 				continue
 			}
 
-			t2, err := template.New("").Parse(s)
-			if err != nil {
-				return fmt.Errorf(
-					"model: parse comments_url_template %q (feed: %v): %w",
-					s, e.FeedID, err)
-			}
 			t = t2
 			feedTemplates[e.FeedID] = t
 		} else if t == nil {
 			continue
 		}
 
+		b.Reset()
 		if err := t.Execute(&b, e); err != nil {
-			return fmt.Errorf(
-				"model: execute comments_url_template (entry: %v): %w", e.ID, err)
+			log.Error("model: failed execute comments_url_template",
+				slog.Int64("feed_id", e.FeedID),
+				slog.Int64("entry_id", e.ID),
+				slog.Any("error", err))
+			feedTemplates[e.FeedID] = nil
+			continue
 		}
 
 		if err := e.SetCommentsURL(b.String()); err != nil {
-			return err
+			log.Error("model: failed set templated comments url",
+				slog.Int64("feed_id", e.FeedID),
+				slog.Int64("entry_id", e.ID),
+				slog.Any("error", err))
+			feedTemplates[e.FeedID] = nil
 		}
-		b.Reset()
 	}
-	return nil
 }
 
 // EntriesStatusUpdateRequest represents a request to change entries status.

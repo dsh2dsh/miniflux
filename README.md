@@ -152,6 +152,16 @@ This project is an opinionated fork of Miniflux.
   it as comments URL of this entry. As a shortcut, if the template begins with
   `/` it directly appends to entry URL, like in previous example.
 
+  The template can use function `replace` like:
+
+  `{{ replace .URL "/clanek/" "/diskuze/" }}`
+
+  which returns entry URL, where first substring `/clanek/` replaced by
+  `/diskuze/`.
+
+  Also `.CommentsURL` can be used instead of `.URL`, which'll return original
+  comments URL modified by the template.
+
 * Click on comments URL mark this entry as read.
 
   If mark entries as read when viewed enabled in user settings.

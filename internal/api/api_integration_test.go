@@ -636,19 +636,15 @@ func (self *EndpointTestSuite) TestCreateFeedWithScraperRule() {
 
 func (self *EndpointTestSuite) TestUpdateFeedEndpoint() {
 	const url = "https://example.org/feed.xml"
-	const commentsURL = "http://example.org/comments/"
-
 	feedID := self.createFeed()
 	feedModify := miniflux.FeedModificationRequest{
-		FeedURL:             miniflux.SetOptionalField(url),
-		CommentsURLTemplate: miniflux.SetOptionalField(commentsURL),
+		FeedURL: miniflux.SetOptionalField(url),
 	}
 
 	updatedFeed, err := self.client.UpdateFeed(feedID, &feedModify)
 	self.Require().NoError(err)
 	self.Require().NotNil(updatedFeed)
 	self.Equal(url, updatedFeed.FeedURL, "Invalid feed URL")
-	self.Equal(commentsURL, updatedFeed.Extra.CommentsURLTemplate)
 }
 
 func (self *EndpointTestSuite) TestCannotHaveDuplicateFeedWhenUpdatingFeed() {
@@ -680,27 +676,49 @@ func (self *EndpointTestSuite) TestUpdateFeedWithInvalidCategory() {
 }
 
 func (self *EndpointTestSuite) TestUpdateFeedEndpoint_CommentsURLTemplate() {
-	const commentsURL = "{{ .URL }}/comments/"
-	feedID := self.createFeed()
-	feedModify := miniflux.FeedModificationRequest{
-		CommentsURLTemplate: miniflux.SetOptionalField(commentsURL),
+	tests := []struct {
+		name        string
+		commentsURL string
+		wantErr     bool
+	}{
+		{
+			name:        "absolute",
+			commentsURL: "/comments/",
+		},
+		{
+			name:        "templated",
+			commentsURL: "{{ .URL }}/comments/",
+		},
+		{
+			name:        "invalid",
+			commentsURL: "{{ notexists }}/comments/",
+			wantErr:     true,
+		},
+		{
+			name:        "replace",
+			commentsURL: `{{ replace .URL "/clanek/" "/diskuze/" }}`,
+		},
 	}
 
-	updatedFeed, err := self.client.UpdateFeed(feedID, &feedModify)
-	self.Require().NoError(err)
-	self.Require().NotNil(updatedFeed)
-	self.Equal(commentsURL, updatedFeed.Extra.CommentsURLTemplate)
-}
-
-func (self *EndpointTestSuite) TestUpdateFeedEndpoint_invalidCommentsURLTemplate() {
 	feedID := self.createFeed()
-	feedModify := miniflux.FeedModificationRequest{
-		CommentsURLTemplate: miniflux.SetOptionalField("{{ notexists }}/comments/"),
-	}
+	for _, tt := range tests {
+		self.Run(tt.name, func() {
+			r := miniflux.FeedModificationRequest{
+				CommentsURLTemplate: miniflux.SetOptionalField(tt.commentsURL),
+			}
 
-	_, err := self.client.UpdateFeed(feedID, &feedModify)
-	self.T().Log(err)
-	self.Require().ErrorIs(err, miniflux.ErrBadRequest)
+			feed, err := self.client.UpdateFeed(feedID, &r)
+			if tt.wantErr {
+				self.T().Log(err)
+				self.Require().Error(err)
+				return
+			}
+
+			self.Require().NoError(err)
+			self.Require().NotNil(feed)
+			self.Equal(tt.commentsURL, feed.Extra.CommentsURLTemplate)
+		})
+	}
 }
 
 func (self *EndpointTestSuite) TestMarkFeedAsReadEndpoint() {
