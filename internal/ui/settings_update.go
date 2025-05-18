@@ -14,14 +14,12 @@ import (
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
-	"miniflux.app/v2/internal/ui/session"
-	"miniflux.app/v2/internal/ui/view"
 	"miniflux.app/v2/internal/validator"
 )
 
 func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
-	loggedUser, err := h.store.UserByID(r.Context(), request.UserID(r))
-	if err != nil {
+	v := h.View(r)
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
@@ -32,49 +30,46 @@ func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	creds, err := h.store.WebAuthnCredentialsByUserID(r.Context(), loggedUser.ID)
+	creds, err := h.store.WebAuthnCredentialsByUserID(r.Context(), v.User().ID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
 	settingsForm := form.NewSettingsForm(r)
-
-	sess := session.New(h.store, request.SessionID(r))
-	view := view.New(h.tpl, r, sess)
-	view.Set("form", settingsForm)
-	view.Set("readBehaviors", map[string]any{
-		"NoAutoMarkAsRead":                           form.NoAutoMarkAsRead,
-		"MarkAsReadOnView":                           form.MarkAsReadOnView,
-		"MarkAsReadOnViewButWaitForPlayerCompletion": form.MarkAsReadOnViewButWaitForPlayerCompletion,
-		"MarkAsReadOnlyOnPlayerCompletion":           form.MarkAsReadOnlyOnPlayerCompletion,
-	})
-	view.Set("themes", model.Themes())
-	view.Set("languages", locale.AvailableLanguages)
-	view.Set("timezones", timezones)
-	view.Set("menu", "settings")
-	view.Set("user", loggedUser)
-	view.Set("countUnread", h.store.CountUnreadEntries(
-		r.Context(), loggedUser.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
-		r.Context(), loggedUser.ID))
-	view.Set("default_home_pages", model.HomePages())
-	view.Set("categories_sorting_options", model.CategoriesSortingOptions())
-	view.Set("countWebAuthnCerts", h.store.CountWebAuthnCredentialsByUserID(
-		r.Context(), loggedUser.ID))
-	view.Set("webAuthnCerts", creds)
+	v.Set("menu", "settings").
+		Set("form", settingsForm).
+		Set("readBehaviors", map[string]any{
+			"NoAutoMarkAsRead":                           form.NoAutoMarkAsRead,
+			"MarkAsReadOnView":                           form.MarkAsReadOnView,
+			"MarkAsReadOnViewButWaitForPlayerCompletion": form.MarkAsReadOnViewButWaitForPlayerCompletion,
+			"MarkAsReadOnlyOnPlayerCompletion":           form.MarkAsReadOnlyOnPlayerCompletion,
+		}).
+		Set("themes", model.Themes()).
+		Set("languages", locale.AvailableLanguages).
+		Set("timezones", timezones).
+		Set("default_home_pages", model.HomePages()).
+		Set("categories_sorting_options", model.CategoriesSortingOptions()).
+		Set("countWebAuthnCerts", h.store.CountWebAuthnCredentialsByUserID(
+			r.Context(), v.User().ID)).
+		Set("webAuthnCerts", creds)
 
 	// Sanitize the end of the block & Keep rules
 	cleanEnd := regexp.MustCompile(`(?m)\r\n\s*$`)
-	settingsForm.BlockFilterEntryRules = cleanEnd.ReplaceAllLiteralString(settingsForm.BlockFilterEntryRules, "")
-	settingsForm.KeepFilterEntryRules = cleanEnd.ReplaceAllLiteralString(settingsForm.KeepFilterEntryRules, "")
-	// Clean carriage returns for Windows environments
-	settingsForm.BlockFilterEntryRules = strings.ReplaceAll(settingsForm.BlockFilterEntryRules, "\r\n", "\n")
-	settingsForm.KeepFilterEntryRules = strings.ReplaceAll(settingsForm.KeepFilterEntryRules, "\r\n", "\n")
+	settingsForm.BlockFilterEntryRules = cleanEnd.ReplaceAllLiteralString(
+		settingsForm.BlockFilterEntryRules, "")
+	settingsForm.KeepFilterEntryRules = cleanEnd.ReplaceAllLiteralString(
+		settingsForm.KeepFilterEntryRules, "")
 
-	if validationErr := settingsForm.Validate(); validationErr != nil {
-		view.Set("errorMessage", validationErr.Translate(loggedUser.Language))
-		html.OK(w, r, view.Render("settings"))
+	// Clean carriage returns for Windows environments
+	settingsForm.BlockFilterEntryRules = strings.ReplaceAll(
+		settingsForm.BlockFilterEntryRules, "\r\n", "\n")
+	settingsForm.KeepFilterEntryRules = strings.ReplaceAll(
+		settingsForm.KeepFilterEntryRules, "\r\n", "\n")
+
+	if lerr := settingsForm.Validate(); lerr != nil {
+		v.Set("errorMessage", lerr.Translate(v.User().Language))
+		html.OK(w, r, v.Render("settings"))
 		return
 	}
 
@@ -99,23 +94,23 @@ func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		ExternalFontHosts:      model.OptionalString(settingsForm.ExternalFontHosts),
 	}
 
-	validationErr := validator.ValidateUserModification(r.Context(),
-		h.store, loggedUser.ID, userModificationRequest)
-	if validationErr != nil {
-		view.Set("errorMessage", validationErr.Translate(loggedUser.Language))
-		html.OK(w, r, view.Render("settings"))
+	lerr := validator.ValidateUserModification(r.Context(),
+		h.store, v.User().ID, userModificationRequest)
+	if lerr != nil {
+		v.Set("errorMessage", lerr.Translate(v.User().Language))
+		html.OK(w, r, v.Render("settings"))
 		return
 	}
 
-	err = h.store.UpdateUser(r.Context(), settingsForm.Merge(loggedUser))
+	err = h.store.UpdateUser(r.Context(), settingsForm.Merge(v.User()))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	sess.SetLanguage(r.Context(), loggedUser.Language)
-	sess.SetTheme(r.Context(), loggedUser.Theme)
-	sess.NewFlashMessage(r.Context(),
+	v.Session().SetLanguage(r.Context(), v.User().Language)
+	v.Session().SetTheme(r.Context(), v.User().Theme)
+	v.Session().NewFlashMessage(r.Context(),
 		locale.NewPrinter(request.UserLanguage(r)).Printf("alert.prefs_saved"))
 	html.Redirect(w, r, route.Path(h.router, "settings"))
 }

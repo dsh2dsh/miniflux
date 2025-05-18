@@ -8,41 +8,30 @@ import (
 	"runtime"
 
 	"miniflux.app/v2/internal/config"
-	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/ui/session"
-	"miniflux.app/v2/internal/ui/view"
 	"miniflux.app/v2/internal/version"
 )
 
 func (h *handler) showAboutPage(w http.ResponseWriter, r *http.Request) {
-	user, err := h.store.UserByID(r.Context(), request.UserID(r))
-	if err != nil {
+	v := h.View(r)
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
+	v.Set("menu", "settings").
+		Set("version", version.Version).
+		Set("commit", version.Commit).
+		Set("build_date", version.BuildDate).
+		Set("globalConfigOptions", config.Opts.SortedOptions(true)).
+		Set("postgres_version", h.store.DatabaseVersion(r.Context())).
+		Set("go_version", runtime.Version())
+
 	dbSize, dbErr := h.store.DBSize(r.Context())
-
-	sess := session.New(h.store, request.SessionID(r))
-	view := view.New(h.tpl, r, sess)
-	view.Set("version", version.Version)
-	view.Set("commit", version.Commit)
-	view.Set("build_date", version.BuildDate)
-	view.Set("menu", "settings")
-	view.Set("user", user)
-	view.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
-		r.Context(), user.ID))
-	view.Set("globalConfigOptions", config.Opts.SortedOptions(true))
-	view.Set("postgres_version", h.store.DatabaseVersion(r.Context()))
-	view.Set("go_version", runtime.Version())
-
 	if dbErr != nil {
-		view.Set("db_usage", dbErr)
+		v.Set("db_usage", dbErr)
 	} else {
-		view.Set("db_usage", dbSize)
+		v.Set("db_usage", dbSize)
 	}
-
-	html.OK(w, r, view.Render("about"))
+	html.OK(w, r, v.Render("about"))
 }

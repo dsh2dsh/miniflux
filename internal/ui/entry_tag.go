@@ -11,13 +11,11 @@ import (
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
-	"miniflux.app/v2/internal/ui/session"
-	"miniflux.app/v2/internal/ui/view"
 )
 
 func (h *handler) showTagEntryPage(w http.ResponseWriter, r *http.Request) {
-	user, err := h.store.UserByID(r.Context(), request.UserID(r))
-	if err != nil {
+	v := h.View(r).WithSaveEntry()
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
@@ -27,64 +25,56 @@ func (h *handler) showTagEntryPage(w http.ResponseWriter, r *http.Request) {
 		html.ServerError(w, r, err)
 		return
 	}
+
 	entryID := request.RouteInt64Param(r, "entryID")
-
-	builder := h.store.NewEntryQueryBuilder(user.ID)
-	builder.WithTags([]string{tagName})
-	builder.WithEntryID(entryID)
-	builder.WithoutStatus(model.EntryStatusRemoved)
-
-	entry, err := builder.GetEntry(r.Context())
+	entry, err := h.store.NewEntryQueryBuilder(v.User().ID).
+		WithTags([]string{tagName}).
+		WithEntryID(entryID).
+		WithoutStatus(model.EntryStatusRemoved).
+		GetEntry(r.Context())
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
-	}
-
-	if entry == nil {
+	} else if entry == nil {
 		html.NotFound(w, r)
 		return
 	}
 
-	if entry.ShouldMarkAsReadOnView(user) {
-		err = h.store.SetEntriesStatus(r.Context(), user.ID,
+	if entry.ShouldMarkAsReadOnView(v.User()) {
+		err = h.store.SetEntriesStatus(r.Context(), v.User().ID,
 			[]int64{entry.ID}, model.EntryStatusRead)
 		if err != nil {
 			html.ServerError(w, r, err)
 			return
 		}
-
 		entry.Status = model.EntryStatusRead
 	}
 
-	entryPaginationBuilder := h.store.NewEntryPaginationBuilder(user.ID, entry.ID, user.EntryOrder, user.EntryDirection)
-	entryPaginationBuilder.WithTags([]string{tagName})
-	prevEntry, nextEntry, err := entryPaginationBuilder.Entries(r.Context())
+	prevEntry, nextEntry, err := h.store.NewEntryPaginationBuilder(
+		v.User().ID, entry.ID, v.User().EntryOrder, v.User().EntryDirection).
+		WithTags([]string{tagName}).
+		Entries(r.Context())
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	nextEntryRoute := ""
+	var nextEntryRoute string
 	if nextEntry != nil {
-		nextEntryRoute = route.Path(h.router, "tagEntry", "tagName", url.PathEscape(tagName), "entryID", nextEntry.ID)
+		nextEntryRoute = route.Path(h.router, "tagEntry", "tagName",
+			url.PathEscape(tagName), "entryID", nextEntry.ID)
 	}
 
-	prevEntryRoute := ""
+	var prevEntryRoute string
 	if prevEntry != nil {
-		prevEntryRoute = route.Path(h.router, "tagEntry", "tagName", url.PathEscape(tagName), "entryID", prevEntry.ID)
+		prevEntryRoute = route.Path(h.router, "tagEntry", "tagName",
+			url.PathEscape(tagName), "entryID", prevEntry.ID)
 	}
 
-	sess := session.New(h.store, request.SessionID(r))
-	view := view.New(h.tpl, r, sess)
-	view.Set("entry", entry)
-	view.Set("prevEntry", prevEntry)
-	view.Set("nextEntry", nextEntry)
-	view.Set("nextEntryRoute", nextEntryRoute)
-	view.Set("prevEntryRoute", prevEntryRoute)
-	view.Set("user", user)
-	view.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
-		r.Context(), user.ID))
-	view.Set("hasSaveEntry", h.store.HasSaveEntry(r.Context(), user.ID))
-	html.OK(w, r, view.Render("entry"))
+	v.Set("entry", entry).
+		Set("prevEntry", prevEntry).
+		Set("nextEntry", nextEntry).
+		Set("nextEntryRoute", nextEntryRoute).
+		Set("prevEntryRoute", prevEntryRoute)
+	html.OK(w, r, v.Render("entry"))
 }

@@ -9,21 +9,17 @@ import (
 	"strings"
 
 	"miniflux.app/v2/internal/config"
-	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/proxyrotator"
 	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/reader/opml"
-	"miniflux.app/v2/internal/ui/session"
-	"miniflux.app/v2/internal/ui/view"
 )
 
 func (h *handler) uploadOPML(w http.ResponseWriter, r *http.Request) {
-	loggedUserID := request.UserID(r)
-	user, err := h.store.UserByID(r.Context(), loggedUserID)
-	if err != nil {
+	v := h.View(r)
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
@@ -31,49 +27,38 @@ func (h *handler) uploadOPML(w http.ResponseWriter, r *http.Request) {
 	file, fileHeader, err := r.FormFile("file")
 	if err != nil {
 		slog.Error("OPML file upload error",
-			slog.Int64("user_id", loggedUserID),
-			slog.Any("error", err),
-		)
-
+			slog.Int64("user_id", v.User().ID),
+			slog.Any("error", err))
 		html.Redirect(w, r, route.Path(h.router, "import"))
 		return
 	}
 	defer file.Close()
 
 	slog.Info("OPML file uploaded",
-		slog.Int64("user_id", loggedUserID),
+		slog.Int64("user_id", v.User().ID),
 		slog.String("file_name", fileHeader.Filename),
-		slog.Int64("file_size", fileHeader.Size),
-	)
+		slog.Int64("file_size", fileHeader.Size))
 
-	sess := session.New(h.store, request.SessionID(r))
-	view := view.New(h.tpl, r, sess)
-	view.Set("menu", "feeds")
-	view.Set("user", user)
-	view.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
-		r.Context(), user.ID))
-
+	v.Set("menu", "feeds")
 	if fileHeader.Size == 0 {
-		view.Set("errorMessage", locale.NewLocalizedError("error.empty_file").Translate(user.Language))
-		html.OK(w, r, view.Render("import"))
+		lerr := locale.NewLocalizedError("error.empty_file")
+		v.Set("errorMessage", lerr.Translate(v.User().Language))
+		html.OK(w, r, v.Render("import"))
 		return
 	}
 
-	impErr := opml.NewHandler(h.store).Import(r.Context(), user.ID, file)
-	if impErr != nil {
-		view.Set("errorMessage", impErr)
-		html.OK(w, r, view.Render("import"))
+	err = opml.NewHandler(h.store).Import(r.Context(), v.User().ID, file)
+	if err != nil {
+		v.Set("errorMessage", err)
+		html.OK(w, r, v.Render("import"))
 		return
 	}
-
 	html.Redirect(w, r, route.Path(h.router, "feeds"))
 }
 
 func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
-	loggedUserID := request.UserID(r)
-	user, err := h.store.UserByID(r.Context(), loggedUserID)
-	if err != nil {
+	v := h.View(r)
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
@@ -85,41 +70,35 @@ func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
 	}
 
 	slog.Info("Fetching OPML file remotely",
-		slog.Int64("user_id", loggedUserID),
-		slog.String("opml_file_url", opmlFileURL),
-	)
+		slog.Int64("user_id", v.User().ID),
+		slog.String("opml_file_url", opmlFileURL))
 
-	sess := session.New(h.store, request.SessionID(r))
-	view := view.New(h.tpl, r, sess)
-	view.Set("menu", "feeds")
-	view.Set("user", user)
-	view.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
-		r.Context(), user.ID))
-
-	requestBuilder := fetcher.NewRequestBuilder()
-	requestBuilder.WithTimeout(config.Opts.HTTPClientTimeout())
-	requestBuilder.WithProxyRotator(proxyrotator.ProxyRotatorInstance)
+	requestBuilder := fetcher.NewRequestBuilder().
+		WithTimeout(config.Opts.HTTPClientTimeout()).
+		WithProxyRotator(proxyrotator.ProxyRotatorInstance)
 
 	//nolint:bodyclose // responseHandler close it
 	responseHandler := fetcher.NewResponseHandler(
 		requestBuilder.ExecuteRequest(opmlFileURL))
 	defer responseHandler.Close()
 
-	if localizedError := responseHandler.LocalizedError(); localizedError != nil {
-		slog.Warn("Unable to fetch OPML file", slog.String("opml_file_url", opmlFileURL), slog.Any("error", localizedError))
-		view.Set("errorMessage", localizedError.Translate(user.Language))
-		html.OK(w, r, view.Render("import"))
+	v.Set("menu", "feeds")
+
+	if lerr := responseHandler.LocalizedError(); lerr != nil {
+		slog.Warn("Unable to fetch OPML file",
+			slog.String("opml_file_url", opmlFileURL),
+			slog.Any("error", lerr))
+		v.Set("errorMessage", lerr.Translate(v.User().Language))
+		html.OK(w, r, v.Render("import"))
 		return
 	}
 
-	impErr := opml.NewHandler(h.store).Import(r.Context(),
-		user.ID, responseHandler.Body(config.Opts.HTTPClientMaxBodySize()))
-	if impErr != nil {
-		view.Set("errorMessage", impErr)
-		html.OK(w, r, view.Render("import"))
+	err := opml.NewHandler(h.store).Import(r.Context(), v.User().ID,
+		responseHandler.Body(config.Opts.HTTPClientMaxBodySize()))
+	if err != nil {
+		v.Set("errorMessage", err)
+		html.OK(w, r, v.Render("import"))
 		return
 	}
-
 	html.Redirect(w, r, route.Path(h.router, "feeds"))
 }

@@ -7,49 +7,40 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/config"
-	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
 	feedHandler "miniflux.app/v2/internal/reader/handler"
 	"miniflux.app/v2/internal/ui/form"
-	"miniflux.app/v2/internal/ui/session"
-	"miniflux.app/v2/internal/ui/view"
 )
 
 func (h *handler) showChooseSubscriptionPage(w http.ResponseWriter, r *http.Request) {
-	user, err := h.store.UserByID(r.Context(), request.UserID(r))
+	v := h.View(r)
+	if err := v.Wait(); err != nil {
+		html.ServerError(w, r, err)
+		return
+	}
+
+	categories, err := h.store.Categories(r.Context(), v.User().ID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	categories, err := h.store.Categories(r.Context(), user.ID)
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
-
-	sess := session.New(h.store, request.SessionID(r))
-	view := view.New(h.tpl, r, sess)
-	view.Set("categories", categories)
-	view.Set("menu", "feeds")
-	view.Set("user", user)
-	view.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
-		r.Context(), user.ID))
-	view.Set("defaultUserAgent", config.Opts.HTTPClientUserAgent())
+	v.Set("menu", "feeds").
+		Set("categories", categories).
+		Set("defaultUserAgent", config.Opts.HTTPClientUserAgent())
 
 	subscriptionForm := form.NewSubscriptionForm(r)
-	if validationErr := subscriptionForm.Validate(); validationErr != nil {
-		view.Set("form", subscriptionForm)
-		view.Set("errorMessage", validationErr.Translate(user.Language))
-		html.OK(w, r, view.Render("add_subscription"))
+	if lerr := subscriptionForm.Validate(); lerr != nil {
+		v.Set("form", subscriptionForm).
+			Set("errorMessage", lerr.Translate(v.User().Language))
+		html.OK(w, r, v.Render("add_subscription"))
 		return
 	}
 
-	feed, localizedError := feedHandler.CreateFeed(r.Context(),
-		h.store, user.ID, &model.FeedCreationRequest{
+	feed, lerr := feedHandler.CreateFeed(r.Context(),
+		h.store, v.User().ID, &model.FeedCreationRequest{
 			CategoryID:                  subscriptionForm.CategoryID,
 			FeedURL:                     subscriptionForm.URL,
 			Crawler:                     subscriptionForm.Crawler,
@@ -67,12 +58,11 @@ func (h *handler) showChooseSubscriptionPage(w http.ResponseWriter, r *http.Requ
 			DisableHTTP2:                subscriptionForm.DisableHTTP2,
 			ProxyURL:                    subscriptionForm.ProxyURL,
 		})
-	if localizedError != nil {
-		view.Set("form", subscriptionForm)
-		view.Set("errorMessage", localizedError.Translate(user.Language))
-		html.OK(w, r, view.Render("add_subscription"))
+	if lerr != nil {
+		v.Set("form", subscriptionForm).
+			Set("errorMessage", lerr.Translate(v.User().Language))
+		html.OK(w, r, v.Render("add_subscription"))
 		return
 	}
-
 	html.Redirect(w, r, route.Path(h.router, "feedEntries", "feedID", feed.ID))
 }

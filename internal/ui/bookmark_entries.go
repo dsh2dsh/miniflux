@@ -6,52 +6,52 @@ package ui // import "miniflux.app/v2/internal/ui"
 import (
 	"net/http"
 
+	"golang.org/x/sync/errgroup"
+
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
-	"miniflux.app/v2/internal/ui/session"
-	"miniflux.app/v2/internal/ui/view"
 )
 
 func (h *handler) showStarredPage(w http.ResponseWriter, r *http.Request) {
-	user, err := h.store.UserByID(r.Context(), request.UserID(r))
-	if err != nil {
+	v := h.View(r).WithSaveEntry()
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
 	offset := request.QueryIntParam(r, "offset", 0)
-	builder := h.store.NewEntryQueryBuilder(user.ID)
-	builder.WithoutStatus(model.EntryStatusRemoved)
-	builder.WithStarred(true)
-	builder.WithSorting(user.EntryOrder, user.EntryDirection)
-	builder.WithSorting("id", user.EntryDirection)
-	builder.WithOffset(offset)
-	builder.WithLimit(user.EntriesPerPage)
+	builder := h.store.NewEntryQueryBuilder(v.User().ID).
+		WithoutStatus(model.EntryStatusRemoved).
+		WithStarred(true).
+		WithSorting(v.User().EntryOrder, v.User().EntryDirection).
+		WithSorting("id", v.User().EntryDirection).
+		WithOffset(offset).
+		WithLimit(v.User().EntriesPerPage)
 
-	entries, err := builder.GetEntries(r.Context())
-	if err != nil {
+	g, ctx := errgroup.WithContext(r.Context())
+	var entries model.Entries
+	g.Go(func() (err error) {
+		entries, err = builder.GetEntries(ctx)
+		return
+	})
+
+	var count int
+	g.Go(func() (err error) {
+		count, err = builder.CountEntries(ctx)
+		return
+	})
+
+	if err := g.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	count, err := builder.CountEntries(r.Context())
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
-
-	sess := session.New(h.store, request.SessionID(r))
-	view := view.New(h.tpl, r, sess)
-	view.Set("total", count)
-	view.Set("entries", entries)
-	view.Set("pagination", getPagination(route.Path(h.router, "starred"), count, offset, user.EntriesPerPage))
-	view.Set("menu", "starred")
-	view.Set("user", user)
-	view.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
-		r.Context(), user.ID))
-	view.Set("hasSaveEntry", h.store.HasSaveEntry(r.Context(), user.ID))
-	html.OK(w, r, view.Render("bookmark_entries"))
+	v.Set("menu", "starred").
+		Set("total", count).
+		Set("entries", entries).
+		Set("pagination", getPagination(route.Path(h.router, "starred"),
+			count, offset, v.User().EntriesPerPage))
+	html.OK(w, r, v.Render("bookmark_entries"))
 }

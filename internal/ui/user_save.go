@@ -6,49 +6,40 @@ package ui // import "miniflux.app/v2/internal/ui"
 import (
 	"net/http"
 
-	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
-	"miniflux.app/v2/internal/ui/session"
-	"miniflux.app/v2/internal/ui/view"
 	"miniflux.app/v2/internal/validator"
 )
 
 func (h *handler) saveUser(w http.ResponseWriter, r *http.Request) {
-	user, err := h.store.UserByID(r.Context(), request.UserID(r))
-	if err != nil {
+	v := h.View(r)
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	if !user.IsAdmin {
+	if !v.User().IsAdmin {
 		html.Forbidden(w, r)
 		return
 	}
 
 	userForm := form.NewUserForm(r)
+	v.Set("menu", "settings").
+		Set("form", userForm)
 
-	sess := session.New(h.store, request.SessionID(r))
-	view := view.New(h.tpl, r, sess)
-	view.Set("menu", "settings")
-	view.Set("user", user)
-	view.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
-		r.Context(), user.ID))
-	view.Set("form", userForm)
-
-	if validationErr := userForm.ValidateCreation(); validationErr != nil {
-		view.Set("errorMessage", validationErr.Translate(user.Language))
-		html.OK(w, r, view.Render("create_user"))
+	if lerr := userForm.ValidateCreation(); lerr != nil {
+		v.Set("errorMessage", lerr.Translate(v.User().Language))
+		html.OK(w, r, v.Render("create_user"))
 		return
 	}
 
 	if h.store.UserExists(r.Context(), userForm.Username) {
-		view.Set("errorMessage", locale.NewLocalizedError("error.user_already_exists").Translate(user.Language))
-		html.OK(w, r, view.Render("create_user"))
+		lerr := locale.NewLocalizedError("error.user_already_exists")
+		v.Set("errorMessage", lerr.Translate(v.User().Language))
+		html.OK(w, r, v.Render("create_user"))
 		return
 	}
 
@@ -58,15 +49,15 @@ func (h *handler) saveUser(w http.ResponseWriter, r *http.Request) {
 		IsAdmin:  userForm.IsAdmin,
 	}
 
-	validationErr := validator.ValidateUserCreationWithPassword(
+	lerr := validator.ValidateUserCreationWithPassword(
 		r.Context(), h.store, userCreationRequest)
-	if validationErr != nil {
-		view.Set("errorMessage", validationErr.Translate(user.Language))
-		html.OK(w, r, view.Render("create_user"))
+	if lerr != nil {
+		v.Set("errorMessage", lerr.Translate(v.User().Language))
+		html.OK(w, r, v.Render("create_user"))
 		return
 	}
 
-	_, err = h.store.CreateUser(r.Context(), userCreationRequest)
+	_, err := h.store.CreateUser(r.Context(), userCreationRequest)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return

@@ -11,18 +11,16 @@ import (
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/ui/form"
-	"miniflux.app/v2/internal/ui/session"
-	"miniflux.app/v2/internal/ui/view"
 )
 
 func (h *handler) updateUser(w http.ResponseWriter, r *http.Request) {
-	loggedUser, err := h.store.UserByID(r.Context(), request.UserID(r))
-	if err != nil {
+	v := h.View(r)
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	if !loggedUser.IsAdmin {
+	if !v.User().IsAdmin {
 		html.Forbidden(w, r)
 		return
 	}
@@ -32,40 +30,34 @@ func (h *handler) updateUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
-	}
-
-	if selectedUser == nil {
+	} else if selectedUser == nil {
 		html.NotFound(w, r)
 		return
 	}
 
 	userForm := form.NewUserForm(r)
+	v.Set("menu", "settings").
+		Set("selected_user", selectedUser).
+		Set("form", userForm)
 
-	sess := session.New(h.store, request.SessionID(r))
-	view := view.New(h.tpl, r, sess)
-	view.Set("menu", "settings")
-	view.Set("user", loggedUser)
-	view.Set("countUnread", h.store.CountUnreadEntries(
-		r.Context(), loggedUser.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
-		r.Context(), loggedUser.ID))
-	view.Set("selected_user", selectedUser)
-	view.Set("form", userForm)
-
-	if validationErr := userForm.ValidateModification(); validationErr != nil {
-		view.Set("errorMessage", validationErr.Translate(loggedUser.Language))
-		html.OK(w, r, view.Render("edit_user"))
+	if lerr := userForm.ValidateModification(); lerr != nil {
+		v.Set("errorMessage", lerr.Translate(v.User().Language))
+		html.OK(w, r, v.Render("edit_user"))
 		return
 	}
 
-	if h.store.AnotherUserExists(r.Context(), selectedUser.ID, userForm.Username) {
-		view.Set("errorMessage", locale.NewLocalizedError("error.user_already_exists").Translate(loggedUser.Language))
-		html.OK(w, r, view.Render("edit_user"))
+	alreadyExists := h.store.AnotherUserExists(r.Context(), selectedUser.ID,
+		userForm.Username)
+	if alreadyExists {
+		lerr := locale.NewLocalizedError("error.user_already_exists")
+		v.Set("errorMessage", lerr.Translate(v.User().Language))
+		html.OK(w, r, v.Render("edit_user"))
 		return
 	}
 
 	userForm.Merge(selectedUser)
-	if err := h.store.UpdateUser(r.Context(), selectedUser); err != nil {
+	err = h.store.UpdateUser(r.Context(), selectedUser)
+	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}

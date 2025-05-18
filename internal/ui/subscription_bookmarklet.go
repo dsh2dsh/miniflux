@@ -11,21 +11,20 @@ import (
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/ui/form"
-	"miniflux.app/v2/internal/ui/session"
-	"miniflux.app/v2/internal/ui/view"
 )
 
 // Best effort url extraction regexp
-var urlRe = regexp.MustCompile(`(?i)(?:https?://)?[0-9a-z.]+[.][a-z]+(?::[0-9]+)?(?:/[^ ]+|/)?`)
+var urlRe = regexp.MustCompile(
+	`(?i)(?:https?://)?[0-9a-z.]+[.][a-z]+(?::[0-9]+)?(?:/[^ ]+|/)?`)
 
 func (h *handler) bookmarklet(w http.ResponseWriter, r *http.Request) {
-	user, err := h.store.UserByID(r.Context(), request.UserID(r))
-	if err != nil {
+	v := h.View(r)
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	categories, err := h.store.Categories(r.Context(), user.ID)
+	categories, err := h.store.Categories(r.Context(), v.User().ID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -44,16 +43,10 @@ func (h *handler) bookmarklet(w http.ResponseWriter, r *http.Request) {
 		bookmarkletURL = urlRe.FindString(text)
 	}
 
-	sess := session.New(h.store, request.SessionID(r))
-	view := view.New(h.tpl, r, sess)
-	view.Set("form", form.SubscriptionForm{URL: bookmarkletURL})
-	view.Set("categories", categories)
-	view.Set("menu", "feeds")
-	view.Set("user", user)
-	view.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
-		r.Context(), user.ID))
-	view.Set("defaultUserAgent", config.Opts.HTTPClientUserAgent())
-	view.Set("hasProxyConfigured", config.Opts.HasHTTPClientProxyURLConfigured())
-	html.OK(w, r, view.Render("add_subscription"))
+	v.Set("menu", "feeds").
+		Set("form", form.SubscriptionForm{URL: bookmarkletURL}).
+		Set("categories", categories).
+		Set("defaultUserAgent", config.Opts.HTTPClientUserAgent()).
+		Set("hasProxyConfigured", config.Opts.HasHTTPClientProxyURLConfigured())
+	html.OK(w, r, v.Render("add_subscription"))
 }

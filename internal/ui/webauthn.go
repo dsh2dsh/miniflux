@@ -24,7 +24,6 @@ import (
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
 	"miniflux.app/v2/internal/ui/session"
-	"miniflux.app/v2/internal/ui/view"
 )
 
 type WebAuthnUser struct {
@@ -354,11 +353,8 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) renameCredential(w http.ResponseWriter, r *http.Request) {
-	sess := session.New(h.store, request.SessionID(r))
-	view := view.New(h.tpl, r, sess)
-
-	user, err := h.store.UserByID(r.Context(), request.UserID(r))
-	if err != nil {
+	v := h.View(r)
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
@@ -369,6 +365,7 @@ func (h *handler) renameCredential(w http.ResponseWriter, r *http.Request) {
 		html.ServerError(w, r, err)
 		return
 	}
+
 	cred_uid, cred, err := h.store.WebAuthnCredentialByHandle(
 		r.Context(), credentialHandle)
 	if err != nil {
@@ -376,21 +373,17 @@ func (h *handler) renameCredential(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if cred_uid != user.ID {
+	if cred_uid != v.User().ID {
 		html.Forbidden(w, r)
 		return
 	}
 
 	webauthnForm := form.WebauthnForm{Name: cred.Name}
 
-	view.Set("form", webauthnForm)
-	view.Set("cred", cred)
-	view.Set("menu", "settings")
-	view.Set("user", user)
-	view.Set("countUnread", h.store.CountUnreadEntries(r.Context(), user.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
-		r.Context(), user.ID))
-	html.OK(w, r, view.Render("webauthn_rename"))
+	v.Set("menu", "settings").
+		Set("form", webauthnForm).
+		Set("cred", cred)
+	html.OK(w, r, v.Render("webauthn_rename"))
 }
 
 func (h *handler) saveCredential(w http.ResponseWriter, r *http.Request) {

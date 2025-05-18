@@ -12,20 +12,18 @@ import (
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
-	"miniflux.app/v2/internal/ui/session"
-	"miniflux.app/v2/internal/ui/view"
 	"miniflux.app/v2/internal/validator"
 )
 
 func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
-	loggedUser, err := h.store.UserByID(r.Context(), request.UserID(r))
-	if err != nil {
+	v := h.View(r)
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
 	feedID := request.RouteInt64Param(r, "feedID")
-	feed, err := h.store.FeedByID(r.Context(), loggedUser.ID, feedID)
+	feed, err := h.store.FeedByID(r.Context(), v.User().ID, feedID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -34,28 +32,20 @@ func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	categories, err := h.store.Categories(r.Context(), loggedUser.ID)
+	categories, err := h.store.Categories(r.Context(), v.User().ID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
 	feedForm := form.NewFeedForm(r)
+	v.Set("menu", "feeds").
+		Set("form", feedForm).
+		Set("categories", categories).
+		Set("feed", feed).
+		Set("defaultUserAgent", config.Opts.HTTPClientUserAgent())
 
-	sess := session.New(h.store, request.SessionID(r))
-	view := view.New(h.tpl, r, sess)
-	view.Set("form", feedForm)
-	view.Set("categories", categories)
-	view.Set("feed", feed)
-	view.Set("menu", "feeds")
-	view.Set("user", loggedUser)
-	view.Set("countUnread", h.store.CountUnreadEntries(
-		r.Context(), loggedUser.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
-		r.Context(), loggedUser.ID))
-	view.Set("defaultUserAgent", config.Opts.HTTPClientUserAgent())
-
-	feedModificationRequest := &model.FeedModificationRequest{
+	feedRequest := &model.FeedModificationRequest{
 		FeedURL:             model.OptionalString(feedForm.FeedURL),
 		SiteURL:             model.OptionalString(feedForm.SiteURL),
 		Title:               model.OptionalString(feedForm.Title),
@@ -68,11 +58,11 @@ func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
 		ProxyURL:            model.OptionalString(feedForm.ProxyURL),
 	}
 
-	validationErr := validator.ValidateFeedModification(r.Context(),
-		h.store, loggedUser.ID, feed.ID, feedModificationRequest)
-	if validationErr != nil {
-		view.Set("errorMessage", validationErr.Translate(loggedUser.Language))
-		html.OK(w, r, view.Render("edit_feed"))
+	lerr := validator.ValidateFeedModification(r.Context(), h.store,
+		v.User().ID, feed.ID, feedRequest)
+	if lerr != nil {
+		v.Set("errorMessage", lerr.Translate(v.User().Language))
+		html.OK(w, r, v.Render("edit_feed"))
 		return
 	}
 

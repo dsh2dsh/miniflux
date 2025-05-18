@@ -17,9 +17,7 @@ func (h *handler) removeUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
-	}
-
-	if !loggedUser.IsAdmin {
+	} else if !loggedUser.IsAdmin {
 		html.Forbidden(w, r)
 		return
 	}
@@ -29,9 +27,7 @@ func (h *handler) removeUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
-	}
-
-	if selectedUser == nil {
+	} else if selectedUser == nil {
 		html.NotFound(w, r)
 		return
 	}

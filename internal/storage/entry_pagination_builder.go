@@ -41,48 +41,58 @@ type EntryPaginationBuilder struct {
 }
 
 // WithSearchQuery adds full-text search query to the condition.
-func (e *EntryPaginationBuilder) WithSearchQuery(query string) {
+func (e *EntryPaginationBuilder) WithSearchQuery(query string,
+) *EntryPaginationBuilder {
 	if query != "" {
 		e.conditions = append(e.conditions,
 			fmt.Sprintf("e.document_vectors @@ plainto_tsquery($%d)",
 				len(e.args)+1))
 		e.args = append(e.args, query)
 	}
+	return e
 }
 
 // WithStarred adds starred to the condition.
-func (e *EntryPaginationBuilder) WithStarred() {
+func (e *EntryPaginationBuilder) WithStarred() *EntryPaginationBuilder {
 	e.conditions = append(e.conditions, "e.starred is true")
+	return e
 }
 
 // WithFeedID adds feed_id to the condition.
-func (e *EntryPaginationBuilder) WithFeedID(feedID int64) {
+func (e *EntryPaginationBuilder) WithFeedID(feedID int64,
+) *EntryPaginationBuilder {
 	if feedID != 0 {
 		e.conditions = append(e.conditions,
 			fmt.Sprintf("e.feed_id = $%d", len(e.args)+1))
 		e.args = append(e.args, feedID)
 	}
+	return e
 }
 
 // WithCategoryID adds category_id to the condition.
-func (e *EntryPaginationBuilder) WithCategoryID(categoryID int64) {
+func (e *EntryPaginationBuilder) WithCategoryID(categoryID int64,
+) *EntryPaginationBuilder {
 	if categoryID != 0 {
 		e.conditions = append(e.conditions,
 			fmt.Sprintf("f.category_id = $%d", len(e.args)+1))
 		e.args = append(e.args, categoryID)
 	}
+	return e
 }
 
 // WithStatus adds status to the condition.
-func (e *EntryPaginationBuilder) WithStatus(status string) {
+func (e *EntryPaginationBuilder) WithStatus(status string,
+) *EntryPaginationBuilder {
 	if status != "" {
 		e.conditions = append(e.conditions,
 			fmt.Sprintf("e.status = $%d", len(e.args)+1))
 		e.args = append(e.args, status)
 	}
+	return e
 }
 
-func (e *EntryPaginationBuilder) WithTags(tags []string) {
+func (e *EntryPaginationBuilder) WithTags(tags []string,
+) *EntryPaginationBuilder {
 	if len(tags) > 0 {
 		for _, tag := range tags {
 			e.conditions = append(e.conditions,
@@ -91,12 +101,14 @@ func (e *EntryPaginationBuilder) WithTags(tags []string) {
 			e.args = append(e.args, tag)
 		}
 	}
+	return e
 }
 
 // WithGloballyVisible adds global visibility to the condition.
-func (e *EntryPaginationBuilder) WithGloballyVisible() {
+func (e *EntryPaginationBuilder) WithGloballyVisible() *EntryPaginationBuilder {
 	e.conditions = append(e.conditions, "not c.hide_globally")
 	e.conditions = append(e.conditions, "not f.hide_globally")
+	return e
 }
 
 // Entries returns previous and next entries.

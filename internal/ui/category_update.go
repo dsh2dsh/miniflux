@@ -11,53 +11,40 @@ import (
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
-	"miniflux.app/v2/internal/ui/session"
-	"miniflux.app/v2/internal/ui/view"
 	"miniflux.app/v2/internal/validator"
 )
 
 func (h *handler) updateCategory(w http.ResponseWriter, r *http.Request) {
-	loggedUser, err := h.store.UserByID(r.Context(), request.UserID(r))
-	if err != nil {
+	v := h.View(r)
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
 	categoryID := request.RouteInt64Param(r, "categoryID")
-	category, err := h.store.Category(r.Context(), request.UserID(r), categoryID)
+	category, err := h.store.Category(r.Context(), v.User().ID, categoryID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
-	}
-
-	if category == nil {
+	} else if category == nil {
 		html.NotFound(w, r)
 		return
 	}
 
 	categoryForm := form.NewCategoryForm(r)
-
-	sess := session.New(h.store, request.SessionID(r))
-	view := view.New(h.tpl, r, sess)
-	view.Set("form", categoryForm)
-	view.Set("category", category)
-	view.Set("menu", "categories")
-	view.Set("user", loggedUser)
-	view.Set("countUnread", h.store.CountUnreadEntries(
-		r.Context(), loggedUser.ID))
-	view.Set("countErrorFeeds", h.store.CountUserFeedsWithErrors(
-		r.Context(), loggedUser.ID))
-
 	categoryRequest := &model.CategoryModificationRequest{
 		Title:        model.SetOptionalField(categoryForm.Title),
 		HideGlobally: model.SetOptionalField(categoryForm.HideGlobally),
 	}
 
-	validationErr := validator.ValidateCategoryModification(r.Context(), h.store,
-		loggedUser.ID, category.ID, categoryRequest)
-	if validationErr != nil {
-		view.Set("errorMessage", validationErr.Translate(loggedUser.Language))
-		html.OK(w, r, view.Render("create_category"))
+	lerr := validator.ValidateCategoryModification(r.Context(), h.store,
+		v.User().ID, category.ID, categoryRequest)
+	if lerr != nil {
+		v.Set("menu", "categories").
+			Set("form", categoryForm).
+			Set("category", category).
+			Set("errorMessage", lerr.Translate(v.User().Language))
+		html.OK(w, r, v.Render("create_category"))
 		return
 	}
 
@@ -66,6 +53,6 @@ func (h *handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 		html.ServerError(w, r, err)
 		return
 	}
-
-	html.Redirect(w, r, route.Path(h.router, "categoryFeeds", "categoryID", categoryID))
+	html.Redirect(w, r, route.Path(h.router, "categoryFeeds", "categoryID",
+		categoryID))
 }
