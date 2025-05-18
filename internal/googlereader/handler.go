@@ -758,6 +758,7 @@ func (h *handler) streamItemContentsHandler(w http.ResponseWriter,
 	)
 
 	builder := h.store.NewEntryQueryBuilder(userID).
+		WithContent().
 		WithEnclosures().
 		WithoutStatus(model.EntryStatusRemoved).
 		WithEntryIDs(itemIDs).

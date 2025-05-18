@@ -129,15 +129,16 @@ func (h *handler) findEntries(w http.ResponseWriter, r *http.Request, feedID int
 
 	tags := request.QueryStringParamList(r, "tags")
 
-	builder := h.store.NewEntryQueryBuilder(userID)
-	builder.WithFeedID(feedID)
-	builder.WithCategoryID(categoryID)
-	builder.WithStatuses(statuses)
-	builder.WithSorting(order, direction)
-	builder.WithOffset(offset)
-	builder.WithLimit(limit)
-	builder.WithTags(tags)
-	builder.WithEnclosures()
+	builder := h.store.NewEntryQueryBuilder(userID).
+		WithFeedID(feedID).
+		WithCategoryID(categoryID).
+		WithStatuses(statuses).
+		WithSorting(order, direction).
+		WithOffset(offset).
+		WithLimit(limit).
+		WithTags(tags).
+		WithContent().
+		WithEnclosures()
 
 	if request.HasQueryParam(r, "globally_visible") {
 		globallyVisible := request.QueryBoolParam(r, "globally_visible", true)

@@ -43,7 +43,13 @@ type EntryQueryBuilder struct {
 	sortExpressions []string
 	limit           int
 	offset          int
+	fetchContent    bool
 	fetchEnclosures bool
+}
+
+func (e *EntryQueryBuilder) WithContent() *EntryQueryBuilder {
+	e.fetchContent = true
+	return e
 }
 
 // WithEnclosures fetches enclosures for each entry.
@@ -282,23 +288,31 @@ SELECT count(*)
 // GetEntry returns a single entry that match the condition.
 func (e *EntryQueryBuilder) GetEntry(ctx context.Context,
 ) (*model.Entry, error) {
-	entries, err := e.WithLimit(1).GetEntries(ctx)
+	entries, err := e.WithLimit(1).WithContent().GetEntries(ctx)
 	if err != nil {
 		return nil, err
 	} else if len(entries) != 1 {
 		return nil, nil
 	}
 
-	entries[0].Enclosures, err = e.store.GetEnclosures(ctx, entries[0].ID)
+	entry := entries[0]
+	entry.Enclosures, err = e.store.GetEnclosures(ctx, entry.ID)
 	if err != nil {
 		return nil, err
 	}
-	return entries[0], nil
+	return entry, nil
 }
 
 // GetEntries returns a list of entries that match the condition.
 func (e *EntryQueryBuilder) GetEntries(ctx context.Context,
 ) (model.Entries, error) {
+	withContent := func() string {
+		if e.fetchContent {
+			return ", e.content"
+		}
+		return ""
+	}
+
 	query := `
 SELECT
   e.id,
@@ -311,7 +325,6 @@ SELECT
   e.comments_url,
   e.author,
   e.share_code,
-  e.content,
   e.status,
   e.starred,
   e.reading_time,
@@ -336,7 +349,7 @@ SELECT
   COALESCE(f.extra ->> 'comments_url_template', ''),
   fi.icon_id,
   i.external_id AS icon_external_id,
-  u.timezone
+  u.timezone` + withContent() + `
 FROM entries e
      LEFT JOIN feeds f ON f.id=e.feed_id
      LEFT JOIN categories c ON c.id=f.category_id
@@ -351,6 +364,7 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 	}
 	defer rows.Close()
 
+	var dest []any
 	var entries model.Entries
 	var entryIDs []int64
 	var hasCommentsURLTemplate bool
@@ -362,7 +376,7 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 		var tz string
 
 		entry := model.NewEntry()
-		err := rows.Scan(
+		dest = append(dest,
 			&entry.ID,
 			&entry.UserID,
 			&entry.FeedID,
@@ -373,7 +387,6 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 			&entry.CommentsURL,
 			&entry.Author,
 			&entry.ShareCode,
-			&entry.Content,
 			&entry.Status,
 			&entry.Starred,
 			&entry.ReadingTime,
@@ -398,11 +411,17 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 			&entry.Feed.Extra.CommentsURLTemplate,
 			&iconID,
 			&externalIconID,
-			&tz,
-		)
+			&tz)
+
+		if e.fetchContent {
+			dest = append(dest, &entry.Content)
+		}
+
+		err := rows.Scan(dest...)
 		if err != nil {
 			return nil, fmt.Errorf("storage: unable to fetch entry row: %w", err)
 		}
+		dest = dest[:0]
 
 		hasCommentsURLTemplate = hasCommentsURLTemplate ||
 			entry.Feed.Extra.CommentsURLTemplate != ""
