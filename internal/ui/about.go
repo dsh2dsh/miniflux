@@ -4,6 +4,7 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"context"
 	"net/http"
 	"runtime"
 
@@ -14,6 +15,24 @@ import (
 
 func (h *handler) showAboutPage(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r)
+
+	var dbVersion string
+	v.Go(func(ctx context.Context) error {
+		dbVersion = h.store.DatabaseVersion(ctx)
+		return nil
+	})
+
+	var dbSize string
+	v.Go(func(ctx context.Context) error {
+		size, err := h.store.DBSize(ctx)
+		if err != nil {
+			dbSize = err.Error()
+		} else {
+			dbSize = size
+		}
+		return nil
+	})
+
 	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -24,14 +43,8 @@ func (h *handler) showAboutPage(w http.ResponseWriter, r *http.Request) {
 		Set("commit", version.Commit).
 		Set("build_date", version.BuildDate).
 		Set("globalConfigOptions", config.Opts.SortedOptions(true)).
-		Set("postgres_version", h.store.DatabaseVersion(r.Context())).
+		Set("postgres_version", dbVersion).
+		Set("db_usage", dbSize).
 		Set("go_version", runtime.Version())
-
-	dbSize, dbErr := h.store.DBSize(r.Context())
-	if dbErr != nil {
-		v.Set("db_usage", dbErr)
-	} else {
-		v.Set("db_usage", dbSize)
-	}
 	html.OK(w, r, v.Render("about"))
 }

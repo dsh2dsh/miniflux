@@ -6,6 +6,8 @@ package ui // import "miniflux.app/v2/internal/ui"
 import (
 	"net/http"
 
+	"golang.org/x/sync/errgroup"
+
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/locale"
@@ -15,39 +17,37 @@ import (
 )
 
 func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
-	loggedUserID := request.UserID(r)
+	userID := request.UserID(r)
 	entryID := request.RouteInt64Param(r, "entryID")
+	g, ctx := errgroup.WithContext(r.Context())
 
-	entryBuilder := h.store.NewEntryQueryBuilder(loggedUserID)
-	entryBuilder.WithEntryID(entryID)
-	entryBuilder.WithoutStatus(model.EntryStatusRemoved)
+	var entry *model.Entry
+	g.Go(func() (err error) {
+		entry, err = h.store.NewEntryQueryBuilder(userID).
+			WithEntryID(entryID).
+			WithoutStatus(model.EntryStatusRemoved).
+			GetEntry(ctx)
+		return
+	})
 
-	entry, err := entryBuilder.GetEntry(r.Context())
-	if err != nil {
+	var user *model.User
+	g.Go(func() (err error) {
+		user, err = h.store.UserByID(ctx, userID)
+		return
+	})
+
+	var feed *model.Feed
+	g.Go(func() (err error) {
+		feed, err = h.store.NewFeedQueryBuilder(userID).
+			WithFeedID(entry.FeedID).
+			GetFeed(ctx)
+		return
+	})
+
+	if err := g.Wait(); err != nil {
 		json.ServerError(w, r, err)
 		return
-	}
-
-	if entry == nil {
-		json.NotFound(w, r)
-		return
-	}
-
-	user, err := h.store.UserByID(r.Context(), loggedUserID)
-	if err != nil {
-		json.ServerError(w, r, err)
-		return
-	}
-
-	feedBuilder := h.store.NewFeedQueryBuilder(loggedUserID)
-	feedBuilder.WithFeedID(entry.FeedID)
-	feed, err := feedBuilder.GetFeed(r.Context())
-	if err != nil {
-		json.ServerError(w, r, err)
-		return
-	}
-
-	if feed == nil {
+	} else if entry == nil || feed == nil {
 		json.NotFound(w, r)
 		return
 	}
@@ -57,13 +57,19 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.store.UpdateEntryTitleAndContent(r.Context(), entry)
+	err := h.store.UpdateEntryTitleAndContent(r.Context(), entry)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
 
-	readingTime := locale.NewPrinter(user.Language).Plural("entry.estimated_reading_time", entry.ReadingTime, entry.ReadingTime)
+	content := mediaproxy.RewriteDocumentWithRelativeProxyURL(h.router,
+		entry.Content)
+	readingTime := locale.NewPrinter(user.Language).Plural(
+		"entry.estimated_reading_time", entry.ReadingTime, entry.ReadingTime)
 
-	json.OK(w, r, map[string]string{"content": mediaproxy.RewriteDocumentWithRelativeProxyURL(h.router, entry.Content), "reading_time": readingTime})
+	json.OK(w, r, map[string]string{
+		"content":      content,
+		"reading_time": readingTime,
+	})
 }

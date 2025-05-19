@@ -65,9 +65,9 @@ func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
 		"Triggered a manual refresh of all feeds from the web ui",
 		slog.Int64("user_id", userID))
 
-	h.pool.Wakeup()
 	sess.SetLastForceRefresh(r.Context())
 	sess.NewFlashMessage(r.Context(), printer.Print(
 		"alert.background_feed_refresh"))
+	h.pool.Wakeup()
 	html.Redirect(w, r, route.Path(h.router, "feeds"))
 }

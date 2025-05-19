@@ -4,31 +4,32 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"context"
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
+	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
 )
 
 func (h *handler) updateUser(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r)
+
+	userID := request.RouteInt64Param(r, "userID")
+	var selectedUser *model.User
+	v.Go(func(ctx context.Context) (err error) {
+		selectedUser, err = h.store.UserByID(ctx, userID)
+		return
+	})
+
 	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
-	}
-
-	if !v.User().IsAdmin {
+	} else if !v.User().IsAdmin {
 		html.Forbidden(w, r)
-		return
-	}
-
-	userID := request.RouteInt64Param(r, "userID")
-	selectedUser, err := h.store.UserByID(r.Context(), userID)
-	if err != nil {
-		html.ServerError(w, r, err)
 		return
 	} else if selectedUser == nil {
 		html.NotFound(w, r)
@@ -56,7 +57,7 @@ func (h *handler) updateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userForm.Merge(selectedUser)
-	err = h.store.UpdateUser(r.Context(), selectedUser)
+	err := h.store.UpdateUser(r.Context(), selectedUser)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return

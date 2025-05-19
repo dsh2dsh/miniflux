@@ -16,19 +16,19 @@ import (
 )
 
 func (h *handler) createSharedEntry(w http.ResponseWriter, r *http.Request) {
-	entryID := request.RouteInt64Param(r, "entryID")
-	shareCode, err := h.store.EntryShareCode(r.Context(),
-		request.UserID(r), entryID)
+	id := request.RouteInt64Param(r, "entryID")
+	shareCode, err := h.store.EntryShareCode(r.Context(), request.UserID(r), id)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
-	html.Redirect(w, r, route.Path(h.router, "sharedEntry", "shareCode", shareCode))
+	html.Redirect(w, r,
+		route.Path(h.router, "sharedEntry", "shareCode", shareCode))
 }
 
 func (h *handler) unshareEntry(w http.ResponseWriter, r *http.Request) {
-	entryID := request.RouteInt64Param(r, "entryID")
-	err := h.store.UnshareEntry(r.Context(), request.UserID(r), entryID)
+	id := request.RouteInt64Param(r, "entryID")
+	err := h.store.UnshareEntry(r.Context(), request.UserID(r), id)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -45,8 +45,8 @@ func (h *handler) sharedEntry(w http.ResponseWriter, r *http.Request) {
 
 	etag := shareCode
 	response.New(w, r).WithCaching(etag, 72*time.Hour, func(b *response.Builder) {
-		builder := h.store.NewAnonymousQueryBuilder()
-		builder.WithShareCode(shareCode)
+		builder := h.store.NewAnonymousQueryBuilder().
+			WithShareCode(shareCode)
 
 		entry, err := builder.GetEntry(r.Context())
 		if err != nil || entry == nil {

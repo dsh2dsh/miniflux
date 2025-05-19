@@ -43,8 +43,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 	if subtle.ConstantTimeCompare([]byte(state), []byte(request.OAuth2State(r))) == 0 {
 		slog.Warn("Invalid OAuth2 state value received",
 			slog.String("expected", request.OAuth2State(r)),
-			slog.String("received", state),
-		)
+			slog.String("received", state))
 		html.Redirect(w, r, route.Path(h.router, "login"))
 		return
 	}
@@ -53,35 +52,35 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("Unable to initialize OAuth2 provider",
 			slog.String("provider", provider),
-			slog.Any("error", err),
-		)
+			slog.Any("error", err))
 		html.Redirect(w, r, route.Path(h.router, "login"))
 		return
 	}
 
-	profile, err := authProvider.GetProfile(r.Context(), code, request.OAuth2CodeVerifier(r))
+	profile, err := authProvider.GetProfile(r.Context(), code,
+		request.OAuth2CodeVerifier(r))
 	if err != nil {
 		slog.Warn("Unable to get OAuth2 profile from provider",
 			slog.String("provider", provider),
-			slog.Any("error", err),
-		)
+			slog.Any("error", err))
 		html.Redirect(w, r, route.Path(h.router, "login"))
 		return
 	}
 
 	if request.IsAuthenticated(r) {
-		loggedUser, err := h.store.UserByID(r.Context(), request.UserID(r))
+		userID := request.UserID(r)
+		user, err := h.store.UserByID(r.Context(), userID)
 		if err != nil {
 			html.ServerError(w, r, err)
 			return
 		}
 
-		exists, err := h.store.AnotherUserWithFieldExists(
-			r.Context(), loggedUser.ID, profile.Key, profile.ID)
+		exists, err := h.store.AnotherUserWithFieldExists(r.Context(), userID,
+			profile.Key, profile.ID)
 		if err != nil {
 			logging.FromContext(r.Context()).Error(
 				"unable check another user exists",
-				slog.Int64("user_id", loggedUser.ID),
+				slog.Int64("user_id", userID),
 				slog.String("field", profile.Key),
 				slog.String("value", profile.ID),
 				slog.Any("error", err))
@@ -91,18 +90,17 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 
 		if exists {
 			slog.Error("Oauth2 user cannot be associated because it is already associated with another user",
-				slog.Int64("user_id", loggedUser.ID),
+				slog.Int64("user_id", userID),
 				slog.String("oauth2_provider", provider),
-				slog.String("oauth2_profile_id", profile.ID),
-			)
+				slog.String("oauth2_profile_id", profile.ID))
 			sess.NewFlashErrorMessage(r.Context(),
 				printer.Print("error.duplicate_linked_account"))
 			html.Redirect(w, r, route.Path(h.router, "settings"))
 			return
 		}
 
-		authProvider.PopulateUserWithProfileID(loggedUser, profile)
-		if err := h.store.UpdateUser(r.Context(), loggedUser); err != nil {
+		authProvider.PopulateUserWithProfileID(user, profile)
+		if err := h.store.UpdateUser(r.Context(), user); err != nil {
 			html.ServerError(w, r, err)
 			return
 		}
@@ -125,11 +123,14 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if h.store.UserExists(r.Context(), profile.Username) {
-			html.BadRequest(w, r, errors.New(printer.Print("error.user_already_exists")))
+			html.BadRequest(w, r, errors.New(printer.Print(
+				"error.user_already_exists")))
 			return
 		}
 
-		userCreationRequest := &model.UserCreationRequest{Username: profile.Username}
+		userCreationRequest := &model.UserCreationRequest{
+			Username: profile.Username,
+		}
 		authProvider.PopulateUserCreationWithProfileID(userCreationRequest, profile)
 
 		user, err = h.store.CreateUser(r.Context(), userCreationRequest)
@@ -151,8 +152,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 		slog.String("client_ip", clientIP),
 		slog.String("user_agent", r.UserAgent()),
 		slog.Int64("user_id", user.ID),
-		slog.String("username", user.Username),
-	)
+		slog.String("username", user.Username))
 
 	if err := h.store.SetLastLogin(r.Context(), user.ID); err != nil {
 		html.ServerError(w, r, err)

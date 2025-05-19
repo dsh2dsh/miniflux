@@ -11,15 +11,15 @@ import (
 	"miniflux.app/v2/internal/http/response/json"
 )
 
-func (h *handler) saveEnclosureProgression(w http.ResponseWriter, r *http.Request) {
-	enclosureID := request.RouteInt64Param(r, "enclosureID")
-	enclosure, err := h.store.GetEnclosure(r.Context(), enclosureID)
+func (h *handler) saveEnclosureProgression(w http.ResponseWriter,
+	r *http.Request,
+) {
+	id := request.RouteInt64Param(r, "enclosureID")
+	enclosure, err := h.store.GetEnclosure(r.Context(), id)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
-	}
-
-	if enclosure == nil {
+	} else if enclosure == nil {
 		json.NotFound(w, r)
 		return
 	}
@@ -39,6 +39,5 @@ func (h *handler) saveEnclosureProgression(w http.ResponseWriter, r *http.Reques
 		json.ServerError(w, r, err)
 		return
 	}
-
 	json.Created(w, r, map[string]string{"message": "saved"})
 }

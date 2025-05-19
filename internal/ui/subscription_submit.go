@@ -4,6 +4,7 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"context"
 	"net/http"
 
 	"miniflux.app/v2/internal/config"
@@ -20,13 +21,20 @@ import (
 
 func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r)
-	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
 
-	categories, err := h.store.Categories(r.Context(), v.User().ID)
-	if err != nil {
+	var categories []*model.Category
+	v.Go(func(ctx context.Context) (err error) {
+		categories, err = h.store.Categories(ctx, v.UserID())
+		return
+	})
+
+	var intg *model.Integration
+	v.Go(func(ctx context.Context) (err error) {
+		intg, err = h.store.Integration(ctx, v.UserID())
+		return
+	})
+
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
@@ -45,8 +53,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var rssBridgeURL string
-	intg, err := h.store.Integration(r.Context(), v.User().ID)
-	if err == nil && intg != nil && intg.RSSBridgeEnabled {
+	if intg != nil && intg.RSSBridgeEnabled {
 		rssBridgeURL = intg.RSSBridgeURL
 	}
 
@@ -84,7 +91,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 
 	case n == 1 && subscriptionFinder.IsFeedAlreadyDownloaded():
 		feed, lerr := feedHandler.CreateFeedFromSubscriptionDiscovery(r.Context(),
-			h.store, v.User().ID,
+			h.store, v.UserID(),
 			&model.FeedCreationRequestFromSubscriptionDiscovery{
 				Content:      subscriptionFinder.FeedResponseInfo().Content,
 				ETag:         subscriptionFinder.FeedResponseInfo().ETag,
@@ -118,7 +125,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 
 	case n == 1 && !subscriptionFinder.IsFeedAlreadyDownloaded():
 		feed, lerr := feedHandler.CreateFeed(r.Context(),
-			h.store, v.User().ID, &model.FeedCreationRequest{
+			h.store, v.UserID(), &model.FeedCreationRequest{
 				CategoryID:                  subscriptionForm.CategoryID,
 				FeedURL:                     subscriptions[0].URL,
 				Crawler:                     subscriptionForm.Crawler,

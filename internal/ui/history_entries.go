@@ -6,8 +6,6 @@ package ui // import "miniflux.app/v2/internal/ui"
 import (
 	"net/http"
 
-	"golang.org/x/sync/errgroup"
-
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
@@ -16,33 +14,22 @@ import (
 
 func (h *handler) showHistoryPage(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r).WithSaveEntry()
-	if err := v.Wait(); err != nil {
+	user, err := v.WaitUser()
+	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
 	offset := request.QueryIntParam(r, "offset", 0)
-	builder := h.store.NewEntryQueryBuilder(v.User().ID).
+	query := h.store.NewEntryQueryBuilder(v.UserID()).
 		WithStatus(model.EntryStatusRead).
 		WithSorting("changed_at", "DESC").
 		WithSorting("published_at", "DESC").
 		WithOffset(offset).
-		WithLimit(v.User().EntriesPerPage)
+		WithLimit(user.EntriesPerPage)
 
-	g, ctx := errgroup.WithContext(r.Context())
-	var entries model.Entries
-	g.Go(func() (err error) {
-		entries, err = builder.GetEntries(ctx)
-		return
-	})
-
-	var count int
-	g.Go(func() (err error) {
-		count, err = builder.CountEntries(ctx)
-		return
-	})
-
-	if err := g.Wait(); err != nil {
+	entries, count, err := v.WaitEntriesCount(query)
+	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
@@ -51,6 +38,6 @@ func (h *handler) showHistoryPage(w http.ResponseWriter, r *http.Request) {
 		Set("entries", entries).
 		Set("total", count).
 		Set("pagination", getPagination(route.Path(h.router, "history"),
-			count, offset, v.User().EntriesPerPage))
+			count, offset, user.EntriesPerPage))
 	html.OK(w, r, v.Render("history_entries"))
 }

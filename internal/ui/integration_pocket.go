@@ -18,27 +18,23 @@ import (
 
 func (h *handler) pocketAuthorize(w http.ResponseWriter, r *http.Request) {
 	printer := locale.NewPrinter(request.UserLanguage(r))
-	user, err := h.store.UserByID(r.Context(), request.UserID(r))
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
+	userID := request.UserID(r)
 
-	integration, err := h.store.Integration(r.Context(), user.ID)
+	integration, err := h.store.Integration(r.Context(), userID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
 	sess := session.New(h.store, request.SessionID(r))
-	connector := pocket.NewConnector(config.Opts.PocketConsumerKey(integration.PocketConsumerKey))
+	connector := pocket.NewConnector(
+		config.Opts.PocketConsumerKey(integration.PocketConsumerKey))
 	redirectURL := config.Opts.RootURL() + route.Path(h.router, "pocketCallback")
 	requestToken, err := connector.RequestToken(redirectURL)
 	if err != nil {
 		slog.Warn("Pocket authorization request failed",
-			slog.Any("user_id", user.ID),
-			slog.Any("error", err),
-		)
+			slog.Any("user_id", userID),
+			slog.Any("error", err))
 		sess.NewFlashErrorMessage(r.Context(),
 			printer.Print("error.pocket_request_token"))
 		html.Redirect(w, r, route.Path(h.router, "integrations"))
@@ -52,26 +48,21 @@ func (h *handler) pocketAuthorize(w http.ResponseWriter, r *http.Request) {
 func (h *handler) pocketCallback(w http.ResponseWriter, r *http.Request) {
 	printer := locale.NewPrinter(request.UserLanguage(r))
 	sess := session.New(h.store, request.SessionID(r))
+	userID := request.UserID(r)
 
-	user, err := h.store.UserByID(r.Context(), request.UserID(r))
+	integration, err := h.store.Integration(r.Context(), userID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	integration, err := h.store.Integration(r.Context(), user.ID)
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
-
-	connector := pocket.NewConnector(config.Opts.PocketConsumerKey(integration.PocketConsumerKey))
+	connector := pocket.NewConnector(
+		config.Opts.PocketConsumerKey(integration.PocketConsumerKey))
 	accessToken, err := connector.AccessToken(request.PocketRequestToken(r))
 	if err != nil {
 		slog.Warn("Unable to get Pocket access token",
-			slog.Any("user_id", user.ID),
-			slog.Any("error", err),
-		)
+			slog.Any("user_id", userID),
+			slog.Any("error", err))
 		sess.NewFlashErrorMessage(r.Context(),
 			printer.Print("error.pocket_access_token"))
 		html.Redirect(w, r, route.Path(h.router, "integrations"))

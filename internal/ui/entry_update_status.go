@@ -14,24 +14,24 @@ import (
 )
 
 func (h *handler) updateEntriesStatus(w http.ResponseWriter, r *http.Request) {
-	var entriesStatusUpdateRequest model.EntriesStatusUpdateRequest
-	if err := json_parser.NewDecoder(r.Body).Decode(&entriesStatusUpdateRequest); err != nil {
+	var updateRequest model.EntriesStatusUpdateRequest
+	if err := json_parser.NewDecoder(r.Body).Decode(&updateRequest); err != nil {
 		json.BadRequest(w, r, err)
 		return
 	}
 
-	if err := validator.ValidateEntriesStatusUpdateRequest(&entriesStatusUpdateRequest); err != nil {
+	err := validator.ValidateEntriesStatusUpdateRequest(&updateRequest)
+	if err != nil {
 		json.BadRequest(w, r, err)
 		return
 	}
 
 	count, err := h.store.SetEntriesStatusCount(r.Context(),
-		request.UserID(r), entriesStatusUpdateRequest.EntryIDs,
-		entriesStatusUpdateRequest.Status)
+		request.UserID(r), updateRequest.EntryIDs,
+		updateRequest.Status)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
-
 	json.OK(w, r, count)
 }

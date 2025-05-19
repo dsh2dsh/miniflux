@@ -28,14 +28,12 @@ func (h *handler) oauth2Redirect(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("Unable to initialize OAuth2 provider",
 			slog.String("provider", provider),
-			slog.Any("error", err),
-		)
+			slog.Any("error", err))
 		html.Redirect(w, r, route.Path(h.router, "login"))
 		return
 	}
 
 	auth := oauth2.GenerateAuthorization(authProvider.GetConfig())
-
 	sess.SetOAuth2State(r.Context(), auth.State())
 	sess.SetOAuth2CodeVerifier(r.Context(), auth.CodeVerifier())
 	html.Redirect(w, r, auth.RedirectURL())

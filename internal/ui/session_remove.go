@@ -12,13 +12,11 @@ import (
 )
 
 func (h *handler) removeSession(w http.ResponseWriter, r *http.Request) {
-	sessionID := request.RouteInt64Param(r, "sessionID")
-	err := h.store.RemoveUserSessionByID(r.Context(), request.UserID(r),
-		sessionID)
+	id := request.RouteInt64Param(r, "sessionID")
+	err := h.store.RemoveUserSessionByID(r.Context(), request.UserID(r), id)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
-
 	html.Redirect(w, r, route.Path(h.router, "sessions"))
 }

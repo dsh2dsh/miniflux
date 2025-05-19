@@ -4,9 +4,8 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"context"
 	"net/http"
-
-	"golang.org/x/sync/errgroup"
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
@@ -14,15 +13,35 @@ import (
 	"miniflux.app/v2/internal/model"
 )
 
-func (h *handler) showCategoryEntriesStarredPage(w http.ResponseWriter, r *http.Request) {
+func (h *handler) showCategoryEntriesStarredPage(w http.ResponseWriter,
+	r *http.Request,
+) {
 	v := h.View(r).WithSaveEntry()
-	if err := v.Wait(); err != nil {
+
+	id := request.RouteInt64Param(r, "categoryID")
+	var category *model.Category
+	v.Go(func(ctx context.Context) (err error) {
+		category, err = h.store.Category(ctx, v.UserID(), id)
+		return
+	})
+
+	user, err := v.WaitUser()
+	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	categoryID := request.RouteInt64Param(r, "categoryID")
-	category, err := h.store.Category(r.Context(), v.User().ID, categoryID)
+	offset := request.QueryIntParam(r, "offset", 0)
+	query := h.store.NewEntryQueryBuilder(user.ID).
+		WithCategoryID(id).
+		WithSorting(user.EntryOrder, user.EntryDirection).
+		WithSorting("id", user.EntryDirection).
+		WithoutStatus(model.EntryStatusRemoved).
+		WithStarred(true).
+		WithOffset(offset).
+		WithLimit(user.EntriesPerPage)
+
+	entries, count, err := v.WaitEntriesCount(query)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -31,41 +50,13 @@ func (h *handler) showCategoryEntriesStarredPage(w http.ResponseWriter, r *http.
 		return
 	}
 
-	offset := request.QueryIntParam(r, "offset", 0)
-	builder := h.store.NewEntryQueryBuilder(v.User().ID).
-		WithCategoryID(category.ID).
-		WithSorting(v.User().EntryOrder, v.User().EntryDirection).
-		WithSorting("id", v.User().EntryDirection).
-		WithoutStatus(model.EntryStatusRemoved).
-		WithStarred(true).
-		WithOffset(offset).
-		WithLimit(v.User().EntriesPerPage)
-
-	g, ctx := errgroup.WithContext(r.Context())
-	var entries model.Entries
-	g.Go(func() (err error) {
-		entries, err = builder.GetEntries(ctx)
-		return
-	})
-
-	var count int
-	g.Go(func() (err error) {
-		count, err = builder.CountEntries(ctx)
-		return
-	})
-
-	if err := g.Wait(); err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
-
 	v.Set("menu", "categories").
 		Set("category", category).
 		Set("total", count).
 		Set("entries", entries).
 		Set("pagination", getPagination(
-			route.Path(h.router, "categoryEntriesStarred", "categoryID", category.ID),
-			count, offset, v.User().EntriesPerPage)).
+			route.Path(h.router, "categoryEntriesStarred", "categoryID", id),
+			count, offset, user.EntriesPerPage)).
 		Set("showOnlyStarredEntries", true)
 	html.OK(w, r, v.Render("category_entries"))
 }

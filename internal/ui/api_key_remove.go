@@ -18,6 +18,5 @@ func (h *handler) removeAPIKey(w http.ResponseWriter, r *http.Request) {
 		html.ServerError(w, r, err)
 		return
 	}
-
 	html.Redirect(w, r, route.Path(h.router, "apiKeys"))
 }

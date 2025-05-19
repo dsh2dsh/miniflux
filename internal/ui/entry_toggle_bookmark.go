@@ -11,8 +11,8 @@ import (
 )
 
 func (h *handler) toggleBookmark(w http.ResponseWriter, r *http.Request) {
-	entryID := request.RouteInt64Param(r, "entryID")
-	err := h.store.ToggleBookmark(r.Context(), request.UserID(r), entryID)
+	id := request.RouteInt64Param(r, "entryID")
+	err := h.store.ToggleBookmark(r.Context(), request.UserID(r), id)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return

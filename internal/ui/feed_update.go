@@ -4,6 +4,7 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"context"
 	"net/http"
 
 	"miniflux.app/v2/internal/config"
@@ -17,24 +18,25 @@ import (
 
 func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r)
-	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
 
 	feedID := request.RouteInt64Param(r, "feedID")
-	feed, err := h.store.FeedByID(r.Context(), v.User().ID, feedID)
-	if err != nil {
+	var feed *model.Feed
+	v.Go(func(ctx context.Context) (err error) {
+		feed, err = h.store.FeedByID(ctx, v.UserID(), feedID)
+		return
+	})
+
+	var categories []*model.Category
+	v.Go(func(ctx context.Context) (err error) {
+		categories, err = h.store.Categories(ctx, v.UserID())
+		return
+	})
+
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	} else if feed == nil {
 		html.NotFound(w, r)
-		return
-	}
-
-	categories, err := h.store.Categories(r.Context(), v.User().ID)
-	if err != nil {
-		html.ServerError(w, r, err)
 		return
 	}
 
@@ -58,18 +60,18 @@ func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
 		ProxyURL:            model.OptionalString(feedForm.ProxyURL),
 	}
 
-	lerr := validator.ValidateFeedModification(r.Context(), h.store,
-		v.User().ID, feed.ID, feedRequest)
+	lerr := validator.ValidateFeedModification(r.Context(), h.store, v.User().ID,
+		feedID, feedRequest)
 	if lerr != nil {
 		v.Set("errorMessage", lerr.Translate(v.User().Language))
 		html.OK(w, r, v.Render("edit_feed"))
 		return
 	}
 
-	err = h.store.UpdateFeed(r.Context(), feedForm.Merge(feed))
+	err := h.store.UpdateFeed(r.Context(), feedForm.Merge(feed))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
-	html.Redirect(w, r, route.Path(h.router, "feedEntries", "feedID", feed.ID))
+	html.Redirect(w, r, route.Path(h.router, "feedEntries", "feedID", feedID))
 }

@@ -22,22 +22,22 @@ func (h *handler) saveAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiKeyForm := form.NewAPIKeyForm(r)
+	keyForm := form.NewAPIKeyForm(r)
 	v.Set("menu", "settings").
-		Set("form", apiKeyForm)
+		Set("form", keyForm)
 
-	if lerr := apiKeyForm.Validate(); lerr != nil {
+	if lerr := keyForm.Validate(); lerr != nil {
 		v.Set("errorMessage", lerr.Translate(v.User().Language))
 		html.OK(w, r, v.Render("create_api_key"))
 		return
 	}
 
 	alreadyExists, err := h.store.APIKeyExists(r.Context(), v.User().ID,
-		apiKeyForm.Description)
+		keyForm.Description)
 	if err != nil {
 		logging.FromContext(r.Context()).Error("failed API key lookup",
 			slog.Int64("user_id", v.User().ID),
-			slog.String("description", apiKeyForm.Description),
+			slog.String("description", keyForm.Description),
 			slog.Any("error", err))
 		html.ServerError(w, r, err)
 		return
@@ -50,7 +50,7 @@ func (h *handler) saveAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiKey := model.NewAPIKey(v.User().ID, apiKeyForm.Description)
+	apiKey := model.NewAPIKey(v.User().ID, keyForm.Description)
 	if err = h.store.CreateAPIKey(r.Context(), apiKey); err != nil {
 		html.ServerError(w, r, err)
 		return

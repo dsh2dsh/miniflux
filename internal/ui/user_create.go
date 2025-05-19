@@ -22,8 +22,7 @@ func (h *handler) showCreateUserPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	b := v.Set("form", &form.UserForm{}).
-		Set("menu", "settings").
-		Render("create_user")
-	html.OK(w, r, b)
+	v.Set("form", &form.UserForm{}).
+		Set("menu", "settings")
+	html.OK(w, r, v.Render("create_user"))
 }

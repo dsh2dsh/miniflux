@@ -4,6 +4,7 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -17,35 +18,56 @@ import (
 
 func (h *handler) showUnreadPage(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r).WithSaveEntry()
+	user, err := v.WaitUser()
+	if err != nil {
+		html.ServerError(w, r, err)
+		return
+	}
+
+	query := h.store.NewEntryQueryBuilder(user.ID).
+		WithStatus(model.EntryStatusUnread).
+		WithSorting(user.EntryOrder, user.EntryDirection).
+		WithSorting("id", user.EntryDirection).
+		WithLimit(user.EntriesPerPage).
+		WithGloballyVisible()
+
+	var startTime time.Time
+	var fetchEntriesElapsed time.Duration
+	var entries model.Entries
+
+	offset := request.QueryIntParam(r, "offset", 0)
+	if offset == 0 {
+		startTime = time.Now()
+		v.Go(func(ctx context.Context) (err error) {
+			entries, err = query.GetEntries(ctx)
+			fetchEntriesElapsed = time.Since(startTime)
+			return
+		})
+	}
+
 	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	offset := request.QueryIntParam(r, "offset", 0)
-	if offset >= v.CountUnread() {
-		offset = 0
+	if offset != 0 {
+		if offset >= v.CountUnread() {
+			offset = 0
+		}
+		startTime = time.Now()
+		e, err := query.WithOffset(offset).GetEntries(r.Context())
+		if err != nil {
+			html.ServerError(w, r, err)
+			return
+		}
+		entries = e
+		fetchEntriesElapsed = time.Since(startTime)
 	}
-
-	startTime := time.Now()
-	entries, err := h.store.NewEntryQueryBuilder(v.User().ID).
-		WithStatus(model.EntryStatusUnread).
-		WithSorting(v.User().EntryOrder, v.User().EntryDirection).
-		WithSorting("id", v.User().EntryDirection).
-		WithOffset(offset).
-		WithLimit(v.User().EntriesPerPage).
-		WithGloballyVisible().
-		GetEntries(r.Context())
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
-	fetchEntriesElapsed := time.Since(startTime)
 
 	b := v.Set("menu", "unread").
 		Set("entries", entries).
 		Set("pagination", getPagination(route.Path(h.router, "unread"),
-			v.CountUnread(), offset, v.User().EntriesPerPage)).
+			v.CountUnread(), offset, user.EntriesPerPage)).
 		Render("unread_entries")
 
 	if config.Opts.HasServerTimingHeader() {

@@ -4,20 +4,23 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"context"
 	"net/http"
 
 	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/model"
 )
 
 func (h *handler) showFeedsPage(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r)
-	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
 
-	feeds, err := h.store.FeedsWithCounters(r.Context(), v.User().ID)
-	if err != nil {
+	var feeds model.Feeds
+	v.Go(func(ctx context.Context) (err error) {
+		feeds, err = h.store.FeedsWithCounters(ctx, v.UserID())
+		return
+	})
+
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}

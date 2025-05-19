@@ -22,6 +22,7 @@ func (h *handler) View(r *http.Request) *View {
 		session: s,
 		store:   h.store,
 		userID:  request.UserID(r),
+		userCh:  make(chan struct{}),
 	}
 	self.g, self.ctx = errgroup.WithContext(r.Context())
 	return self.init()
@@ -32,8 +33,10 @@ type View struct {
 
 	session *session.Session
 	store   *storage.Storage
-	userID  int64
-	user    *model.User
+
+	userID int64
+	user   *model.User
+	userCh chan struct{}
 
 	g   *errgroup.Group
 	ctx context.Context
@@ -50,11 +53,7 @@ type View struct {
 
 func (self *View) init() *View {
 	self.startTime = time.Now()
-
-	self.Go(func(ctx context.Context) (err error) {
-		self.user, err = self.store.UserByID(ctx, self.userID)
-		return
-	})
+	self.Go(self.initUser)
 
 	startCountUnread := time.Now()
 	self.Go(func(ctx context.Context) (err error) {
@@ -73,6 +72,16 @@ func (self *View) init() *View {
 	return self
 }
 
+func (self *View) initUser(ctx context.Context) error {
+	defer close(self.userCh)
+	user, err := self.store.UserByID(ctx, self.userID)
+	if err != nil {
+		return err
+	}
+	self.user = user
+	return nil
+}
+
 func (self *View) Go(fn func(ctx context.Context) error) {
 	self.g.Go(func() error { return fn(self.ctx) })
 }
@@ -85,9 +94,24 @@ func (self *View) WithSaveEntry() *View {
 	return self
 }
 
-func (self *View) Wait() error {
+func (self *View) WaitUser() (*model.User, error) {
+	<-self.userCh
+	if self.user != nil {
+		return self.user, nil
+	}
+	return nil, self.wait()
+}
+
+func (self *View) wait() error {
 	if err := self.g.Wait(); err != nil {
 		return fmt.Errorf("group error: %w", err)
+	}
+	return nil
+}
+
+func (self *View) Wait() error {
+	if err := self.wait(); err != nil {
+		return err
 	}
 
 	self.Set("user", self.user).
@@ -105,11 +129,12 @@ func (self *View) Render(templateName string) []byte {
 	return b
 }
 
-func (self *View) CountUnread() int          { return self.countUnread }
 func (self *View) CountErrorFeed() int       { return self.countErrorFeeds }
+func (self *View) CountUnread() int          { return self.countUnread }
 func (self *View) HasSaveEntry() bool        { return self.hasSaveEntry }
-func (self *View) User() *model.User         { return self.user }
 func (self *View) Session() *session.Session { return self.session }
+func (self *View) User() *model.User         { return self.user }
+func (self *View) UserID() int64             { return self.userID }
 
 func (self *View) CountUnreadElapsed() time.Duration {
 	return self.countUnreadElapsed
@@ -121,4 +146,20 @@ func (self *View) PreProcessingElapsed() time.Duration {
 
 func (self *View) RenderingElapsed() time.Duration {
 	return self.renderingElapsed
+}
+
+func (self *View) WaitEntriesCount(query *storage.EntryQueryBuilder,
+) (model.Entries, int, error) {
+	var entries model.Entries
+	self.Go(func(ctx context.Context) (err error) {
+		entries, err = query.GetEntries(ctx)
+		return
+	})
+
+	var count int
+	self.Go(func(ctx context.Context) (err error) {
+		count, err = query.CountEntries(ctx)
+		return
+	})
+	return entries, count, self.Wait()
 }

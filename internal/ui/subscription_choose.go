@@ -4,6 +4,7 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"context"
 	"net/http"
 
 	"miniflux.app/v2/internal/config"
@@ -14,15 +15,18 @@ import (
 	"miniflux.app/v2/internal/ui/form"
 )
 
-func (h *handler) showChooseSubscriptionPage(w http.ResponseWriter, r *http.Request) {
+func (h *handler) showChooseSubscriptionPage(w http.ResponseWriter,
+	r *http.Request,
+) {
 	v := h.View(r)
-	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
 
-	categories, err := h.store.Categories(r.Context(), v.User().ID)
-	if err != nil {
+	var categories []*model.Category
+	v.Go(func(ctx context.Context) (err error) {
+		categories, err = h.store.Categories(ctx, v.UserID())
+		return
+	})
+
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}

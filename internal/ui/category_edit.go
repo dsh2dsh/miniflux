@@ -4,23 +4,26 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"context"
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
 )
 
 func (h *handler) showEditCategoryPage(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r)
-	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
 
-	category, err := h.store.Category(r.Context(), v.User().ID,
-		request.RouteInt64Param(r, "categoryID"))
-	if err != nil {
+	id := request.RouteInt64Param(r, "categoryID")
+	var category *model.Category
+	v.Go(func(ctx context.Context) (err error) {
+		category, err = h.store.Category(ctx, v.UserID(), id)
+		return
+	})
+
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	} else if category == nil {

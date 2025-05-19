@@ -4,6 +4,7 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 
@@ -14,25 +15,26 @@ import (
 )
 
 func (h *handler) showTagEntryPage(w http.ResponseWriter, r *http.Request) {
-	v := h.View(r).WithSaveEntry()
-	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
-
 	tagName, err := url.PathUnescape(request.RouteStringParam(r, "tagName"))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
+	v := h.View(r).WithSaveEntry()
+
 	entryID := request.RouteInt64Param(r, "entryID")
-	entry, err := h.store.NewEntryQueryBuilder(v.User().ID).
-		WithTags([]string{tagName}).
-		WithEntryID(entryID).
-		WithoutStatus(model.EntryStatusRemoved).
-		GetEntry(r.Context())
-	if err != nil {
+	var entry *model.Entry
+	v.Go(func(ctx context.Context) (err error) {
+		entry, err = h.store.NewEntryQueryBuilder(v.UserID()).
+			WithTags([]string{tagName}).
+			WithEntryID(entryID).
+			WithoutStatus(model.EntryStatusRemoved).
+			GetEntry(ctx)
+		return
+	})
+
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	} else if entry == nil {
@@ -41,7 +43,7 @@ func (h *handler) showTagEntryPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if entry.ShouldMarkAsReadOnView(v.User()) {
-		err = h.store.SetEntriesStatus(r.Context(), v.User().ID,
+		err = h.store.SetEntriesStatus(r.Context(), v.UserID(),
 			[]int64{entry.ID}, model.EntryStatusRead)
 		if err != nil {
 			html.ServerError(w, r, err)
@@ -51,7 +53,7 @@ func (h *handler) showTagEntryPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	prevEntry, nextEntry, err := h.store.NewEntryPaginationBuilder(
-		v.User().ID, entry.ID, v.User().EntryOrder, v.User().EntryDirection).
+		v.UserID(), entryID, v.User().EntryOrder, v.User().EntryDirection).
 		WithTags([]string{tagName}).
 		Entries(r.Context())
 	if err != nil {

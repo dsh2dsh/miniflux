@@ -4,7 +4,6 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -33,7 +32,7 @@ func (h *handler) showJavascript(w http.ResponseWriter, r *http.Request) {
 		contents := static.JavascriptBundles[filename]
 
 		if filename == "service-worker" {
-			variables := fmt.Sprintf(`const OFFLINE_URL=%q;`, route.Path(h.router, "offline"))
+			variables := "const OFFLINE_URL=" + route.Path(h.router, "offline") + ";"
 			contents = append([]byte(variables), contents...)
 		}
 

@@ -18,23 +18,20 @@ func (h *handler) removeCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	categoryID := request.RouteInt64Param(r, "categoryID")
-	category, err := h.store.Category(r.Context(), request.UserID(r), categoryID)
+	id := request.RouteInt64Param(r, "categoryID")
+	category, err := h.store.Category(r.Context(), user.ID, id)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
-	}
-
-	if category == nil {
+	} else if category == nil {
 		html.NotFound(w, r)
 		return
 	}
 
-	err = h.store.RemoveCategory(r.Context(), user.ID, category.ID)
+	err = h.store.RemoveCategory(r.Context(), user.ID, id)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
-
 	html.Redirect(w, r, route.Path(h.router, "categories"))
 }

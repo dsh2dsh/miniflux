@@ -24,7 +24,8 @@ import (
 )
 
 func (h *handler) mediaProxy(w http.ResponseWriter, r *http.Request) {
-	// If we receive a "If-None-Match" header, we assume the media is already stored in browser cache.
+	// If we receive a "If-None-Match" header, we assume the media is already
+	// stored in browser cache.
 	if r.Header.Get("If-None-Match") != "" {
 		w.WriteHeader(http.StatusNotModified)
 		return
@@ -96,7 +97,9 @@ func (h *handler) mediaProxy(w http.ResponseWriter, r *http.Request) {
 		req.Header.Set("Referer", referer)
 	}
 
-	forwardedRequestHeader := []string{"Range", "Accept", "Accept-Encoding", "User-Agent"}
+	forwardedRequestHeader := []string{
+		"Range", "Accept", "Accept-Encoding", "User-Agent",
+	}
 	for _, requestHeaderName := range forwardedRequestHeader {
 		if r.Header.Get(requestHeaderName) != "" {
 			req.Header.Set(requestHeaderName, r.Header.Get(requestHeaderName))
@@ -114,29 +117,29 @@ func (h *handler) mediaProxy(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("MediaProxy: Unable to initialize HTTP client",
 			slog.String("media_url", mediaURL),
-			slog.Any("error", err),
-		)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			slog.Any("error", err))
+		http.Error(w, http.StatusText(http.StatusInternalServerError),
+			http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusRequestedRangeNotSatisfiable {
-		slog.Warn("MediaProxy: "+http.StatusText(http.StatusRequestedRangeNotSatisfiable),
+		slog.Warn(
+			"MediaProxy: "+http.StatusText(http.StatusRequestedRangeNotSatisfiable),
 			slog.String("media_url", mediaURL),
-			slog.Int("status_code", resp.StatusCode),
-		)
+			slog.Int("status_code", resp.StatusCode))
 		html.RequestedRangeNotSatisfiable(w, r, resp.Header.Get("Content-Range"))
 		return
 	}
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
 		slog.Warn("MediaProxy: Unexpected response status code",
 			slog.String("media_url", mediaURL),
-			slog.Int("status_code", resp.StatusCode),
-		)
+			slog.Int("status_code", resp.StatusCode))
 
 		// Forward the status code from the origin.
-		http.Error(w, fmt.Sprintf("Origin status code is %d", resp.StatusCode), resp.StatusCode)
+		http.Error(w, fmt.Sprintf("Origin status code is %d", resp.StatusCode),
+			resp.StatusCode)
 		return
 	}
 
@@ -144,14 +147,18 @@ func (h *handler) mediaProxy(w http.ResponseWriter, r *http.Request) {
 
 	response.New(w, r).WithCaching(etag, 72*time.Hour, func(b *response.Builder) {
 		b.WithStatus(resp.StatusCode)
-		b.WithHeader("Content-Security-Policy", response.ContentSecurityPolicyForUntrustedContent)
+		b.WithHeader("Content-Security-Policy",
+			response.ContentSecurityPolicyForUntrustedContent)
 		b.WithHeader("Content-Type", resp.Header.Get("Content-Type"))
 
 		if filename := path.Base(parsedMediaURL.Path); filename != "" {
 			b.WithHeader("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, filename))
 		}
 
-		forwardedResponseHeader := []string{"Content-Encoding", "Content-Type", "Content-Length", "Accept-Ranges", "Content-Range"}
+		forwardedResponseHeader := []string{
+			"Content-Encoding", "Content-Type", "Content-Length", "Accept-Ranges",
+			"Content-Range",
+		}
 		for _, responseHeaderName := range forwardedResponseHeader {
 			if resp.Header.Get(responseHeaderName) != "" {
 				b.WithHeader(responseHeaderName, resp.Header.Get(responseHeaderName))

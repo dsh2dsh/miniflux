@@ -13,29 +13,27 @@ import (
 )
 
 func (h *handler) saveEntry(w http.ResponseWriter, r *http.Request) {
+	userID := request.UserID(r)
 	entryID := request.RouteInt64Param(r, "entryID")
-	builder := h.store.NewEntryQueryBuilder(request.UserID(r))
-	builder.WithEntryID(entryID)
-	builder.WithoutStatus(model.EntryStatusRemoved)
+	builder := h.store.NewEntryQueryBuilder(userID).
+		WithEntryID(entryID).
+		WithoutStatus(model.EntryStatusRemoved)
 
 	entry, err := builder.GetEntry(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
-	}
-
-	if entry == nil {
+	} else if entry == nil {
 		json.NotFound(w, r)
 		return
 	}
 
-	userIntegrations, err := h.store.Integration(r.Context(), request.UserID(r))
+	userIntegrations, err := h.store.Integration(r.Context(), userID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
 
-	go integration.SendEntry(entry, userIntegrations)
-
+	integration.SendEntry(entry, userIntegrations)
 	json.Created(w, r, map[string]string{"message": "saved"})
 }

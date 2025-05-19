@@ -4,6 +4,7 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"context"
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
@@ -16,14 +17,15 @@ import (
 
 func (h *handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r)
-	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
 
-	categoryID := request.RouteInt64Param(r, "categoryID")
-	category, err := h.store.Category(r.Context(), v.User().ID, categoryID)
-	if err != nil {
+	id := request.RouteInt64Param(r, "categoryID")
+	var category *model.Category
+	v.Go(func(ctx context.Context) (err error) {
+		category, err = h.store.Category(ctx, v.UserID(), id)
+		return
+	})
+
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	} else if category == nil {
@@ -38,7 +40,7 @@ func (h *handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	lerr := validator.ValidateCategoryModification(r.Context(), h.store,
-		v.User().ID, category.ID, categoryRequest)
+		v.UserID(), id, categoryRequest)
 	if lerr != nil {
 		v.Set("menu", "categories").
 			Set("form", categoryForm).
@@ -49,10 +51,10 @@ func (h *handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	categoryRequest.Patch(category)
-	if err := h.store.UpdateCategory(r.Context(), category); err != nil {
+	err := h.store.UpdateCategory(r.Context(), category)
+	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
-	html.Redirect(w, r, route.Path(h.router, "categoryFeeds", "categoryID",
-		categoryID))
+	html.Redirect(w, r, route.Path(h.router, "categoryFeeds", "categoryID", id))
 }

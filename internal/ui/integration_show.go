@@ -4,22 +4,25 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"context"
 	"net/http"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
 )
 
 func (h *handler) showIntegrationPage(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r)
-	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
 
-	integration, err := h.store.Integration(r.Context(), v.User().ID)
-	if err != nil {
+	var integration *model.Integration
+	v.Go(func(ctx context.Context) (err error) {
+		integration, err = h.store.Integration(ctx, v.UserID())
+		return
+	})
+
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}

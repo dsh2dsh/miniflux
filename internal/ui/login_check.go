@@ -26,38 +26,38 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 	if config.Opts.DisableLocalAuth() {
 		slog.Warn("blocking local auth login attempt, local auth is disabled",
 			slog.String("client_ip", clientIP),
-			slog.String("user_agent", r.UserAgent()),
-		)
+			slog.String("user_agent", r.UserAgent()))
 		html.OK(w, r, view.Render("login"))
 		return
 	}
 
 	authForm := form.NewAuthForm(r)
-	view.Set("errorMessage", locale.NewLocalizedError("error.bad_credentials").Translate(request.UserLanguage(r)))
+	view.Set("errorMessage",
+		locale.NewLocalizedError("error.bad_credentials").
+			Translate(request.UserLanguage(r)))
 	view.Set("form", authForm)
 
-	if validationErr := authForm.Validate(); validationErr != nil {
-		translatedErrorMessage := validationErr.Translate(request.UserLanguage(r))
+	if lerr := authForm.Validate(); lerr != nil {
+		translatedErrorMessage := lerr.Translate(request.UserLanguage(r))
 		slog.Warn("Validation error during login check",
 			slog.Bool("authentication_failed", true),
 			slog.String("client_ip", clientIP),
 			slog.String("user_agent", r.UserAgent()),
 			slog.String("username", authForm.Username),
-			slog.Any("error", translatedErrorMessage),
-		)
+			slog.Any("error", translatedErrorMessage))
 		html.OK(w, r, view.Render("login"))
 		return
 	}
 
-	err := h.store.CheckPassword(r.Context(), authForm.Username, authForm.Password)
+	err := h.store.CheckPassword(r.Context(), authForm.Username,
+		authForm.Password)
 	if err != nil {
 		slog.Warn("Incorrect username or password",
 			slog.Bool("authentication_failed", true),
 			slog.String("client_ip", clientIP),
 			slog.String("user_agent", r.UserAgent()),
 			slog.String("username", authForm.Username),
-			slog.Any("error", err),
-		)
+			slog.Any("error", err))
 		html.OK(w, r, view.Render("login"))
 		return
 	}
@@ -74,8 +74,7 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 		slog.String("client_ip", clientIP),
 		slog.String("user_agent", r.UserAgent()),
 		slog.Int64("user_id", userID),
-		slog.String("username", authForm.Username),
-	)
+		slog.String("username", authForm.Username))
 
 	if err := h.store.SetLastLogin(r.Context(), userID); err != nil {
 		html.ServerError(w, r, err)

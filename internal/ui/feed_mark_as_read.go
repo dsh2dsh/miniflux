@@ -19,9 +19,7 @@ func (h *handler) markFeedAsRead(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
-	}
-
-	if feed == nil {
+	} else if feed == nil {
 		html.NotFound(w, r)
 		return
 	}

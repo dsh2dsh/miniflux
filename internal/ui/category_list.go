@@ -4,20 +4,23 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"context"
 	"net/http"
 
 	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/model"
 )
 
 func (h *handler) showCategoryListPage(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r)
-	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
 
-	categories, err := h.store.CategoriesWithFeedCount(r.Context(), v.User().ID)
-	if err != nil {
+	var categories []*model.Category
+	v.Go(func(ctx context.Context) (err error) {
+		categories, err = h.store.CategoriesWithFeedCount(ctx, v.UserID())
+		return
+	})
+
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}

@@ -12,14 +12,15 @@ import (
 )
 
 func (h *handler) removeFeed(w http.ResponseWriter, r *http.Request) {
+	userID := request.UserID(r)
 	feedID := request.RouteInt64Param(r, "feedID")
 
-	if !h.store.FeedExists(r.Context(), request.UserID(r), feedID) {
+	if !h.store.FeedExists(r.Context(), userID, feedID) {
 		html.NotFound(w, r)
 		return
 	}
 
-	err := h.store.RemoveFeed(r.Context(), request.UserID(r), feedID)
+	err := h.store.RemoveFeed(r.Context(), userID, feedID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return

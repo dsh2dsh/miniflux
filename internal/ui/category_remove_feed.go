@@ -29,17 +29,16 @@ func (h *handler) removeCategoryFeed(w http.ResponseWriter, r *http.Request) {
 			slog.Any("error", err))
 		html.ServerError(w, r, err)
 		return
-	}
-
-	if !exists {
+	} else if !exists {
 		html.NotFound(w, r)
 		return
 	}
 
-	err = h.store.RemoveFeed(r.Context(), request.UserID(r), feedID)
+	err = h.store.RemoveFeed(r.Context(), userID, feedID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
-	html.Redirect(w, r, route.Path(h.router, "categoryFeeds", "categoryID", categoryID))
+	html.Redirect(w, r, route.Path(h.router, "categoryFeeds", "categoryID",
+		categoryID))
 }

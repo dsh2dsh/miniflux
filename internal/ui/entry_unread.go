@@ -4,6 +4,7 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"context"
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
@@ -14,17 +15,18 @@ import (
 
 func (h *handler) showUnreadEntryPage(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r).WithSaveEntry()
-	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
 
 	entryID := request.RouteInt64Param(r, "entryID")
-	entry, err := h.store.NewEntryQueryBuilder(v.User().ID).
-		WithEntryID(entryID).
-		WithoutStatus(model.EntryStatusRemoved).
-		GetEntry(r.Context())
-	if err != nil {
+	var entry *model.Entry
+	v.Go(func(ctx context.Context) (err error) {
+		entry, err = h.store.NewEntryQueryBuilder(v.UserID()).
+			WithEntryID(entryID).
+			WithoutStatus(model.EntryStatusRemoved).
+			GetEntry(ctx)
+		return
+	})
+
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	} else if entry == nil {
@@ -35,7 +37,7 @@ func (h *handler) showUnreadEntryPage(w http.ResponseWriter, r *http.Request) {
 	// Make sure we always get the pagination in unread mode even if the page is
 	// refreshed.
 	if entry.Status == model.EntryStatusRead {
-		err := h.store.SetEntriesStatus(r.Context(), v.User().ID,
+		err := h.store.SetEntriesStatus(r.Context(), v.UserID(),
 			[]int64{entry.ID}, model.EntryStatusUnread)
 		if err != nil {
 			html.ServerError(w, r, err)
@@ -44,7 +46,7 @@ func (h *handler) showUnreadEntryPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	prevEntry, nextEntry, err := h.store.NewEntryPaginationBuilder(
-		v.User().ID, entry.ID, v.User().EntryOrder, v.User().EntryDirection).
+		v.UserID(), entryID, v.User().EntryOrder, v.User().EntryDirection).
 		WithStatus(model.EntryStatusUnread).
 		WithGloballyVisible().
 		Entries(r.Context())

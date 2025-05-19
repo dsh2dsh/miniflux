@@ -22,13 +22,9 @@ import (
 func (h *handler) updateIntegration(w http.ResponseWriter, r *http.Request) {
 	printer := locale.NewPrinter(request.UserLanguage(r))
 	sess := session.New(h.store, request.SessionID(r))
-	user, err := h.store.UserByID(r.Context(), request.UserID(r))
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
+	userID := request.UserID(r)
 
-	integration, err := h.store.Integration(r.Context(), user.ID)
+	integration, err := h.store.Integration(r.Context(), userID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -39,7 +35,7 @@ func (h *handler) updateIntegration(w http.ResponseWriter, r *http.Request) {
 
 	if integration.FeverUsername != "" {
 		alreadyExists, err := h.store.HasDuplicateFeverUsername(
-			r.Context(), user.ID, integration.FeverUsername)
+			r.Context(), userID, integration.FeverUsername)
 		if err != nil {
 			logging.FromContext(r.Context()).Error(
 				"storage: unable check duplicate Fever username",
@@ -56,7 +52,8 @@ func (h *handler) updateIntegration(w http.ResponseWriter, r *http.Request) {
 
 	if integration.FeverEnabled {
 		if integrationForm.FeverPassword != "" {
-			integration.FeverToken = fmt.Sprintf("%x", md5.Sum([]byte(integration.FeverUsername+":"+integrationForm.FeverPassword)))
+			integration.FeverToken = fmt.Sprintf("%x", md5.Sum([]byte(
+				integration.FeverUsername+":"+integrationForm.FeverPassword)))
 		}
 	} else {
 		integration.FeverToken = ""
@@ -64,7 +61,7 @@ func (h *handler) updateIntegration(w http.ResponseWriter, r *http.Request) {
 
 	if integration.GoogleReaderUsername != "" {
 		alreadyExists, err := h.store.HasDuplicateGoogleReaderUsername(
-			r.Context(), user.ID, integration.GoogleReaderUsername)
+			r.Context(), userID, integration.GoogleReaderUsername)
 		if err != nil {
 			logging.FromContext(r.Context()).Error(
 				"unable check duplicate Google Reader username",
@@ -81,7 +78,8 @@ func (h *handler) updateIntegration(w http.ResponseWriter, r *http.Request) {
 
 	if integration.GoogleReaderEnabled {
 		if integrationForm.GoogleReaderPassword != "" {
-			integration.GoogleReaderPassword, err = crypto.HashPassword(integrationForm.GoogleReaderPassword)
+			integration.GoogleReaderPassword, err = crypto.HashPassword(
+				integrationForm.GoogleReaderPassword)
 			if err != nil {
 				html.ServerError(w, r, err)
 				return

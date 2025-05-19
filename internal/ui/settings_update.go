@@ -4,6 +4,7 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"context"
 	"net/http"
 	"regexp"
 	"strings"
@@ -19,19 +20,26 @@ import (
 
 func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r)
+
+	var creds []model.WebAuthnCredential
+	v.Go(func(ctx context.Context) (err error) {
+		creds, err = h.store.WebAuthnCredentialsByUserID(ctx, v.UserID())
+		return
+	})
+
+	var timezones map[string]string
+	v.Go(func(ctx context.Context) (err error) {
+		timezones, err = h.store.Timezones(ctx)
+		return
+	})
+
+	var webAuthnCount int
+	v.Go(func(ctx context.Context) error {
+		webAuthnCount = h.store.CountWebAuthnCredentialsByUserID(ctx, v.UserID())
+		return nil
+	})
+
 	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
-
-	timezones, err := h.store.Timezones(r.Context())
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
-
-	creds, err := h.store.WebAuthnCredentialsByUserID(r.Context(), v.User().ID)
-	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
@@ -50,8 +58,7 @@ func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		Set("timezones", timezones).
 		Set("default_home_pages", model.HomePages()).
 		Set("categories_sorting_options", model.CategoriesSortingOptions()).
-		Set("countWebAuthnCerts", h.store.CountWebAuthnCredentialsByUserID(
-			r.Context(), v.User().ID)).
+		Set("countWebAuthnCerts", webAuthnCount).
 		Set("webAuthnCerts", creds)
 
 	// Sanitize the end of the block & Keep rules
@@ -95,22 +102,23 @@ func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	lerr := validator.ValidateUserModification(r.Context(),
-		h.store, v.User().ID, userModificationRequest)
+		h.store, v.UserID(), userModificationRequest)
 	if lerr != nil {
 		v.Set("errorMessage", lerr.Translate(v.User().Language))
 		html.OK(w, r, v.Render("settings"))
 		return
 	}
 
-	err = h.store.UpdateUser(r.Context(), settingsForm.Merge(v.User()))
+	err := h.store.UpdateUser(r.Context(), settingsForm.Merge(v.User()))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	v.Session().SetLanguage(r.Context(), v.User().Language)
-	v.Session().SetTheme(r.Context(), v.User().Theme)
-	v.Session().NewFlashMessage(r.Context(),
+	sess := v.Session()
+	sess.SetLanguage(r.Context(), v.User().Language)
+	sess.SetTheme(r.Context(), v.User().Theme)
+	sess.NewFlashMessage(r.Context(),
 		locale.NewPrinter(request.UserLanguage(r)).Printf("alert.prefs_saved"))
 	html.Redirect(w, r, route.Path(h.router, "settings"))
 }

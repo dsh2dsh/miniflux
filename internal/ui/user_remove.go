@@ -7,37 +7,47 @@ import (
 	"errors"
 	"net/http"
 
+	"golang.org/x/sync/errgroup"
+
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
+	"miniflux.app/v2/internal/model"
 )
 
 func (h *handler) removeUser(w http.ResponseWriter, r *http.Request) {
-	loggedUser, err := h.store.UserByID(r.Context(), request.UserID(r))
-	if err != nil {
-		html.ServerError(w, r, err)
+	g, ctx := errgroup.WithContext(r.Context())
+
+	var user *model.User
+	g.Go(func() (err error) {
+		user, err = h.store.UserByID(ctx, request.UserID(r))
 		return
-	} else if !loggedUser.IsAdmin {
-		html.Forbidden(w, r)
-		return
-	}
+	})
 
 	selectedUserID := request.RouteInt64Param(r, "userID")
-	selectedUser, err := h.store.UserByID(r.Context(), selectedUserID)
-	if err != nil {
+	var selectedUser *model.User
+	g.Go(func() (err error) {
+		selectedUser, err = h.store.UserByID(ctx, selectedUserID)
+		return
+	})
+
+	if err := g.Wait(); err != nil {
 		html.ServerError(w, r, err)
+		return
+	} else if !user.IsAdmin {
+		html.Forbidden(w, r)
 		return
 	} else if selectedUser == nil {
 		html.NotFound(w, r)
 		return
 	}
 
-	if selectedUser.ID == loggedUser.ID {
+	if selectedUser.ID == user.ID {
 		html.BadRequest(w, r, errors.New("you cannot remove yourself"))
 		return
 	}
 
-	err = h.store.RemoveUser(r.Context(), selectedUser.ID)
+	err := h.store.RemoveUser(r.Context(), selectedUser.ID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return

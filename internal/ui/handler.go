@@ -4,11 +4,11 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"github.com/gorilla/mux"
+
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/template"
 	"miniflux.app/v2/internal/worker"
-
-	"github.com/gorilla/mux"
 )
 
 type handler struct {

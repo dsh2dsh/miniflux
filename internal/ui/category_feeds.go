@@ -4,33 +4,36 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"context"
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/model"
 )
 
-func (h *handler) showCategoryFeedsPage(w http.ResponseWriter, r *http.Request) {
+func (h *handler) showCategoryFeedsPage(w http.ResponseWriter, r *http.Request,
+) {
 	v := h.View(r)
-	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
 
-	categoryID := request.RouteInt64Param(r, "categoryID")
-	category, err := h.store.Category(r.Context(), v.User().ID, categoryID)
-	if err != nil {
+	id := request.RouteInt64Param(r, "categoryID")
+	var category *model.Category
+	v.Go(func(ctx context.Context) (err error) {
+		category, err = h.store.Category(ctx, v.UserID(), id)
+		return
+	})
+
+	var feeds model.Feeds
+	v.Go(func(ctx context.Context) (err error) {
+		feeds, err = h.store.FeedsByCategoryWithCounters(ctx, v.UserID(), id)
+		return
+	})
+
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	} else if category == nil {
 		html.NotFound(w, r)
-		return
-	}
-
-	feeds, err := h.store.FeedsByCategoryWithCounters(r.Context(), v.User().ID,
-		categoryID)
-	if err != nil {
-		html.ServerError(w, r, err)
 		return
 	}
 

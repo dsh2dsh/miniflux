@@ -25,7 +25,7 @@ func (h *handler) saveCategory(w http.ResponseWriter, r *http.Request) {
 		Title: categoryForm.Title,
 	}
 
-	lerr := validator.ValidateCategoryCreation(r.Context(), h.store, v.User().ID,
+	lerr := validator.ValidateCategoryCreation(r.Context(), h.store, v.UserID(),
 		creationRequest)
 	if lerr != nil {
 		v.Set("menu", "categories").
@@ -35,7 +35,7 @@ func (h *handler) saveCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := h.store.CreateCategory(r.Context(), v.User().ID, creationRequest)
+	_, err := h.store.CreateCategory(r.Context(), v.UserID(), creationRequest)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return

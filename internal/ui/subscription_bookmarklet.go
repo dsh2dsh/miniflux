@@ -4,12 +4,14 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"context"
 	"net/http"
 	"regexp"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
 )
 
@@ -19,13 +21,14 @@ var urlRe = regexp.MustCompile(
 
 func (h *handler) bookmarklet(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r)
-	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
 
-	categories, err := h.store.Categories(r.Context(), v.User().ID)
-	if err != nil {
+	var categories []*model.Category
+	v.Go(func(ctx context.Context) (err error) {
+		categories, err = h.store.Categories(ctx, v.UserID())
+		return
+	})
+
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}

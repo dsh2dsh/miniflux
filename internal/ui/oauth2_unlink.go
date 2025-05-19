@@ -18,8 +18,7 @@ import (
 func (h *handler) oauth2Unlink(w http.ResponseWriter, r *http.Request) {
 	if config.Opts.DisableLocalAuth() {
 		slog.Warn("blocking oauth2 unlink attempt, local auth is disabled",
-			slog.String("user_agent", r.UserAgent()),
-		)
+			slog.String("user_agent", r.UserAgent()))
 		html.Redirect(w, r, route.Path(h.router, "login"))
 		return
 	}
@@ -36,20 +35,20 @@ func (h *handler) oauth2Unlink(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("Unable to initialize OAuth2 provider",
 			slog.String("provider", provider),
-			slog.Any("error", err),
-		)
+			slog.Any("error", err))
 		html.Redirect(w, r, route.Path(h.router, "settings"))
 		return
 	}
 
 	sess := session.New(h.store, request.SessionID(r))
-	user, err := h.store.UserByID(r.Context(), request.UserID(r))
+	userID := request.UserID(r)
+	user, err := h.store.UserByID(r.Context(), userID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	hasPassword, err := h.store.HasPassword(r.Context(), request.UserID(r))
+	hasPassword, err := h.store.HasPassword(r.Context(), userID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return

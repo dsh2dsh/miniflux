@@ -4,6 +4,7 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"context"
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
@@ -16,20 +17,20 @@ func (h *handler) showUnreadCategoryEntryPage(w http.ResponseWriter,
 	r *http.Request,
 ) {
 	v := h.View(r).WithSaveEntry()
-	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
 
 	categoryID := request.RouteInt64Param(r, "categoryID")
 	entryID := request.RouteInt64Param(r, "entryID")
+	var entry *model.Entry
+	v.Go(func(ctx context.Context) (err error) {
+		entry, err = h.store.NewEntryQueryBuilder(v.UserID()).
+			WithCategoryID(categoryID).
+			WithEntryID(entryID).
+			WithoutStatus(model.EntryStatusRemoved).
+			GetEntry(ctx)
+		return
+	})
 
-	entry, err := h.store.NewEntryQueryBuilder(v.User().ID).
-		WithCategoryID(categoryID).
-		WithEntryID(entryID).
-		WithoutStatus(model.EntryStatusRemoved).
-		GetEntry(r.Context())
-	if err != nil {
+	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	} else if entry == nil {
@@ -38,8 +39,8 @@ func (h *handler) showUnreadCategoryEntryPage(w http.ResponseWriter,
 	}
 
 	if entry.ShouldMarkAsReadOnView(v.User()) {
-		err := h.store.SetEntriesStatus(r.Context(), v.User().ID,
-			[]int64{entry.ID}, model.EntryStatusRead)
+		err := h.store.SetEntriesStatus(r.Context(), v.UserID(),
+			[]int64{entryID}, model.EntryStatusRead)
 		if err != nil {
 			html.ServerError(w, r, err)
 			return
@@ -47,14 +48,14 @@ func (h *handler) showUnreadCategoryEntryPage(w http.ResponseWriter,
 		entry.Status = model.EntryStatusRead
 	}
 
-	pb := h.store.NewEntryPaginationBuilder(v.User().ID, entry.ID,
+	pb := h.store.NewEntryPaginationBuilder(v.UserID(), entryID,
 		v.User().EntryOrder, v.User().EntryDirection).
 		WithCategoryID(categoryID).
 		WithStatus(model.EntryStatusUnread)
 
 	if entry.Status == model.EntryStatusRead {
-		err := h.store.SetEntriesStatus(r.Context(), v.User().ID,
-			[]int64{entry.ID}, model.EntryStatusUnread)
+		err := h.store.SetEntriesStatus(r.Context(), v.UserID(),
+			[]int64{entryID}, model.EntryStatusUnread)
 		if err != nil {
 			html.ServerError(w, r, err)
 			return
@@ -81,8 +82,8 @@ func (h *handler) showUnreadCategoryEntryPage(w http.ResponseWriter,
 
 	// Restore entry read status if needed after fetching the pagination.
 	if entry.Status == model.EntryStatusRead {
-		err := h.store.SetEntriesStatus(r.Context(), v.User().ID,
-			[]int64{entry.ID}, model.EntryStatusRead)
+		err := h.store.SetEntriesStatus(r.Context(), v.UserID(),
+			[]int64{entryID}, model.EntryStatusRead)
 		if err != nil {
 			html.ServerError(w, r, err)
 			return

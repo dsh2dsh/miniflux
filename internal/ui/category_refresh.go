@@ -16,14 +16,18 @@ import (
 	"miniflux.app/v2/internal/ui/session"
 )
 
-func (h *handler) refreshCategoryEntriesPage(w http.ResponseWriter, r *http.Request) {
-	categoryID := h.refreshCategory(w, r)
-	html.Redirect(w, r, route.Path(h.router, "categoryEntries", "categoryID", categoryID))
+func (h *handler) refreshCategoryEntriesPage(w http.ResponseWriter,
+	r *http.Request,
+) {
+	id := h.refreshCategory(w, r)
+	html.Redirect(w, r, route.Path(h.router, "categoryEntries", "categoryID", id))
 }
 
-func (h *handler) refreshCategoryFeedsPage(w http.ResponseWriter, r *http.Request) {
-	categoryID := h.refreshCategory(w, r)
-	html.Redirect(w, r, route.Path(h.router, "categoryFeeds", "categoryID", categoryID))
+func (h *handler) refreshCategoryFeedsPage(w http.ResponseWriter,
+	r *http.Request,
+) {
+	id := h.refreshCategory(w, r)
+	html.Redirect(w, r, route.Path(h.router, "categoryFeeds", "categoryID", id))
 }
 
 func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request,
@@ -60,9 +64,9 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request,
 		slog.Int64("user_id", userID),
 		slog.Int64("category_id", categoryID))
 
-	h.pool.Wakeup()
 	sess.SetLastForceRefresh(r.Context())
 	sess.NewFlashMessage(r.Context(), printer.Print(
 		"alert.background_feed_refresh"))
+	h.pool.Wakeup()
 	return categoryID
 }

@@ -13,25 +13,25 @@ import (
 )
 
 func (h *handler) showFeedIcon(w http.ResponseWriter, r *http.Request) {
-	externalIconID := request.RouteStringParam(r, "externalIconID")
-	icon, err := h.store.IconByExternalID(r.Context(), externalIconID)
+	id := request.RouteStringParam(r, "externalIconID")
+	icon, err := h.store.IconByExternalID(r.Context(), id)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
-	}
-
-	if icon == nil {
+	} else if icon == nil {
 		html.NotFound(w, r)
 		return
 	}
 
-	response.New(w, r).WithCaching(icon.Hash, 72*time.Hour, func(b *response.Builder) {
-		b.WithHeader("Content-Security-Policy", response.ContentSecurityPolicyForUntrustedContent)
-		b.WithHeader("Content-Type", icon.MimeType)
-		b.WithBody(icon.Content)
-		if icon.MimeType != "image/svg+xml" {
-			b.WithoutCompression()
-		}
-		b.Write()
-	})
+	response.New(w, r).WithCaching(icon.Hash, 72*time.Hour,
+		func(b *response.Builder) {
+			b.WithHeader("Content-Security-Policy",
+				response.ContentSecurityPolicyForUntrustedContent)
+			b.WithHeader("Content-Type", icon.MimeType)
+			b.WithBody(icon.Content)
+			if icon.MimeType != "image/svg+xml" {
+				b.WithoutCompression()
+			}
+			b.Write()
+		})
 }
