@@ -337,7 +337,7 @@ func (self *Refresh) pushIntegrations(ctx context.Context,
 
 func (self *Refresh) updateFeed(ctx context.Context,
 ) *locale.LocalizedErrorWrapper {
-	if err := self.store.UpdateFeed(ctx, self.feed); err != nil {
+	if err := self.store.UpdateFeedRuntime(ctx, self.feed); err != nil {
 		lerr := locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
 		user, err := self.store.UserByID(ctx, self.userID)
 		if err != nil {
