@@ -52,8 +52,7 @@ func (s *Storage) CreateAppSession(ctx context.Context,
 
 func (s *Storage) createAppSession(ctx context.Context, session *model.Session,
 ) (*model.Session, error) {
-	_, err := s.db.Exec(ctx,
-		`INSERT INTO sessions (id, data) VALUES ($1, $2)`,
+	_, err := s.db.Exec(ctx, `INSERT INTO sessions (id, data) VALUES ($1, $2)`,
 		session.ID, session.Data)
 	if err != nil {
 		return nil, fmt.Errorf(`store: unable to create app session: %w`, err)
@@ -65,10 +64,7 @@ func (s *Storage) createAppSession(ctx context.Context, session *model.Session,
 func (s *Storage) UpdateAppSessionField(ctx context.Context, sessionID,
 	field string, value any,
 ) error {
-	query := `
-UPDATE sessions
-   SET data = jsonb_set(data, '{%s}', to_jsonb($1::text), true)
- WHERE id=$2`
+	query := `UPDATE sessions SET data['%s'] = to_jsonb($1::text) WHERE id=$2`
 	_, err := s.db.Exec(ctx, fmt.Sprintf(query, field), value, sessionID)
 	if err != nil {
 		return fmt.Errorf(`store: unable to update session field: %w`, err)
@@ -79,10 +75,7 @@ UPDATE sessions
 func (s *Storage) UpdateAppSessionObjectField(ctx context.Context, sessionID,
 	field string, value any,
 ) error {
-	query := `
-UPDATE sessions
-   SET data = jsonb_set(data, '{%s}', $1, true)
-WHERE id=$2`
+	query := `UPDATE sessions SET data['%s'] = $1 WHERE id=$2`
 	_, err := s.db.Exec(ctx, fmt.Sprintf(query, field), value, sessionID)
 	if err != nil {
 		return fmt.Errorf(`store: unable to update session field: %w`, err)
