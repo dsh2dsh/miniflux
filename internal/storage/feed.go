@@ -438,8 +438,8 @@ SET
 	parsing_error_msg = $4,
 	parsing_error_count = $5,
 	next_check_at = $6,
-  extra['size'] = to_jsonb($7::bigint),
-  extra['hash'] = to_jsonb($8::bigint)
+  extra['size'] = to_jsonb($7::numeric),
+  extra['hash'] = to_jsonb($8::numeric)
 WHERE id = $9 AND user_id = $10`,
 		feed.EtagHeader,
 		feed.LastModifiedHeader,
