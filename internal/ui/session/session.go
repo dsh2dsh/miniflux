@@ -1,94 +1,97 @@
-// SPDX-FileCopyrightText: Copyright The Miniflux Authors. All rights reserved.
-// SPDX-License-Identifier: Apache-2.0
-
-package session // import "miniflux.app/v2/internal/ui/session"
+package session
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
+	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/storage"
 )
 
-// Session handles session data.
+func New(store *storage.Storage, id string) *Session {
+	return &Session{
+		store:  store,
+		id:     id,
+		values: make(map[string]any),
+	}
+}
+
 type Session struct {
-	store     *storage.Storage
-	sessionID string
+	store  *storage.Storage
+	id     string
+	values map[string]any
 }
 
-// New returns a new session handler.
-func New(store *storage.Storage, sessionID string) *Session {
-	return &Session{store, sessionID}
+func (self *Session) SetLastForceRefresh() *Session {
+	self.values["last_force_refresh"] = time.Now().UTC().Unix()
+	return self
 }
 
-func (s *Session) SetLastForceRefresh(ctx context.Context) {
-	_ = s.store.UpdateAppSessionField(ctx, s.sessionID,
-		"last_force_refresh", time.Now().UTC().Unix())
+func (self *Session) SetOAuth2State(state string) *Session {
+	self.values["oauth2_state"] = state
+	return self
 }
 
-func (s *Session) SetOAuth2State(ctx context.Context, state string) {
-	_ = s.store.UpdateAppSessionField(ctx, s.sessionID, "oauth2_state", state)
+func (self *Session) SetOAuth2CodeVerifier(codeVerfier string) *Session {
+	self.values["oauth2_code_verifier"] = codeVerfier
+	return self
 }
 
-func (s *Session) SetOAuth2CodeVerifier(ctx context.Context,
-	codeVerfier string,
-) {
-	_ = s.store.UpdateAppSessionField(ctx, s.sessionID,
-		"oauth2_code_verifier", codeVerfier)
+func (self *Session) NewFlashMessage(message string) *Session {
+	self.values["flash_message"] = message
+	return self
 }
 
-// NewFlashMessage creates a new flash message.
-func (s *Session) NewFlashMessage(ctx context.Context, message string) {
-	_ = s.store.UpdateAppSessionField(ctx, s.sessionID,
-		"flash_message", message)
-}
-
-// FlashMessage returns the current flash message if any.
-func (s *Session) FlashMessage(ctx context.Context, message string) string {
+func (self *Session) FlashMessage(message string) string {
 	if message != "" {
-		_ = s.store.UpdateAppSessionField(ctx, s.sessionID, "flash_message", "")
+		self.values["flash_message"] = ""
 	}
 	return message
 }
 
-// NewFlashErrorMessage creates a new flash error message.
-func (s *Session) NewFlashErrorMessage(ctx context.Context, message string) {
-	_ = s.store.UpdateAppSessionField(ctx, s.sessionID,
-		"flash_error_message", message)
+func (self *Session) NewFlashErrorMessage(message string) *Session {
+	self.values["flash_error_message"] = message
+	return self
 }
 
-// FlashErrorMessage returns the last flash error message if any.
-func (s *Session) FlashErrorMessage(ctx context.Context, message string,
-) string {
+func (self *Session) FlashErrorMessage(message string) string {
 	if message != "" {
-		_ = s.store.UpdateAppSessionField(ctx, s.sessionID,
-			"flash_error_message", "")
+		self.values["flash_error_message"] = ""
 	}
 	return message
 }
 
-// SetLanguage updates the language field in session.
-func (s *Session) SetLanguage(ctx context.Context, language string) {
-	_ = s.store.UpdateAppSessionField(ctx, s.sessionID, "language", language)
+func (self *Session) SetLanguage(language string) *Session {
+	self.values["language"] = language
+	return self
 }
 
-// SetTheme updates the theme field in session.
-func (s *Session) SetTheme(ctx context.Context, theme string) {
-	_ = s.store.UpdateAppSessionField(ctx, s.sessionID, "theme", theme)
+func (self *Session) SetTheme(theme string) *Session {
+	self.values["theme"] = theme
+	return self
 }
 
-// SetPocketRequestToken updates Pocket Request Token.
-func (s *Session) SetPocketRequestToken(ctx context.Context,
-	requestToken string,
-) {
-	_ = s.store.UpdateAppSessionField(ctx, s.sessionID,
-		"pocket_request_token", requestToken)
+func (self *Session) SetPocketRequestToken(requestToken string) *Session {
+	self.values["pocket_request_token"] = requestToken
+	return self
 }
 
-func (s *Session) SetWebAuthnSessionData(ctx context.Context,
-	sessionData *model.WebAuthnSession,
-) {
-	_ = s.store.UpdateAppSessionObjectField(ctx, s.sessionID,
-		"webauthn_session_data", sessionData)
+func (self *Session) SetWebAuthnSessionData(sessionData *model.WebAuthnSession,
+) *Session {
+	self.values["webauthn_session_data"] = sessionData
+	return self
+}
+
+func (self *Session) Commit(ctx context.Context) {
+	if len(self.values) == 0 {
+		return
+	}
+	err := self.store.UpdateAppSession(ctx, self.id, self.values)
+	if err != nil {
+		logging.FromContext(ctx).Error("unable update session",
+			slog.String("id", self.id),
+			slog.Any("error", err))
+	}
 }

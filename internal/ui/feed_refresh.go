@@ -37,15 +37,17 @@ func (h *handler) refreshFeed(w http.ResponseWriter, r *http.Request) {
 func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
 	userID := request.UserID(r)
 	printer := locale.NewPrinter(request.UserLanguage(r))
+
 	sess := session.New(h.store, request.SessionID(r))
+	defer sess.Commit(r.Context())
 
 	// Avoid accidental and excessive refreshes.
 	sinceLastRefresh := time.Now().UTC().Unix() - request.LastForceRefresh(r)
 	refreshInterval := int64(config.Opts.ForceRefreshInterval()) * 60
 	if sinceLastRefresh < refreshInterval {
 		time := config.Opts.ForceRefreshInterval()
-		sess.NewFlashErrorMessage(r.Context(),
-			printer.Plural("alert.too_many_feeds_refresh", time, time))
+		sess.NewFlashErrorMessage(printer.Plural(
+			"alert.too_many_feeds_refresh", time, time))
 		html.Redirect(w, r, route.Path(h.router, "feeds"))
 		return
 	}
@@ -65,9 +67,8 @@ func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
 		"Triggered a manual refresh of all feeds from the web ui",
 		slog.Int64("user_id", userID))
 
-	sess.SetLastForceRefresh(r.Context())
-	sess.NewFlashMessage(r.Context(), printer.Print(
-		"alert.background_feed_refresh"))
+	sess.SetLastForceRefresh().
+		NewFlashMessage(printer.Print("alert.background_feed_refresh"))
 	h.pool.Wakeup()
 	html.Redirect(w, r, route.Path(h.router, "feeds"))
 }

@@ -15,8 +15,6 @@ import (
 )
 
 func (h *handler) oauth2Redirect(w http.ResponseWriter, r *http.Request) {
-	sess := session.New(h.store, request.SessionID(r))
-
 	provider := request.RouteStringParam(r, "provider")
 	if provider == "" {
 		slog.Warn("Invalid or missing OAuth2 provider")
@@ -34,7 +32,9 @@ func (h *handler) oauth2Redirect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	auth := oauth2.GenerateAuthorization(authProvider.GetConfig())
-	sess.SetOAuth2State(r.Context(), auth.State())
-	sess.SetOAuth2CodeVerifier(r.Context(), auth.CodeVerifier())
+	session.New(h.store, request.SessionID(r)).
+		SetOAuth2State(auth.State()).
+		SetOAuth2CodeVerifier(auth.CodeVerifier()).
+		Commit(r.Context())
 	html.Redirect(w, r, auth.RedirectURL())
 }

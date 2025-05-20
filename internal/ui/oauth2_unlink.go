@@ -41,6 +41,8 @@ func (h *handler) oauth2Unlink(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sess := session.New(h.store, request.SessionID(r))
+	defer sess.Commit(r.Context())
+
 	userID := request.UserID(r)
 	user, err := h.store.UserByID(r.Context(), userID)
 	if err != nil {
@@ -55,8 +57,8 @@ func (h *handler) oauth2Unlink(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !hasPassword {
-		sess.NewFlashErrorMessage(r.Context(),
-			printer.Print("error.unlink_account_without_password"))
+		sess.NewFlashErrorMessage(printer.Print(
+			"error.unlink_account_without_password"))
 		html.Redirect(w, r, route.Path(h.router, "settings"))
 		return
 	}
@@ -67,6 +69,6 @@ func (h *handler) oauth2Unlink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess.NewFlashMessage(r.Context(), printer.Print("alert.account_unlinked"))
+	sess.NewFlashMessage(printer.Print("alert.account_unlinked"))
 	html.Redirect(w, r, route.Path(h.router, "settings"))
 }

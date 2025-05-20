@@ -114,9 +114,10 @@ func (h *handler) beginRegistration(w http.ResponseWriter, r *http.Request) {
 		json.ServerError(w, r, err)
 		return
 	}
-	s := session.New(h.store, request.SessionID(r))
-	s.SetWebAuthnSessionData(r.Context(),
-		&model.WebAuthnSession{SessionData: sessionData})
+
+	session.New(h.store, request.SessionID(r)).
+		SetWebAuthnSessionData(&model.WebAuthnSession{SessionData: sessionData}).
+		Commit(r.Context())
 	json.OK(w, r, options)
 }
 
@@ -194,9 +195,9 @@ func (h *handler) beginLogin(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	s := session.New(h.store, request.SessionID(r))
-	s.SetWebAuthnSessionData(r.Context(),
-		&model.WebAuthnSession{SessionData: sessionData})
+	session.New(h.store, request.SessionID(r)).
+		SetWebAuthnSessionData(&model.WebAuthnSession{SessionData: sessionData}).
+		Commit(r.Context())
 	json.OK(w, r, assertion)
 }
 
@@ -339,9 +340,10 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess := session.New(h.store, request.SessionID(r))
-	sess.SetLanguage(r.Context(), user.Language)
-	sess.SetTheme(r.Context(), user.Theme)
+	session.New(h.store, request.SessionID(r)).
+		SetLanguage(user.Language).
+		SetTheme(user.Theme).
+		Commit(r.Context())
 
 	http.SetCookie(w, cookie.New(
 		cookie.CookieUserSessionID,

@@ -23,7 +23,9 @@ import (
 func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 	clientIP := request.ClientIP(r)
 	printer := locale.NewPrinter(request.UserLanguage(r))
+
 	sess := session.New(h.store, request.SessionID(r))
+	defer sess.Commit(r.Context())
 
 	provider := request.RouteStringParam(r, "provider")
 	if provider == "" {
@@ -93,8 +95,8 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 				slog.Int64("user_id", userID),
 				slog.String("oauth2_provider", provider),
 				slog.String("oauth2_profile_id", profile.ID))
-			sess.NewFlashErrorMessage(r.Context(),
-				printer.Print("error.duplicate_linked_account"))
+			sess.NewFlashErrorMessage(printer.Print(
+				"error.duplicate_linked_account"))
 			html.Redirect(w, r, route.Path(h.router, "settings"))
 			return
 		}
@@ -105,7 +107,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		sess.NewFlashMessage(r.Context(), printer.Print("alert.account_linked"))
+		sess.NewFlashMessage(printer.Print("alert.account_linked"))
 		html.Redirect(w, r, route.Path(h.router, "settings"))
 		return
 	}
@@ -159,8 +161,8 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess.SetLanguage(r.Context(), user.Language)
-	sess.SetTheme(r.Context(), user.Theme)
+	sess.SetLanguage(user.Language).
+		SetTheme(user.Theme)
 
 	http.SetCookie(w, cookie.New(
 		cookie.CookieUserSessionID,

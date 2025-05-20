@@ -35,15 +35,17 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request,
 	userID := request.UserID(r)
 	categoryID := request.RouteInt64Param(r, "categoryID")
 	printer := locale.NewPrinter(request.UserLanguage(r))
+
 	sess := session.New(h.store, request.SessionID(r))
+	defer sess.Commit(r.Context())
 
 	// Avoid accidental and excessive refreshes.
 	forceRefreshInterval := int64(config.Opts.ForceRefreshInterval()) * 60
 	sinceLastRefresh := time.Now().UTC().Unix() - request.LastForceRefresh(r)
 	if sinceLastRefresh < forceRefreshInterval {
 		time := config.Opts.ForceRefreshInterval()
-		sess.NewFlashErrorMessage(r.Context(),
-			printer.Plural("alert.too_many_feeds_refresh", time, time))
+		sess.NewFlashErrorMessage(printer.Plural(
+			"alert.too_many_feeds_refresh", time, time))
 		return categoryID
 	}
 
@@ -64,9 +66,8 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request,
 		slog.Int64("user_id", userID),
 		slog.Int64("category_id", categoryID))
 
-	sess.SetLastForceRefresh(r.Context())
-	sess.NewFlashMessage(r.Context(), printer.Print(
-		"alert.background_feed_refresh"))
+	sess.SetLastForceRefresh().
+		NewFlashMessage(printer.Print("alert.background_feed_refresh"))
 	h.pool.Wakeup()
 	return categoryID
 }

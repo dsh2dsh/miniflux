@@ -60,23 +60,12 @@ func (s *Storage) createAppSession(ctx context.Context, session *model.Session,
 	return session, nil
 }
 
-// UpdateAppSessionField updates only one session field.
-func (s *Storage) UpdateAppSessionField(ctx context.Context, sessionID,
-	field string, value any,
+func (s *Storage) UpdateAppSession(ctx context.Context, sessionID string,
+	values map[string]any,
 ) error {
-	query := `UPDATE sessions SET data['%s'] = to_jsonb($1::text) WHERE id=$2`
-	_, err := s.db.Exec(ctx, fmt.Sprintf(query, field), value, sessionID)
-	if err != nil {
-		return fmt.Errorf(`store: unable to update session field: %w`, err)
-	}
-	return nil
-}
-
-func (s *Storage) UpdateAppSessionObjectField(ctx context.Context, sessionID,
-	field string, value any,
-) error {
-	query := `UPDATE sessions SET data['%s'] = $1 WHERE id=$2`
-	_, err := s.db.Exec(ctx, fmt.Sprintf(query, field), value, sessionID)
+	_, err := s.db.Exec(ctx,
+		`UPDATE sessions SET data = data || $1::jsonb WHERE id=$2`,
+		values, sessionID)
 	if err != nil {
 		return fmt.Errorf(`store: unable to update session field: %w`, err)
 	}

@@ -267,9 +267,10 @@ func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
 			return
 		}
 
-		sess := session.New(m.store, request.SessionID(r))
-		sess.SetLanguage(r.Context(), user.Language)
-		sess.SetTheme(r.Context(), user.Theme)
+		session.New(m.store, request.SessionID(r)).
+			SetLanguage(user.Language).
+			SetTheme(user.Theme).
+			Commit(r.Context())
 
 		http.SetCookie(w, cookie.New(
 			cookie.CookieUserSessionID,

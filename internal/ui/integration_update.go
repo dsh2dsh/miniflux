@@ -21,8 +21,10 @@ import (
 
 func (h *handler) updateIntegration(w http.ResponseWriter, r *http.Request) {
 	printer := locale.NewPrinter(request.UserLanguage(r))
-	sess := session.New(h.store, request.SessionID(r))
 	userID := request.UserID(r)
+
+	sess := session.New(h.store, request.SessionID(r))
+	defer sess.Commit(r.Context())
 
 	integration, err := h.store.Integration(r.Context(), userID)
 	if err != nil {
@@ -43,8 +45,7 @@ func (h *handler) updateIntegration(w http.ResponseWriter, r *http.Request) {
 			html.ServerError(w, r, err)
 			return
 		} else if alreadyExists {
-			sess.NewFlashErrorMessage(r.Context(),
-				printer.Print("error.duplicate_fever_username"))
+			sess.NewFlashErrorMessage(printer.Print("error.duplicate_fever_username"))
 			html.Redirect(w, r, route.Path(h.router, "integrations"))
 			return
 		}
@@ -69,8 +70,8 @@ func (h *handler) updateIntegration(w http.ResponseWriter, r *http.Request) {
 			html.ServerError(w, r, err)
 			return
 		} else if alreadyExists {
-			sess.NewFlashErrorMessage(r.Context(),
-				printer.Print("error.duplicate_googlereader_username"))
+			sess.NewFlashErrorMessage(printer.Print(
+				"error.duplicate_googlereader_username"))
 			html.Redirect(w, r, route.Path(h.router, "integrations"))
 			return
 		}
@@ -107,6 +108,6 @@ func (h *handler) updateIntegration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess.NewFlashMessage(r.Context(), printer.Print("alert.prefs_saved"))
+	sess.NewFlashMessage(printer.Print("alert.prefs_saved"))
 	html.Redirect(w, r, route.Path(h.router, "integrations"))
 }

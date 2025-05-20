@@ -115,10 +115,12 @@ func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess := v.Session()
-	sess.SetLanguage(r.Context(), v.User().Language)
-	sess.SetTheme(r.Context(), v.User().Theme)
-	sess.NewFlashMessage(r.Context(),
-		locale.NewPrinter(request.UserLanguage(r)).Printf("alert.prefs_saved"))
+	v.Session().
+		SetLanguage(v.User().Language).
+		SetTheme(v.User().Theme).
+		NewFlashMessage(
+			locale.NewPrinter(request.UserLanguage(r)).
+				Printf("alert.prefs_saved")).
+		Commit(r.Context())
 	html.Redirect(w, r, route.Path(h.router, "settings"))
 }

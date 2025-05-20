@@ -27,6 +27,8 @@ func (h *handler) pocketAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sess := session.New(h.store, request.SessionID(r))
+	defer sess.Commit(r.Context())
+
 	connector := pocket.NewConnector(
 		config.Opts.PocketConsumerKey(integration.PocketConsumerKey))
 	redirectURL := config.Opts.RootURL() + route.Path(h.router, "pocketCallback")
@@ -35,20 +37,21 @@ func (h *handler) pocketAuthorize(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("Pocket authorization request failed",
 			slog.Any("user_id", userID),
 			slog.Any("error", err))
-		sess.NewFlashErrorMessage(r.Context(),
-			printer.Print("error.pocket_request_token"))
+		sess.NewFlashErrorMessage(printer.Print("error.pocket_request_token"))
 		html.Redirect(w, r, route.Path(h.router, "integrations"))
 		return
 	}
 
-	sess.SetPocketRequestToken(r.Context(), requestToken)
+	sess.SetPocketRequestToken(requestToken)
 	html.Redirect(w, r, connector.AuthorizationURL(requestToken, redirectURL))
 }
 
 func (h *handler) pocketCallback(w http.ResponseWriter, r *http.Request) {
 	printer := locale.NewPrinter(request.UserLanguage(r))
-	sess := session.New(h.store, request.SessionID(r))
 	userID := request.UserID(r)
+
+	sess := session.New(h.store, request.SessionID(r))
+	defer sess.Commit(r.Context())
 
 	integration, err := h.store.Integration(r.Context(), userID)
 	if err != nil {
@@ -63,13 +66,12 @@ func (h *handler) pocketCallback(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("Unable to get Pocket access token",
 			slog.Any("user_id", userID),
 			slog.Any("error", err))
-		sess.NewFlashErrorMessage(r.Context(),
-			printer.Print("error.pocket_access_token"))
+		sess.NewFlashErrorMessage(printer.Print("error.pocket_access_token"))
 		html.Redirect(w, r, route.Path(h.router, "integrations"))
 		return
 	}
 
-	sess.SetPocketRequestToken(r.Context(), "")
+	sess.SetPocketRequestToken("")
 	integration.PocketAccessToken = accessToken
 
 	err = h.store.UpdateIntegration(r.Context(), integration)
@@ -78,6 +80,6 @@ func (h *handler) pocketCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess.NewFlashMessage(r.Context(), printer.Print("alert.pocket_linked"))
+	sess.NewFlashMessage(printer.Print("alert.pocket_linked"))
 	html.Redirect(w, r, route.Path(h.router, "integrations"))
 }

@@ -15,17 +15,17 @@ import (
 )
 
 func (h *handler) logout(w http.ResponseWriter, r *http.Request) {
-	sess := session.New(h.store, request.SessionID(r))
 	userID := request.UserID(r)
-
 	user, err := h.store.UserByID(r.Context(), userID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	sess.SetLanguage(r.Context(), user.Language)
-	sess.SetTheme(r.Context(), user.Theme)
+	session.New(h.store, request.SessionID(r)).
+		SetLanguage(user.Language).
+		SetTheme(user.Theme).
+		Commit(r.Context())
 
 	err = h.store.RemoveUserSessionByToken(r.Context(), userID,
 		request.UserSessionToken(r))

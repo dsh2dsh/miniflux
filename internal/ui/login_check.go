@@ -87,8 +87,9 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess.SetLanguage(r.Context(), user.Language)
-	sess.SetTheme(r.Context(), user.Theme)
+	sess.SetLanguage(user.Language).
+		SetTheme(user.Theme).
+		Commit(r.Context())
 
 	http.SetCookie(w, cookie.New(
 		cookie.CookieUserSessionID,
