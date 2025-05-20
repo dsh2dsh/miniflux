@@ -5,7 +5,6 @@ package request // import "miniflux.app/v2/internal/http/request"
 
 import (
 	"net/http"
-	"strconv"
 
 	"miniflux.app/v2/internal/model"
 )
@@ -142,42 +141,31 @@ func PocketRequestToken(r *http.Request) string {
 
 // LastForceRefresh returns the last force refresh timestamp.
 func LastForceRefresh(r *http.Request) int64 {
-	jsonStringValue := getContextStringValue(r, LastForceRefreshContextKey)
-	timestamp, err := strconv.ParseInt(jsonStringValue, 10, 64)
-	if err != nil {
-		return 0
-	}
-	return timestamp
+	return getContextInt64Value(r, LastForceRefreshContextKey)
 }
 
 // ClientIP returns the client IP address stored in the context.
 func ClientIP(r *http.Request) string {
-	return getContextStringValue(r, ClientIPContextKey)
+	return getContextValue[string](r, ClientIPContextKey)
+}
+
+func getContextValue[T any](r *http.Request, key ContextKey) (zero T) {
+	if v := r.Context().Value(key); v != nil {
+		if value, ok := v.(T); ok {
+			return value
+		}
+	}
+	return
 }
 
 func getContextStringValue(r *http.Request, key ContextKey) string {
-	if v := r.Context().Value(key); v != nil {
-		if value, valid := v.(string); valid {
-			return value
-		}
-	}
-	return ""
+	return getContextValue[string](r, key)
 }
 
 func getContextBoolValue(r *http.Request, key ContextKey) bool {
-	if v := r.Context().Value(key); v != nil {
-		if value, valid := v.(bool); valid {
-			return value
-		}
-	}
-	return false
+	return getContextValue[bool](r, key)
 }
 
 func getContextInt64Value(r *http.Request, key ContextKey) int64 {
-	if v := r.Context().Value(key); v != nil {
-		if value, valid := v.(int64); valid {
-			return value
-		}
-	}
-	return 0
+	return getContextValue[int64](r, key)
 }
