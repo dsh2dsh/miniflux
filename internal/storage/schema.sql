@@ -3,7 +3,7 @@
 CREATE TABLE schema_version (
     version text NOT NULL
 );
-INSERT INTO schema_version (version) VALUES('109');
+INSERT INTO schema_version (version) VALUES('110');
 
 CREATE TABLE acme_cache (
     key character varying(400) NOT NULL PRIMARY KEY,
@@ -310,7 +310,8 @@ CREATE TABLE integrations (
     pushover_user text DEFAULT '',
     pushover_token text DEFAULT '',
     pushover_device text DEFAULT '',
-    pushover_prefix text DEFAULT ''
+    pushover_prefix text DEFAULT '',
+    extra jsonb NOT NULL DEFAULT '{}'::jsonb
 );
 
 CREATE TABLE sessions (

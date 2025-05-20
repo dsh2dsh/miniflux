@@ -47,7 +47,7 @@ func (f *SubscriptionFinder) FeedResponseInfo() *model.FeedCreationRequestFromSu
 }
 
 func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
-	websiteURL, rssBridgeURL string,
+	websiteURL, rssBridgeURL, rssBridgeToken string,
 ) (Subscriptions, *locale.LocalizedErrorWrapper) {
 	resp, err := fetcher.NewResponseSemaphore(ctx, f.requestBuilder, websiteURL)
 	if err != nil {
@@ -117,7 +117,7 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 	// Step 5) Check if the website URL can use RSS-Bridge.
 	if rssBridgeURL != "" {
 		slog.Debug("Try to detect feeds with RSS-Bridge", slog.String("website_url", websiteURL))
-		if subscriptions, localizedError := f.FindSubscriptionsFromRSSBridge(websiteURL, rssBridgeURL); localizedError != nil {
+		if subscriptions, localizedError := f.FindSubscriptionsFromRSSBridge(websiteURL, rssBridgeURL, rssBridgeToken); localizedError != nil {
 			return nil, localizedError
 		} else if len(subscriptions) > 0 {
 			slog.Debug("Subscriptions found from RSS-Bridge", slog.String("website_url", websiteURL), slog.Any("subscriptions", subscriptions))
@@ -263,13 +263,14 @@ func (f *SubscriptionFinder) FindSubscriptionsFromWellKnownURLs(websiteURL strin
 	return subscriptions, nil
 }
 
-func (f *SubscriptionFinder) FindSubscriptionsFromRSSBridge(websiteURL, rssBridgeURL string) (Subscriptions, *locale.LocalizedErrorWrapper) {
+func (f *SubscriptionFinder) FindSubscriptionsFromRSSBridge(websiteURL, rssBridgeURL string, rssBridgeToken string) (Subscriptions, *locale.LocalizedErrorWrapper) {
 	slog.Debug("Trying to detect feeds using RSS-Bridge",
 		slog.String("website_url", websiteURL),
 		slog.String("rssbridge_url", rssBridgeURL),
+		slog.String("rssbridge_token", rssBridgeToken),
 	)
 
-	bridges, err := rssbridge.DetectBridges(rssBridgeURL, websiteURL)
+	bridges, err := rssbridge.DetectBridges(rssBridgeURL, rssBridgeToken, websiteURL)
 	if err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err, "error.unable_to_detect_rssbridge", err)
 	}
@@ -277,6 +278,7 @@ func (f *SubscriptionFinder) FindSubscriptionsFromRSSBridge(websiteURL, rssBridg
 	slog.Debug("RSS-Bridge results",
 		slog.String("website_url", websiteURL),
 		slog.String("rssbridge_url", rssBridgeURL),
+		slog.String("rssbridge_token", rssBridgeToken),
 		slog.Int("nb_bridges", len(bridges)),
 	)
 

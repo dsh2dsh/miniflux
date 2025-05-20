@@ -646,4 +646,8 @@ SELECT id
 	// 109
 	sqlMigration(`
 ALTER TABLE feeds ADD COLUMN extra jsonb NOT NULL DEFAULT '{}'::jsonb`),
+
+	// 110
+	sqlMigration(`
+ALTER TABLE integrations ADD COLUMN extra jsonb NOT NULL DEFAULT '{}'::jsonb`),
 }

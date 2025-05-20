@@ -52,9 +52,10 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var rssBridgeURL string
+	var rssBridgeURL, rssBridgeToken string
 	if intg != nil && intg.RSSBridgeEnabled {
 		rssBridgeURL = intg.RSSBridgeURL
+		rssBridgeToken = intg.Extra.RSSBridgeToken
 	}
 
 	requestBuilder := fetcher.NewRequestBuilder().
@@ -73,7 +74,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 
 	subscriptionFinder := subscription.NewSubscriptionFinder(requestBuilder)
 	subscriptions, lerr := subscriptionFinder.FindSubscriptions(r.Context(),
-		subscriptionForm.URL, rssBridgeURL)
+		subscriptionForm.URL, rssBridgeURL, rssBridgeToken)
 	if lerr != nil {
 		v.Set("form", subscriptionForm).
 			Set("errorMessage", lerr.Translate(v.User().Language))
