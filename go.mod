@@ -14,7 +14,7 @@ require (
 	github.com/go-playground/validator/v10 v10.26.0
 	github.com/go-webauthn/webauthn v0.13.0
 	github.com/gorilla/mux v1.8.1
-	github.com/jackc/pgx/v5 v5.7.4
+	github.com/jackc/pgx/v5 v5.7.5
 	github.com/joho/godotenv v1.5.1
 	github.com/prometheus/client_golang v1.22.0
 	github.com/spf13/cobra v1.9.1
