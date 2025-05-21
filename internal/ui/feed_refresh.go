@@ -55,8 +55,8 @@ func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
 	// We allow the end-user to force refresh all its feeds without taking into
 	// consideration the number of errors.
 	err := h.store.NewBatchBuilder().
-		WithoutDisabledFeeds().
 		WithUserID(userID).
+		WithoutDisabledFeeds().
 		ResetNextCheckAt(r.Context())
 	if err != nil {
 		html.ServerError(w, r, err)

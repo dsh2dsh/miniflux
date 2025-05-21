@@ -3,7 +3,7 @@
 CREATE TABLE schema_version (
     version text NOT NULL
 );
-INSERT INTO schema_version (version) VALUES('110');
+INSERT INTO schema_version (version) VALUES('111');
 
 CREATE TABLE acme_cache (
     key character varying(400) NOT NULL PRIMARY KEY,
@@ -127,6 +127,7 @@ CREATE TABLE feeds (
 
 CREATE INDEX ON feeds (id, hide_globally);
 CREATE INDEX ON feeds (user_id, category_id);
+CREATE INDEX ON feeds (next_check_at);
 
 CREATE TABLE icons (
     id bigserial NOT NULL PRIMARY KEY,

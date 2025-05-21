@@ -145,10 +145,10 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request) {
 	categoryID := request.RouteInt64Param(r, "categoryID")
 
 	err := h.store.NewBatchBuilder().
-		WithErrorLimit(config.Opts.PollingParsingErrorLimit()).
-		WithoutDisabledFeeds().
 		WithUserID(userID).
 		WithCategoryID(categoryID).
+		WithoutDisabledFeeds().
+		WithErrorLimit(config.Opts.PollingParsingErrorLimit()).
 		ResetNextCheckAt(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)

@@ -52,9 +52,9 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request,
 	// We allow the end-user to force refresh all its feeds in this category
 	// without taking into consideration the number of errors.
 	err := h.store.NewBatchBuilder().
-		WithoutDisabledFeeds().
 		WithUserID(userID).
 		WithCategoryID(categoryID).
+		WithoutDisabledFeeds().
 		ResetNextCheckAt(r.Context())
 	if err != nil {
 		html.ServerError(w, r, err)

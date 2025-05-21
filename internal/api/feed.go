@@ -76,9 +76,9 @@ func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
 	userID := request.UserID(r)
 
 	err := h.store.NewBatchBuilder().
-		WithErrorLimit(config.Opts.PollingParsingErrorLimit()).
-		WithoutDisabledFeeds().
 		WithUserID(userID).
+		WithoutDisabledFeeds().
+		WithErrorLimit(config.Opts.PollingParsingErrorLimit()).
 		ResetNextCheckAt(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)

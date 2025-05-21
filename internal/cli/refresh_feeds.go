@@ -55,9 +55,9 @@ func refreshFeeds(ctx context.Context, store *storage.Storage,
 	// Generate a batch of feeds for any user that has feeds to refresh.
 	batch := store.NewBatchBuilder().
 		WithBatchSize(batchSize).
-		WithErrorLimit(errorLimit).
+		WithNextCheckExpired().
 		WithoutDisabledFeeds().
-		WithNextCheckExpired()
+		WithErrorLimit(errorLimit)
 
 	if jobs, err := batch.FetchJobs(ctx); err != nil {
 		slog.Error("Unable to fetch jobs from database", slog.Any("error", err))
