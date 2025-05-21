@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/reader/fetcher"
 )
 
 func (self *Daemon) runScheduler(ctx context.Context) {
@@ -44,6 +45,7 @@ forLoop:
 			break forLoop
 		case <-ticker.C:
 			slog.Info("feed scheduler got tick")
+			fetcher.ExpireHostLimits(time.Hour)
 			refreshFeeds(ctx, self.store, self.pool, batchSize, errorLimit)
 		case <-self.pool.WakeupSignal():
 			slog.Info("feed scheduler got wakeup signal")

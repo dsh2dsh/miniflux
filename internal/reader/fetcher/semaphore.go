@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/url"
 	"sync"
+	"time"
 
 	"golang.org/x/sync/semaphore"
 	"golang.org/x/time/rate"
@@ -15,6 +16,8 @@ import (
 )
 
 var limitConnections = NewLimitPerServer()
+
+func ExpireHostLimits(d time.Duration) { limitConnections.Expire(d) }
 
 func NewResponseSemaphore(ctx context.Context, r *RequestBuilder, rawURL string,
 ) (*ResponseSemaphore, error) {
@@ -64,6 +67,8 @@ type hostLimit struct {
 	sem  *semaphore.Weighted
 	rate *rate.Limiter
 	refs int
+
+	releasedAt time.Time
 }
 
 func NewLimitPerServer() *limitHosts {
@@ -73,6 +78,16 @@ func NewLimitPerServer() *limitHosts {
 type limitHosts struct {
 	servers map[string]*hostLimit
 	mu      sync.Mutex
+}
+
+func (self *limitHosts) Expire(d time.Duration) {
+	self.mu.Lock()
+	for hostname, s := range self.servers {
+		if s.refs == 0 && time.Since(s.releasedAt) >= d {
+			delete(self.servers, hostname)
+		}
+	}
+	self.mu.Unlock()
 }
 
 func (self *limitHosts) Acquire(ctx context.Context, hostname string) error {
@@ -119,7 +134,7 @@ func (self *limitHosts) Release(hostname string) {
 	s := self.servers[hostname]
 	s.refs--
 	if s.refs == 0 {
-		delete(self.servers, hostname)
+		s.releasedAt = time.Now()
 	}
 	self.mu.Unlock()
 	s.sem.Release(1)
