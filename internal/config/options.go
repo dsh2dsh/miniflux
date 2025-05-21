@@ -134,7 +134,8 @@ type EnvOptions struct {
 	MediaProxyPrivateKey               string   `env:"MEDIA_PROXY_PRIVATE_KEY"`
 	WebAuthn                           bool     `env:"WEBAUTHN"`
 	PreferSiteIcon                     bool     `env:"PREFER_SITE_ICON"`
-	ConnectionsPerSever                int      `env:"CONNECTIONS_PER_SERVER" validate:"min=1"`
+	ConnectionsPerSever                int64    `env:"CONNECTIONS_PER_SERVER" validate:"min=1"`
+	RateLimitPerServer                 float64  `env:"RATE_LIMIT_PER_SERVER" validate:"gt=0"`
 
 	// Deprecated
 	Debug                  bool     `env:"DEBUG"`
@@ -201,6 +202,7 @@ func NewOptions() *Options {
 			Watchdog:                           true,
 			InvidiousInstance:                  "yewtu.be",
 			ConnectionsPerSever:                8,
+			RateLimitPerServer:                 10,
 		},
 
 		rootURL: defaultBaseURL,
@@ -732,8 +734,12 @@ func (o *Options) FilterEntryMaxAgeDays() int {
 
 func (o *Options) PreferSiteIcon() bool { return o.env.PreferSiteIcon }
 
-func (o *Options) ConnectionsPerServer() int {
+func (o *Options) ConnectionsPerServer() int64 {
 	return o.env.ConnectionsPerSever
+}
+
+func (o *Options) RateLimitPerServer() float64 {
+	return o.env.RateLimitPerServer
 }
 
 func (o *Options) Logging() []Log {
@@ -861,6 +867,7 @@ func (o *Options) SortedOptions(redactSecret bool) []Option {
 		"YOUTUBE_EMBED_URL_OVERRIDE":             o.YouTubeEmbedUrlOverride(),
 		"WEBAUTHN":                               o.WebAuthn(),
 		"PREFER_SITE_ICON":                       o.PreferSiteIcon(),
+		"RATE_LIMIT_PER_SERVER":                  o.RateLimitPerServer(),
 	}
 
 	keys := make([]string, 0, len(keyValues))

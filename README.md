@@ -166,6 +166,24 @@ This project is an opinionated fork of Miniflux.
 
   If mark entries as read when viewed enabled in user settings.
 
+* Rate limit connections per server.
+
+  By default the maximum allowed rate is 10 requests per second per server. This
+  limit can be changed by adding `RATE_LIMIT_PER_SERVER` to the config, which
+  defines requests per second, like
+
+  ```
+  RATE_LIMIT_PER_SERVER=100
+  ```
+
+  which increases the limit to 100 requests per second or
+
+  ```
+  RATE_LIMIT_PER_SERVER=0.5
+  ```
+
+  which decreases the limit to 1 request per 2 seconds.
+
 Features
 --------
 

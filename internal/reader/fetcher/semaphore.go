@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"golang.org/x/sync/semaphore"
+	"golang.org/x/time/rate"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/logging"
@@ -52,21 +53,25 @@ func (self *ResponseSemaphore) Close() {
 	self.closed = true
 }
 
-func NewWeightedRefs(n int64) *weightedRefs {
-	return &weightedRefs{Weighted: semaphore.NewWeighted(n)}
+func NewHostLimit(n int64, r float64) *hostLimit {
+	return &hostLimit{
+		sem:  semaphore.NewWeighted(n),
+		rate: rate.NewLimiter(rate.Limit(r), 1),
+	}
 }
 
-type weightedRefs struct {
-	*semaphore.Weighted
+type hostLimit struct {
+	sem  *semaphore.Weighted
+	rate *rate.Limiter
 	refs int
 }
 
 func NewLimitPerServer() *limitHosts {
-	return &limitHosts{servers: map[string]*weightedRefs{}}
+	return &limitHosts{servers: map[string]*hostLimit{}}
 }
 
 type limitHosts struct {
-	servers map[string]*weightedRefs
+	servers map[string]*hostLimit
 	mu      sync.Mutex
 }
 
@@ -74,26 +79,39 @@ func (self *limitHosts) Acquire(ctx context.Context, hostname string) error {
 	self.mu.Lock()
 	s := self.servers[hostname]
 	if s == nil {
-		s = NewWeightedRefs(int64(config.Opts.ConnectionsPerServer()))
+		s = NewHostLimit(
+			config.Opts.ConnectionsPerServer(),
+			config.Opts.RateLimitPerServer())
 		self.servers[hostname] = s
 	}
 	s.refs++
 	self.mu.Unlock()
 
 	log := logging.FromContext(ctx).With(slog.String("hostname", hostname))
-	if s.TryAcquire(1) {
-		log.Debug("try acquired connection semaphore")
+	rateWait := func() error {
+		log.Info("max rate limit reached")
+		if err := s.rate.Wait(ctx); err != nil {
+			return fmt.Errorf("reader/fetcher: wait for rate limit host %q: %w",
+				hostname, err)
+		}
+		log.Info("acquired rate limited connection semaphore")
 		return nil
 	}
 
-	log.Info("max connections limit reached")
-	if err := s.Acquire(ctx, 1); err != nil {
-		return fmt.Errorf(
-			"reader/handler: acquire semaphore for host %q: %w", hostname, err)
+	if s.sem.TryAcquire(1) {
+		if s.rate.Allow() {
+			log.Debug("try acquired rate limited connection semaphore")
+			return nil
+		}
+		return rateWait()
 	}
 
-	log.Info("acquired connection semaphore")
-	return nil
+	log.Info("max connections limit reached")
+	if err := s.sem.Acquire(ctx, 1); err != nil {
+		return fmt.Errorf(
+			"reader/fetcher: acquire semaphore for host %q: %w", hostname, err)
+	}
+	return rateWait()
 }
 
 func (self *limitHosts) Release(hostname string) {
@@ -104,5 +122,5 @@ func (self *limitHosts) Release(hostname string) {
 		delete(self.servers, hostname)
 	}
 	self.mu.Unlock()
-	s.Release(1)
+	s.sem.Release(1)
 }
