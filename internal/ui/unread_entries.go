@@ -26,10 +26,10 @@ func (h *handler) showUnreadPage(w http.ResponseWriter, r *http.Request) {
 
 	query := h.store.NewEntryQueryBuilder(user.ID).
 		WithStatus(model.EntryStatusUnread).
+		WithGloballyVisible().
 		WithSorting(user.EntryOrder, user.EntryDirection).
 		WithSorting("id", user.EntryDirection).
-		WithLimit(user.EntriesPerPage).
-		WithGloballyVisible()
+		WithLimit(user.EntriesPerPage)
 
 	var startTime time.Time
 	var fetchEntriesElapsed time.Duration
