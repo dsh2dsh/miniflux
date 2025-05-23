@@ -57,17 +57,8 @@ func (f *FeedQueryBuilder) WithCategoryID(categoryID int64) *FeedQueryBuilder {
 	return f
 }
 
-// WithFeedID filter by feed ID.
-func (f *FeedQueryBuilder) WithFeedID(feedID int64) *FeedQueryBuilder {
-	if feedID > 0 {
-		f.conditions = append(f.conditions,
-			fmt.Sprintf("f.id = $%d", len(f.args)+1))
-		f.args = append(f.args, feedID)
-	}
-	return f
-}
-
-// WithCounters let the builder return feeds with counters of statuses of entries.
+// WithCounters let the builder return feeds with counters of statuses of
+// entries.
 func (f *FeedQueryBuilder) WithCounters() *FeedQueryBuilder {
 	f.withCounters = true
 	return f
@@ -117,9 +108,13 @@ func (f *FeedQueryBuilder) buildSorting() string {
 	return parts
 }
 
-// GetFeed returns a single feed that match the condition.
-func (f *FeedQueryBuilder) GetFeed(ctx context.Context) (*model.Feed, error) {
-	feeds, err := f.WithLimit(1).GetFeeds(ctx)
+// GetFeedByID returns a single feed that match feedID.
+func (f *FeedQueryBuilder) GetFeedByID(ctx context.Context, feedID int64,
+) (*model.Feed, error) {
+	f.conditions[0] = "f.id = $1"
+	f.args[0] = feedID
+
+	feeds, err := f.queryFeeds(ctx)
 	if err != nil {
 		return nil, err
 	} else if len(feeds) != 1 {
@@ -128,20 +123,8 @@ func (f *FeedQueryBuilder) GetFeed(ctx context.Context) (*model.Feed, error) {
 	return feeds[0], nil
 }
 
-// GetFeeds returns a list of feeds that match the condition.
-func (f *FeedQueryBuilder) GetFeeds(ctx context.Context) (model.Feeds, error) {
-	var readCounters, unreadCounters map[int64]int
-	g, ctx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		read, unread, err := f.fetchFeedCounter(ctx)
-		if err != nil {
-			return err
-		}
-		readCounters, unreadCounters = read, unread
-		return nil
-	})
-	defer func() { _ = g.Wait() }()
-
+func (f *FeedQueryBuilder) queryFeeds(ctx context.Context) (model.Feeds, error,
+) {
 	rows, err := f.db.Query(ctx, `
 SELECT
   f.id,
@@ -195,7 +178,7 @@ FROM feeds f
      LEFT JOIN users u ON u.id=f.user_id
 WHERE `+f.buildCondition()+" "+f.buildSorting(), f.args...)
 	if err != nil {
-		return nil, fmt.Errorf(`store: unable to fetch feeds: %w`, err)
+		return nil, fmt.Errorf("storage: query feeds: %w", err)
 	}
 	defer rows.Close()
 
@@ -205,7 +188,7 @@ WHERE `+f.buildCondition()+" "+f.buildSorting(), f.args...)
 		var externalIconID pgtype.Text
 		var tz string
 
-		feed := &model.Feed{Category: &model.Category{}}
+		feed := model.NewFeed()
 		err := rows.Scan(
 			&feed.ID,
 			&feed.FeedURL,
@@ -253,17 +236,17 @@ WHERE `+f.buildCondition()+" "+f.buildSorting(), f.args...)
 			&feed.Extra,
 		)
 		if err != nil {
-			return nil, fmt.Errorf(`store: unable to fetch feeds row: %w`, err)
+			return nil, fmt.Errorf("storage: fetch feeds row: %w", err)
 		}
 
 		if iconID.Valid && externalIconID.Valid {
-			feed.Icon = &model.FeedIcon{
+			*feed.Icon = model.FeedIcon{
 				FeedID:         feed.ID,
 				IconID:         iconID.Int64,
 				ExternalIconID: externalIconID.String,
 			}
 		} else {
-			feed.Icon = &model.FeedIcon{FeedID: feed.ID}
+			feed.Icon.FeedID = feed.ID
 		}
 
 		feed.CheckedAt = timezone.Convert(tz, feed.CheckedAt)
@@ -271,35 +254,38 @@ WHERE `+f.buildCondition()+" "+f.buildSorting(), f.args...)
 		feed.Category.UserID = feed.UserID
 		feeds = append(feeds, feed)
 	}
+	return feeds, nil
+}
+
+// GetFeeds returns a list of feeds that match the condition.
+func (f *FeedQueryBuilder) GetFeeds(ctx context.Context) (model.Feeds, error) {
+	if !f.withCounters {
+		return f.queryFeeds(ctx)
+	}
+
+	g, ctx := errgroup.WithContext(ctx)
+	var feeds model.Feeds
+	g.Go(func() (err error) {
+		feeds, err = f.queryFeeds(ctx)
+		return
+	})
+
+	var read, unread map[int64]int
+	g.Go(func() (err error) {
+		read, unread, err = f.fetchFeedCounter(ctx)
+		return
+	})
 
 	if err := g.Wait(); err != nil {
-		return nil, err //nolint:wrapcheck // already wrapped
+		return nil, fmt.Errorf("group wait: %w", err)
 	}
 
-	if readCounters != nil || unreadCounters != nil {
-		for _, feed := range feeds {
-			if readCounters != nil {
-				if count, ok := readCounters[feed.ID]; ok {
-					feed.ReadCount = count
-				}
-			}
-			if unreadCounters != nil {
-				if count, ok := unreadCounters[feed.ID]; ok {
-					feed.UnreadCount = count
-				}
-			}
-			feed.NumberOfVisibleEntries = feed.ReadCount + feed.UnreadCount
-		}
-	}
+	f.fillFeedCounters(feeds, read, unread)
 	return feeds, nil
 }
 
 func (f *FeedQueryBuilder) fetchFeedCounter(ctx context.Context,
 ) (map[int64]int, map[int64]int, error) {
-	if !f.withCounters {
-		return nil, nil, nil
-	}
-
 	query := `
 SELECT e.feed_id, e.status, count(*)
   FROM entries e %s
@@ -334,4 +320,18 @@ GROUP BY e.feed_id, e.status`
 		return nil, nil, fmt.Errorf(`store: unable to fetch feed counts: %w`, err)
 	}
 	return readCounters, unreadCounters, nil
+}
+
+func (f *FeedQueryBuilder) fillFeedCounters(feeds model.Feeds, readCounters,
+	unreadCounters map[int64]int,
+) {
+	for _, feed := range feeds {
+		if count, ok := readCounters[feed.ID]; ok {
+			feed.ReadCount = count
+		}
+		if count, ok := unreadCounters[feed.ID]; ok {
+			feed.UnreadCount = count
+		}
+		feed.NumberOfVisibleEntries = feed.ReadCount + feed.UnreadCount
+	}
 }

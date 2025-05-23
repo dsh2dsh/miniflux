@@ -61,8 +61,6 @@ type IntegrationConfig struct {
 	TestListenAddr    string `env:"TEST_LISTEN_ADDR"`
 }
 
-func (c *IntegrationConfig) Configured() bool { return true }
-
 func (c *IntegrationConfig) RandomUsername() string {
 	return fmt.Sprintf("%s_%10d", c.RegularUsername, rand.Int())
 }

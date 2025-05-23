@@ -38,9 +38,7 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 
 	var feed *model.Feed
 	g.Go(func() (err error) {
-		feed, err = h.store.NewFeedQueryBuilder(userID).
-			WithFeedID(entry.FeedID).
-			GetFeed(ctx)
+		feed, err = h.store.FeedByID(ctx, userID, entry.FeedID)
 		return
 	})
 

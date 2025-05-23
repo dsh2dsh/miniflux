@@ -248,12 +248,11 @@ WHERE entries.user_id=$1 AND entries.feed_id=$2
 // FeedByID returns a feed by the ID.
 func (s *Storage) FeedByID(ctx context.Context, userID, feedID int64,
 ) (*model.Feed, error) {
-	builder := s.NewFeedQueryBuilder(userID).WithFeedID(feedID)
-	feed, err := builder.GetFeed(ctx)
+	feed, err := s.NewFeedQueryBuilder(userID).GetFeedByID(ctx, feedID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	} else if err != nil {
-		return nil, fmt.Errorf(`store: unable to fetch feed #%d: %w`, feedID, err)
+		return nil, fmt.Errorf("unable to fetch feed #%d: %w", feedID, err)
 	}
 	return feed, nil
 }
