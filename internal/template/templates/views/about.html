@@ -18,7 +18,7 @@
 
         {{ if .commit }}
         <li>
-            <strong>Git commit</strong>
+            <strong>{{ t "page.about.git_commit" }}</strong>
             <a href="https://github.com/dsh2dsh/miniflux/commit/{{ .commit }}">{{ .commit }}</a>
         </li>
         {{ end }}

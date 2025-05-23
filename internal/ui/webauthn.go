@@ -109,6 +109,8 @@ func (h *handler) beginRegistration(w http.ResponseWriter, r *http.Request) {
 			nil,
 		},
 		webauthn.WithExclusions(credsDescriptors),
+		webauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementPreferred),
+		webauthn.WithExtensions(protocol.AuthenticationExtensions{"credProps": true}),
 	)
 	if err != nil {
 		json.ServerError(w, r, err)
