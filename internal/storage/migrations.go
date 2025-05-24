@@ -288,7 +288,7 @@ CREATE UNIQUE INDEX users_openid_connect_id_idx
   ON users(openid_connect_id) WHERE openid_connect_id <> '';`),
 
 	sqlMigration(`
-CREATE INDEX entries_feed_url_idx ON entries(feed_id, url);
+CREATE INDEX entries_feed_url_idx ON entries(feed_id, url) WHERE length(url) < 2000;
 CREATE INDEX entries_user_status_feed_idx ON entries(user_id, status, feed_id);
 CREATE INDEX entries_user_status_changed_idx
   ON entries(user_id, status, changed_at);`),
