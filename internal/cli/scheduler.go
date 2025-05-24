@@ -45,16 +45,16 @@ forLoop:
 			break forLoop
 		case <-ticker.C:
 			slog.Info("feed scheduler got tick")
-			fetcher.ExpireHostLimits(time.Hour)
 			for {
 				hasJobs := refreshFeeds(ctx, self.store, self.pool, batchSize,
 					errorLimit)
 				if !hasJobs {
-					slog.Info("scheduler: no jobs is a good job")
+					slog.Info("scheduler: no jobs is a good news")
 					break
 				}
 				slog.Info("scheduler: check for more jobs")
 			}
+			fetcher.ExpireHostLimits(d)
 		case <-self.pool.WakeupSignal():
 			slog.Info("feed scheduler got wakeup signal")
 			refreshFeeds(ctx, self.store, self.pool, batchSize, errorLimit)

@@ -184,6 +184,10 @@ This project is an opinionated fork of Miniflux.
 
   which decreases the limit to 1 request per 2 seconds.
 
+* Mark entries as read when scrolled.
+
+  This new option is disabled by default and can be enabled in user settings.
+
 Features
 --------
 

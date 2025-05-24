@@ -9,9 +9,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/tdewolff/minify/v2"
-	"github.com/tdewolff/minify/v2/html"
-
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/metric"
 	"miniflux.app/v2/internal/model"
@@ -117,7 +114,7 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 				)
 			} else if extractedContent != "" {
 				// We replace the entry content only if the scraper doesn't return any error.
-				entry.Content = minifyEntryContent(extractedContent)
+				entry.Content = extractedContent
 			}
 		}
 
@@ -177,7 +174,7 @@ func ProcessEntryWebPage(feed *model.Feed, entry *model.Entry, user *model.User)
 	}
 
 	if extractedContent != "" {
-		entry.Content = minifyEntryContent(extractedContent)
+		entry.Content = extractedContent
 		if user.ShowReadingTime {
 			entry.ReadingTime = readingtime.EstimateReadingTime(entry.Content, user.DefaultReadingSpeed, user.CJKReadingSpeed)
 		}
@@ -229,20 +226,4 @@ func isRecentEntry(entry *model.Entry) bool {
 		return true
 	}
 	return false
-}
-
-func minifyEntryContent(entryContent string) string {
-	m := minify.New()
-
-	// Options required to avoid breaking the HTML content.
-	m.Add("text/html", &html.Minifier{
-		KeepEndTags: true,
-		KeepQuotes:  true,
-	})
-
-	if minifiedHTML, err := m.String("text/html", entryContent); err == nil {
-		entryContent = minifiedHTML
-	}
-
-	return entryContent
 }

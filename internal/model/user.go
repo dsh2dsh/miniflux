@@ -41,6 +41,11 @@ type User struct {
 	MediaPlaybackRate               float64    `json:"media_playback_rate" db:"media_playback_rate"`
 	BlockFilterEntryRules           string     `json:"block_filter_entry_rules" db:"block_filter_entry_rules"`
 	KeepFilterEntryRules            string     `json:"keep_filter_entry_rules" db:"keep_filter_entry_rules"`
+	Extra                           UserExtra  `json:"extra,omitzero" db:"extra"`
+}
+
+type UserExtra struct {
+	MarkReadOnScroll bool `json:"mark_read_on_scroll,omitempty"`
 }
 
 // UserCreationRequest represents the request to create a user.
@@ -82,6 +87,7 @@ type UserModificationRequest struct {
 	MediaPlaybackRate               *float64 `json:"media_playback_rate"`
 	BlockFilterEntryRules           *string  `json:"block_filter_entry_rules"`
 	KeepFilterEntryRules            *string  `json:"keep_filter_entry_rules"`
+	MarkReadOnScroll                *bool    `json:"mark_read_on_scroll,omitempty"`
 }
 
 // Patch updates the User object with the modification request.
@@ -197,6 +203,10 @@ func (u *UserModificationRequest) Patch(user *User) {
 	if u.KeepFilterEntryRules != nil {
 		user.KeepFilterEntryRules = *u.KeepFilterEntryRules
 	}
+
+	if u.MarkReadOnScroll != nil {
+		user.Extra.MarkReadOnScroll = *u.MarkReadOnScroll
+	}
 }
 
 // UseTimezone converts last login date to the given timezone.
@@ -205,6 +215,8 @@ func (u *User) UseTimezone(tz string) {
 		*u.LastLoginAt = timezone.Convert(tz, *u.LastLoginAt)
 	}
 }
+
+func (u *User) MarkReadOnScroll() bool { return u.Extra.MarkReadOnScroll }
 
 // Users represents a list of users.
 type Users []*User

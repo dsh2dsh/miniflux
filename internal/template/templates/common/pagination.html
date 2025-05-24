@@ -19,21 +19,30 @@
     </div>
 
     <div class="pagination-forward">
-        <div class="pagination-next {{ if not .ShowNext }}disabled{{end}}">
-            {{ if .ShowNext }}
-                <a href="{{ .Route }}?offset={{ .NextOffset }}{{ if .SearchQuery }}&amp;q={{ .SearchQuery }}{{ end }}" data-page="next" rel="next">{{ t "pagination.next" }}</a>
-            {{ else }}
+        {{ if .ShowNext }}
+        <div class="pagination-next">
+            <a href="{{ .Route }}?offset={{ .NextOffset }}{{ if .SearchQuery }}&amp;q={{ .SearchQuery }}{{ end }}"
+               data-page="next"
+               data-offset="{{ .NextOffset }}"
+               rel="next">
                 {{ t "pagination.next" }}
-            {{ end }}
+            </a>
         </div>
+        {{ else }}
+        <div class="pagination-next disabled">{{ t "pagination.next" }}</div>
+        {{ end }}
 
-        <div class="pagination-last {{ if not .ShowLast }}disabled{{end}}">
-            {{ if .ShowLast }}
-                <a href="{{ .Route }}?offset={{ .LastOffset }}{{ if .SearchQuery }}&amp;q={{ .SearchQuery }}{{ end }}" data-page="last" >{{ t "pagination.last" }}</a>
-            {{ else }}
+        {{ if .ShowLast }}
+        <div class="pagination-last">
+            <a href="{{ .Route }}?offset={{ .LastOffset }}{{ if .SearchQuery }}&amp;q={{ .SearchQuery }}{{ end }}"
+               data-page="last"
+               data-offset="{{ .LastOffset }}">
                 {{ t "pagination.last" }}
-            {{ end }}
+            </a>
         </div>
+        {{ else }}
+        <div class="pagination-last disabled">{{ t "pagination.last" }}</div>
+        {{ end }}
     </div>
 </div>
 {{ end }}

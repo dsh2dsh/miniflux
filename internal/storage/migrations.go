@@ -656,4 +656,8 @@ ALTER TABLE integrations ADD COLUMN extra jsonb NOT NULL DEFAULT '{}'::jsonb`),
 
 	// 112
 	sqlMigration(`CREATE INDEX ON feeds (user_id, parsing_error_count)`),
+
+	// 113
+	sqlMigration(`
+ALTER TABLE users ADD COLUMN extra jsonb NOT NULL DEFAULT '{}'::jsonb`),
 }

@@ -46,6 +46,11 @@ type User struct {
 	BlockFilterEntryRules  string     `json:"block_filter_entry_rules"`
 	KeepFilterEntryRules   string     `json:"keep_filter_entry_rules"`
 	ExternalFontHosts      string     `json:"external_font_hosts"`
+	Extra                  UserExtra  `json:"extra,omitzero"`
+}
+
+type UserExtra struct {
+	MarkReadOnScroll bool `json:"mark_read_on_scroll,omitempty"`
 }
 
 func (u User) String() string {
@@ -90,6 +95,7 @@ type UserModificationRequest struct {
 	BlockFilterEntryRules  *string  `json:"block_filter_entry_rules"`
 	KeepFilterEntryRules   *string  `json:"keep_filter_entry_rules"`
 	ExternalFontHosts      *string  `json:"external_font_hosts"`
+	MarkReadOnScroll       *bool    `json:"mark_read_on_scroll,omitempty"`
 }
 
 // Users represents a list of users.

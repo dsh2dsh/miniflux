@@ -3,7 +3,7 @@
 CREATE TABLE schema_version (
     version text NOT NULL
 );
-INSERT INTO schema_version (version) VALUES('112');
+INSERT INTO schema_version (version) VALUES('113');
 
 CREATE TABLE acme_cache (
     key character varying(400) NOT NULL PRIMARY KEY,
@@ -58,7 +58,8 @@ CREATE TABLE users (
     keep_filter_entry_rules text DEFAULT '' NOT NULL,
     mark_read_on_media_player_completion boolean DEFAULT false,
     custom_js text DEFAULT '' NOT NULL,
-    external_font_hosts text DEFAULT '' NOT NULL
+    external_font_hosts text DEFAULT '' NOT NULL,
+    extra jsonb NOT NULL DEFAULT '{}'::jsonb
 );
 
 CREATE UNIQUE INDEX ON users (google_id) WHERE (google_id <> '');

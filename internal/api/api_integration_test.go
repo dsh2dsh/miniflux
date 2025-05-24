@@ -285,56 +285,79 @@ func (self *EndpointTestSuite) TestGetUserByUsernameEndpointAsRegularUser() {
 		"Regular users should not have access to the user by username endpoint")
 }
 
-func (self *EndpointTestSuite) TestUpdateUserEndpointByChangingDefaultTheme() {
-	userUpdateRequest := miniflux.UserModificationRequest{
-		Theme: miniflux.SetOptionalField("dark_serif"),
-	}
-
-	updatedUser, err := self.client.UpdateUser(self.user.ID, &userUpdateRequest)
-	self.Require().NoError(err)
-	self.Equal("dark_serif", updatedUser.Theme, "Invalid theme")
-}
-
-func (self *EndpointTestSuite) TestUpdateUserEndpointByChangingExternalFonts() {
-	userUpdateRequest := miniflux.UserModificationRequest{
-		ExternalFontHosts: miniflux.SetOptionalField("  fonts.example.org  "),
-	}
-
-	updatedUser, err := self.client.UpdateUser(self.user.ID, &userUpdateRequest)
-	self.Require().NoError(err)
-	self.Equal("fonts.example.org", updatedUser.ExternalFontHosts,
-		"Invalid external font hosts")
-}
-
-func (self *EndpointTestSuite) TestUpdateUserEndpointByChangingExternalFontsWithInvalidValue() {
-	userUpdateRequest := miniflux.UserModificationRequest{
-		ExternalFontHosts: miniflux.SetOptionalField("'self' *"),
-	}
-
-	_, err := self.client.UpdateUser(self.user.ID, &userUpdateRequest)
-	self.Require().Error(err,
-		"Updating the user with an invalid external font host should raise an error")
-}
-
-func (self *EndpointTestSuite) TestUpdateUserEndpointByChangingCustomJS() {
+func (self *EndpointTestSuite) TestUpdateUserEndpoint() {
 	const js = "alert('Hello, World!');"
-	userUpdateRequest := miniflux.UserModificationRequest{
-		CustomJS: miniflux.SetOptionalField(js),
+
+	tests := []struct {
+		name    string
+		req     miniflux.UserModificationRequest
+		wantErr bool
+		assert  func(updatedUser *miniflux.User)
+	}{
+		{
+			name: "mark_read_on_scroll",
+			req: miniflux.UserModificationRequest{
+				MarkReadOnScroll: miniflux.SetOptionalField(true),
+			},
+			assert: func(updatedUser *miniflux.User) {
+				self.True(updatedUser.Extra.MarkReadOnScroll)
+			},
+		},
+		{
+			name: "default theme",
+			req: miniflux.UserModificationRequest{
+				Theme: miniflux.SetOptionalField("dark_serif"),
+			},
+			assert: func(updatedUser *miniflux.User) {
+				self.Equal("dark_serif", updatedUser.Theme, "Invalid theme")
+			},
+		},
+		{
+			name: "external fonts",
+			req: miniflux.UserModificationRequest{
+				ExternalFontHosts: miniflux.SetOptionalField("  fonts.example.org  "),
+			},
+			assert: func(updatedUser *miniflux.User) {
+				self.Equal("fonts.example.org", updatedUser.ExternalFontHosts,
+					"Invalid external font hosts")
+			},
+		},
+		{
+			name: "invalid external fonts",
+			req: miniflux.UserModificationRequest{
+				ExternalFontHosts: miniflux.SetOptionalField("'self' *"),
+			},
+			wantErr: true,
+		},
+		{
+			name: "custom js",
+			req: miniflux.UserModificationRequest{
+				CustomJS: miniflux.SetOptionalField(js),
+			},
+			assert: func(updatedUser *miniflux.User) {
+				self.Equal(js, updatedUser.CustomJS, "Invalid custom JS")
+			},
+		},
+		{
+			name: "invalid theme",
+			req: miniflux.UserModificationRequest{
+				Theme: miniflux.SetOptionalField("invalid_theme"),
+			},
+			wantErr: true,
+		},
 	}
 
-	updatedUser, err := self.client.UpdateUser(self.user.ID, &userUpdateRequest)
-	self.Require().NoError(err)
-	self.Equal(js, updatedUser.CustomJS, "Invalid custom JS")
-}
-
-func (self *EndpointTestSuite) TestUpdateUserEndpointByChangingDefaultThemeToInvalidValue() {
-	userUpdateRequest := miniflux.UserModificationRequest{
-		Theme: miniflux.SetOptionalField("invalid_theme"),
+	for _, tt := range tests {
+		self.Run(tt.name, func() {
+			updatedUser, err := self.client.UpdateUser(self.user.ID, &tt.req)
+			if tt.wantErr {
+				self.T().Log(err)
+				self.Require().Error(err)
+				return
+			}
+			tt.assert(updatedUser)
+		})
 	}
-
-	_, err := self.client.UpdateUser(self.user.ID, &userUpdateRequest)
-	self.Require().Error(err,
-		"Updating the user with an invalid theme should raise an error")
 }
 
 func (self *EndpointTestSuite) TestRegularUsersCannotUpdateOtherUsers() {

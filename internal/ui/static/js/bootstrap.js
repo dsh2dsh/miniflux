@@ -192,4 +192,6 @@ document.addEventListener("DOMContentLoaded", () => {
     mediaControlsElements.forEach((element) => {
         element.addEventListener("click", () => handleMediaControl(element));
     });
+
+    markReadOnScroll();
 });
