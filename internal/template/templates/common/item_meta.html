@@ -100,6 +100,7 @@
         </li>
         {{ end }}
 
+        {{ if not .user.AlwaysOpenExternalLinks }}
         <li class="item-meta-icons-external-url">
             <a href="{{ .entry.URL | safeURL  }}"
                aria-describedby="entry-title-{{ .entry.ID }}"
@@ -111,6 +112,7 @@
                 <span class="icon-label">{{ t "entry.external_link.label" }}</span>
             </a>
         </li>
+        {{ end }}
 
         {{ if .entry.CommentsURL }}
         <li class="item-meta-icons-comments">
