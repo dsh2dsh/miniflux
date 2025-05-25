@@ -8,7 +8,17 @@
 
     <header class="item-header" dir="auto">
         <h2 id="entry-title-{{ .entry.ID }}" class="item-title">
+            {{ if .user.AlwaysOpenExternalLinks }}
+            <a href="{{ .entry.URL | safeURL  }}"
+               target="_blank"
+               rel="noopener noreferrer"
+               referrerpolicy="no-referrer"
+               data-original-link="{{ .user.MarkReadOnView }}">
+                {{ .entry.Title }}
+            </a>
+            {{ else }}
             <a href="{{ .route }}">{{ .entry.Title }}</a>
+            {{ end }}
         </h2>
         <span class="category">
             <a
