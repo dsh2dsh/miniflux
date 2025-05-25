@@ -345,6 +345,15 @@ func (self *EndpointTestSuite) TestUpdateUserEndpoint() {
 			},
 			wantErr: true,
 		},
+		{
+			name: "AlwaysOpenExternalLinks",
+			req: miniflux.UserModificationRequest{
+				AlwaysOpenExternalLinks: miniflux.SetOptionalField(true),
+			},
+			assert: func(updatedUser *miniflux.User) {
+				self.True(updatedUser.Extra.AlwaysOpenExternalLinks)
+			},
+		},
 	}
 
 	for _, tt := range tests {

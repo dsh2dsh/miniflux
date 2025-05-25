@@ -62,10 +62,11 @@ func (h *handler) showSettingsPage(w http.ResponseWriter, r *http.Request) {
 		CategoriesSortingOrder: user.CategoriesSortingOrder,
 		MarkReadBehavior: form.MarkAsReadBehavior(user.MarkReadOnView,
 			user.MarkReadOnMediaPlayerCompletion),
-		MediaPlaybackRate:     user.MediaPlaybackRate,
-		BlockFilterEntryRules: user.BlockFilterEntryRules,
-		KeepFilterEntryRules:  user.KeepFilterEntryRules,
-		MarkReadOnScroll:      user.MarkReadOnScroll(),
+		MediaPlaybackRate:       user.MediaPlaybackRate,
+		BlockFilterEntryRules:   user.BlockFilterEntryRules,
+		KeepFilterEntryRules:    user.KeepFilterEntryRules,
+		MarkReadOnScroll:        user.MarkReadOnScroll(),
+		AlwaysOpenExternalLinks: user.AlwaysOpenExternalLinks(),
 	}
 
 	v.Set("menu", "settings").

@@ -46,6 +46,11 @@ func (h *handler) showSearchEntryPage(w http.ResponseWriter, r *http.Request) {
 		entry.Status = model.EntryStatusRead
 	}
 
+	if v.User().AlwaysOpenExternalLinks() {
+		html.Redirect(w, r, entry.URL)
+		return
+	}
+
 	prevEntry, nextEntry, err := h.store.NewEntryPaginationBuilder(
 		v.UserID(), entryID, v.User().EntryOrder, v.User().EntryDirection).
 		WithSearchQuery(searchQuery).

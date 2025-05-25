@@ -90,6 +90,11 @@ func (h *handler) showUnreadFeedEntryPage(w http.ResponseWriter,
 		}
 	}
 
+	if v.User().AlwaysOpenExternalLinks() {
+		html.Redirect(w, r, entry.URL)
+		return
+	}
+
 	b := v.Set("menu", "feeds").
 		Set("entry", entry).
 		Set("prevEntry", prevEntry).

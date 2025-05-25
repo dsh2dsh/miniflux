@@ -90,6 +90,11 @@ func (h *handler) showUnreadCategoryEntryPage(w http.ResponseWriter,
 		}
 	}
 
+	if v.User().AlwaysOpenExternalLinks() {
+		html.Redirect(w, r, entry.URL)
+		return
+	}
+
 	b := v.Set("menu", "categories").
 		Set("entry", entry).
 		Set("prevEntry", prevEntry).

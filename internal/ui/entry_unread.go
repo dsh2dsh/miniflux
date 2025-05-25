@@ -84,6 +84,11 @@ func (h *handler) showUnreadEntryPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if v.User().AlwaysOpenExternalLinks() {
+		html.Redirect(w, r, entry.URL)
+		return
+	}
+
 	v.Set("menu", "unread").
 		Set("entry", entry).
 		Set("prevEntry", prevEntry).

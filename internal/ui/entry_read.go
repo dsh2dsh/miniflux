@@ -34,6 +34,11 @@ func (h *handler) showReadEntryPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if v.User().AlwaysOpenExternalLinks() {
+		html.Redirect(w, r, entry.URL)
+		return
+	}
+
 	prevEntry, nextEntry, err := h.store.NewEntryPaginationBuilder(
 		v.UserID(), entry.ID, "changed_at", "desc").
 		WithStatus(model.EntryStatusRead).

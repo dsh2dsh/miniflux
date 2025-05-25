@@ -45,7 +45,8 @@ type User struct {
 }
 
 type UserExtra struct {
-	MarkReadOnScroll bool `json:"mark_read_on_scroll,omitempty"`
+	MarkReadOnScroll        bool `json:"mark_read_on_scroll,omitempty"`
+	AlwaysOpenExternalLinks bool `json:"always_open_external_links,omitempty"`
 }
 
 // UserCreationRequest represents the request to create a user.
@@ -88,6 +89,7 @@ type UserModificationRequest struct {
 	BlockFilterEntryRules           *string  `json:"block_filter_entry_rules"`
 	KeepFilterEntryRules            *string  `json:"keep_filter_entry_rules"`
 	MarkReadOnScroll                *bool    `json:"mark_read_on_scroll,omitempty"`
+	AlwaysOpenExternalLinks         *bool    `json:"always_open_external_links,omitempty"`
 }
 
 // Patch updates the User object with the modification request.
@@ -207,6 +209,10 @@ func (u *UserModificationRequest) Patch(user *User) {
 	if u.MarkReadOnScroll != nil {
 		user.Extra.MarkReadOnScroll = *u.MarkReadOnScroll
 	}
+
+	if u.AlwaysOpenExternalLinks != nil {
+		user.Extra.AlwaysOpenExternalLinks = *u.AlwaysOpenExternalLinks
+	}
 }
 
 // UseTimezone converts last login date to the given timezone.
@@ -217,6 +223,10 @@ func (u *User) UseTimezone(tz string) {
 }
 
 func (u *User) MarkReadOnScroll() bool { return u.Extra.MarkReadOnScroll }
+
+func (u *User) AlwaysOpenExternalLinks() bool {
+	return u.Extra.AlwaysOpenExternalLinks
+}
 
 // Users represents a list of users.
 type Users []*User

@@ -271,40 +271,61 @@ func startHTTPServer(server *http.Server, g *errgroup.Group) {
 }
 
 func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
+	livenessProbe := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
+	}
+
+	readinessProbe := func(w http.ResponseWriter, r *http.Request) {
+		if err := store.Ping(r.Context()); err != nil {
+			http.Error(w, fmt.Sprintf("Database Connection Error: %q", err),
+				http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
+	}
+
 	router := mux.NewRouter()
+
+	// These routes do not take the base path into consideration and are always
+	// available at the root of the server.
+	router.HandleFunc("/liveness", livenessProbe).Name("liveness")
+	router.HandleFunc("/healthz", livenessProbe).Name("healthz")
+	router.HandleFunc("/readiness", readinessProbe).Name("readiness")
+	router.HandleFunc("/readyz", readinessProbe).Name("readyz")
+
+	var subrouter *mux.Router
 	if config.Opts.BasePath() != "" {
-		router = router.PathPrefix(config.Opts.BasePath()).Subrouter()
+		subrouter = router.PathPrefix(config.Opts.BasePath()).Subrouter()
+	} else {
+		subrouter = router.NewRoute().Subrouter()
 	}
 
 	if config.Opts.HasMaintenanceMode() {
-		router.Use(func(next http.Handler) http.Handler {
+		subrouter.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				_, _ = w.Write([]byte(config.Opts.MaintenanceMessage()))
 			})
 		})
 	}
 
-	router.Use(middleware)
+	subrouter.Use(middleware)
 
-	fever.Serve(router, store)
-	googlereader.Serve(router, store)
-	api.Serve(router, store, pool)
-	ui.Serve(router, store, pool)
+	fever.Serve(subrouter, store)
+	googlereader.Serve(subrouter, store)
+	api.Serve(subrouter, store, pool)
+	ui.Serve(subrouter, store, pool)
 
-	router.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
-		if err := store.Ping(r.Context()); err != nil {
-			http.Error(w, "Database Connection Error", http.StatusInternalServerError)
-			return
-		}
-		_, _ = w.Write([]byte("OK"))
-	}).Name("healthcheck")
+	subrouter.HandleFunc("/healthcheck", readinessProbe).Name("healthcheck")
 
-	router.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+	subrouter.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request,
+	) {
 		_, _ = w.Write([]byte(version.Version))
 	}).Name("version")
 
 	if config.Opts.HasMetricsCollector() {
-		router.Handle("/metrics", metric.Handler(store)).Name("metrics")
+		subrouter.Handle("/metrics", metric.Handler(store)).Name("metrics")
 	}
 	return router
 }
