@@ -906,6 +906,16 @@ template {
     transition-timing-function: ease-out;
 }
 
+.scroll-down-go-next {
+    height: 100vh;
+    border-bottom: 1px dotted var(--hr-border-color);
+    border-top: 1px dotted var(--hr-border-color);
+    padding: var(--item-padding);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
 /* Feeds list */
 article.feed-parsing-error {
     background-color: var(--feed-parsing-error-background-color);

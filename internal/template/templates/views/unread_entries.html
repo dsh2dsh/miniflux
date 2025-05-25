@@ -1,35 +1,48 @@
 {{ define "title"}}{{ t "page.unread.title" }} {{ if gt .countUnread 0 }}({{ .countUnread }}){{ end }} {{ end }}
 
 {{ define "page_header"}}
-<section class="page-header" aria-labelledby="page-header-title page-header-title-count">
+<section
+  class="page-header"
+  aria-labelledby="page-header-title page-header-title-count">
     <h1 id="page-header-title">
         {{ t "page.unread.title" }}
         <span aria-hidden="true">(<span class="unread-counter">{{ .countUnread }}</span>)</span>
     </h1>
-    <span id="page-header-title-count" class="sr-only">{{ plural "page.unread_entry_count" .countUnread .countUnread }}</span>
+
+    <span id="page-header-title-count" class="sr-only">
+        {{ plural "page.unread_entry_count" .countUnread .countUnread }}
+    </span>
+
     {{ if .entries }}
     <nav aria-label="{{ t "page.unread.title" }} {{ t "menu.title" }}">
         <ul>
             <li>
                 <button
-                    class="page-button"
-                    data-action="markPageAsRead"
-                    data-show-only-unread="1"
-                    data-label-question="{{ t "confirm.question" }}"
-                    data-label-yes="{{ t "confirm.yes" }}"
-                    data-label-no="{{ t "confirm.no" }}"
-                    data-label-loading="{{ t "confirm.loading" }}">{{ icon "mark-page-as-read" }}{{ t "menu.mark_page_as_read" }}</button>
+                  class="page-button"
+                  data-action="markPageAsRead"
+                  data-show-only-unread="1"
+                  data-label-question="{{ t "confirm.question" }}"
+                  data-label-yes="{{ t "confirm.yes" }}"
+                  data-label-no="{{ t "confirm.no" }}"
+                  data-label-loading="{{ t "confirm.loading" }}">
+                    {{ icon "mark-page-as-read" }}
+                    {{ t "menu.mark_page_as_read" }}
+                </button>
             </li>
+
             <li>
                 <button
-                    class="page-button"
-                    data-confirm="true"
-                    data-url="{{ route "markAllAsRead" }}"
-                    data-redirect-url="{{ route "unread" }}"
-                    data-label-question="{{ t "confirm.question" }}"
-                    data-label-yes="{{ t "confirm.yes" }}"
-                    data-label-no="{{ t "confirm.no" }}"
-                    data-label-loading="{{ t "confirm.loading" }}">{{ icon "mark-all-as-read" }}{{ t "menu.mark_all_as_read" }}</button>
+                  class="page-button"
+                  data-confirm="true"
+                  data-url="{{ route "markAllAsRead" }}"
+                  data-redirect-url="{{ route "unread" }}"
+                  data-label-question="{{ t "confirm.question" }}"
+                  data-label-yes="{{ t "confirm.yes" }}"
+                  data-label-no="{{ t "confirm.no" }}"
+                  data-label-loading="{{ t "confirm.loading" }}">
+                    {{ icon "mark-all-as-read" }}
+                    {{ t "menu.mark_all_as_read" }}
+                </button>
             </li>
         </ul>
     </nav>
@@ -39,41 +52,58 @@
 
 {{ define "content"}}
 {{ if not .entries }}
-    <p role="alert" class="alert">{{ t "alert.no_unread_entry" }}</p>
+<p role="alert" class="alert">{{ t "alert.no_unread_entry" }}</p>
 {{ else }}
-    <div class="pagination-top">
-        {{ template "pagination" .pagination }}
-    </div>
 
-    <div class="items"
-         data-mark-read-on-scroll="{{ if $.user.MarkReadOnScroll }}1{{ end }}">
-        {{ range .entries }}
-        {{   $route := route "unreadEntry" "entryID" .ID }}
-        {{   template "item" dict "route" $route "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry }}
-        {{ end }}
-    </div>
+{{ if not $.user.MarkReadOnScroll }}
+<div class="pagination-top">
+    {{ template "pagination" .pagination }}
+</div>
+{{ end }}
 
-    <section class="page-footer">
-        {{ if .entries }}
-        <ul>
-            <li>
-                <button
-                    class="page-button"
-                    data-action="markPageAsRead"
-                    data-label-question="{{ t "confirm.question" }}"
-                    data-label-yes="{{ t "confirm.yes" }}"
-                    data-label-no="{{ t "confirm.no" }}"
-                    data-label-loading="{{ t "confirm.loading" }}"
-                >
-                    {{ icon "mark-page-as-read" }}{{ t "menu.mark_page_as_read" }}
-                </button>
-            </li>
-        </ul>
-        {{ end }}
-    </section>
-    <div class="pagination-bottom">
-        {{ template "pagination" .pagination }}
+<div class="items"
+     data-mark-read-on-scroll="{{ if $.user.MarkReadOnScroll }}1{{ end }}">
+    {{ range .entries }}
+    {{   $route := route "unreadEntry" "entryID" .ID }}
+    {{   template "item" dict "route" $route "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry }}
+    {{ end }}
+</div>
+
+{{ if $.user.MarkReadOnScroll }}
+<section class="page-header scroll-down-go-next">
+    <div>
+        {{ icon "mark-page-as-read" }}
+        Scroll down to mark all as read and go to the next page.
     </div>
+    <div>
+        {{ t "confirm.loading" }}
+    </div>
+</section>
+{{ else }}
+<section class="page-footer">
+    {{ if .entries }}
+    <ul>
+        <li>
+            <button
+              class="page-button"
+              data-action="markPageAsRead"
+              data-label-question="{{ t "confirm.question" }}"
+              data-label-yes="{{ t "confirm.yes" }}"
+              data-label-no="{{ t "confirm.no" }}"
+              data-label-loading="{{ t "confirm.loading" }}">
+                {{ icon "mark-page-as-read" }}
+                {{ t "menu.mark_page_as_read" }}
+            </button>
+        </li>
+    </ul>
+    {{ end }}
+</section>
+
+<div class="pagination-bottom">
+    {{ template "pagination" .pagination }}
+</div>
+{{ end }}
+
 {{ end }}
 
 {{ end }}

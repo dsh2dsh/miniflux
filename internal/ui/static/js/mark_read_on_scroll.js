@@ -1,6 +1,8 @@
 class MarkReadOnScroll {
   scrolledEntries = [];
   timeoutId = 0;
+  lastEntryID = "";
+  pageEnd = false;
 
   constructor(entries) {
     if (entries.length == 0) {
@@ -15,6 +17,7 @@ class MarkReadOnScroll {
 
     entries.forEach((entry) => {
       this.observer.observe(entry);
+      this.lastEntryID = entry.dataset.id;
     });
   }
 
@@ -22,13 +25,16 @@ class MarkReadOnScroll {
     let addedEntries = false;
     entries.forEach((entry) => {
       const bottom = entry.boundingClientRect.bottom;
-      const visible = entry.isIntersecting;
-      if (visible || bottom > 0) {
+      if (entry.isIntersecting || bottom > 0) {
         return;
       }
 
       const element = entry.target;
       this.observer.unobserve(element);
+
+      if (element.dataset.id === this.lastEntryID) {
+        this.pageEnd = true;
+      }
 
       if (!element.classList.contains("item-status-unread")) {
         return;
@@ -51,6 +57,11 @@ class MarkReadOnScroll {
     const items = this.scrolledEntries.slice();
     this.scrolledEntries.length = 0;
 
+    if (this.pageEnd) {
+      markPageAsRead();
+      return;
+    }
+
     const entryIDs = items.map((element) => parseInt(element.dataset.id, 10));
     updateEntriesStatus(entryIDs, "read", () => {
       items.forEach((element) => {
@@ -68,27 +79,4 @@ function markReadOnScroll() {
     return;
   }
   readOnScrollObserver = new MarkReadOnScroll(entries);
-
-  const selector = 'a[data-page="next"]';
-  const nextPage = document.querySelector(selector);
-  if (!nextPage) {
-    return;
-  }
-
-  const lastSelector = 'a[data-page="last"]';
-  const lastPage = document.querySelector(lastSelector);
-  if (lastPage) {
-    const nextOffset = parseInt(nextPage.dataset.offset, 10);
-    const lastOffset = parseInt(lastPage.dataset.offset, 10);
-    if (lastOffset == nextOffset) {
-      selector.concat(", ", lastSelector);
-    }
-  }
-
-  document.querySelectorAll(selector).forEach((element) => {
-    element.addEventListener("click", (event) => {
-      event.preventDefault();
-      markPageAsRead();
-    });
-  });
 }
