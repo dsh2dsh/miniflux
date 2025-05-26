@@ -11,9 +11,9 @@ import (
 	"miniflux.app/v2/internal/http/route"
 )
 
-func (h *handler) removeAPIKey(w http.ResponseWriter, r *http.Request) {
+func (h *handler) deleteAPIKey(w http.ResponseWriter, r *http.Request) {
 	keyID := request.RouteInt64Param(r, "keyID")
-	err := h.store.RemoveAPIKey(r.Context(), request.UserID(r), keyID)
+	err := h.store.DeleteAPIKey(r.Context(), request.UserID(r), keyID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return

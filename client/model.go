@@ -342,6 +342,19 @@ type VersionResponse struct {
 	OS        string `json:"os"`
 }
 
-func SetOptionalField[T any](value T) *T {
-	return &value
+// APIKey represents an application API key.
+type APIKey struct {
+	ID          int64      `json:"id"`
+	UserID      int64      `json:"user_id"`
+	Token       string     `json:"token"`
+	Description string     `json:"description"`
+	LastUsedAt  *time.Time `json:"last_used_at"`
+	CreatedAt   time.Time  `json:"created_at"`
 }
+
+// APIKeyCreationRequest represents the request to create an API key.
+type APIKeyCreationRequest struct {
+	Description string `json:"description"`
+}
+
+func SetOptionalField[T any](value T) *T { return &value }

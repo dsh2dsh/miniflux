@@ -383,6 +383,63 @@ func (self *EndpointTestSuite) TestRegularUsersCannotUpdateOtherUsers() {
 		"Regular users should not be able to update other users")
 }
 
+func (self *EndpointTestSuite) TestAPIKeysEndpoint() {
+	apiKeys, err := self.client.APIKeys()
+	self.Require().NoError(err)
+	self.Empty(apiKeys, "Expected no API keys")
+
+	// Create an API key for the user.
+	apiKey, err := self.client.CreateAPIKey("Test API Key")
+	self.Require().NoError(err)
+	self.NotZero(apiKey.ID, "Invalid API key ID")
+	self.Equal(self.user.ID, apiKey.UserID, "Invalid user ID for API key")
+	self.NotEmpty(apiKey.Token, "Invalid API key token")
+	self.Equal("Test API Key", apiKey.Description, "Invalid API key description")
+
+	// Create a duplicate API key with the same description.
+	_, err = self.client.CreateAPIKey("Test API Key")
+	self.T().Log(err)
+	self.Require().Error(err,
+		"Creating a duplicate API key with the same description should raise an error")
+
+	// Fetch the API keys again.
+	apiKeys, err = self.client.APIKeys()
+	self.Require().NoError(err)
+	self.Equal([]*miniflux.APIKey{apiKey}, apiKeys)
+
+	// Create a new client using the API key.
+	apiKeyClient := miniflux.NewClient(self.cfg.BaseURL, apiKey.Token)
+	self.Require().NotNil(apiKeyClient)
+
+	// Fetch the user using the API key client.
+	user, err := apiKeyClient.Me()
+	self.Require().NoError(err)
+
+	// Verify the user matches the regular test user.
+	self.Equal(self.user.ID, user.ID)
+
+	// Delete the API key.
+	err = self.client.DeleteAPIKey(apiKey.ID)
+	self.Require().NoError(err)
+
+	// Verify the API key is deleted.
+	apiKeys, err = self.client.APIKeys()
+	self.Require().NoError(err)
+	self.Empty(apiKeys, "Expected no API keys after deletion")
+
+	// Try to delete the API key again, it should return an error.
+	err = self.client.DeleteAPIKey(apiKey.ID)
+	self.T().Log(err)
+	self.Require().ErrorIs(err, miniflux.ErrNotFound,
+		"Deleting a non-existent API key should raise 'not found' error")
+
+	// Try to create an API key with an empty description.
+	_, err = self.client.CreateAPIKey("")
+	self.T().Log(err)
+	self.Require().Error(err,
+		"Creating an API key with an empty description should raise an error")
+}
+
 func (self *EndpointTestSuite) TestMarkUserAsReadEndpoint() {
 	feedID := self.createFeed()
 	self.Require().NoError(self.client.MarkAllAsRead(self.user.ID))

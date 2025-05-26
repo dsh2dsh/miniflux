@@ -5,25 +5,19 @@ package model // import "miniflux.app/v2/internal/model"
 
 import (
 	"time"
-
-	"miniflux.app/v2/internal/crypto"
 )
 
 // APIKey represents an application API key.
 type APIKey struct {
-	ID          int64      `db:"id"`
-	UserID      int64      `db:"user_id"`
-	Token       string     `db:"token"`
-	Description string     `db:"description"`
-	LastUsedAt  *time.Time `db:"last_used_at"`
-	CreatedAt   time.Time  `db:"created_at"`
+	ID          int64      `json:"id" db:"id"`
+	UserID      int64      `json:"user_id" db:"user_id"`
+	Token       string     `json:"token" db:"token"`
+	Description string     `json:"description" db:"description"`
+	LastUsedAt  *time.Time `json:"last_used_at" db:"last_used_at"`
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
 }
 
-// NewAPIKey initializes a new APIKey.
-func NewAPIKey(userID int64, description string) *APIKey {
-	return &APIKey{
-		UserID:      userID,
-		Token:       crypto.GenerateRandomString(32),
-		Description: description,
-	}
+// APIKeyCreationRequest represents the request to create a new API Key.
+type APIKeyCreationRequest struct {
+	Description string `json:"description"`
 }

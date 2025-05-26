@@ -4,15 +4,13 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
-	"log/slog"
 	"net/http"
 
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
-	"miniflux.app/v2/internal/locale"
-	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
+	"miniflux.app/v2/internal/validator"
 )
 
 func (h *handler) saveAPIKey(w http.ResponseWriter, r *http.Request) {
@@ -23,35 +21,23 @@ func (h *handler) saveAPIKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	keyForm := form.NewAPIKeyForm(r)
-	v.Set("menu", "settings").
-		Set("form", keyForm)
+	keyCreationRequest := model.APIKeyCreationRequest{
+		Description: keyForm.Description,
+	}
 
-	if lerr := keyForm.Validate(); lerr != nil {
-		v.Set("errorMessage", lerr.Translate(v.User().Language))
+	lerr := validator.ValidateAPIKeyCreation(r.Context(), h.store, v.UserID(),
+		&keyCreationRequest)
+	if lerr != nil {
+		v.Set("menu", "settings").
+			Set("form", keyForm).
+			Set("errorMessage", lerr.Translate(v.User().Language))
 		html.OK(w, r, v.Render("create_api_key"))
 		return
 	}
 
-	alreadyExists, err := h.store.APIKeyExists(r.Context(), v.User().ID,
-		keyForm.Description)
+	_, err := h.store.CreateAPIKey(r.Context(), v.UserID(),
+		keyCreationRequest.Description)
 	if err != nil {
-		logging.FromContext(r.Context()).Error("failed API key lookup",
-			slog.Int64("user_id", v.User().ID),
-			slog.String("description", keyForm.Description),
-			slog.Any("error", err))
-		html.ServerError(w, r, err)
-		return
-	}
-
-	if alreadyExists {
-		lerr := locale.NewLocalizedError("error.api_key_already_exists")
-		v.Set("errorMessage", lerr.Translate(v.User().Language))
-		html.OK(w, r, v.Render("create_api_key"))
-		return
-	}
-
-	apiKey := model.NewAPIKey(v.User().ID, keyForm.Description)
-	if err = h.store.CreateAPIKey(r.Context(), apiKey); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}

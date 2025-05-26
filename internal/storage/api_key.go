@@ -5,12 +5,16 @@ package storage // import "miniflux.app/v2/internal/storage"
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
 
+	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/model"
 )
+
+var ErrAPIKeyNotFound = errors.New("store: API Key not found")
 
 // APIKeyExists checks if an API Key with the same description exists.
 func (s *Storage) APIKeyExists(ctx context.Context, userID int64,
@@ -33,8 +37,8 @@ SELECT EXISTS (
 func (s *Storage) SetAPIKeyUsedTimestamp(ctx context.Context, userID int64,
 	token string,
 ) error {
-	_, err := s.db.Exec(ctx, `
-UPDATE api_keys SET last_used_at=now() WHERE user_id=$1 and token=$2`,
+	_, err := s.db.Exec(ctx,
+		`UPDATE api_keys SET last_used_at=now() WHERE user_id=$1 and token=$2`,
 		userID, token)
 	if err != nil {
 		return fmt.Errorf(
@@ -49,8 +53,7 @@ func (s *Storage) APIKeys(ctx context.Context, userID int64,
 	rows, _ := s.db.Query(ctx, `
 SELECT id, user_id, token, description, last_used_at, created_at
   FROM api_keys
- WHERE user_id=$1
- ORDER BY description ASC`,
+ WHERE user_id=$1 ORDER BY description ASC`,
 		userID)
 
 	apiKeys, err := pgx.CollectRows(rows,
@@ -62,33 +65,31 @@ SELECT id, user_id, token, description, last_used_at, created_at
 }
 
 // CreateAPIKey inserts a new API key.
-func (s *Storage) CreateAPIKey(ctx context.Context, apiKey *model.APIKey,
-) error {
+func (s *Storage) CreateAPIKey(ctx context.Context, userID int64,
+	description string,
+) (*model.APIKey, error) {
 	rows, _ := s.db.Query(ctx, `
 INSERT INTO api_keys (user_id, token, description)
               VALUES ($1,      $2,    $3)
-  RETURNING id, created_at`,
-		apiKey.UserID, apiKey.Token, apiKey.Description,
-	)
+RETURNING id, user_id, token, description, last_used_at, created_at`,
+		userID, crypto.GenerateRandomStringHex(32), description)
 
-	created, err := pgx.CollectExactlyOneRow(rows,
-		pgx.RowToStructByNameLax[model.APIKey])
+	apiKey, err := pgx.CollectExactlyOneRow(rows,
+		pgx.RowToAddrOfStructByName[model.APIKey])
 	if err != nil {
-		return fmt.Errorf(`store: unable to create category: %w`, err)
+		return nil, fmt.Errorf(`store: unable to create API Key: %w`, err)
 	}
-
-	apiKey.ID = created.ID
-	apiKey.CreatedAt = created.CreatedAt
-	return nil
+	return apiKey, nil
 }
 
-// RemoveAPIKey deletes an API Key.
-func (s *Storage) RemoveAPIKey(ctx context.Context, userID, keyID int64) error {
-	_, err := s.db.Exec(ctx, `
-DELETE FROM api_keys WHERE id = $1 AND user_id = $2`,
-		keyID, userID)
+// DeleteAPIKey deletes an API Key.
+func (s *Storage) DeleteAPIKey(ctx context.Context, userID, keyID int64) error {
+	result, err := s.db.Exec(ctx,
+		`DELETE FROM api_keys WHERE id = $1 AND user_id = $2`, keyID, userID)
 	if err != nil {
-		return fmt.Errorf(`store: unable to remove this API Key: %w`, err)
+		return fmt.Errorf(`store: unable to delete this API Key: %w`, err)
+	} else if result.RowsAffected() == 0 {
+		return ErrAPIKeyNotFound
 	}
 	return nil
 }
