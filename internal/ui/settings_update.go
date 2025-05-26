@@ -15,10 +15,94 @@ import (
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
+	"miniflux.app/v2/internal/ui/session"
 	"miniflux.app/v2/internal/validator"
 )
 
+var cleanEnd = regexp.MustCompile(`(?m)\r\n\s*$`)
+
 func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
+	f := form.NewSettingsForm(r)
+
+	// Sanitize the end of the block & Keep rules
+	f.BlockFilterEntryRules = cleanEnd.ReplaceAllLiteralString(
+		f.BlockFilterEntryRules, "")
+	f.KeepFilterEntryRules = cleanEnd.ReplaceAllLiteralString(
+		f.KeepFilterEntryRules, "")
+
+	// Clean carriage returns for Windows environments
+	f.BlockFilterEntryRules = strings.ReplaceAll(f.BlockFilterEntryRules, "\r\n",
+		"\n")
+	f.KeepFilterEntryRules = strings.ReplaceAll(f.KeepFilterEntryRules, "\r\n",
+		"\n")
+
+	modifyRequest := model.UserModificationRequest{
+		Username:               model.OptionalString(f.Username),
+		Password:               model.OptionalString(f.Password),
+		Theme:                  model.OptionalString(f.Theme),
+		Language:               model.OptionalString(f.Language),
+		Timezone:               model.OptionalString(f.Timezone),
+		EntryDirection:         model.OptionalString(f.EntryDirection),
+		EntryOrder:             model.OptionalString(f.EntryOrder),
+		EntriesPerPage:         model.OptionalNumber(f.EntriesPerPage),
+		CategoriesSortingOrder: model.OptionalString(f.CategoriesSortingOrder),
+		DisplayMode:            model.OptionalString(f.DisplayMode),
+		GestureNav:             model.OptionalString(f.GestureNav),
+		DefaultReadingSpeed:    model.OptionalNumber(f.DefaultReadingSpeed),
+		CJKReadingSpeed:        model.OptionalNumber(f.CJKReadingSpeed),
+		DefaultHomePage:        model.OptionalString(f.DefaultHomePage),
+		MediaPlaybackRate:      model.OptionalNumber(f.MediaPlaybackRate),
+		BlockFilterEntryRules:  model.OptionalString(f.BlockFilterEntryRules),
+		KeepFilterEntryRules:   model.OptionalString(f.KeepFilterEntryRules),
+		ExternalFontHosts:      model.OptionalString(f.ExternalFontHosts),
+	}
+
+	if lerr := f.Validate(); lerr != nil {
+		h.showUpdateSettingsError(w, r, func(v *View) {
+			v.Set("form", f).
+				Set("errorMessage", lerr.Translate(v.User().Language))
+			html.OK(w, r, v.Render("settings"))
+		})
+		return
+	}
+
+	userID := request.UserID(r)
+	lerr := validator.ValidateUserModification(r.Context(), h.store, userID,
+		&modifyRequest)
+	if lerr != nil {
+		h.showUpdateSettingsError(w, r, func(v *View) {
+			v.Set("form", f).
+				Set("errorMessage", lerr.Translate(v.User().Language))
+			html.OK(w, r, v.Render("settings"))
+		})
+		return
+	}
+
+	user, err := h.store.UserByID(r.Context(), userID)
+	if err != nil {
+		html.ServerError(w, r, err)
+		return
+	}
+
+	err = h.store.UpdateUser(r.Context(), f.Merge(user))
+	if err != nil {
+		html.ServerError(w, r, err)
+		return
+	}
+
+	session.New(h.store, request.SessionID(r)).
+		SetLanguage(user.Language).
+		SetTheme(user.Theme).
+		NewFlashMessage(
+			locale.NewPrinter(request.UserLanguage(r)).
+				Printf("alert.prefs_saved")).
+		Commit(r.Context())
+	html.Redirect(w, r, route.Path(h.router, "settings"))
+}
+
+func (h *handler) showUpdateSettingsError(w http.ResponseWriter,
+	r *http.Request, renderFunc func(v *View),
+) {
 	v := h.View(r)
 
 	var creds []model.WebAuthnCredential
@@ -44,9 +128,7 @@ func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	settingsForm := form.NewSettingsForm(r)
 	v.Set("menu", "settings").
-		Set("form", settingsForm).
 		Set("readBehaviors", map[string]any{
 			"NoAutoMarkAsRead":                           form.NoAutoMarkAsRead,
 			"MarkAsReadOnView":                           form.MarkAsReadOnView,
@@ -60,67 +142,5 @@ func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		Set("categories_sorting_options", model.CategoriesSortingOptions()).
 		Set("countWebAuthnCerts", webAuthnCount).
 		Set("webAuthnCerts", creds)
-
-	// Sanitize the end of the block & Keep rules
-	cleanEnd := regexp.MustCompile(`(?m)\r\n\s*$`)
-	settingsForm.BlockFilterEntryRules = cleanEnd.ReplaceAllLiteralString(
-		settingsForm.BlockFilterEntryRules, "")
-	settingsForm.KeepFilterEntryRules = cleanEnd.ReplaceAllLiteralString(
-		settingsForm.KeepFilterEntryRules, "")
-
-	// Clean carriage returns for Windows environments
-	settingsForm.BlockFilterEntryRules = strings.ReplaceAll(
-		settingsForm.BlockFilterEntryRules, "\r\n", "\n")
-	settingsForm.KeepFilterEntryRules = strings.ReplaceAll(
-		settingsForm.KeepFilterEntryRules, "\r\n", "\n")
-
-	if lerr := settingsForm.Validate(); lerr != nil {
-		v.Set("errorMessage", lerr.Translate(v.User().Language))
-		html.OK(w, r, v.Render("settings"))
-		return
-	}
-
-	userModificationRequest := &model.UserModificationRequest{
-		Username:               model.OptionalString(settingsForm.Username),
-		Password:               model.OptionalString(settingsForm.Password),
-		Theme:                  model.OptionalString(settingsForm.Theme),
-		Language:               model.OptionalString(settingsForm.Language),
-		Timezone:               model.OptionalString(settingsForm.Timezone),
-		EntryDirection:         model.OptionalString(settingsForm.EntryDirection),
-		EntryOrder:             model.OptionalString(settingsForm.EntryOrder),
-		EntriesPerPage:         model.OptionalNumber(settingsForm.EntriesPerPage),
-		CategoriesSortingOrder: model.OptionalString(settingsForm.CategoriesSortingOrder),
-		DisplayMode:            model.OptionalString(settingsForm.DisplayMode),
-		GestureNav:             model.OptionalString(settingsForm.GestureNav),
-		DefaultReadingSpeed:    model.OptionalNumber(settingsForm.DefaultReadingSpeed),
-		CJKReadingSpeed:        model.OptionalNumber(settingsForm.CJKReadingSpeed),
-		DefaultHomePage:        model.OptionalString(settingsForm.DefaultHomePage),
-		MediaPlaybackRate:      model.OptionalNumber(settingsForm.MediaPlaybackRate),
-		BlockFilterEntryRules:  model.OptionalString(settingsForm.BlockFilterEntryRules),
-		KeepFilterEntryRules:   model.OptionalString(settingsForm.KeepFilterEntryRules),
-		ExternalFontHosts:      model.OptionalString(settingsForm.ExternalFontHosts),
-	}
-
-	lerr := validator.ValidateUserModification(r.Context(),
-		h.store, v.UserID(), userModificationRequest)
-	if lerr != nil {
-		v.Set("errorMessage", lerr.Translate(v.User().Language))
-		html.OK(w, r, v.Render("settings"))
-		return
-	}
-
-	err := h.store.UpdateUser(r.Context(), settingsForm.Merge(v.User()))
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
-
-	v.Session().
-		SetLanguage(v.User().Language).
-		SetTheme(v.User().Theme).
-		NewFlashMessage(
-			locale.NewPrinter(request.UserLanguage(r)).
-				Printf("alert.prefs_saved")).
-		Commit(r.Context())
-	html.Redirect(w, r, route.Path(h.router, "settings"))
+	renderFunc(v)
 }

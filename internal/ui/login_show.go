@@ -14,17 +14,17 @@ import (
 )
 
 func (h *handler) showLoginPage(w http.ResponseWriter, r *http.Request) {
-	if request.IsAuthenticated(r) {
-		user, err := h.store.UserByID(r.Context(), request.UserID(r))
-		if err != nil {
-			html.ServerError(w, r, err)
-			return
-		}
-		html.Redirect(w, r, route.Path(h.router, user.DefaultHomePage))
+	if !request.IsAuthenticated(r) {
+		sess := session.New(h.store, request.SessionID(r))
+		v := view.New(h.tpl, r, sess)
+		html.OK(w, r, v.Render("login"))
 		return
 	}
 
-	sess := session.New(h.store, request.SessionID(r))
-	view := view.New(h.tpl, r, sess)
-	html.OK(w, r, view.Render("login"))
+	user, err := h.store.UserByID(r.Context(), request.UserID(r))
+	if err != nil {
+		html.ServerError(w, r, err)
+		return
+	}
+	html.Redirect(w, r, route.Path(h.router, user.DefaultHomePage))
 }

@@ -17,6 +17,50 @@ import (
 )
 
 func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
+	f := form.NewFeedForm(r)
+	modifyRequest := model.FeedModificationRequest{
+		FeedURL:             model.OptionalString(f.FeedURL),
+		SiteURL:             model.OptionalString(f.SiteURL),
+		Title:               model.OptionalString(f.Title),
+		CommentsURLTemplate: model.OptionalString(f.CommentsURLTemplate),
+		Description:         model.OptionalString(f.Description),
+		CategoryID:          model.OptionalNumber(f.CategoryID),
+		BlocklistRules:      model.OptionalString(f.BlocklistRules),
+		KeeplistRules:       model.OptionalString(f.KeeplistRules),
+		UrlRewriteRules:     model.OptionalString(f.UrlRewriteRules),
+		ProxyURL:            model.OptionalString(f.ProxyURL),
+	}
+	userID := request.UserID(r)
+	feedID := request.RouteInt64Param(r, "feedID")
+
+	lerr := validator.ValidateFeedModification(r.Context(), h.store, userID,
+		feedID, &modifyRequest)
+	if lerr != nil {
+		h.showUpdateFeedError(w, r, func(v *View) {
+			v.Set("form", f).
+				Set("errorMessage", lerr.Translate(v.User().Language))
+			html.OK(w, r, v.Render("edit_feed"))
+		})
+		return
+	}
+
+	feed, err := h.store.FeedByID(r.Context(), userID, feedID)
+	if err != nil {
+		html.ServerError(w, r, err)
+		return
+	}
+
+	err = h.store.UpdateFeed(r.Context(), f.Merge(feed))
+	if err != nil {
+		html.ServerError(w, r, err)
+		return
+	}
+	html.Redirect(w, r, route.Path(h.router, "feedEntries", "feedID", feedID))
+}
+
+func (h *handler) showUpdateFeedError(w http.ResponseWriter, r *http.Request,
+	renderFunc func(v *View),
+) {
 	v := h.View(r)
 
 	feedID := request.RouteInt64Param(r, "feedID")
@@ -40,38 +84,9 @@ func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	feedForm := form.NewFeedForm(r)
 	v.Set("menu", "feeds").
-		Set("form", feedForm).
 		Set("categories", categories).
 		Set("feed", feed).
 		Set("defaultUserAgent", config.Opts.HTTPClientUserAgent())
-
-	feedRequest := &model.FeedModificationRequest{
-		FeedURL:             model.OptionalString(feedForm.FeedURL),
-		SiteURL:             model.OptionalString(feedForm.SiteURL),
-		Title:               model.OptionalString(feedForm.Title),
-		CommentsURLTemplate: model.OptionalString(feedForm.CommentsURLTemplate),
-		Description:         model.OptionalString(feedForm.Description),
-		CategoryID:          model.OptionalNumber(feedForm.CategoryID),
-		BlocklistRules:      model.OptionalString(feedForm.BlocklistRules),
-		KeeplistRules:       model.OptionalString(feedForm.KeeplistRules),
-		UrlRewriteRules:     model.OptionalString(feedForm.UrlRewriteRules),
-		ProxyURL:            model.OptionalString(feedForm.ProxyURL),
-	}
-
-	lerr := validator.ValidateFeedModification(r.Context(), h.store, v.User().ID,
-		feedID, feedRequest)
-	if lerr != nil {
-		v.Set("errorMessage", lerr.Translate(v.User().Language))
-		html.OK(w, r, v.Render("edit_feed"))
-		return
-	}
-
-	err := h.store.UpdateFeed(r.Context(), feedForm.Merge(feed))
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
-	html.Redirect(w, r, route.Path(h.router, "feedEntries", "feedID", feedID))
+	renderFunc(v)
 }

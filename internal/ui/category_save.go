@@ -6,6 +6,7 @@ package ui // import "miniflux.app/v2/internal/ui"
 import (
 	"net/http"
 
+	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
@@ -14,31 +15,30 @@ import (
 )
 
 func (h *handler) saveCategory(w http.ResponseWriter, r *http.Request) {
+	f := form.NewCategoryForm(r)
+	createRequest := model.CategoryCreationRequest{Title: f.Title}
+
+	userID := request.UserID(r)
+	lerr := validator.ValidateCategoryCreation(r.Context(), h.store, userID,
+		&createRequest)
+	if lerr == nil {
+		_, err := h.store.CreateCategory(r.Context(), userID, &createRequest)
+		if err != nil {
+			html.ServerError(w, r, err)
+			return
+		}
+		html.Redirect(w, r, route.Path(h.router, "categories"))
+		return
+	}
+
 	v := h.View(r)
 	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	categoryForm := form.NewCategoryForm(r)
-	creationRequest := &model.CategoryCreationRequest{
-		Title: categoryForm.Title,
-	}
-
-	lerr := validator.ValidateCategoryCreation(r.Context(), h.store, v.UserID(),
-		creationRequest)
-	if lerr != nil {
-		v.Set("menu", "categories").
-			Set("form", categoryForm).
-			Set("errorMessage", lerr.Translate(v.User().Language))
-		html.OK(w, r, v.Render("create_category"))
-		return
-	}
-
-	_, err := h.store.CreateCategory(r.Context(), v.UserID(), creationRequest)
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
-	html.Redirect(w, r, route.Path(h.router, "categories"))
+	v.Set("menu", "categories").
+		Set("form", f).
+		Set("errorMessage", lerr.Translate(v.User().Language))
+	html.OK(w, r, v.Render("create_category"))
 }

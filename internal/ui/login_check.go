@@ -21,21 +21,21 @@ import (
 func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 	clientIP := request.ClientIP(r)
 	sess := session.New(h.store, request.SessionID(r))
-	view := view.New(h.tpl, r, sess)
+	v := view.New(h.tpl, r, sess)
 
 	if config.Opts.DisableLocalAuth() {
 		slog.Warn("blocking local auth login attempt, local auth is disabled",
 			slog.String("client_ip", clientIP),
 			slog.String("user_agent", r.UserAgent()))
-		html.OK(w, r, view.Render("login"))
+		html.OK(w, r, v.Render("login"))
 		return
 	}
 
 	authForm := form.NewAuthForm(r)
-	view.Set("errorMessage",
+	v.Set("errorMessage",
 		locale.NewLocalizedError("error.bad_credentials").
 			Translate(request.UserLanguage(r)))
-	view.Set("form", authForm)
+	v.Set("form", authForm)
 
 	if lerr := authForm.Validate(); lerr != nil {
 		translatedErrorMessage := lerr.Translate(request.UserLanguage(r))
@@ -45,7 +45,7 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 			slog.String("user_agent", r.UserAgent()),
 			slog.String("username", authForm.Username),
 			slog.Any("error", translatedErrorMessage))
-		html.OK(w, r, view.Render("login"))
+		html.OK(w, r, v.Render("login"))
 		return
 	}
 
@@ -58,7 +58,7 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 			slog.String("user_agent", r.UserAgent()),
 			slog.String("username", authForm.Username),
 			slog.Any("error", err))
-		html.OK(w, r, view.Render("login"))
+		html.OK(w, r, v.Render("login"))
 		return
 	}
 

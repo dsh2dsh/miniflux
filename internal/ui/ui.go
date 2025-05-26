@@ -7,13 +7,20 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/gorilla/mux"
+
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/template"
 	"miniflux.app/v2/internal/worker"
-
-	"github.com/gorilla/mux"
 )
+
+type handler struct {
+	router *mux.Router
+	store  *storage.Storage
+	tpl    *template.Engine
+	pool   *worker.Pool
+}
 
 // Serve declares all routes for the user interface.
 func Serve(router *mux.Router, store *storage.Storage, pool *worker.Pool) {

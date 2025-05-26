@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
@@ -17,6 +18,50 @@ import (
 
 func (h *handler) showChooseSubscriptionPage(w http.ResponseWriter,
 	r *http.Request,
+) {
+	f := form.NewSubscriptionForm(r)
+	if lerr := f.Validate(); lerr != nil {
+		h.showCreateFeedError(w, r, func(v *View) {
+			v.Set("form", f).
+				Set("errorMessage", lerr.Translate(v.User().Language))
+			html.OK(w, r, v.Render("add_subscription"))
+		})
+		return
+	}
+
+	userID := request.UserID(r)
+	feed, lerr := feedHandler.CreateFeed(r.Context(), h.store, userID,
+		&model.FeedCreationRequest{
+			CategoryID:                  f.CategoryID,
+			FeedURL:                     f.URL,
+			Crawler:                     f.Crawler,
+			AllowSelfSignedCertificates: f.AllowSelfSignedCertificates,
+			UserAgent:                   f.UserAgent,
+			Cookie:                      f.Cookie,
+			Username:                    f.Username,
+			Password:                    f.Password,
+			ScraperRules:                f.ScraperRules,
+			RewriteRules:                f.RewriteRules,
+			BlocklistRules:              f.BlocklistRules,
+			KeeplistRules:               f.KeeplistRules,
+			UrlRewriteRules:             f.UrlRewriteRules,
+			FetchViaProxy:               f.FetchViaProxy,
+			DisableHTTP2:                f.DisableHTTP2,
+			ProxyURL:                    f.ProxyURL,
+		})
+	if lerr != nil {
+		h.showCreateFeedError(w, r, func(v *View) {
+			v.Set("form", f).
+				Set("errorMessage", lerr.Translate(v.User().Language))
+			html.OK(w, r, v.Render("add_subscription"))
+		})
+		return
+	}
+	html.Redirect(w, r, route.Path(h.router, "feedEntries", "feedID", feed.ID))
+}
+
+func (h *handler) showCreateFeedError(w http.ResponseWriter, r *http.Request,
+	renderFunc func(v *View),
 ) {
 	v := h.View(r)
 
@@ -34,39 +79,5 @@ func (h *handler) showChooseSubscriptionPage(w http.ResponseWriter,
 	v.Set("menu", "feeds").
 		Set("categories", categories).
 		Set("defaultUserAgent", config.Opts.HTTPClientUserAgent())
-
-	subscriptionForm := form.NewSubscriptionForm(r)
-	if lerr := subscriptionForm.Validate(); lerr != nil {
-		v.Set("form", subscriptionForm).
-			Set("errorMessage", lerr.Translate(v.User().Language))
-		html.OK(w, r, v.Render("add_subscription"))
-		return
-	}
-
-	feed, lerr := feedHandler.CreateFeed(r.Context(),
-		h.store, v.User().ID, &model.FeedCreationRequest{
-			CategoryID:                  subscriptionForm.CategoryID,
-			FeedURL:                     subscriptionForm.URL,
-			Crawler:                     subscriptionForm.Crawler,
-			AllowSelfSignedCertificates: subscriptionForm.AllowSelfSignedCertificates,
-			UserAgent:                   subscriptionForm.UserAgent,
-			Cookie:                      subscriptionForm.Cookie,
-			Username:                    subscriptionForm.Username,
-			Password:                    subscriptionForm.Password,
-			ScraperRules:                subscriptionForm.ScraperRules,
-			RewriteRules:                subscriptionForm.RewriteRules,
-			BlocklistRules:              subscriptionForm.BlocklistRules,
-			KeeplistRules:               subscriptionForm.KeeplistRules,
-			UrlRewriteRules:             subscriptionForm.UrlRewriteRules,
-			FetchViaProxy:               subscriptionForm.FetchViaProxy,
-			DisableHTTP2:                subscriptionForm.DisableHTTP2,
-			ProxyURL:                    subscriptionForm.ProxyURL,
-		})
-	if lerr != nil {
-		v.Set("form", subscriptionForm).
-			Set("errorMessage", lerr.Translate(v.User().Language))
-		html.OK(w, r, v.Render("add_subscription"))
-		return
-	}
-	html.Redirect(w, r, route.Path(h.router, "feedEntries", "feedID", feed.ID))
+	renderFunc(v)
 }

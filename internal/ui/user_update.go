@@ -19,9 +19,9 @@ func (h *handler) updateUser(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r)
 
 	userID := request.RouteInt64Param(r, "userID")
-	var selectedUser *model.User
+	var user *model.User
 	v.Go(func(ctx context.Context) (err error) {
-		selectedUser, err = h.store.UserByID(ctx, userID)
+		user, err = h.store.UserByID(ctx, userID)
 		return
 	})
 
@@ -31,14 +31,14 @@ func (h *handler) updateUser(w http.ResponseWriter, r *http.Request) {
 	} else if !v.User().IsAdmin {
 		html.Forbidden(w, r)
 		return
-	} else if selectedUser == nil {
+	} else if user == nil {
 		html.NotFound(w, r)
 		return
 	}
 
 	userForm := form.NewUserForm(r)
 	v.Set("menu", "settings").
-		Set("selected_user", selectedUser).
+		Set("selected_user", user).
 		Set("form", userForm)
 
 	if lerr := userForm.ValidateModification(); lerr != nil {
@@ -47,7 +47,7 @@ func (h *handler) updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	alreadyExists := h.store.AnotherUserExists(r.Context(), selectedUser.ID,
+	alreadyExists := h.store.AnotherUserExists(r.Context(), userID,
 		userForm.Username)
 	if alreadyExists {
 		lerr := locale.NewLocalizedError("error.user_already_exists")
@@ -56,8 +56,8 @@ func (h *handler) updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userForm.Merge(selectedUser)
-	err := h.store.UpdateUser(r.Context(), selectedUser)
+	userForm.Merge(user)
+	err := h.store.UpdateUser(r.Context(), user)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return

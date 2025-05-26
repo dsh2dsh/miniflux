@@ -15,7 +15,9 @@ import (
 	"miniflux.app/v2/internal/ui/view"
 )
 
-func (h *handler) View(r *http.Request) *View {
+type viewOption func(v *View)
+
+func (h *handler) View(r *http.Request, opts ...viewOption) *View {
 	s := session.New(h.store, request.SessionID(r))
 	self := &View{
 		View:    view.New(h.tpl, r, s),
@@ -25,6 +27,10 @@ func (h *handler) View(r *http.Request) *View {
 		userCh:  make(chan struct{}),
 	}
 	self.g, self.ctx = errgroup.WithContext(r.Context())
+
+	for _, fn := range opts {
+		fn(self)
+	}
 	return self.init()
 }
 
@@ -53,7 +59,9 @@ type View struct {
 
 func (self *View) init() *View {
 	self.startTime = time.Now()
-	self.Go(self.initUser)
+	if self.user == nil {
+		self.Go(self.initUser)
+	}
 
 	startCountUnread := time.Now()
 	self.Go(func(ctx context.Context) (err error) {
@@ -91,6 +99,12 @@ func (self *View) WithSaveEntry() *View {
 		self.hasSaveEntry = self.store.HasSaveEntry(ctx, self.userID)
 		return nil
 	})
+	return self
+}
+
+func (self *View) WithUser(u *model.User) *View {
+	self.user = u
+	close(self.userCh)
 	return self
 }
 

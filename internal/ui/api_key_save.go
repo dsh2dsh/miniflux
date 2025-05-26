@@ -6,6 +6,7 @@ package ui // import "miniflux.app/v2/internal/ui"
 import (
 	"net/http"
 
+	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
@@ -14,32 +15,31 @@ import (
 )
 
 func (h *handler) saveAPIKey(w http.ResponseWriter, r *http.Request) {
+	f := form.NewAPIKeyForm(r)
+	createRequest := model.APIKeyCreationRequest{Description: f.Description}
+
+	userID := request.UserID(r)
+	lerr := validator.ValidateAPIKeyCreation(r.Context(), h.store, userID,
+		&createRequest)
+	if lerr == nil {
+		_, err := h.store.CreateAPIKey(r.Context(), userID,
+			createRequest.Description)
+		if err != nil {
+			html.ServerError(w, r, err)
+			return
+		}
+		html.Redirect(w, r, route.Path(h.router, "apiKeys"))
+		return
+	}
+
 	v := h.View(r)
 	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	keyForm := form.NewAPIKeyForm(r)
-	keyCreationRequest := model.APIKeyCreationRequest{
-		Description: keyForm.Description,
-	}
-
-	lerr := validator.ValidateAPIKeyCreation(r.Context(), h.store, v.UserID(),
-		&keyCreationRequest)
-	if lerr != nil {
-		v.Set("menu", "settings").
-			Set("form", keyForm).
-			Set("errorMessage", lerr.Translate(v.User().Language))
-		html.OK(w, r, v.Render("create_api_key"))
-		return
-	}
-
-	_, err := h.store.CreateAPIKey(r.Context(), v.UserID(),
-		keyCreationRequest.Description)
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
-	html.Redirect(w, r, route.Path(h.router, "apiKeys"))
+	v.Set("menu", "settings").
+		Set("form", f).
+		Set("errorMessage", lerr.Translate(v.User().Language))
+	html.OK(w, r, v.Render("create_api_key"))
 }

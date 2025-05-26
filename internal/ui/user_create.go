@@ -15,9 +15,7 @@ func (h *handler) showCreateUserPage(w http.ResponseWriter, r *http.Request) {
 	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
-	}
-
-	if !v.User().IsAdmin {
+	} else if !v.User().IsAdmin {
 		html.Forbidden(w, r)
 		return
 	}
