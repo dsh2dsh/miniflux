@@ -2,7 +2,6 @@ class MarkReadOnScroll {
   scrolledEntries = [];
   timeoutId = 0;
   lastEntryID = "";
-  pageEnd = false;
 
   constructor(entries) {
     if (entries.length == 0) {
@@ -23,6 +22,8 @@ class MarkReadOnScroll {
 
   observerCallback(entries, observer) {
     let addedEntries = false;
+    let pageEnd = false;
+
     entries.forEach((entry) => {
       const bottom = entry.boundingClientRect.bottom;
       if (entry.isIntersecting || bottom > 0) {
@@ -33,7 +34,7 @@ class MarkReadOnScroll {
       this.observer.unobserve(element);
 
       if (element.dataset.id === this.lastEntryID) {
-        this.pageEnd = true;
+        pageEnd = true;
       }
 
       if (!element.classList.contains("item-status-unread")) {
@@ -42,6 +43,16 @@ class MarkReadOnScroll {
       this.scrolledEntries.push(element);
       addedEntries = true;
     });
+
+
+    if (pageEnd) {
+      if (this.timeoutId > 0) {
+        clearTimeout(this.timeoutId)
+        this.timeoutId = 0;
+      }
+      markPageAsRead();
+      return;
+    }
 
     if (!addedEntries || this.timeoutId > 0) {
       return;
@@ -56,11 +67,6 @@ class MarkReadOnScroll {
   markReadOnTimeout() {
     const items = this.scrolledEntries.slice();
     this.scrolledEntries.length = 0;
-
-    if (this.pageEnd) {
-      markPageAsRead();
-      return;
-    }
 
     const entryIDs = items.map((element) => parseInt(element.dataset.id, 10));
     updateEntriesStatus(entryIDs, "read", () => {
