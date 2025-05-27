@@ -5,7 +5,6 @@ package ui // import "miniflux.app/v2/internal/ui"
 
 import (
 	"net/http"
-	"time"
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
@@ -15,15 +14,15 @@ import (
 
 func (h *handler) showStylesheet(w http.ResponseWriter, r *http.Request) {
 	filename := request.RouteStringParam(r, "name")
-	etag, found := static.StylesheetBundleChecksums[filename]
+	b, found := static.StylesheetBundles[filename]
 	if !found {
 		html.NotFound(w, r)
 		return
 	}
 
-	response.New(w, r).WithCaching(etag, 48*time.Hour, func(b *response.Builder) {
-		b.WithHeader("Content-Type", "text/css; charset=utf-8")
-		b.WithBody(static.StylesheetBundles[filename])
-		b.Write()
-	})
+	response.New(w, r).
+		WithLongCaching().
+		WithHeader("Content-Type", "text/css; charset=utf-8").
+		WithBody(b).
+		Write()
 }

@@ -15,7 +15,10 @@ import (
 	"github.com/andybalholm/brotli"
 )
 
-const compressionThreshold = 1024
+const (
+	compressionThreshold = 1024
+	longCacheControl     = "public, max-age=31536000, immutable"
+)
 
 // Builder generates HTTP responses.
 type Builder struct {
@@ -70,6 +73,11 @@ func (b *Builder) WithCaching(etag string, duration time.Duration, callback func
 	} else {
 		callback(b)
 	}
+}
+
+func (b *Builder) WithLongCaching() *Builder {
+	b.headers["Cache-Control"] = longCacheControl
+	return b
 }
 
 // Write generates the HTTP response.

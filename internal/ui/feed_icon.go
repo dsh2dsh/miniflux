@@ -5,7 +5,6 @@ package ui // import "miniflux.app/v2/internal/ui"
 
 import (
 	"net/http"
-	"time"
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
@@ -23,15 +22,15 @@ func (h *handler) showFeedIcon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.New(w, r).WithCaching(icon.Hash, 72*time.Hour,
-		func(b *response.Builder) {
-			b.WithHeader("Content-Security-Policy",
-				response.ContentSecurityPolicyForUntrustedContent)
-			b.WithHeader("Content-Type", icon.MimeType)
-			b.WithBody(icon.Content)
-			if icon.MimeType != "image/svg+xml" {
-				b.WithoutCompression()
-			}
-			b.Write()
-		})
+	resp := response.New(w, r).
+		WithLongCaching().
+		WithHeader("Content-Security-Policy",
+			response.ContentSecurityPolicyForUntrustedContent).
+		WithHeader("Content-Type", icon.MimeType).
+		WithBody(icon.Content)
+
+	if icon.MimeType != "image/svg+xml" {
+		resp.WithoutCompression()
+	}
+	resp.Write()
 }

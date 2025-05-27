@@ -6,7 +6,6 @@ package ui // import "miniflux.app/v2/internal/ui"
 import (
 	"net/http"
 	"strings"
-	"time"
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
@@ -22,26 +21,24 @@ const (
 
 func (h *handler) showJavascript(w http.ResponseWriter, r *http.Request) {
 	filename := request.RouteStringParam(r, "name")
-	etag, found := static.JavascriptBundleChecksums[filename]
+	b, found := static.JavascriptBundles[filename]
 	if !found {
 		html.NotFound(w, r)
 		return
 	}
 
-	response.New(w, r).WithCaching(etag, 48*time.Hour, func(b *response.Builder) {
-		contents := static.JavascriptBundles[filename]
+	if filename == "service-worker" {
+		variables := `const OFFLINE_URL="` + route.Path(h.router, "offline") + `";`
+		b = append([]byte(variables), b...)
+	}
 
-		if filename == "service-worker" {
-			variables := `const OFFLINE_URL="` + route.Path(h.router, "offline") + `";`
-			contents = append([]byte(variables), contents...)
-		}
+	// cloning the prefix since `append` mutates its first argument
+	b = append([]byte(strings.Clone(licensePrefix)), b...)
+	b = append(b, []byte(licenseSuffix)...)
 
-		// cloning the prefix since `append` mutates its first argument
-		contents = append([]byte(strings.Clone(licensePrefix)), contents...)
-		contents = append(contents, []byte(licenseSuffix)...)
-
-		b.WithHeader("Content-Type", "text/javascript; charset=utf-8")
-		b.WithBody(contents)
-		b.Write()
-	})
+	response.New(w, r).
+		WithLongCaching().
+		WithHeader("Content-Type", "text/javascript; charset=utf-8").
+		WithBody(b).
+		Write()
 }
