@@ -212,7 +212,6 @@ func (r *RequestBuilder) ExecuteRequest(requestURL string) (*http.Response, erro
 	}
 
 	req.Header = r.headers
-	req.Header.Set("Accept-Encoding", "br, gzip")
 	req.Header.Set("Accept", defaultAcceptHeader)
 	req.Header.Set("Connection", "close")
 
@@ -224,8 +223,7 @@ func (r *RequestBuilder) ExecuteRequest(requestURL string) (*http.Response, erro
 		slog.Bool("use_app_client_proxy", r.useClientProxy),
 		slog.String("client_proxy_url", clientProxyURLRedacted),
 		slog.Bool("ignore_tls_errors", r.ignoreTLSErrors),
-		slog.Bool("disable_http2", r.disableHTTP2),
-	))
+		slog.Bool("disable_http2", r.disableHTTP2)))
 
 	resp, err := client.Do(req)
 	if err != nil {
