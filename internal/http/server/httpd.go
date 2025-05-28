@@ -316,6 +316,7 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
 		return gzhttp.GzipHandler(next)
 	})
 	subrouter.Use(middleware.ClientIP)
+	subrouter.Use(middleware.WithPanic)
 
 	fever.Serve(subrouter, store)
 	googlereader.Serve(subrouter, store)
