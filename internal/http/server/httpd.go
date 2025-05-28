@@ -25,6 +25,7 @@ import (
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/fever"
 	"miniflux.app/v2/internal/googlereader"
+	"miniflux.app/v2/internal/http/middleware"
 	"miniflux.app/v2/internal/metric"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/ui"
@@ -314,7 +315,7 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
 	subrouter.Use(func(next http.Handler) http.Handler {
 		return gzhttp.GzipHandler(next)
 	})
-	subrouter.Use(middleware)
+	subrouter.Use(middleware.ClientIP)
 
 	fever.Serve(subrouter, store)
 	googlereader.Serve(subrouter, store)
