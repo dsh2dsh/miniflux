@@ -7,9 +7,12 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
+
+	"github.com/klauspost/compress/gzhttp"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestResponseHasCommonHeaders(t *testing.T) {
@@ -228,145 +231,32 @@ func TestBuildResponseWithCachingAndEtag(t *testing.T) {
 	}
 }
 
-func TestBuildResponseWithBrotliCompression(t *testing.T) {
-	body := strings.Repeat("a", compressionThreshold+1)
+func TestBuildResponseWithCompression(t *testing.T) {
 	r, err := http.NewRequest(http.MethodGet, "/", nil)
-	r.Header.Set("Accept-Encoding", "gzip, deflate, br")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, r)
 
 	w := httptest.NewRecorder()
-
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		New(w, r).WithBody(body).Write()
+		New(w, r).WithBody([]byte("body")).Write()
 	})
 
 	handler.ServeHTTP(w, r)
 	resp := w.Result()
-
-	expected := "br"
-	actual := resp.Header.Get("Content-Encoding")
-	if actual != expected {
-		t.Fatalf(`Unexpected header value, got %q instead of %q`, actual, expected)
-	}
-}
-
-func TestBuildResponseWithGzipCompression(t *testing.T) {
-	body := strings.Repeat("a", compressionThreshold+1)
-	r, err := http.NewRequest(http.MethodGet, "/", nil)
-	r.Header.Set("Accept-Encoding", "gzip, deflate")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	w := httptest.NewRecorder()
-
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		New(w, r).WithBody(body).Write()
-	})
-
-	handler.ServeHTTP(w, r)
-	resp := w.Result()
-
-	expected := "gzip"
-	actual := resp.Header.Get("Content-Encoding")
-	if actual != expected {
-		t.Fatalf(`Unexpected header value, got %q instead of %q`, actual, expected)
-	}
-}
-
-func TestBuildResponseWithDeflateCompression(t *testing.T) {
-	body := strings.Repeat("a", compressionThreshold+1)
-	r, err := http.NewRequest(http.MethodGet, "/", nil)
-	r.Header.Set("Accept-Encoding", "deflate")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	w := httptest.NewRecorder()
-
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		New(w, r).WithBody(body).Write()
-	})
-
-	handler.ServeHTTP(w, r)
-	resp := w.Result()
-
-	expected := "deflate"
-	actual := resp.Header.Get("Content-Encoding")
-	if actual != expected {
-		t.Fatalf(`Unexpected header value, got %q instead of %q`, actual, expected)
-	}
+	assert.Empty(t, resp.Header.Get(gzhttp.HeaderNoCompression))
 }
 
 func TestBuildResponseWithCompressionDisabled(t *testing.T) {
-	body := strings.Repeat("a", compressionThreshold+1)
 	r, err := http.NewRequest(http.MethodGet, "/", nil)
-	r.Header.Set("Accept-Encoding", "deflate")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, r)
 
 	w := httptest.NewRecorder()
-
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		New(w, r).WithBody(body).WithoutCompression().Write()
+		New(w, r).WithBody([]byte("body")).WithoutCompression().Write()
 	})
 
 	handler.ServeHTTP(w, r)
 	resp := w.Result()
-
-	expected := ""
-	actual := resp.Header.Get("Content-Encoding")
-	if actual != expected {
-		t.Fatalf(`Unexpected header value, got %q instead of %q`, actual, expected)
-	}
-}
-
-func TestBuildResponseWithDeflateCompressionAndSmallPayload(t *testing.T) {
-	body := strings.Repeat("a", compressionThreshold)
-	r, err := http.NewRequest(http.MethodGet, "/", nil)
-	r.Header.Set("Accept-Encoding", "deflate")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	w := httptest.NewRecorder()
-
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		New(w, r).WithBody(body).Write()
-	})
-
-	handler.ServeHTTP(w, r)
-	resp := w.Result()
-
-	expected := ""
-	actual := resp.Header.Get("Content-Encoding")
-	if actual != expected {
-		t.Fatalf(`Unexpected header value, got %q instead of %q`, actual, expected)
-	}
-}
-
-func TestBuildResponseWithoutCompressionHeader(t *testing.T) {
-	body := strings.Repeat("a", compressionThreshold+1)
-	r, err := http.NewRequest(http.MethodGet, "/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	w := httptest.NewRecorder()
-
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		New(w, r).WithBody(body).Write()
-	})
-
-	handler.ServeHTTP(w, r)
-	resp := w.Result()
-
-	expected := ""
-	actual := resp.Header.Get("Content-Encoding")
-	if actual != expected {
-		t.Fatalf(`Unexpected header value, got %q instead of %q`, actual, expected)
-	}
+	assert.NotEmpty(t, resp.Header.Get(gzhttp.HeaderNoCompression))
 }
