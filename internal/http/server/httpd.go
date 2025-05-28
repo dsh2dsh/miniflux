@@ -315,6 +315,7 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
 	subrouter.Use(func(next http.Handler) http.Handler {
 		return gzhttp.GzipHandler(next)
 	})
+	subrouter.Use(middleware.RequestId)
 	subrouter.Use(middleware.ClientIP)
 	subrouter.Use(middleware.WithPanic)
 
