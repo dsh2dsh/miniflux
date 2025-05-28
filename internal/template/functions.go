@@ -21,6 +21,7 @@ import (
 	"miniflux.app/v2/internal/mediaproxy"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/timezone"
+	"miniflux.app/v2/internal/ui/static"
 	"miniflux.app/v2/internal/urllib"
 
 	"github.com/gorilla/mux"
@@ -30,43 +31,61 @@ type funcMap struct {
 	router *mux.Router
 }
 
-// Map returns a map of template functions that are compiled during template parsing.
+// Map returns a map of template functions that are compiled during template
+// parsing.
 func (f *funcMap) Map() template.FuncMap {
 	return template.FuncMap{
+		"baseURL":            config.Opts.BaseURL,
+		"contains":           strings.Contains,
+		"dict":               dict,
+		"disableLocalAuth":   config.Opts.DisableLocalAuth,
+		"domain":             urllib.Domain,
+		"duration":           duration,
 		"formatFileSize":     formatFileSize[int64],
 		"formatFileSizeUint": formatFileSize[uint64],
-		"dict":               dict,
 		"hasKey":             hasKey,
-		"truncate":           truncate,
+		"hasPrefix":          strings.HasPrefix,
+		"icon":               f.icon,
 		"isEmail":            isEmail,
-		"baseURL":            config.Opts.BaseURL,
-		"rootURL":            config.Opts.RootURL,
-		"disableLocalAuth":   config.Opts.DisableLocalAuth,
 		"oidcProviderName":   config.Opts.OIDCProviderName,
+		"rootURL":            config.Opts.RootURL,
+		"routeAppIcon":       f.routeAppIcon,
+		"theme_color":        model.ThemeColor,
+		"truncate":           truncate,
+		"urlEncode":          url.PathEscape,
+
 		"hasOAuth2Provider": func(provider string) bool {
 			return config.Opts.OAuth2Provider() == provider
 		},
+
 		"hasAuthProxy": func() bool {
 			return config.Opts.AuthProxyHeader() != ""
 		},
+
 		"route": func(name string, args ...any) string {
 			return route.Path(f.router, name, args...)
 		},
+
 		"safeURL": func(url string) template.URL {
 			return template.URL(url)
 		},
+
 		"safeCSS": func(str string) template.CSS {
 			return template.CSS(str)
 		},
+
 		"safeJS": func(str string) template.JS {
 			return template.JS(str)
 		},
+
 		"noescape": func(str string) template.HTML {
 			return template.HTML(str)
 		},
+
 		"proxyFilter": func(data string) string {
 			return mediaproxy.RewriteDocumentWithRelativeProxyURL(f.router, data)
 		},
+
 		"proxyURL": func(link string) string {
 			mediaProxyMode := config.Opts.MediaProxyMode()
 
@@ -76,51 +95,57 @@ func (f *funcMap) Map() template.FuncMap {
 
 			return link
 		},
+
 		"mustBeProxyfied": func(mediaType string) bool {
 			return slices.Contains(config.Opts.MediaProxyResourceTypes(), mediaType)
 		},
-		"domain":    urllib.Domain,
-		"hasPrefix": strings.HasPrefix,
-		"contains":  strings.Contains,
+
 		"replace": func(str, from, to string) string {
 			return strings.Replace(str, from, to, 1)
 		},
+
 		"isodate": func(ts time.Time) string {
 			return ts.Format("2006-01-02 15:04:05")
-		},
-		"theme_color": model.ThemeColor,
-		"icon": func(iconName string) template.HTML {
-			return template.HTML(fmt.Sprintf(
-				`<svg class="icon" aria-hidden="true"><use xlink:href="%s#icon-%s"/></svg>`,
-				route.Path(f.router, "appIcon", "filename", "sprite.svg"),
-				iconName,
-			))
 		},
 		"nonce": func() string {
 			return crypto.GenerateRandomStringHex(16)
 		},
-		"deRef":     func(i *int) int { return *i },
-		"duration":  duration,
-		"urlEncode": url.PathEscape,
+
+		"deRef": func(i *int) int { return *i },
 
 		// These functions are overrode at runtime after the parsing.
 		"elapsed": func(timezone string, t time.Time) string {
 			return ""
 		},
+
 		"t": func(key any, args ...any) string {
 			return ""
 		},
-		"plural": func(key string, n int, args ...interface{}) string {
+
+		"plural": func(key string, n int, args ...any) string {
 			return ""
 		},
 	}
 }
 
-func dict(values ...interface{}) (map[string]any, error) {
+func (self *funcMap) icon(iconName string) template.HTML {
+	return template.HTML(fmt.Sprintf(
+		`<svg class="icon" aria-hidden="true"><use xlink:href="%s#icon-%s"/></svg>`,
+		self.routeAppIcon("sprite.svg"),
+		iconName,
+	))
+}
+
+func (self *funcMap) routeAppIcon(filename string) string {
+	return route.Path(self.router, "appIcon", "filename",
+		static.BinaryFileName(filename))
+}
+
+func dict(values ...any) (map[string]any, error) {
 	if len(values)%2 != 0 {
 		return nil, errors.New("dict expects an even number of arguments")
 	}
-	dict := make(map[string]interface{}, len(values)/2)
+	dict := make(map[string]any, len(values)/2)
 	for i := 0; i < len(values); i += 2 {
 		key, ok := values[i].(string)
 		if !ok {

@@ -10,6 +10,7 @@ import (
 	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
+	"miniflux.app/v2/internal/ui/static"
 )
 
 func (h *handler) showWebManifest(w http.ResponseWriter, r *http.Request) {
@@ -62,40 +63,43 @@ func (h *handler) showWebManifest(w http.ResponseWriter, r *http.Request) {
 		BackgroundColor: model.ThemeColor(request.UserTheme(r), "light"),
 		Icons: []webManifestIcon{
 			{
-				Source:  route.Path(h.router, "appIcon", "filename", "icon-120.png"),
+				Source: route.Path(h.router, "appIcon", "filename",
+					static.BinaryFileName("icon-120.png")),
 				Sizes:   "120x120",
 				Type:    "image/png",
 				Purpose: "any",
 			},
 			{
-				Source:  route.Path(h.router, "appIcon", "filename", "icon-192.png"),
+				Source: route.Path(h.router, "appIcon", "filename",
+					static.BinaryFileName("icon-192.png")),
 				Sizes:   "192x192",
 				Type:    "image/png",
 				Purpose: "any",
 			},
 			{
-				Source:  route.Path(h.router, "appIcon", "filename", "icon-512.png"),
+				Source: route.Path(h.router, "appIcon", "filename",
+					static.BinaryFileName("icon-512.png")),
 				Sizes:   "512x512",
 				Type:    "image/png",
 				Purpose: "any",
 			},
 			{
 				Source: route.Path(h.router, "appIcon", "filename",
-					"maskable-icon-120.png"),
+					static.BinaryFileName("maskable-icon-120.png")),
 				Sizes:   "120x120",
 				Type:    "image/png",
 				Purpose: "maskable",
 			},
 			{
 				Source: route.Path(h.router, "appIcon", "filename",
-					"maskable-icon-192.png"),
+					static.BinaryFileName("maskable-icon-192.png")),
 				Sizes:   "192x192",
 				Type:    "image/png",
 				Purpose: "maskable",
 			},
 			{
 				Source: route.Path(h.router, "appIcon", "filename",
-					"maskable-icon-512.png"),
+					static.BinaryFileName("maskable-icon-512.png")),
 				Sizes:   "512x512",
 				Type:    "image/png",
 				Purpose: "maskable",

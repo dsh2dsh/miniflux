@@ -6,7 +6,6 @@ package ui // import "miniflux.app/v2/internal/ui"
 import (
 	"net/http"
 	"path/filepath"
-	"time"
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
@@ -16,28 +15,19 @@ import (
 
 func (h *handler) showAppIcon(w http.ResponseWriter, r *http.Request) {
 	filename := request.RouteStringParam(r, "filename")
-	etag, err := static.GetBinaryFileChecksum(filename)
+	blob, err := static.LoadBinaryFile(filename)
 	if err != nil {
-		html.NotFound(w, r)
+		html.ServerError(w, r, err)
 		return
 	}
 
-	response.New(w, r).WithCaching(etag, 72*time.Hour, func(b *response.Builder) {
-		blob, err := static.LoadBinaryFile(filename)
-		if err != nil {
-			html.ServerError(w, r, err)
-			return
-		}
-
-		switch filepath.Ext(filename) {
-		case ".png":
-			b.WithoutCompression()
-			b.WithHeader("Content-Type", "image/png")
-		case ".svg":
-			b.WithHeader("Content-Type", "image/svg+xml")
-		}
-
-		b.WithBody(blob)
-		b.Write()
-	})
+	resp := response.New(w, r).WithLongCaching().WithBody(blob)
+	switch filepath.Ext(filename) {
+	case ".png":
+		resp.WithoutCompression().
+			WithHeader("Content-Type", "image/png")
+	case ".svg":
+		resp.WithHeader("Content-Type", "image/svg+xml")
+	}
+	resp.Write()
 }

@@ -10,9 +10,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"path"
+	"strings"
 
 	"miniflux.app/v2/internal/crypto"
 )
+
+const binDir = "bin"
 
 // Static assets.
 var (
@@ -20,6 +24,9 @@ var (
 	StylesheetBundles         map[string][]byte
 	JavascriptBundleChecksums map[string]string
 	JavascriptBundles         map[string][]byte
+
+	hashedNames   = make(map[string]string)
+	unhashedNames = make(map[string]string)
 )
 
 //go:embed bin/*
@@ -42,7 +49,7 @@ var binaryFileChecksums map[string]string
 // CalculateBinaryFileChecksums generates hash of embed binary files.
 func CalculateBinaryFileChecksums(ctx context.Context) error {
 	slog.Info("calculate binary file hashes")
-	dirEntries, err := binaryFiles.ReadDir("bin")
+	dirEntries, err := binaryFiles.ReadDir(binDir)
 	if err != nil {
 		return fmt.Errorf("ui/static: failed read bin/: %w", err)
 	}
@@ -53,23 +60,50 @@ func CalculateBinaryFileChecksums(ctx context.Context) error {
 			return fmt.Errorf("ui/static: break loop over binary files: %w",
 				context.Cause(ctx))
 		}
-		data, err := LoadBinaryFile(dirEntry.Name())
+
+		filename := dirEntry.Name()
+		data, err := LoadBinaryFile(filename)
 		if err != nil {
 			return err
 		}
-		binaryFileChecksums[dirEntry.Name()] = crypto.HashFromBytes(data)
+		hashFileName(filename, crypto.HashFromBytes(data))
 	}
 	return nil
 }
 
+func hashFileName(filename, hash string) string {
+	binaryFileChecksums[filename] = hash
+
+	before, after, found := strings.Cut(filename, ".")
+	hashedName := before + "-" + hash
+	if found {
+		hashedName += "." + after
+	}
+
+	hashedNames[filename] = hashedName
+	unhashedNames[hashedName] = filename
+	return hashedName
+}
+
 // LoadBinaryFile loads an embed binary file.
 func LoadBinaryFile(filename string) ([]byte, error) {
-	fullName := `bin/` + filename
+	if s, ok := unhashedNames[filename]; ok {
+		filename = s
+	}
+
+	fullName := path.Join(binDir, filename)
 	b, err := binaryFiles.ReadFile(fullName)
 	if err != nil {
 		return nil, fmt.Errorf("ui/static: failed read %q: %w", fullName, err)
 	}
 	return b, nil
+}
+
+func BinaryFileName(filename string) string {
+	if hashedName, ok := hashedNames[filename]; ok {
+		return hashedName
+	}
+	return filename
 }
 
 // GetBinaryFileChecksum returns a binary file checksum.
