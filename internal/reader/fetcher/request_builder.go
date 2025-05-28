@@ -14,6 +14,8 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/klauspost/compress/gzhttp"
+
 	"miniflux.app/v2/internal/proxyrotator"
 )
 
@@ -204,7 +206,7 @@ func (r *RequestBuilder) ExecuteRequest(requestURL string) (*http.Response, erro
 		}
 	}
 
-	client.Transport = transport
+	client.Transport = gzhttp.Transport(transport)
 
 	req, err := r.req(requestURL)
 	if err != nil {

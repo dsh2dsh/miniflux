@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/klauspost/compress/gzhttp"
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/sync/errgroup"
@@ -310,6 +311,9 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
 		})
 	}
 
+	subrouter.Use(func(next http.Handler) http.Handler {
+		return gzhttp.GzipHandler(next)
+	})
 	subrouter.Use(middleware)
 
 	fever.Serve(subrouter, store)

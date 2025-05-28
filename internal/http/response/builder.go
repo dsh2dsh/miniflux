@@ -4,15 +4,12 @@
 package response // import "miniflux.app/v2/internal/http/response"
 
 import (
-	"compress/flate"
-	"compress/gzip"
 	"io"
 	"log/slog"
 	"net/http"
-	"strings"
 	"time"
 
-	"github.com/andybalholm/brotli"
+	"github.com/klauspost/compress/gzhttp"
 )
 
 const (
@@ -22,12 +19,11 @@ const (
 
 // Builder generates HTTP responses.
 type Builder struct {
-	w                 http.ResponseWriter
-	r                 *http.Request
-	statusCode        int
-	headers           map[string]string
-	enableCompression bool
-	body              any
+	w          http.ResponseWriter
+	r          *http.Request
+	statusCode int
+	headers    map[string]string
+	body       any
 }
 
 // WithStatus uses the given status code to build the response.
@@ -56,7 +52,7 @@ func (b *Builder) WithAttachment(filename string) *Builder {
 
 // WithoutCompression disables HTTP compression.
 func (b *Builder) WithoutCompression() *Builder {
-	b.enableCompression = false
+	b.headers[gzhttp.HeaderNoCompression] = "yes"
 	return b
 }
 
@@ -89,11 +85,11 @@ func (b *Builder) Write() {
 
 	switch v := b.body.(type) {
 	case []byte:
-		b.compress(v)
+		b.write(v)
 	case string:
-		b.compress([]byte(v))
+		b.write([]byte(v))
 	case error:
-		b.compress([]byte(v.Error()))
+		b.write([]byte(v.Error()))
 	case io.Reader:
 		// Compression not implemented in this case
 		b.writeHeaders()
@@ -116,46 +112,7 @@ func (b *Builder) writeHeaders() {
 	b.w.WriteHeader(b.statusCode)
 }
 
-func (b *Builder) compress(data []byte) {
-	if b.enableCompression && len(data) > compressionThreshold {
-		acceptEncoding := b.r.Header.Get("Accept-Encoding")
-		switch {
-		case strings.Contains(acceptEncoding, "br"):
-			b.headers["Content-Encoding"] = "br"
-			b.writeHeaders()
-
-			brotliWriter := brotli.NewWriterV2(b.w, brotli.DefaultCompression)
-			defer brotliWriter.Close()
-			if _, err := brotliWriter.Write(data); err != nil {
-				slog.Error("http/response: unable to write brotli",
-					slog.Any("error", err))
-			}
-			return
-		case strings.Contains(acceptEncoding, "gzip"):
-			b.headers["Content-Encoding"] = "gzip"
-			b.writeHeaders()
-
-			gzipWriter := gzip.NewWriter(b.w)
-			defer gzipWriter.Close()
-			if _, err := gzipWriter.Write(data); err != nil {
-				slog.Error("http/response: unable to write gzip",
-					slog.Any("error", err))
-			}
-			return
-		case strings.Contains(acceptEncoding, "deflate"):
-			b.headers["Content-Encoding"] = "deflate"
-			b.writeHeaders()
-
-			flateWriter, _ := flate.NewWriter(b.w, -1)
-			defer flateWriter.Close()
-			if _, err := flateWriter.Write(data); err != nil {
-				slog.Error("http/response: unable to write flate",
-					slog.Any("error", err))
-			}
-			return
-		}
-	}
-
+func (b *Builder) write(data []byte) {
 	b.writeHeaders()
 	if _, err := b.w.Write(data); err != nil {
 		slog.Error("http/response: unable to write response",
@@ -166,10 +123,9 @@ func (b *Builder) compress(data []byte) {
 // New creates a new response builder.
 func New(w http.ResponseWriter, r *http.Request) *Builder {
 	return &Builder{
-		w:                 w,
-		r:                 r,
-		statusCode:        http.StatusOK,
-		headers:           make(map[string]string),
-		enableCompression: true,
+		w:          w,
+		r:          r,
+		statusCode: http.StatusOK,
+		headers:    make(map[string]string),
 	}
 }
