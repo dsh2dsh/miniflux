@@ -300,6 +300,9 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
 	var subrouter *mux.Router
 	if config.Opts.BasePath() != "" {
 		subrouter = router.PathPrefix(config.Opts.BasePath()).Subrouter()
+		subrouter.Use(func(next http.Handler) http.Handler {
+			return http.StripPrefix(config.Opts.BasePath(), next)
+		})
 	} else {
 		subrouter = router.NewRoute().Subrouter()
 	}
