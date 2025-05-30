@@ -4,13 +4,20 @@
 package request // import "miniflux.app/v2/internal/http/request"
 
 import (
+	"context"
 	"net/http"
 
 	"miniflux.app/v2/internal/model"
 )
 
-// ContextKey represents a context key.
-type ContextKey int
+type (
+	// ContextKey represents a context key.
+	ContextKey int
+
+	ctxPublic  struct{}
+	ctxSession struct{}
+	ctxUser    struct{}
+)
 
 // List of context keys.
 const (
@@ -19,7 +26,6 @@ const (
 	UserTimezoneContextKey
 	IsAdminUserContextKey
 	IsAuthenticatedContextKey
-	UserSessionTokenContextKey
 	UserLanguageContextKey
 	UserThemeContextKey
 	SessionIDContextKey
@@ -35,13 +41,14 @@ const (
 	WebAuthnDataContextKey
 )
 
+var (
+	publicKey  ctxPublic  = struct{}{}
+	sessionKey ctxSession = struct{}{}
+	userKey    ctxUser    = struct{}{}
+)
+
 func WebAuthnSessionData(r *http.Request) *model.WebAuthnSession {
-	if v := r.Context().Value(WebAuthnDataContextKey); v != nil {
-		if value, valid := v.(model.WebAuthnSession); valid {
-			return &value
-		}
-	}
-	return nil
+	return getContextValue[*model.WebAuthnSession](r, WebAuthnDataContextKey)
 }
 
 // GoolgeReaderToken returns the google reader token if it exists.
@@ -100,6 +107,10 @@ func UserTheme(r *http.Request) string {
 	return theme
 }
 
+func WithCSRF(ctx context.Context, csrf string) context.Context {
+	return context.WithValue(ctx, CSRFContextKey, csrf)
+}
+
 // CSRF returns the current CSRF token.
 func CSRF(r *http.Request) string {
 	return getContextStringValue(r, CSRFContextKey)
@@ -108,11 +119,6 @@ func CSRF(r *http.Request) string {
 // SessionID returns the current session ID.
 func SessionID(r *http.Request) string {
 	return getContextStringValue(r, SessionIDContextKey)
-}
-
-// UserSessionToken returns the current user session token.
-func UserSessionToken(r *http.Request) string {
-	return getContextStringValue(r, UserSessionTokenContextKey)
 }
 
 // OAuth2State returns the current OAuth2 state.
@@ -144,6 +150,10 @@ func LastForceRefresh(r *http.Request) int64 {
 	return getContextInt64Value(r, LastForceRefreshContextKey)
 }
 
+func WithClientIP(ctx context.Context, ip string) context.Context {
+	return context.WithValue(ctx, ClientIPContextKey, ip)
+}
+
 // ClientIP returns the client IP address stored in the context.
 func ClientIP(r *http.Request) string {
 	return getContextValue[string](r, ClientIPContextKey)
@@ -168,4 +178,34 @@ func getContextBoolValue(r *http.Request, key ContextKey) bool {
 
 func getContextInt64Value(r *http.Request, key ContextKey) int64 {
 	return getContextValue[int64](r, key)
+}
+
+func WithUser(ctx context.Context, user *model.User) context.Context {
+	return context.WithValue(ctx, userKey, user)
+}
+
+func User(r *http.Request) *model.User {
+	if u, ok := r.Context().Value(userKey).(*model.User); ok {
+		return u
+	}
+	return nil
+}
+
+func WithSession(ctx context.Context, s *model.Session) context.Context {
+	return context.WithValue(ctx, sessionKey, s)
+}
+
+func Session(r *http.Request) *model.Session {
+	if s, ok := r.Context().Value(sessionKey).(*model.Session); ok {
+		return s
+	}
+	return nil
+}
+
+func WithPublic(ctx context.Context) context.Context {
+	return context.WithValue(ctx, publicKey, struct{}{})
+}
+
+func Public(r *http.Request) bool {
+	return r.Context().Value(publicKey) != nil
 }

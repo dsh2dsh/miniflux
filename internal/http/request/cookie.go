@@ -11,6 +11,5 @@ func CookieValue(r *http.Request, name string) string {
 	if err != nil {
 		return ""
 	}
-
 	return cookie.Value
 }

@@ -18,11 +18,7 @@ import (
 
 func (h *handler) showUnreadPage(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r).WithSaveEntry()
-	user, err := v.WaitUser()
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
+	user := v.User()
 
 	query := h.store.NewEntryQueryBuilder(user.ID).
 		WithStatus(model.EntryStatusUnread).

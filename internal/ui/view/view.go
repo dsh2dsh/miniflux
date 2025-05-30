@@ -30,23 +30,21 @@ func (v *View) Set(param string, value any) *View {
 
 // Render executes the template with arguments.
 func (v *View) Render(template string) []byte {
-	defer v.session.Commit(v.r.Context())
+	if v.session != nil {
+		v.session.Commit(v.r.Context())
+	}
 	return v.tpl.Render(template+".html", v.params)
 }
 
 // New returns a new view with default parameters.
 func New(tpl *template.Engine, r *http.Request, sess *session.Session) *View {
 	theme := request.UserTheme(r)
-	flashMessage := sess.FlashMessage(request.FlashMessage(r))
-	flashErrorMessage := sess.FlashErrorMessage(request.FlashErrorMessage(r))
-	return &View{
+	v := &View{
 		tpl: tpl,
 		r:   r,
 		params: map[string]any{
 			"menu":                 "",
 			"csrf":                 request.CSRF(r),
-			"flashMessage":         flashMessage,
-			"flashErrorMessage":    flashErrorMessage,
 			"theme":                theme,
 			"language":             request.UserLanguage(r),
 			"theme_checksum":       static.StylesheetBundleChecksums[theme],
@@ -55,6 +53,13 @@ func New(tpl *template.Engine, r *http.Request, sess *session.Session) *View {
 			"webauthn_js_checksum": static.JavascriptBundleChecksums["webauthn"],
 			"webAuthnEnabled":      config.Opts.WebAuthn(),
 		},
-		session: sess,
 	}
+
+	if sess != nil {
+		v.session = sess
+		v.Set("flashMessage", sess.FlashMessage(request.FlashMessage(r))).
+			Set("flashErrorMessage",
+				sess.FlashErrorMessage(request.FlashErrorMessage(r)))
+	}
+	return v
 }

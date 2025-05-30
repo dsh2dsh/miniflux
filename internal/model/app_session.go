@@ -3,7 +3,10 @@
 
 package model // import "miniflux.app/v2/internal/model"
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // SessionData represents the data attached to the session.
 type SessionData struct {
@@ -17,6 +20,8 @@ type SessionData struct {
 	PocketRequestToken  string          `json:"pocket_request_token,omitempty"`
 	LastForceRefresh    int64           `json:"last_force_refresh,omitempty"`
 	WebAuthnSessionData WebAuthnSession `json:"webauthn_session_data,omitzero"`
+	UserAgent           string          `json:"user_agent,omitempty"`
+	IP                  string          `json:"ip,omitempty"`
 }
 
 func (s *SessionData) String() string {
@@ -36,10 +41,12 @@ func (s *SessionData) String() string {
 
 // Session represents a session in the system.
 type Session struct {
-	ID   string       `db:"id"`
-	Data *SessionData `db:"data"`
+	ID        string       `db:"id"`
+	UserID    int64        `db:"user_id"`
+	Data      *SessionData `db:"data"`
+	CreatedAt time.Time    `db:"created_at"`
 }
 
 func (s *Session) String() string {
-	return fmt.Sprintf(`ID=%q, Data={%v}`, s.ID, s.Data)
+	return fmt.Sprintf(`ID=%q, UserID=%v, Data={%v}`, s.ID, s.UserID, s.Data)
 }

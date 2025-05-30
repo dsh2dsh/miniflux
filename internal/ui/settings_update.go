@@ -78,13 +78,8 @@ func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.store.UserByID(r.Context(), userID)
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
-
-	err = h.store.UpdateUser(r.Context(), f.Merge(user))
+	user := request.User(r)
+	err := h.store.UpdateUser(r.Context(), f.Merge(user))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return

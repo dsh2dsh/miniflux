@@ -14,11 +14,7 @@ import (
 
 func (h *handler) showStarredPage(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r).WithSaveEntry()
-	user, err := v.WaitUser()
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
+	user := v.User()
 
 	offset := request.QueryIntParam(r, "offset", 0)
 	query := h.store.NewEntryQueryBuilder(user.ID).

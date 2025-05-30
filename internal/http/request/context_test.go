@@ -12,7 +12,7 @@ import (
 func TestContextStringValue(t *testing.T) {
 	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 	ctx := r.Context()
-	ctx = context.WithValue(ctx, ClientIPContextKey, "IP")
+	ctx = WithClientIP(ctx, "IP")
 	r = r.WithContext(ctx)
 
 	result := getContextStringValue(r, ClientIPContextKey)
@@ -269,7 +269,7 @@ func TestCSRF(t *testing.T) {
 	}
 
 	ctx := r.Context()
-	ctx = context.WithValue(ctx, CSRFContextKey, "secret")
+	ctx = WithCSRF(ctx, "secret")
 	r = r.WithContext(ctx)
 
 	result = CSRF(r)
@@ -296,28 +296,6 @@ func TestSessionID(t *testing.T) {
 
 	result = SessionID(r)
 	expected = "id"
-
-	if result != expected {
-		t.Errorf(`Unexpected context value, got %q instead of %q`, result, expected)
-	}
-}
-
-func TestUserSessionToken(t *testing.T) {
-	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
-
-	result := UserSessionToken(r)
-	expected := ""
-
-	if result != expected {
-		t.Errorf(`Unexpected context value, got %q instead of %q`, result, expected)
-	}
-
-	ctx := r.Context()
-	ctx = context.WithValue(ctx, UserSessionTokenContextKey, "token")
-	r = r.WithContext(ctx)
-
-	result = UserSessionToken(r)
-	expected = "token"
 
 	if result != expected {
 		t.Errorf(`Unexpected context value, got %q instead of %q`, result, expected)
@@ -423,7 +401,7 @@ func TestClientIP(t *testing.T) {
 	}
 
 	ctx := r.Context()
-	ctx = context.WithValue(ctx, ClientIPContextKey, "127.0.0.1")
+	ctx = WithClientIP(ctx, "127.0.0.1")
 	r = r.WithContext(ctx)
 
 	result = ClientIP(r)

@@ -13,89 +13,68 @@ import (
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
+	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/ui/form"
-	"miniflux.app/v2/internal/ui/session"
 	"miniflux.app/v2/internal/ui/view"
 )
 
 func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	clientIP := request.ClientIP(r)
-	sess := session.New(h.store, request.SessionID(r))
-	v := view.New(h.tpl, r, sess)
+	log := logging.FromContext(ctx).With(
+		slog.String("client_ip", clientIP),
+		slog.String("user_agent", r.UserAgent()))
+	v := view.New(h.tpl, r, nil)
 
 	if config.Opts.DisableLocalAuth() {
-		slog.Warn("blocking local auth login attempt, local auth is disabled",
-			slog.String("client_ip", clientIP),
-			slog.String("user_agent", r.UserAgent()))
+		log.Warn("blocking local auth login attempt, local auth is disabled")
 		html.OK(w, r, v.Render("login"))
 		return
 	}
 
-	authForm := form.NewAuthForm(r)
+	f := form.NewAuthForm(r)
 	v.Set("errorMessage",
 		locale.NewLocalizedError("error.bad_credentials").
 			Translate(request.UserLanguage(r)))
-	v.Set("form", authForm)
+	v.Set("form", f)
+	log = log.With(slog.String("username", f.Username))
 
-	if lerr := authForm.Validate(); lerr != nil {
+	if lerr := f.Validate(); lerr != nil {
 		translatedErrorMessage := lerr.Translate(request.UserLanguage(r))
-		slog.Warn("Validation error during login check",
-			slog.Bool("authentication_failed", true),
-			slog.String("client_ip", clientIP),
-			slog.String("user_agent", r.UserAgent()),
-			slog.String("username", authForm.Username),
+		log.Warn("Validation error during login check",
 			slog.Any("error", translatedErrorMessage))
 		html.OK(w, r, v.Render("login"))
 		return
 	}
 
-	err := h.store.CheckPassword(r.Context(), authForm.Username,
-		authForm.Password)
+	err := h.store.CheckPassword(ctx, f.Username, f.Password)
 	if err != nil {
-		slog.Warn("Incorrect username or password",
-			slog.Bool("authentication_failed", true),
-			slog.String("client_ip", clientIP),
-			slog.String("user_agent", r.UserAgent()),
-			slog.String("username", authForm.Username),
-			slog.Any("error", err))
+		log.Warn("Incorrect username or password", slog.Any("error", err))
 		html.OK(w, r, v.Render("login"))
 		return
 	}
 
-	sessionToken, userID, err := h.store.CreateUserSessionFromUsername(
-		r.Context(), authForm.Username, r.UserAgent(), clientIP)
+	user, err := h.store.UserByUsername(ctx, f.Username)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	slog.Info("User authenticated successfully with username/password",
-		slog.Bool("authentication_successful", true),
-		slog.String("client_ip", clientIP),
-		slog.String("user_agent", r.UserAgent()),
-		slog.Int64("user_id", userID),
-		slog.String("username", authForm.Username))
+	log.Info("User authenticated successfully with username/password",
+		slog.Int64("user_id", user.ID))
 
-	if err := h.store.SetLastLogin(r.Context(), userID); err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
-
-	user, err := h.store.UserByID(r.Context(), userID)
+	sess, err := h.store.CreateAppSessionForUser(ctx, user, r.UserAgent(),
+		clientIP)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	sess.SetLanguage(user.Language).
-		SetTheme(user.Theme).
-		Commit(r.Context())
+	if err := h.store.SetLastLogin(ctx, user.ID); err != nil {
+		html.ServerError(w, r, err)
+		return
+	}
 
-	http.SetCookie(w, cookie.New(
-		cookie.CookieUserSessionID,
-		sessionToken,
-		config.Opts.HTTPS(),
-		config.Opts.BasePath(),
-	))
+	http.SetCookie(w, cookie.NewSession(sess.ID))
 	html.Redirect(w, r, route.Path(h.router, user.DefaultHomePage))
 }

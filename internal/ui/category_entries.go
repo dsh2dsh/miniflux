@@ -16,6 +16,7 @@ import (
 func (h *handler) showCategoryEntriesPage(w http.ResponseWriter, r *http.Request,
 ) {
 	v := h.View(r).WithSaveEntry()
+	user := v.User()
 
 	id := request.RouteInt64Param(r, "categoryID")
 	var category *model.Category
@@ -23,12 +24,6 @@ func (h *handler) showCategoryEntriesPage(w http.ResponseWriter, r *http.Request
 		category, err = h.store.Category(ctx, v.UserID(), id)
 		return
 	})
-
-	user, err := v.WaitUser()
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
 
 	offset := request.QueryIntParam(r, "offset", 0)
 	query := h.store.NewEntryQueryBuilder(user.ID).

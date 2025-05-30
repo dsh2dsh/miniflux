@@ -15,6 +15,8 @@ import (
 	"path"
 	"time"
 
+	"github.com/klauspost/compress/gzhttp"
+
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/http/request"
@@ -106,11 +108,12 @@ func (h *handler) mediaProxy(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	transport := &http.Transport{
+		IdleConnTimeout: time.Duration(config.Opts.MediaProxyHTTPClientTimeout()) * time.Second,
+	}
 	clt := &http.Client{
-		Transport: &http.Transport{
-			IdleConnTimeout: time.Duration(config.Opts.MediaProxyHTTPClientTimeout()) * time.Second,
-		},
-		Timeout: time.Duration(config.Opts.MediaProxyHTTPClientTimeout()) * time.Second,
+		Transport: gzhttp.Transport(transport),
+		Timeout:   time.Duration(config.Opts.MediaProxyHTTPClientTimeout()) * time.Second,
 	}
 
 	resp, err := clt.Do(req)

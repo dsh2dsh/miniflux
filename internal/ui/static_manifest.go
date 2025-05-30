@@ -45,12 +45,7 @@ func (h *handler) showWebManifest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	displayMode := "standalone"
-	if request.IsAuthenticated(r) {
-		user, err := h.store.UserByID(r.Context(), request.UserID(r))
-		if err != nil {
-			json.ServerError(w, r, err)
-			return
-		}
+	if user := request.User(r); user != nil {
 		displayMode = user.DisplayMode
 	}
 

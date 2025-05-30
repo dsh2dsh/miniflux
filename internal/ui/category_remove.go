@@ -12,14 +12,9 @@ import (
 )
 
 func (h *handler) removeCategory(w http.ResponseWriter, r *http.Request) {
-	user, err := h.store.UserByID(r.Context(), request.UserID(r))
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
-
+	userID := request.UserID(r)
 	id := request.RouteInt64Param(r, "categoryID")
-	category, err := h.store.Category(r.Context(), user.ID, id)
+	category, err := h.store.Category(r.Context(), userID, id)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -28,7 +23,7 @@ func (h *handler) removeCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.store.RemoveCategory(r.Context(), user.ID, id)
+	err = h.store.RemoveCategory(r.Context(), userID, id)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return

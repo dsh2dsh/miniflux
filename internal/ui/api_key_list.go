@@ -13,11 +13,7 @@ import (
 
 func (h *handler) showAPIKeysPage(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r)
-	user, err := v.WaitUser()
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
+	user := v.User()
 
 	var keys []*model.APIKey
 	v.Go(func(ctx context.Context) (err error) {

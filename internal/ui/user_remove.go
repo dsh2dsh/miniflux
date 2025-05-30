@@ -16,13 +16,12 @@ import (
 )
 
 func (h *handler) removeUser(w http.ResponseWriter, r *http.Request) {
-	g, ctx := errgroup.WithContext(r.Context())
-
-	var user *model.User
-	g.Go(func() (err error) {
-		user, err = h.store.UserByID(ctx, request.UserID(r))
+	user := request.User(r)
+	if !user.IsAdmin {
+		html.Forbidden(w, r)
 		return
-	})
+	}
+	g, ctx := errgroup.WithContext(r.Context())
 
 	selectedUserID := request.RouteInt64Param(r, "userID")
 	var selectedUser *model.User
@@ -33,9 +32,6 @@ func (h *handler) removeUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := g.Wait(); err != nil {
 		html.ServerError(w, r, err)
-		return
-	} else if !user.IsAdmin {
-		html.Forbidden(w, r)
 		return
 	} else if selectedUser == nil {
 		html.NotFound(w, r)

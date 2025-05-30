@@ -11,7 +11,6 @@ import (
 	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
-	"miniflux.app/v2/internal/ui/session"
 	"miniflux.app/v2/internal/ui/view"
 )
 
@@ -54,12 +53,11 @@ func (h *handler) sharedEntry(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		sess := session.New(h.store, request.SessionID(r))
-		view := view.New(h.tpl, r, sess)
-		view.Set("entry", entry)
+		v := view.New(h.tpl, r, nil).
+			Set("entry", entry)
 
 		b.WithHeader("Content-Type", "text/html; charset=utf-8")
-		b.WithBody(view.Render("entry"))
+		b.WithBody(v.Render("entry"))
 		b.Write()
 	})
 }

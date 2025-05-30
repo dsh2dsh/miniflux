@@ -30,12 +30,6 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 		return
 	})
 
-	var user *model.User
-	g.Go(func() (err error) {
-		user, err = h.store.UserByID(ctx, userID)
-		return
-	})
-
 	var feed *model.Feed
 	g.Go(func() (err error) {
 		feed, err = h.store.FeedByID(ctx, userID, entry.FeedID)
@@ -50,6 +44,7 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user := request.User(r)
 	if err := processor.ProcessEntryWebPage(feed, entry, user); err != nil {
 		json.ServerError(w, r, err)
 		return

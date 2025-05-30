@@ -3,7 +3,7 @@
 CREATE TABLE schema_version (
     version text NOT NULL
 );
-INSERT INTO schema_version (version) VALUES('113');
+INSERT INTO schema_version (version) VALUES('114');
 
 CREATE TABLE acme_cache (
     key character varying(400) NOT NULL PRIMARY KEY,
@@ -319,18 +319,9 @@ CREATE TABLE integrations (
 
 CREATE TABLE sessions (
     id text NOT NULL PRIMARY KEY,
+    user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     data jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-CREATE TABLE user_sessions (
-    id serial NOT NULL PRIMARY KEY,
-    user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token text NOT NULL UNIQUE,
-    created_at timestamp with time zone DEFAULT now(),
-    user_agent text,
-    ip inet,
-    UNIQUE (user_id, token)
 );
 
 CREATE TABLE webauthn_credentials (

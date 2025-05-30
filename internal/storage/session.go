@@ -26,38 +26,49 @@ func (s *Storage) CreateAppSessionWithUserPrefs(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
+	return s.CreateAppSessionForUser(ctx, user, "", "")
+}
 
+func (s *Storage) CreateAppSessionForUser(ctx context.Context, user *model.User,
+	userAgent, ip string,
+) (*model.Session, error) {
 	session := &model.Session{
-		ID: crypto.GenerateRandomString(32),
+		ID:     crypto.GenerateRandomString(32),
+		UserID: user.ID,
 		Data: &model.SessionData{
-			CSRF:     crypto.GenerateRandomString(64),
-			Theme:    user.Theme,
-			Language: user.Language,
+			CSRF:      crypto.GenerateRandomString(64),
+			Theme:     user.Theme,
+			Language:  user.Language,
+			UserAgent: userAgent,
+			IP:        ip,
 		},
 	}
 	return s.createAppSession(ctx, session)
 }
 
 // CreateAppSession creates a new application session.
-func (s *Storage) CreateAppSession(ctx context.Context,
+func (s *Storage) CreateAppSession(ctx context.Context, userAgent, ip string,
 ) (*model.Session, error) {
 	session := &model.Session{
 		ID: crypto.GenerateRandomString(32),
 		Data: &model.SessionData{
-			CSRF: crypto.GenerateRandomString(64),
+			CSRF:      crypto.GenerateRandomString(64),
+			UserAgent: userAgent,
+			IP:        ip,
 		},
 	}
 	return s.createAppSession(ctx, session)
 }
 
-func (s *Storage) createAppSession(ctx context.Context, session *model.Session,
+func (s *Storage) createAppSession(ctx context.Context, sess *model.Session,
 ) (*model.Session, error) {
-	_, err := s.db.Exec(ctx, `INSERT INTO sessions (id, data) VALUES ($1, $2)`,
-		session.ID, session.Data)
+	_, err := s.db.Exec(ctx,
+		`INSERT INTO sessions (id, user_id, data) VALUES ($1, $2, $3)`,
+		sess.ID, sess.UserID, sess.Data)
 	if err != nil {
-		return nil, fmt.Errorf(`store: unable to create app session: %w`, err)
+		return nil, fmt.Errorf("storage: create app session: %w", err)
 	}
-	return session, nil
+	return sess, nil
 }
 
 func (s *Storage) UpdateAppSession(ctx context.Context, sessionID string,
@@ -75,34 +86,24 @@ func (s *Storage) UpdateAppSession(ctx context.Context, sessionID string,
 // AppSession returns the given session.
 func (s *Storage) AppSession(ctx context.Context, id string,
 ) (*model.Session, error) {
-	rows, _ := s.db.Query(ctx, `SELECT id, data FROM sessions WHERE id=$1`, id)
+	rows, _ := s.db.Query(ctx,
+		`SELECT id, user_id, data, created_at FROM sessions WHERE id=$1`, id)
 
-	session, err := pgx.CollectExactlyOneRow(rows,
+	sess, err := pgx.CollectExactlyOneRow(rows,
 		pgx.RowToAddrOfStructByName[model.Session])
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, fmt.Errorf(`store: session not found: %s`, id)
+		return nil, nil
 	} else if err != nil {
-		return nil, fmt.Errorf(`store: unable to fetch session: %w`, err)
+		return nil, fmt.Errorf("storage: fetch session: %w", err)
 	}
-	return session, nil
+	return sess, nil
 }
 
 // FlushAllSessions removes all sessions from the database.
 func (s *Storage) FlushAllSessions(ctx context.Context) error {
-	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		_, err := tx.Exec(ctx, `DELETE FROM user_sessions`)
-		if err != nil {
-			return fmt.Errorf("full user_sessions: %w", err)
-		}
-
-		_, err = tx.Exec(ctx, `DELETE FROM sessions`)
-		if err != nil {
-			return fmt.Errorf("flush sessions: %w", err)
-		}
-		return nil
-	})
+	_, err := s.db.Exec(ctx, `DELETE FROM sessions`)
 	if err != nil {
-		return fmt.Errorf("storage: failed flush all sessions: %w", err)
+		return fmt.Errorf("storage: failed flush sessions: %w", err)
 	}
 	return nil
 }
@@ -118,4 +119,27 @@ func (s *Storage) CleanOldSessions(ctx context.Context, days int) int64 {
 		return 0
 	}
 	return result.RowsAffected()
+}
+
+func (s *Storage) RemoveAppSessionByID(ctx context.Context, id string) error {
+	result, err := s.db.Exec(ctx, `DELETE FROM sessions WHERE id=$1`, id)
+	if err != nil {
+		return fmt.Errorf("storage: unable to remove this app session: %w", err)
+	}
+
+	if result.RowsAffected() != 1 {
+		return errors.New("storage: no app sessions has been removed")
+	}
+	return nil
+}
+
+func (s *Storage) UpdateAppSessionUserId(ctx context.Context, sessionID string,
+	userID int64,
+) error {
+	_, err := s.db.Exec(ctx,
+		`UPDATE sessions SET user_id = $1 WHERE id=$2`, userID, sessionID)
+	if err != nil {
+		return fmt.Errorf("storage: update session user_id field: %w", err)
+	}
+	return nil
 }

@@ -316,7 +316,43 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
 		return gzhttp.GzipHandler(next)
 	})
 	subrouter.Use(middleware.RequestId)
+
+	publicRoutes := middleware.WithPublicRoutes(map[string]struct{}{
+		"/favicon.ico":           {},
+		"/feed/icon/":            {},
+		"/healthcheck":           {},
+		"/icon/":                 {},
+		"/js/":                   {},
+		"/login":                 {},
+		"/manifest.json":         {},
+		"/metrics":               {},
+		"/oauth2/callback/":      {},
+		"/oauth2/redirect/":      {},
+		"/offline":               {},
+		"/proxy/":                {},
+		"/robots.txt":            {},
+		"/share/":                {},
+		"/stylesheets/":          {},
+		"/version":               {},
+		"/webauthn/login/begin":  {},
+		"/webauthn/login/finish": {},
+	})
+	subrouter.Use(mux.MiddlewareFunc(publicRoutes))
+
+	userSession := middleware.WithUserSession(store, map[string]struct{}{
+		"/oauth2/callback/":      {},
+		"/oauth2/redirect/":      {},
+		"/webauthn/login/finish": {},
+	})
+	subrouter.Use(mux.MiddlewareFunc(userSession))
+
 	subrouter.Use(middleware.ClientIP)
+	accessLog := middleware.WithAccessLog(map[string]struct{}{
+		"/healthcheck": {},
+		"/metrics":     {},
+		"/version":     {},
+	})
+	subrouter.Use(mux.MiddlewareFunc(accessLog))
 	subrouter.Use(middleware.WithPanic)
 
 	fever.Serve(subrouter, store)

@@ -16,19 +16,15 @@ import (
 )
 
 func (h *handler) saveUser(w http.ResponseWriter, r *http.Request) {
-	userID := request.UserID(r)
-	user, err := h.store.UserByID(r.Context(), userID)
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	} else if !user.IsAdmin {
+	user := request.User(r)
+	if !user.IsAdmin {
 		html.Forbidden(w, r)
 		return
 	}
 
 	f := form.NewUserForm(r)
 	if lerr := f.ValidateCreation(); lerr != nil {
-		h.showSaveUserError(w, r, user, func(v *View) {
+		h.showSaveUserError(w, r, func(v *View) {
 			v.Set("form", f).
 				Set("errorMessage", lerr.Translate(v.User().Language))
 			html.OK(w, r, v.Render("create_user"))
@@ -37,7 +33,7 @@ func (h *handler) saveUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.store.UserExists(r.Context(), f.Username) {
-		h.showSaveUserError(w, r, user, func(v *View) {
+		h.showSaveUserError(w, r, func(v *View) {
 			lerr := locale.NewLocalizedError("error.user_already_exists")
 			v.Set("form", f).
 				Set("errorMessage", lerr.Translate(v.User().Language))
@@ -55,7 +51,7 @@ func (h *handler) saveUser(w http.ResponseWriter, r *http.Request) {
 	lerr := validator.ValidateUserCreationWithPassword(r.Context(), h.store,
 		&createRequest)
 	if lerr != nil {
-		h.showSaveUserError(w, r, user, func(v *View) {
+		h.showSaveUserError(w, r, func(v *View) {
 			v.Set("form", f).
 				Set("errorMessage", lerr.Translate(v.User().Language))
 			html.OK(w, r, v.Render("create_user"))
@@ -63,7 +59,7 @@ func (h *handler) saveUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.store.CreateUser(r.Context(), &createRequest)
+	_, err := h.store.CreateUser(r.Context(), &createRequest)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -72,9 +68,9 @@ func (h *handler) saveUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) showSaveUserError(w http.ResponseWriter, r *http.Request,
-	user *model.User, renderFunc func(v *View),
+	renderFunc func(v *View),
 ) {
-	v := h.View(r, func(v *View) { v.WithUser(user) })
+	v := h.View(r)
 	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return

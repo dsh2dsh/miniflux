@@ -567,3 +567,90 @@ SELECT EXISTS(
 	}
 	return result, nil
 }
+
+func (s *Storage) UserSession(ctx context.Context, id string,
+) (*model.User, *model.Session, error) {
+	query := `
+SELECT
+  s.data,
+  s.created_at,
+  COALESCE(u.id,                    0),
+  COALESCE(u.username,              ''),
+  COALESCE(u.is_admin,              FALSE),
+  COALESCE(u.language,              ''),
+  COALESCE(u.timezone,              ''),
+  COALESCE(u.theme,                 ''),
+  COALESCE(u.entry_direction,       'asc'),
+  COALESCE(u.keyboard_shortcuts,    FALSE),
+  COALESCE(u.entries_per_page,      0),
+  COALESCE(u.show_reading_time,     FALSE),
+  COALESCE(u.entry_swipe,           FALSE),
+  COALESCE(u.gesture_nav,           'tap'),
+  u.last_login_at,
+  COALESCE(u.stylesheet,            ''),
+  COALESCE(u.custom_js,             ''),
+  COALESCE(u.external_font_hosts,   ''),
+  COALESCE(u.google_id,             ''),
+  COALESCE(u.openid_connect_id,     ''),
+  COALESCE(u.display_mode,          'standalone'),
+  COALESCE(u.entry_order,           'published_at'),
+  COALESCE(u.default_reading_speed, 0),
+  COALESCE(u.cjk_reading_speed,     0),
+  COALESCE(u.default_home_page,     ''),
+  COALESCE(u.categories_sorting_order, 'unread_count'),
+  COALESCE(u.mark_read_on_view,     FALSE),
+  COALESCE(u.mark_read_on_media_player_completion, FALSE),
+  COALESCE(u.media_playback_rate,   0),
+  COALESCE(u.block_filter_entry_rules, ''),
+  COALESCE(u.keep_filter_entry_rules,  ''),
+  COALESCE(u.extra,                 '{}'::jsonb)
+FROM sessions s LEFT JOIN users u ON s.user_id = u.id
+WHERE s.id = $1`
+
+	user := &model.User{}
+	sess := &model.Session{ID: id}
+
+	err := s.db.QueryRow(ctx, query, id).Scan(
+		&sess.Data,
+		&sess.CreatedAt,
+		&user.ID,
+		&user.Username,
+		&user.IsAdmin,
+		&user.Language,
+		&user.Timezone,
+		&user.Theme,
+		&user.EntryDirection,
+		&user.KeyboardShortcuts,
+		&user.EntriesPerPage,
+		&user.ShowReadingTime,
+		&user.EntrySwipe,
+		&user.GestureNav,
+		&user.LastLoginAt,
+		&user.Stylesheet,
+		&user.CustomJS,
+		&user.ExternalFontHosts,
+		&user.GoogleID,
+		&user.OpenIDConnectID,
+		&user.DisplayMode,
+		&user.EntryOrder,
+		&user.DefaultReadingSpeed,
+		&user.CJKReadingSpeed,
+		&user.DefaultHomePage,
+		&user.CategoriesSortingOrder,
+		&user.MarkReadOnView,
+		&user.MarkReadOnMediaPlayerCompletion,
+		&user.MediaPlaybackRate,
+		&user.BlockFilterEntryRules,
+		&user.KeepFilterEntryRules,
+		&user.Extra)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil, nil
+	} else if err != nil {
+		return nil, nil, fmt.Errorf("storage: fetch user with session: %w", err)
+	}
+
+	if user.ID > 0 {
+		sess.UserID = user.ID
+	}
+	return user, sess, nil
+}

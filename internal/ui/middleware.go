@@ -6,7 +6,6 @@ package ui // import "miniflux.app/v2/internal/ui"
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -21,8 +20,19 @@ import (
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/storage"
-	"miniflux.app/v2/internal/ui/session"
 )
+
+const (
+	csrfForm   = "csrf"
+	csrfHeader = "X-Csrf-Token"
+)
+
+var publicSession = model.Session{
+	Data: &model.SessionData{
+		Language: "en_US",
+		Theme:    "light_sans_serif",
+	},
+}
 
 type middleware struct {
 	router *mux.Router
@@ -35,170 +45,112 @@ func newMiddleware(router *mux.Router, store *storage.Storage) *middleware {
 
 func (m *middleware) handleUserSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		log := logging.FromContext(ctx)
-
-		session, err := m.getUserSessionFromCookie(r)
-		if err != nil {
-			html.ServerError(w, r, err)
+		if request.Public(r) {
+			next.ServeHTTP(w, r)
 			return
 		}
 
-		if session == nil {
-			if m.isPublicRoute(r) {
-				next.ServeHTTP(w, r)
-			} else {
-				log.Debug(
-					"Redirecting to login page because no user session has been found",
-					slog.Any("url", r.RequestURI))
-				html.Redirect(w, r, route.Path(m.router, "login"))
-			}
+		ctx := r.Context()
+		log := logging.FromContext(ctx).With(
+			slog.String("url", r.URL.String()))
+
+		user := request.User(r)
+		sess := request.Session(r)
+
+		if user == nil || sess == nil {
+			log.Debug(
+				"Redirecting to login page because no user session has been found")
+			html.Redirect(w, r, route.Path(m.router, "login"))
 			return
 		}
 
 		log.Debug("User session found",
-			slog.Any("url", r.RequestURI),
-			slog.Int64("user_id", session.UserID),
-			slog.Int64("user_session_id", session.ID))
+			slog.Group("user",
+				slog.Int64("id", user.ID),
+				slog.String("name", user.Username)),
+			slog.Group("session", slog.String("id", sess.ID)))
 
-		ctx = context.WithValue(ctx, request.UserIDContextKey, session.UserID)
+		ctx = context.WithValue(ctx, request.UserIDContextKey, user.ID)
 		ctx = context.WithValue(ctx, request.IsAuthenticatedContextKey, true)
-		ctx = context.WithValue(ctx, request.UserSessionTokenContextKey,
-			session.Token)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
 func (m *middleware) handleAppSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if mux.CurrentRoute(r).GetName() == "feedIcon" {
-			// Skip app session handling for the feed icon route to avoid unnecessary session creation
-			// when fetching feed icons.
+		ctx := r.Context()
+		log := logging.FromContext(ctx).With(
+			slog.String("url", r.URL.String()))
+		s := request.Session(r)
+
+		if s == nil {
+			if request.Public(r) {
+				ctx = contextWithSessionKeys(ctx, &publicSession)
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+			err := errors.New("no app session has been found")
+			log.Warn(err.Error())
+			html.BadRequest(w, r, err)
+			return
+		}
+
+		ctx = contextWithSessionKeys(ctx, s)
+		r = r.WithContext(ctx)
+		if r.Method != http.MethodPost {
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		var err error
-		session := m.getAppSessionValueFromCookie(r)
-
-		if session == nil {
-			if request.IsAuthenticated(r) {
-				userID := request.UserID(r)
-				slog.Debug("Cookie expired but user is logged: creating a new app session",
-					slog.Int64("user_id", userID),
-				)
-				session, err = m.store.CreateAppSessionWithUserPrefs(
-					r.Context(), userID)
-				if err != nil {
-					html.ServerError(w, r, err)
-					return
-				}
-			} else {
-				slog.Debug("App session not found, creating a new one")
-				session, err = m.store.CreateAppSession(r.Context())
-				if err != nil {
-					html.ServerError(w, r, err)
-					return
-				}
-			}
-
-			http.SetCookie(w, cookie.New(cookie.CookieAppSessionID,
-				session.ID, config.Opts.HTTPS(), config.Opts.BasePath()))
+		if !checkCSRF(w, r, s.Data.CSRF) {
+			return
 		}
-
-		if r.Method == http.MethodPost {
-			formValue := r.FormValue("csrf")
-			headerValue := r.Header.Get("X-Csrf-Token")
-
-			if !crypto.ConstantTimeCmp(session.Data.CSRF, formValue) && !crypto.ConstantTimeCmp(session.Data.CSRF, headerValue) {
-				slog.Warn("Invalid or missing CSRF token",
-					slog.Any("url", r.RequestURI),
-					slog.String("form_csrf", formValue),
-					slog.String("header_csrf", headerValue),
-				)
-
-				if mux.CurrentRoute(r).GetName() == "checkLogin" {
-					html.Redirect(w, r, route.Path(m.router, "login"))
-					return
-				}
-
-				html.BadRequest(w, r, errors.New("invalid or missing CSRF"))
-				return
-			}
-		}
-
-		ctx := r.Context()
-		ctx = context.WithValue(ctx, request.SessionIDContextKey, session.ID)
-		ctx = context.WithValue(ctx, request.CSRFContextKey, session.Data.CSRF)
-		ctx = context.WithValue(ctx, request.OAuth2StateContextKey, session.Data.OAuth2State)
-		ctx = context.WithValue(ctx, request.OAuth2CodeVerifierContextKey, session.Data.OAuth2CodeVerifier)
-		ctx = context.WithValue(ctx, request.FlashMessageContextKey, session.Data.FlashMessage)
-		ctx = context.WithValue(ctx, request.FlashErrorMessageContextKey, session.Data.FlashErrorMessage)
-		ctx = context.WithValue(ctx, request.UserLanguageContextKey, session.Data.Language)
-		ctx = context.WithValue(ctx, request.UserThemeContextKey, session.Data.Theme)
-		ctx = context.WithValue(ctx, request.PocketRequestTokenContextKey, session.Data.PocketRequestToken)
-		ctx = context.WithValue(ctx, request.LastForceRefreshContextKey, session.Data.LastForceRefresh)
-		ctx = context.WithValue(ctx, request.WebAuthnDataContextKey, session.Data.WebAuthnSessionData)
-		next.ServeHTTP(w, r.WithContext(ctx))
+		next.ServeHTTP(w, r)
 	})
 }
 
-func (m *middleware) getAppSessionValueFromCookie(r *http.Request) *model.Session {
-	cookieValue := request.CookieValue(r, cookie.CookieAppSessionID)
-	if cookieValue == "" {
-		return nil
-	}
-
-	session, err := m.store.AppSession(r.Context(), cookieValue)
-	if err != nil {
-		slog.Debug("Unable to fetch app session from the database; another session will be created",
-			slog.Any("cookie_value", cookieValue),
-			slog.Any("error", err),
-		)
-		return nil
-	}
-	return session
+func contextWithSessionKeys(ctx context.Context, sess *model.Session,
+) context.Context {
+	ctx = context.WithValue(ctx, request.SessionIDContextKey, sess.ID)
+	ctx = request.WithCSRF(ctx, sess.Data.CSRF)
+	ctx = context.WithValue(ctx, request.OAuth2StateContextKey,
+		sess.Data.OAuth2State)
+	ctx = context.WithValue(ctx, request.OAuth2CodeVerifierContextKey,
+		sess.Data.OAuth2CodeVerifier)
+	ctx = context.WithValue(ctx, request.FlashMessageContextKey,
+		sess.Data.FlashMessage)
+	ctx = context.WithValue(ctx, request.FlashErrorMessageContextKey,
+		sess.Data.FlashErrorMessage)
+	ctx = context.WithValue(ctx, request.UserLanguageContextKey,
+		sess.Data.Language)
+	ctx = context.WithValue(ctx, request.UserThemeContextKey,
+		sess.Data.Theme)
+	ctx = context.WithValue(ctx, request.PocketRequestTokenContextKey,
+		sess.Data.PocketRequestToken)
+	ctx = context.WithValue(ctx, request.LastForceRefreshContextKey,
+		sess.Data.LastForceRefresh)
+	ctx = context.WithValue(ctx, request.WebAuthnDataContextKey,
+		sess.Data.WebAuthnSessionData)
+	return ctx
 }
 
-func (m *middleware) isPublicRoute(r *http.Request) bool {
-	route := mux.CurrentRoute(r)
-	switch route.GetName() {
-	case "login",
-		"checkLogin",
-		"stylesheet",
-		"javascript",
-		"oauth2Redirect",
-		"oauth2Callback",
-		"appIcon",
-		"feedIcon",
-		"favicon",
-		"webManifest",
-		"robots",
-		"sharedEntry",
-		"healthcheck",
-		"offline",
-		"proxy",
-		"webauthnLoginBegin",
-		"webauthnLoginFinish":
+func checkCSRF(w http.ResponseWriter, r *http.Request, csrf string) bool {
+	formToken := r.FormValue(csrfForm)
+	headerToken := r.Header.Get(csrfHeader)
+
+	ok := crypto.ConstantTimeCmp(csrf, formToken) ||
+		crypto.ConstantTimeCmp(csrf, headerToken)
+	if csrf != "" && ok {
 		return true
-	default:
-		return false
-	}
-}
-
-func (m *middleware) getUserSessionFromCookie(r *http.Request,
-) (*model.UserSession, error) {
-	cookieValue := request.CookieValue(r, cookie.CookieUserSessionID)
-	if cookieValue == "" {
-		return nil, nil
 	}
 
-	session, err := m.store.UserSessionByToken(r.Context(), cookieValue)
-	if err != nil {
-		return nil, fmt.Errorf(
-			"ui: unable to fetch user session from the database: %w", err)
-	}
-	return session, nil
+	err := errors.New("invalid or missing CSRF token")
+	logging.FromContext(r.Context()).Warn(err.Error(),
+		slog.String("csrf", csrf),
+		slog.String("form", formToken),
+		slog.String("header", headerToken))
+	html.BadRequest(w, r, err)
+	return false
 }
 
 func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
@@ -214,14 +166,15 @@ func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
 			return
 		}
 
+		ctx := r.Context()
 		clientIP := request.ClientIP(r)
-		slog.Debug("[AuthProxy] Received authenticated requested",
+		log := logging.FromContext(ctx).With(
 			slog.String("client_ip", clientIP),
 			slog.String("user_agent", r.UserAgent()),
-			slog.String("username", username),
-		)
+			slog.String("username", username))
+		log.Debug("[AuthProxy] Received authenticated request")
 
-		user, err := m.store.UserByUsername(r.Context(), username)
+		user, err := m.store.UserByUsername(ctx, username)
 		if err != nil {
 			html.ServerError(w, r, err)
 			return
@@ -229,55 +182,62 @@ func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
 
 		if user == nil {
 			if !config.Opts.IsAuthProxyUserCreationAllowed() {
-				slog.Debug("[AuthProxy] User doesn't exist and user creation is not allowed",
-					slog.Bool("authentication_failed", true),
-					slog.String("client_ip", clientIP),
-					slog.String("user_agent", r.UserAgent()),
-					slog.String("username", username),
-				)
+				log.Debug(
+					"[AuthProxy] User doesn't exist and user creation is not allowed")
 				html.Forbidden(w, r)
 				return
 			}
 
-			user, err = m.store.CreateUser(r.Context(),
-				&model.UserCreationRequest{Username: username})
+			user, err = m.store.CreateUser(ctx, &model.UserCreationRequest{
+				Username: username,
+			})
 			if err != nil {
 				html.ServerError(w, r, err)
 				return
 			}
 		}
 
-		sessionToken, _, err := m.store.CreateUserSessionFromUsername(
-			r.Context(), user.Username, r.UserAgent(), clientIP)
+		sess, err := m.store.CreateAppSessionForUser(r.Context(), user,
+			r.UserAgent(), clientIP)
 		if err != nil {
 			html.ServerError(w, r, err)
 			return
 		}
 
-		slog.Info("[AuthProxy] User authenticated successfully",
-			slog.Bool("authentication_successful", true),
-			slog.String("client_ip", clientIP),
-			slog.String("user_agent", r.UserAgent()),
+		log.Info("[AuthProxy] User authenticated successfully",
 			slog.Int64("user_id", user.ID),
-			slog.String("username", user.Username),
-		)
+			slog.String("session_id", sess.ID))
 
 		if err := m.store.SetLastLogin(r.Context(), user.ID); err != nil {
 			html.ServerError(w, r, err)
 			return
 		}
 
-		session.New(m.store, request.SessionID(r)).
-			SetLanguage(user.Language).
-			SetTheme(user.Theme).
-			Commit(r.Context())
-
-		http.SetCookie(w, cookie.New(
-			cookie.CookieUserSessionID,
-			sessionToken,
-			config.Opts.HTTPS(),
-			config.Opts.BasePath(),
-		))
+		http.SetCookie(w, cookie.NewSession(sess.ID))
 		html.Redirect(w, r, route.Path(m.router, user.DefaultHomePage))
+	})
+}
+
+func (m *middleware) PublicCSRF(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !request.Public(r) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		if r.Method != http.MethodPost {
+			csrf := crypto.GenerateRandomString(64)
+			http.SetCookie(w, cookie.NewCSRF(csrf))
+			ctx := request.WithCSRF(r.Context(), csrf)
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
+
+		csrf := request.CookieValue(r, cookie.CookieCSRF)
+		if !checkCSRF(w, r, csrf) {
+			return
+		}
+		http.SetCookie(w, cookie.ExpiredCSRF())
+		next.ServeHTTP(w, r)
 	})
 }

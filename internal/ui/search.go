@@ -14,11 +14,7 @@ import (
 
 func (h *handler) showSearchPage(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r).WithSaveEntry()
-	user, err := v.WaitUser()
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
+	user := v.User()
 
 	searchQuery := request.QueryStringParam(r, "q", "")
 	offset := request.QueryIntParam(r, "offset", 0)
@@ -32,6 +28,7 @@ func (h *handler) showSearchPage(w http.ResponseWriter, r *http.Request) {
 			WithOffset(offset).
 			WithLimit(user.EntriesPerPage)
 
+		var err error
 		entries, count, err = v.WaitEntriesCount(query)
 		if err != nil {
 			html.ServerError(w, r, err)

@@ -23,11 +23,7 @@ func (h *handler) showTagEntriesAllPage(w http.ResponseWriter,
 	}
 
 	v := h.View(r).WithSaveEntry()
-	user, err := v.WaitUser()
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
+	user := v.User()
 
 	offset := request.QueryIntParam(r, "offset", 0)
 	query := h.store.NewEntryQueryBuilder(v.UserID()).

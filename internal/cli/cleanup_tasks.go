@@ -33,12 +33,8 @@ var cleanupTasksCmd = cobra.Command{
 func runCleanupTasks(ctx context.Context, store *storage.Storage) {
 	nbSessions := store.CleanOldSessions(ctx,
 		config.Opts.CleanupRemoveSessionsDays())
-	nbUserSessions := store.CleanOldUserSessions(ctx,
-		config.Opts.CleanupRemoveSessionsDays())
 	slog.Info("Sessions cleanup completed",
-		slog.Int64("application_sessions_removed", nbSessions),
-		slog.Int64("user_sessions_removed", nbUserSessions),
-	)
+		slog.Int64("removed", nbSessions))
 
 	startTime := time.Now()
 	rowsAffected, err := store.ArchiveEntries(ctx, model.EntryStatusRead,

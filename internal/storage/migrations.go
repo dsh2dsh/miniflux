@@ -660,4 +660,11 @@ ALTER TABLE integrations ADD COLUMN extra jsonb NOT NULL DEFAULT '{}'::jsonb`),
 	// 113
 	sqlMigration(`
 ALTER TABLE users ADD COLUMN extra jsonb NOT NULL DEFAULT '{}'::jsonb`),
+
+	// 114
+	sqlMigration(`
+DROP TABLE user_sessions;
+TRUNCATE TABLE sessions;
+ALTER TABLE sessions
+  ADD COLUMN user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE;`),
 }

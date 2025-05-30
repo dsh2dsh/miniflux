@@ -40,7 +40,7 @@ func Serve(router *mux.Router, store *storage.Storage, pool *worker.Pool) {
 
 	// Static assets.
 	uiRouter.HandleFunc("/stylesheets/{name}.{checksum}.css", handler.showStylesheet).Name("stylesheet").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/{name}.{checksum}.js", handler.showJavascript).Name("javascript").Methods(http.MethodGet)
+	uiRouter.HandleFunc("/js/{name}.{checksum}.js", handler.showJavascript).Name("javascript").Methods(http.MethodGet)
 	uiRouter.HandleFunc("/favicon.ico", handler.showFavicon).Name("favicon").Methods(http.MethodGet)
 	uiRouter.HandleFunc("/icon/{filename}", handler.showAppIcon).Name("appIcon").Methods(http.MethodGet)
 	uiRouter.HandleFunc("/manifest.json", handler.showWebManifest).Name("webManifest").Methods(http.MethodGet)
@@ -156,23 +156,51 @@ func Serve(router *mux.Router, store *storage.Storage, pool *worker.Pool) {
 	uiRouter.HandleFunc("/fetch", handler.fetchOPML).Name("fetchOPML").Methods(http.MethodPost)
 
 	// OAuth2 flow.
-	uiRouter.HandleFunc("/oauth2/{provider}/unlink", handler.oauth2Unlink).Name("oauth2Unlink").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/oauth2/{provider}/redirect", handler.oauth2Redirect).Name("oauth2Redirect").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/oauth2/{provider}/callback", handler.oauth2Callback).Name("oauth2Callback").Methods(http.MethodGet)
+	uiRouter.HandleFunc("/oauth2/unlink/{provider}", handler.oauth2Unlink).
+		Name("oauth2Unlink").
+		Methods(http.MethodGet)
+
+	uiRouter.HandleFunc("/oauth2/redirect/{provider}", handler.oauth2Redirect).
+		Name("oauth2Redirect").
+		Methods(http.MethodGet)
+
+	uiRouter.HandleFunc("/oauth2/callback/{provider}", handler.oauth2Callback).
+		Name("oauth2Callback").
+		Methods(http.MethodGet)
 
 	// Offline page
-	uiRouter.HandleFunc("/offline", handler.showOfflinePage).Name("offline").Methods(http.MethodGet)
+	uiRouter.HandleFunc("/offline", handler.showOfflinePage).
+		Name("offline").
+		Methods(http.MethodGet)
 
 	// Authentication pages.
-	uiRouter.HandleFunc("/login", handler.checkLogin).Name("checkLogin").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/logout", handler.logout).Name("logout").Methods(http.MethodGet)
-	uiRouter.Handle("/", middleware.handleAuthProxy(http.HandlerFunc(handler.showLoginPage))).Name("login").Methods(http.MethodGet)
+	uiRouter.Handle("/login",
+		middleware.PublicCSRF(http.HandlerFunc(handler.checkLogin))).
+		Name("checkLogin").
+		Methods(http.MethodPost)
+
+	uiRouter.HandleFunc("/logout", handler.logout).
+		Name("logout").
+		Methods(http.MethodGet)
+
+	uiRouter.Handle("/",
+		middleware.handleAuthProxy(middleware.PublicCSRF(
+			http.HandlerFunc(handler.showLoginPage)))).
+		Name("login").
+		Methods(http.MethodGet)
 
 	// WebAuthn flow
 	uiRouter.HandleFunc("/webauthn/register/begin", handler.beginRegistration).Name("webauthnRegisterBegin").Methods(http.MethodGet)
 	uiRouter.HandleFunc("/webauthn/register/finish", handler.finishRegistration).Name("webauthnRegisterFinish").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/webauthn/login/begin", handler.beginLogin).Name("webauthnLoginBegin").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/webauthn/login/finish", handler.finishLogin).Name("webauthnLoginFinish").Methods(http.MethodPost)
+
+	uiRouter.HandleFunc("/webauthn/login/begin", handler.beginLogin).
+		Name("webauthnLoginBegin").
+		Methods(http.MethodGet)
+
+	uiRouter.HandleFunc("/webauthn/login/finish", handler.finishLogin).
+		Name("webauthnLoginFinish").
+		Methods(http.MethodPost)
+
 	uiRouter.HandleFunc("/webauthn/deleteall", handler.deleteAllCredentials).Name("webauthnDeleteAll").Methods(http.MethodPost)
 	uiRouter.HandleFunc("/webauthn/{credentialHandle}/delete", handler.deleteCredential).Name("webauthnDelete").Methods(http.MethodPost)
 	uiRouter.HandleFunc("/webauthn/{credentialHandle}/rename", handler.renameCredential).Name("webauthnRename").Methods(http.MethodGet)

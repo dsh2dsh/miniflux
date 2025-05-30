@@ -17,6 +17,7 @@ func (h *handler) showFeedEntriesAllPage(w http.ResponseWriter,
 	r *http.Request,
 ) {
 	v := h.View(r).WithSaveEntry()
+	user := v.User()
 
 	feedID := request.RouteInt64Param(r, "feedID")
 	var feed *model.Feed
@@ -24,12 +25,6 @@ func (h *handler) showFeedEntriesAllPage(w http.ResponseWriter,
 		feed, err = h.store.FeedByID(ctx, v.UserID(), feedID)
 		return
 	})
-
-	user, err := v.WaitUser()
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
 
 	offset := request.QueryIntParam(r, "offset", 0)
 	query := h.store.NewEntryQueryBuilder(v.UserID()).

@@ -28,7 +28,7 @@ func (h *handler) showSessionsPage(w http.ResponseWriter, r *http.Request) {
 
 	sessions.UseTimezone(v.User().Timezone)
 	v.Set("menu", "settings").
-		Set("currentSessionToken", request.UserSessionToken(r)).
+		Set("currentSessionToken", request.SessionID(r)).
 		Set("sessions", sessions)
 	html.OK(w, r, v.Render("sessions"))
 }

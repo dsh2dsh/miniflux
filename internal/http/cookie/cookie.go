@@ -12,40 +12,45 @@ import (
 
 // Cookie names.
 const (
-	CookieAppSessionID  = "MinifluxAppSessionID"
-	CookieUserSessionID = "MinifluxUserSessionID"
+	CookieAppSessionID = "MinifluxAppSessionID"
+	CookieCSRF         = "MinifluxCSRF"
 )
 
+func NewCSRF(v string) *http.Cookie { return makeSessionCookie(CookieCSRF, v) }
+
+func NewSession(id string) *http.Cookie { return New(CookieAppSessionID, id) }
+
 // New creates a new cookie.
-func New(name, value string, isHTTPS bool, path string) *http.Cookie {
+func New(name, value string) *http.Cookie {
+	c := makeSessionCookie(name, value)
+	c.Expires = time.Now().Add(
+		time.Duration(config.Opts.CleanupRemoveSessionsDays()) * 24 * time.Hour)
+	return c
+}
+
+func makeSessionCookie(name, value string) *http.Cookie {
+	path := config.Opts.BasePath()
+	if path == "" {
+		path = "/"
+	}
+
 	return &http.Cookie{
 		Name:     name,
 		Value:    value,
-		Path:     basePath(path),
-		Secure:   isHTTPS,
+		Path:     path,
+		Secure:   config.Opts.HTTPS(),
 		HttpOnly: true,
-		Expires:  time.Now().Add(time.Duration(config.Opts.CleanupRemoveSessionsDays()) * 24 * time.Hour),
 		SameSite: http.SameSiteLaxMode,
 	}
 }
+
+func ExpiredCSRF() *http.Cookie    { return Expired(CookieCSRF) }
+func ExpiredSession() *http.Cookie { return Expired(CookieAppSessionID) }
 
 // Expired returns an expired cookie.
-func Expired(name string, isHTTPS bool, path string) *http.Cookie {
-	return &http.Cookie{
-		Name:     name,
-		Value:    "",
-		Path:     basePath(path),
-		Secure:   isHTTPS,
-		HttpOnly: true,
-		MaxAge:   -1,
-		Expires:  time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC),
-		SameSite: http.SameSiteLaxMode,
-	}
-}
-
-func basePath(path string) string {
-	if path == "" {
-		return "/"
-	}
-	return path
+func Expired(name string) *http.Cookie {
+	c := makeSessionCookie(name, "")
+	c.MaxAge = -1
+	c.Expires = time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
+	return c
 }
