@@ -6,7 +6,31 @@ package model // import "miniflux.app/v2/internal/model"
 import (
 	"fmt"
 	"time"
+
+	"miniflux.app/v2/internal/timezone"
 )
+
+// Session represents a session in the system.
+type Session struct {
+	ID        string       `db:"id"`
+	UserID    int64        `db:"user_id"`
+	Data      *SessionData `db:"data"`
+	CreatedAt time.Time    `db:"created_at"`
+}
+
+func (self *Session) String() string {
+	return fmt.Sprintf(`ID=%q, UserID=%v, Data={%v}`, self.ID, self.UserID,
+		self.Data)
+}
+
+// UseTimezone converts creation date to the given timezone.
+func (self *Session) UseTimezone(tz string) {
+	self.CreatedAt = timezone.Convert(tz, self.CreatedAt)
+}
+
+func (self *Session) Token() string     { return self.ID }
+func (self *Session) UserAgent() string { return self.Data.UserAgent }
+func (self *Session) IP() string        { return self.Data.IP }
 
 // SessionData represents the data attached to the session.
 type SessionData struct {
@@ -24,29 +48,27 @@ type SessionData struct {
 	IP                  string          `json:"ip,omitempty"`
 }
 
-func (s *SessionData) String() string {
+func (self *SessionData) String() string {
 	return fmt.Sprintf(`CSRF=%q, OAuth2State=%q, OAuth2CodeVerifier=%q, FlashMsg=%q, FlashErrMsg=%q, Lang=%q, Theme=%q, PocketTkn=%q, LastForceRefresh=%v, WebAuthnSession=%q`,
-		s.CSRF,
-		s.OAuth2State,
-		s.OAuth2CodeVerifier,
-		s.FlashMessage,
-		s.FlashErrorMessage,
-		s.Language,
-		s.Theme,
-		s.PocketRequestToken,
-		s.LastForceRefresh,
-		s.WebAuthnSessionData,
+		self.CSRF,
+		self.OAuth2State,
+		self.OAuth2CodeVerifier,
+		self.FlashMessage,
+		self.FlashErrorMessage,
+		self.Language,
+		self.Theme,
+		self.PocketRequestToken,
+		self.LastForceRefresh,
+		self.WebAuthnSessionData,
 	)
 }
 
-// Session represents a session in the system.
-type Session struct {
-	ID        string       `db:"id"`
-	UserID    int64        `db:"user_id"`
-	Data      *SessionData `db:"data"`
-	CreatedAt time.Time    `db:"created_at"`
-}
+// Sessions represents a list of sessions.
+type Sessions []*Session
 
-func (s *Session) String() string {
-	return fmt.Sprintf(`ID=%q, UserID=%v, Data={%v}`, s.ID, s.UserID, s.Data)
+// UseTimezone converts creation date of all sessions to the given timezone.
+func (self Sessions) UseTimezone(tz string) {
+	for _, s := range self {
+		s.UseTimezone(tz)
+	}
 }

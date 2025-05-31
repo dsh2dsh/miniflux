@@ -143,3 +143,21 @@ func (s *Storage) UpdateAppSessionUserId(ctx context.Context, sessionID string,
 	}
 	return nil
 }
+
+// UserSessions returns the list of sessions for the given user.
+func (s *Storage) UserSessions(ctx context.Context, userID int64,
+) (model.Sessions, error) {
+	rows, _ := s.db.Query(ctx, `
+SELECT id, user_id, data, created_at
+  FROM sessions
+ WHERE user_id = $1 ORDER BY created_at DESC`, userID)
+
+	sessions, err := pgx.CollectRows(rows,
+		pgx.RowToAddrOfStructByName[model.Session])
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	} else if err != nil {
+		return nil, fmt.Errorf(`store: unable to fetch user sessions: %w`, err)
+	}
+	return sessions, nil
+}
