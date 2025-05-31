@@ -26,8 +26,12 @@ func ClientIP(next http.Handler) http.Handler {
 			w.Header().Set("Strict-Transport-Security", "max-age=31536000")
 		}
 
-		ctx := request.WithClientIP(r.Context(), request.FindClientIP(r))
-		next.ServeHTTP(w, r.WithContext(ctx))
+		ctx := r.Context()
+		clientIP := request.FindRemoteIP(r)
+		if config.Opts.TrustedProxy(clientIP) {
+			clientIP = request.FindClientIP(r, config.Opts.TrustedProxy)
+		}
+		next.ServeHTTP(w, r.WithContext(request.WithClientIP(ctx, clientIP)))
 	})
 }
 

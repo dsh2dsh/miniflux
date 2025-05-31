@@ -43,6 +43,7 @@ type Options struct {
 	rootURL              string
 	basePath             string
 	mediaProxyPrivateKey []byte
+	trustedProxies       map[string]struct{}
 }
 
 type EnvOptions struct {
@@ -136,6 +137,7 @@ type EnvOptions struct {
 	PreferSiteIcon                     bool     `env:"PREFER_SITE_ICON"`
 	ConnectionsPerSever                int64    `env:"CONNECTIONS_PER_SERVER" validate:"min=1"`
 	RateLimitPerServer                 float64  `env:"RATE_LIMIT_PER_SERVER" validate:"gt=0"`
+	TrustedProxies                     []string `env:"TRUSTED_PROXIES" validate:"dive,required,ip"`
 
 	// Deprecated
 	Debug                  bool     `env:"DEBUG"`
@@ -203,6 +205,7 @@ func NewOptions() *Options {
 			InvidiousInstance:                  "yewtu.be",
 			ConnectionsPerSever:                8,
 			RateLimitPerServer:                 10,
+			TrustedProxies:                     []string{"127.0.0.1"},
 		},
 
 		rootURL: defaultBaseURL,
@@ -227,7 +230,6 @@ func (o *Options) init() (err error) {
 		if err != nil {
 			return fmt.Errorf("config: invalid HTTP_CLIENT_PROXY: %w", err)
 		}
-
 	}
 
 	o.applyDeprecated()
@@ -235,6 +237,7 @@ func (o *Options) init() (err error) {
 	if err = o.applyPrivateKeys(); err != nil {
 		return
 	}
+	o.makeTrustedProxies()
 
 	o.env.BaseURL, o.rootURL, o.basePath, err = parseBaseURL(o.env.BaseURL)
 	return
@@ -367,6 +370,19 @@ func (o *Options) applyPrivateKeys() error {
 		}
 	}
 	return nil
+}
+
+func (o *Options) makeTrustedProxies() {
+	n := len(o.env.TrustedProxies)
+	if n == 0 {
+		o.trustedProxies = make(map[string]struct{})
+		return
+	}
+
+	o.trustedProxies = make(map[string]struct{}, n)
+	for _, ip := range o.env.TrustedProxies {
+		o.trustedProxies[ip] = struct{}{}
+	}
 }
 
 func Validator() *validator.Validate {
@@ -742,6 +758,11 @@ func (o *Options) RateLimitPerServer() float64 {
 	return o.env.RateLimitPerServer
 }
 
+func (o *Options) TrustedProxy(ip string) bool {
+	_, ok := o.trustedProxies[ip]
+	return ok
+}
+
 func (o *Options) Logging() []Log {
 	if len(o.env.Logging) == 0 {
 		return []Log{{
@@ -868,6 +889,7 @@ func (o *Options) SortedOptions(redactSecret bool) []Option {
 		"WEBAUTHN":                               o.WebAuthn(),
 		"PREFER_SITE_ICON":                       o.PreferSiteIcon(),
 		"RATE_LIMIT_PER_SERVER":                  o.RateLimitPerServer(),
+		"TRUSTED_PROXIES":                        strings.Join(o.env.TrustedProxies, ","),
 	}
 
 	keys := make([]string, 0, len(keyValues))

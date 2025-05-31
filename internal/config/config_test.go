@@ -1033,3 +1033,19 @@ func TestOptions_Logging_priority(t *testing.T) {
 	}
 	assert.Equal(t, want, opts.Logging())
 }
+
+func TestTrustedProxies(t *testing.T) {
+	opts := parseEnvironmentVariables(t)
+	assert.True(t, opts.TrustedProxy("127.0.0.1"))
+	assert.False(t, opts.TrustedProxy("127.0.0.2"))
+
+	os.Clearenv()
+	t.Setenv("TRUSTED_PROXIES", "127.0.0.1")
+	opts = parseEnvironmentVariables(t)
+	assert.True(t, opts.TrustedProxy("127.0.0.1"))
+
+	t.Setenv("TRUSTED_PROXIES", "127.0.0.1,127.0.0.2")
+	opts = parseEnvironmentVariables(t)
+	assert.True(t, opts.TrustedProxy("127.0.0.1"))
+	assert.True(t, opts.TrustedProxy("127.0.0.2"))
+}

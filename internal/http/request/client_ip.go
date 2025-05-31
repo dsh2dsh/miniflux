@@ -6,23 +6,22 @@ package request // import "miniflux.app/v2/internal/http/request"
 import (
 	"net"
 	"net/http"
+	"slices"
 	"strings"
 )
 
-// FindClientIP returns the client real IP address based on trusted Reverse-Proxy HTTP headers.
-func FindClientIP(r *http.Request) string {
-	headers := []string{"X-Forwarded-For", "X-Real-Ip"}
-	for _, header := range headers {
-		value := r.Header.Get(header)
+// FindClientIP returns the client real IP address based on trusted
+// Reverse-Proxy HTTP headers.
+func FindClientIP(r *http.Request, trustedProxy func(ip string) bool) string {
+	if clientIP := XForwardedFor(r, trustedProxy); clientIP != "" {
+		return clientIP
+	}
 
-		if value != "" {
-			addresses := strings.Split(value, ",")
-			address := strings.TrimSpace(addresses[0])
-			address = dropIPv6zone(address)
-
-			if net.ParseIP(address) != nil {
-				return address
-			}
+	clientIP := r.Header.Get("X-Real-IP")
+	if clientIP != "" {
+		clientIP = dropIPv6zone(strings.TrimSpace(clientIP))
+		if net.ParseIP(clientIP) != nil {
+			return clientIP
 		}
 	}
 
@@ -30,19 +29,36 @@ func FindClientIP(r *http.Request) string {
 	return FindRemoteIP(r)
 }
 
-// FindRemoteIP returns remote client IP address without considering HTTP headers.
+func XForwardedFor(r *http.Request, trustedProxy func(ip string) bool) string {
+	values := r.Header.Values("X-Forwarded-For")
+	for _, value := range slices.Backward(values) {
+		items := strings.Split(value, ",")
+		for _, ip := range slices.Backward(items) {
+			ip = strings.TrimSpace(ip)
+			if trustedProxy(ip) {
+				continue
+			}
+			ip = dropIPv6zone(ip)
+			if net.ParseIP(ip) == nil {
+				return ""
+			}
+			return ip
+		}
+	}
+	return ""
+}
+
+func dropIPv6zone(address string) string {
+	before, _, _ := strings.Cut(address, "%")
+	return before
+}
+
+// FindRemoteIP returns remote client IP address without considering HTTP
+// headers.
 func FindRemoteIP(r *http.Request) string {
 	remoteIP, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		remoteIP = r.RemoteAddr
 	}
 	return dropIPv6zone(remoteIP)
-}
-
-func dropIPv6zone(address string) string {
-	i := strings.IndexByte(address, '%')
-	if i != -1 {
-		address = address[:i]
-	}
-	return address
 }

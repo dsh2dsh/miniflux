@@ -188,6 +188,16 @@ This project is an opinionated fork of Miniflux.
 
   This new option is disabled by default and can be enabled in user settings.
 
+* Don't trust HTTP headers `X-Forwarded-For` and `X-Real-IP` by default.
+
+  Parse them only if request is from one of configured trusted proxies. By
+  default `127.0.0.1` is the only trusted IP address. Can be changed with
+  something like
+
+  ```
+  TRUSTED_PROXIES=127.0.0.1,192.168.0.1
+  ```
+
 Features
 --------
 
