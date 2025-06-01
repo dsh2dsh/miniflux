@@ -526,7 +526,7 @@
     "page.search.title": "Search Results",
     "page.sessions.table.actions": "Actions",
     "page.sessions.table.current_session": "Current Session",
-    "page.sessions.table.date": "Date",
+    "page.sessions.table.date": "Created",
     "page.sessions.table.ip": "IP Address",
     "page.sessions.table.user_agent": "User Agent",
     "page.sessions.title": "Sessions",

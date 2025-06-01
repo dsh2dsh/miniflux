@@ -10,31 +10,41 @@
 {{ define "content"}}
 <table>
     <tr>
+        <th>Last Seen</th>
         <th>{{ t "page.sessions.table.date" }}</th>
         <th>{{ t "page.sessions.table.ip" }}</th>
         <th>{{ t "page.sessions.table.user_agent" }}</th>
         <th>{{ t "page.sessions.table.actions" }}</th>
     </tr>
+
     {{ range .sessions }}
     <tr {{ if eq .Token $.currentSessionToken }}class="row-highlighted"{{ end }}>
-        <td class="column-20" title="{{ isodate .CreatedAt }}">{{ elapsed $.user.Timezone .CreatedAt }}</td>
-        <td class="column-20" title="{{ .IP }}">{{ .IP }}</td>
-        <td title="{{ .UserAgent }}">{{ .UserAgent }}</td>
-        <td class="column-20">
+        <td title="{{ isodate .UpdatedAt }}">
+            {{ elapsed $.user.Timezone .UpdatedAt }}
+        </td>
+        <td title="{{ isodate .CreatedAt }}">
+            {{ elapsed $.user.Timezone .CreatedAt }}
+        </td>
+        <td title="{{ .IP }}">{{ .IP }}</td>
+        <td class="column-40" title="{{ .UserAgent }}">{{ .UserAgent }}</td>
+        <td>
             {{ if eq .Token $.currentSessionToken }}
                 {{ t "page.sessions.table.current_session" }}
             {{ else }}
                 <a href="#"
-                    data-confirm="true"
-                    data-label-question="{{ t "confirm.question" }}"
-                    data-label-yes="{{ t "confirm.yes" }}"
-                    data-label-no="{{ t "confirm.no" }}"
-                    data-label-loading="{{ t "confirm.loading" }}"
-                    data-url="{{ route "removeSession" "sessionID" .Token }}">{{ icon "delete" }}{{ t "action.remove" }}</a>
+                   data-confirm="true"
+                   data-label-question="{{ t "confirm.question" }}"
+                   data-label-yes="{{ t "confirm.yes" }}"
+                   data-label-no="{{ t "confirm.no" }}"
+                   data-label-loading="{{ t "confirm.loading" }}"
+                   data-url="{{ route "removeSession" "sessionID" .Token }}">
+                    {{ icon "delete" }}
+                    {{ t "action.remove" }}
+                </a>
             {{ end }}
         </td>
     </tr>
     {{ end }}
-</table>
 
+</table>
 {{ end }}

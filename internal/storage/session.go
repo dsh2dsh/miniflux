@@ -158,9 +158,9 @@ UPDATE sessions
 func (s *Storage) UserSessions(ctx context.Context, userID int64,
 ) (model.Sessions, error) {
 	rows, _ := s.db.Query(ctx, `
-SELECT id, user_id, data, created_at
+SELECT id, user_id, data, created_at, updated_at
   FROM sessions
- WHERE user_id = $1 ORDER BY updated_at DESC`, userID)
+ WHERE user_id = $1 ORDER BY updated_at DESC, created_at DESC`, userID)
 	sessions, err := pgx.CollectRows(rows,
 		pgx.RowToAddrOfStructByName[model.Session])
 	if errors.Is(err, pgx.ErrNoRows) {
