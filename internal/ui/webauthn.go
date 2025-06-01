@@ -115,7 +115,7 @@ func (h *handler) beginRegistration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session.New(h.store, request.SessionID(r)).
+	session.New(h.store, r).
 		SetWebAuthnSessionData(&model.WebAuthnSession{SessionData: sessionData}).
 		Commit(r.Context())
 	json.OK(w, r, options)
@@ -198,7 +198,8 @@ func (h *handler) beginLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session.New(h.store, s.ID).
+	r = r.WithContext(request.WithSession(ctx, s))
+	session.New(h.store, r).
 		SetWebAuthnSessionData(&model.WebAuthnSession{SessionData: sessionData}).
 		Commit(ctx)
 	json.OK(w, r, assertion)
@@ -341,7 +342,7 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = h.store.UpdateAppSessionUserId(ctx, s.ID, user.ID)
+	err = h.store.UpdateAppSessionUserId(ctx, s, user.ID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -366,7 +367,8 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session.New(h.store, s.ID).
+	r = r.WithContext(request.WithSession(ctx, s))
+	session.New(h.store, r).
 		SetLanguage(user.Language).
 		SetTheme(user.Theme).
 		Commit(ctx)

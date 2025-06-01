@@ -23,7 +23,7 @@ func (h *handler) updateIntegration(w http.ResponseWriter, r *http.Request) {
 	printer := locale.NewPrinter(request.UserLanguage(r))
 	userID := request.UserID(r)
 
-	sess := session.New(h.store, request.SessionID(r))
+	sess := session.New(h.store, r)
 	defer sess.Commit(r.Context())
 
 	integration, err := h.store.Integration(r.Context(), userID)

@@ -3,24 +3,26 @@ package session
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"time"
 
+	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/storage"
 )
 
-func New(store *storage.Storage, id string) *Session {
+func New(store *storage.Storage, r *http.Request) *Session {
 	return &Session{
 		store:  store,
-		id:     id,
+		s:      request.Session(r),
 		values: make(map[string]any),
 	}
 }
 
 type Session struct {
 	store  *storage.Storage
-	id     string
+	s      *model.Session
 	values map[string]any
 }
 
@@ -88,10 +90,13 @@ func (self *Session) Commit(ctx context.Context) {
 	if len(self.values) == 0 {
 		return
 	}
-	err := self.store.UpdateAppSession(ctx, self.id, self.values)
+
+	err := self.store.UpdateAppSession(ctx, self.s, self.values)
 	if err != nil {
 		logging.FromContext(ctx).Error("unable update session",
-			slog.String("id", self.id),
+			slog.String("id", self.id()),
 			slog.Any("error", err))
 	}
 }
+
+func (self *Session) id() string { return self.s.ID }

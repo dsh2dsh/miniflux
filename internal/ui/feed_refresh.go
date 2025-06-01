@@ -38,7 +38,7 @@ func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
 	userID := request.UserID(r)
 	printer := locale.NewPrinter(request.UserLanguage(r))
 
-	sess := session.New(h.store, request.SessionID(r))
+	sess := session.New(h.store, r)
 	defer sess.Commit(r.Context())
 
 	// Avoid accidental and excessive refreshes.

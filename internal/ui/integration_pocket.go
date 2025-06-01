@@ -26,7 +26,7 @@ func (h *handler) pocketAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess := session.New(h.store, request.SessionID(r))
+	sess := session.New(h.store, r)
 	defer sess.Commit(r.Context())
 
 	connector := pocket.NewConnector(
@@ -50,7 +50,7 @@ func (h *handler) pocketCallback(w http.ResponseWriter, r *http.Request) {
 	printer := locale.NewPrinter(request.UserLanguage(r))
 	userID := request.UserID(r)
 
-	sess := session.New(h.store, request.SessionID(r))
+	sess := session.New(h.store, r)
 	defer sess.Commit(r.Context())
 
 	integration, err := h.store.Integration(r.Context(), userID)

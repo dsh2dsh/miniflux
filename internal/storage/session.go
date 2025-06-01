@@ -62,23 +62,28 @@ func (s *Storage) CreateAppSession(ctx context.Context, userAgent, ip string,
 
 func (s *Storage) createAppSession(ctx context.Context, sess *model.Session,
 ) (*model.Session, error) {
-	_, err := s.db.Exec(ctx,
-		`INSERT INTO sessions (id, user_id, data) VALUES ($1, $2, $3)`,
-		sess.ID, sess.UserID, sess.Data)
+	err := s.db.QueryRow(ctx, `
+INSERT INTO sessions (id, user_id, data)
+              VALUES ($1, $2,      $3)
+RETURNING created_at, updated_at`,
+		sess.ID, sess.UserID, sess.Data).Scan(&sess.CreatedAt, &sess.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("storage: create app session: %w", err)
 	}
 	return sess, nil
 }
 
-func (s *Storage) UpdateAppSession(ctx context.Context, sessionID string,
+func (s *Storage) UpdateAppSession(ctx context.Context, m *model.Session,
 	values map[string]any,
 ) error {
-	_, err := s.db.Exec(ctx,
-		`UPDATE sessions SET data = data || $1::jsonb WHERE id=$2`,
-		values, sessionID)
+	err := s.db.QueryRow(ctx, `
+UPDATE sessions
+   SET data = data || $1::jsonb, updated_at = now()
+ WHERE id = $2
+RETURNING updated_at, data`,
+		values, m.ID).Scan(&m.UpdatedAt, m.Data)
 	if err != nil {
-		return fmt.Errorf(`store: unable to update session field: %w`, err)
+		return fmt.Errorf("storage: unable to update session data: %w", err)
 	}
 	return nil
 }
@@ -86,8 +91,10 @@ func (s *Storage) UpdateAppSession(ctx context.Context, sessionID string,
 // AppSession returns the given session.
 func (s *Storage) AppSession(ctx context.Context, id string,
 ) (*model.Session, error) {
-	rows, _ := s.db.Query(ctx,
-		`SELECT id, user_id, data, created_at FROM sessions WHERE id=$1`, id)
+	rows, _ := s.db.Query(ctx, `
+SELECT id, user_id, data, created_at, updated_at
+  FROM sessions
+ WHERE id=$1`, id)
 
 	sess, err := pgx.CollectExactlyOneRow(rows,
 		pgx.RowToAddrOfStructByName[model.Session])
@@ -133,14 +140,17 @@ func (s *Storage) RemoveAppSessionByID(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *Storage) UpdateAppSessionUserId(ctx context.Context, sessionID string,
+func (s *Storage) UpdateAppSessionUserId(ctx context.Context, m *model.Session,
 	userID int64,
 ) error {
-	_, err := s.db.Exec(ctx,
-		`UPDATE sessions SET user_id = $1 WHERE id=$2`, userID, sessionID)
+	_, err := s.db.Exec(ctx, `
+UPDATE sessions
+   SET user_id = $1, updated_at = now()
+ WHERE id = $2`, userID, m.ID)
 	if err != nil {
 		return fmt.Errorf("storage: update session user_id field: %w", err)
 	}
+	m.UserID = userID
 	return nil
 }
 
@@ -150,8 +160,7 @@ func (s *Storage) UserSessions(ctx context.Context, userID int64,
 	rows, _ := s.db.Query(ctx, `
 SELECT id, user_id, data, created_at
   FROM sessions
- WHERE user_id = $1 ORDER BY created_at DESC`, userID)
-
+ WHERE user_id = $1 ORDER BY updated_at DESC`, userID)
 	sessions, err := pgx.CollectRows(rows,
 		pgx.RowToAddrOfStructByName[model.Session])
 	if errors.Is(err, pgx.ErrNoRows) {

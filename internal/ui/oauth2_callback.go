@@ -96,7 +96,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 				slog.Int64("user_id", user.ID),
 				slog.String("oauth2_provider", provider),
 				slog.String("oauth2_profile_id", profile.ID))
-			session.New(h.store, s.ID).
+			session.New(h.store, r).
 				NewFlashErrorMessage(printer.Print("error.duplicate_linked_account")).
 				Commit(ctx)
 			html.Redirect(w, r, route.Path(h.router, "settings"))
@@ -109,7 +109,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		session.New(h.store, s.ID).
+		session.New(h.store, r).
 			NewFlashMessage(printer.Print("alert.account_linked")).
 			Commit(ctx)
 		html.Redirect(w, r, route.Path(h.router, "settings"))
@@ -156,7 +156,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 			slog.String("name", user.Username)),
 		slog.String("session_id", s.ID))
 
-	err = h.store.UpdateAppSessionUserId(ctx, s.ID, user.ID)
+	err = h.store.UpdateAppSessionUserId(ctx, s, user.ID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -167,7 +167,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session.New(h.store, s.ID).
+	session.New(h.store, r).
 		SetLanguage(user.Language).
 		SetTheme(user.Theme).
 		Commit(ctx)

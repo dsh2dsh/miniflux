@@ -16,7 +16,7 @@ import (
 )
 
 func (h *handler) View(r *http.Request) *View {
-	s := session.New(h.store, request.SessionID(r))
+	s := session.New(h.store, r)
 	self := &View{
 		View:  view.New(h.tpl, r, s),
 		store: h.store,

@@ -51,7 +51,7 @@ func (h *handler) oauth2Unlink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess := session.New(h.store, request.SessionID(r))
+	sess := session.New(h.store, r)
 	defer sess.Commit(ctx)
 
 	if !hasPassword {

@@ -16,6 +16,7 @@ type Session struct {
 	UserID    int64        `db:"user_id"`
 	Data      *SessionData `db:"data"`
 	CreatedAt time.Time    `db:"created_at"`
+	UpdatedAt time.Time    `db:"updated_at"`
 }
 
 func (self *Session) String() string {
@@ -26,6 +27,7 @@ func (self *Session) String() string {
 // UseTimezone converts creation date to the given timezone.
 func (self *Session) UseTimezone(tz string) {
 	self.CreatedAt = timezone.Convert(tz, self.CreatedAt)
+	self.UpdatedAt = timezone.Convert(tz, self.UpdatedAt)
 }
 
 func (self *Session) Token() string     { return self.ID }

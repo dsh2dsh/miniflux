@@ -36,7 +36,7 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request,
 	categoryID := request.RouteInt64Param(r, "categoryID")
 	printer := locale.NewPrinter(request.UserLanguage(r))
 
-	sess := session.New(h.store, request.SessionID(r))
+	sess := session.New(h.store, r)
 	defer sess.Commit(r.Context())
 
 	// Avoid accidental and excessive refreshes.

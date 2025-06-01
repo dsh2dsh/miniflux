@@ -667,4 +667,9 @@ DROP TABLE user_sessions;
 TRUNCATE TABLE sessions;
 ALTER TABLE sessions
   ADD COLUMN user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE;`),
+
+	// 115
+	sqlMigration(`
+ALTER TABLE sessions
+  ADD COLUMN updated_at timestamp with time zone NOT NULL DEFAULT now()`),
 }

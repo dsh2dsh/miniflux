@@ -85,7 +85,7 @@ func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session.New(h.store, request.SessionID(r)).
+	session.New(h.store, r).
 		SetLanguage(user.Language).
 		SetTheme(user.Theme).
 		NewFlashMessage(
