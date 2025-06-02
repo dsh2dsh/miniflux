@@ -198,6 +198,16 @@ This project is an opinionated fork of Miniflux.
   TRUSTED_PROXIES=127.0.0.1,192.168.0.1
   ```
 
+* Option to remove inactive sessions faster.
+
+  By default inactive sessions removed after 10 days. It can be changed with
+
+  ```
+  CLEANUP_INACTIVE_SESSIONS_DAYS=30
+  ```
+
+  This this configuration inactive sessions will be removed after 30 days.
+
 Features
 --------
 

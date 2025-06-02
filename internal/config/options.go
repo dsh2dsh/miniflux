@@ -74,6 +74,7 @@ type EnvOptions struct {
 	CleanupArchiveUnreadDays           int      `env:"CLEANUP_ARCHIVE_UNREAD_DAYS" validate:"min=0"`
 	CleanupArchiveBatchSize            int      `env:"CLEANUP_ARCHIVE_BATCH_SIZE" validate:"min=0"`
 	CleanupRemoveSessionsDays          int      `env:"CLEANUP_REMOVE_SESSIONS_DAYS" validate:"min=0"`
+	CleanupInactiveSessionsDays        int      `env:"CLEANUP_INACTIVE_SESSIONS_DAYS" validate:"min=0"`
 	PollingFrequency                   int      `env:"POLLING_FREQUENCY" validate:"min=0"`
 	ForceRefreshInterval               int      `env:"FORCE_REFRESH_INTERVAL" validate:"min=0"`
 	BatchSize                          int      `env:"BATCH_SIZE" validate:"min=0"`
@@ -177,6 +178,7 @@ func NewOptions() *Options {
 			CleanupArchiveUnreadDays:           180,
 			CleanupArchiveBatchSize:            10000,
 			CleanupRemoveSessionsDays:          30,
+			CleanupInactiveSessionsDays:        10,
 			PollingFrequency:                   60,
 			ForceRefreshInterval:               30,
 			BatchSize:                          100,
@@ -499,6 +501,10 @@ func (o *Options) CleanupRemoveSessionsDays() int {
 	return o.env.CleanupRemoveSessionsDays
 }
 
+func (o *Options) CleanupInactiveSessionsDays() int {
+	return o.env.CleanupInactiveSessionsDays
+}
+
 // WorkerPoolSize returns the number of background worker.
 func (o *Options) WorkerPoolSize() int { return o.env.WorkerPoolSize }
 
@@ -819,6 +825,7 @@ func (o *Options) SortedOptions(redactSecret bool) []Option {
 		"CLEANUP_ARCHIVE_UNREAD_DAYS":            o.CleanupArchiveUnreadDays(),
 		"CLEANUP_FREQUENCY_HOURS":                o.CleanupFrequencyHours(),
 		"CLEANUP_REMOVE_SESSIONS_DAYS":           o.CleanupRemoveSessionsDays(),
+		"CLEANUP_INACTIVE_SESSIONS_DAYS":         o.CleanupInactiveSessionsDays(),
 		"CONNECTIONS_PER_SERVER":                 o.ConnectionsPerServer(),
 		"CREATE_ADMIN":                           o.CreateAdmin(),
 		"DATABASE_CONNECTION_LIFETIME":           o.env.DatabaseConnectionLifetime,
