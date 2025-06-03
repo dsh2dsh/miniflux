@@ -122,7 +122,9 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.store.UserByField(ctx, profile.Key, profile.ID)
 	if err != nil {
-		html.ServerError(w, r, err)
+		html.ServerError(w, r, fmt.Errorf(
+			"ui: fetch user by OAuth2 profile (%q = %q): %w",
+			profile.Key, profile.ID, err))
 		return
 	}
 

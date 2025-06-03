@@ -360,8 +360,8 @@ SELECT
   media_playback_rate,
   block_filter_entry_rules,
   keep_filter_entry_rules,
-  extra,
-FROM users WHERE %s=$1`,
+  extra
+FROM users WHERE %s = $1`,
 		pgx.Identifier([]string{field}).Sanitize())
 	return s.fetchUser(ctx, query, value)
 }
@@ -435,7 +435,7 @@ func (s *Storage) fetchUser(ctx context.Context, query string, args ...any,
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	} else if err != nil {
-		return nil, fmt.Errorf(`store: unable to fetch user: %w`, err)
+		return nil, fmt.Errorf("storage: unable to fetch user: %w", err)
 	}
 	return user, nil
 }
