@@ -8,7 +8,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/gorilla/mux"
 
@@ -101,18 +100,7 @@ func (m *middleware) handleAppSession(next http.Handler) http.Handler {
 		if r.Method == http.MethodPost && !checkCSRF(w, r, s.Data.CSRF) {
 			return
 		}
-
 		next.ServeHTTP(w, r)
-
-		if d := time.Since(s.UpdatedAt); d > 5*time.Minute {
-			err := m.store.UpdateAppSession(ctx, s, map[string]any{})
-			if err != nil {
-				log.Error("unable update session updated timestamp",
-					slog.String("id", s.ID),
-					slog.Duration("last_updated_ago", d),
-					slog.Any("error", err))
-			}
-		}
 	})
 }
 

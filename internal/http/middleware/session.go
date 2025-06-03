@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"miniflux.app/v2/internal/http/cookie"
 	"miniflux.app/v2/internal/http/request"
@@ -48,6 +49,16 @@ func (self *UserSession) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	ctx = request.WithUserSession(ctx, user, sess)
 	self.next.ServeHTTP(w, r.WithContext(ctx))
+
+	if d := time.Since(sess.UpdatedAt); d > 5*time.Minute {
+		err := self.store.UpdateAppSession(ctx, sess, map[string]any{})
+		if err != nil {
+			logging.FromContext(ctx).Error("unable update session updated timestamp",
+				slog.String("id", sess.ID),
+				slog.Duration("last_updated_ago", d),
+				slog.Any("error", err))
+		}
+	}
 }
 
 func (self *UserSession) skipPublic(r *http.Request) bool {
