@@ -6,7 +6,6 @@ package ui // import "miniflux.app/v2/internal/ui"
 import (
 	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -87,9 +86,8 @@ func (h *handler) beginRegistration(w http.ResponseWriter, r *http.Request) {
 		json.Unauthorized(w, r)
 		return
 	}
-	var creds []model.WebAuthnCredential
 
-	creds, err = h.store.WebAuthnCredentialsByUserID(r.Context(), user.ID)
+	creds, err := h.store.WebAuthnCredentialsByUserID(r.Context(), user.ID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -107,8 +105,10 @@ func (h *handler) beginRegistration(w http.ResponseWriter, r *http.Request) {
 			nil,
 		},
 		webauthn.WithExclusions(credsDescriptors),
-		webauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementPreferred),
-		webauthn.WithExtensions(protocol.AuthenticationExtensions{"credProps": true}),
+		webauthn.WithResidentKeyRequirement(
+			protocol.ResidentKeyRequirementPreferred),
+		webauthn.WithExtensions(
+			protocol.AuthenticationExtensions{"credProps": true}),
 	)
 	if err != nil {
 		json.ServerError(w, r, err)
@@ -133,6 +133,7 @@ func (h *handler) finishRegistration(w http.ResponseWriter, r *http.Request) {
 		json.Unauthorized(w, r)
 		return
 	}
+
 	sessionData := request.WebAuthnSessionData(r)
 	webAuthnUser := WebAuthnUser{user, sessionData.UserID, nil}
 	cred, err := web.FinishRegistration(webAuthnUser, *sessionData.SessionData, r)
@@ -148,8 +149,10 @@ func (h *handler) finishRegistration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	handleEncoded := model.WebAuthnCredential{Handle: sessionData.UserID}.HandleEncoded()
-	redirect := route.Path(h.router, "webauthnRename", "credentialHandle", handleEncoded)
+	handleEncoded := model.WebAuthnCredential{Handle: sessionData.UserID}.
+		HandleEncoded()
+	redirect := route.Path(h.router, "webauthnRename", "credentialHandle",
+		handleEncoded)
 	json.OK(w, r, map[string]string{"redirect": redirect})
 }
 
@@ -192,16 +195,13 @@ func (h *handler) beginLogin(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	s, err := h.store.CreateAppSession(ctx, r.UserAgent(), request.ClientIP(r))
-	if err != nil {
+	sessionCookie := model.SessionData{
+		WebAuthnSessionData: model.WebAuthnSession{SessionData: sessionData},
+	}
+	if err := h.setSessionDataCookie(w, &sessionCookie); err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
-
-	r = r.WithContext(request.WithSession(ctx, s))
-	session.New(h.store, r).
-		SetWebAuthnSessionData(&model.WebAuthnSession{SessionData: sessionData}).
-		Commit(ctx)
 	json.OK(w, r, assertion)
 }
 
@@ -232,12 +232,12 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) {
 		slog.Bool("has_backup_state",
 			parsedResponse.Response.AuthenticatorData.Flags.HasBackupState()))
 
-	s := request.Session(r)
-	if s == nil {
-		json.ServerError(w, r, errors.New("ui: expected session not found"))
+	sessionCookie, err := h.sessionData(r)
+	if err != nil {
+		json.ServerError(w, r, err)
 		return
 	}
-	sessionData := s.Data.WebAuthnSessionData
+	sessionData := sessionCookie.WebAuthnSessionData
 
 	var user *model.User
 	username := request.QueryStringParam(r, "username", "")
@@ -311,6 +311,7 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) {
 			} else if uid == 0 {
 				return nil, fmt.Errorf("ui: no user found for handle %x", userHandle)
 			}
+
 			user, err = h.store.UserByID(ctx, uid)
 			if err != nil {
 				return nil, err
@@ -342,7 +343,8 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = h.store.UpdateAppSessionUserId(ctx, s, user.ID)
+	clientIP := request.ClientIP(r)
+	s, err := h.store.CreateAppSessionForUser(ctx, user, r.UserAgent(), clientIP)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -355,11 +357,11 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Info("User authenticated successfully with webauthn",
-		slog.String("client_ip", request.ClientIP(r)),
+		slog.String("client_ip", clientIP),
 		slog.Group("user",
-			slog.String("agent", r.UserAgent()),
 			slog.Int64("id", user.ID),
-			slog.String("name", user.Username)),
+			slog.String("name", user.Username),
+			slog.String("agent", r.UserAgent())),
 		slog.String("session_id", s.ID))
 
 	if err := h.store.SetLastLogin(ctx, user.ID); err != nil {
@@ -367,12 +369,8 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	r = r.WithContext(request.WithSession(ctx, s))
-	session.New(h.store, r).
-		SetLanguage(user.Language).
-		SetTheme(user.Theme).
-		Commit(ctx)
-
+	http.SetCookie(w, cookie.ExpiredCSRF())
+	http.SetCookie(w, cookie.ExpiredSessionData())
 	http.SetCookie(w, cookie.NewSession(s.ID))
 	json.NoContent(w, r)
 }

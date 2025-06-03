@@ -46,10 +46,7 @@ func (self *UserSession) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if user.ID > 0 {
-		ctx = request.WithUser(ctx, user)
-	}
-	ctx = request.WithSession(ctx, sess)
+	ctx = request.WithUserSession(ctx, user, sess)
 	self.next.ServeHTTP(w, r.WithContext(ctx))
 }
 
@@ -60,10 +57,6 @@ func (self *UserSession) skipPublic(r *http.Request) bool {
 
 	p := r.URL.Path
 	if p == "/" {
-		return false
-	}
-
-	if _, ok := self.publicRoutes[p]; ok {
 		return false
 	}
 

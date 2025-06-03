@@ -343,9 +343,8 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
 	subrouter.Use(mux.MiddlewareFunc(publicRoutes))
 
 	userSession := middleware.WithUserSession(store, map[string]struct{}{
-		"/oauth2/callback/":      {},
-		"/oauth2/redirect/":      {},
-		"/webauthn/login/finish": {},
+		"/oauth2/callback/": {},
+		"/oauth2/redirect/": {},
 	})
 	subrouter.Use(mux.MiddlewareFunc(userSession))
 

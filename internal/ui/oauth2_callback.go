@@ -154,19 +154,20 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	clientIP := request.ClientIP(r)
+	s, err := h.store.CreateAppSessionForUser(ctx, user, r.UserAgent(), clientIP)
+	if err != nil {
+		html.ServerError(w, r, err)
+		return
+	}
+
 	log.Info("User authenticated successfully using OAuth2",
 		slog.Bool("authentication_successful", true),
 		slog.String("client_ip", clientIP),
 		slog.Group("user",
 			slog.Int64("id", user.ID),
 			slog.String("name", user.Username),
-			slog.String("agent", r.UserAgent())))
-
-	s, err := h.store.CreateAppSessionForUser(ctx, user, r.UserAgent(), clientIP)
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
+			slog.String("agent", r.UserAgent())),
+		slog.String("session_id", s.ID))
 
 	if err := h.store.SetLastLogin(ctx, user.ID); err != nil {
 		html.ServerError(w, r, err)

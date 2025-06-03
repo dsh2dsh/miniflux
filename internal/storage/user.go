@@ -573,47 +573,51 @@ func (s *Storage) UserSession(ctx context.Context, id string,
 ) (*model.User, *model.Session, error) {
 	query := `
 SELECT
+  s.user_id,
   s.data,
   s.created_at,
-  COALESCE(u.id,                    0),
-  COALESCE(u.username,              ''),
-  COALESCE(u.is_admin,              FALSE),
-  COALESCE(u.language,              ''),
-  COALESCE(u.timezone,              ''),
-  COALESCE(u.theme,                 ''),
-  COALESCE(u.entry_direction,       'asc'),
-  COALESCE(u.keyboard_shortcuts,    FALSE),
-  COALESCE(u.entries_per_page,      0),
-  COALESCE(u.show_reading_time,     FALSE),
-  COALESCE(u.entry_swipe,           FALSE),
-  COALESCE(u.gesture_nav,           'tap'),
+  s.updated_at,
+  u.id,
+  u.username,
+  u.is_admin,
+  u.language,
+  u.timezone,
+  u.theme,
+  u.entry_direction,
+  u.keyboard_shortcuts,
+  u.entries_per_page,
+  u.show_reading_time,
+  u.entry_swipe,
+  u.gesture_nav,
   u.last_login_at,
-  COALESCE(u.stylesheet,            ''),
-  COALESCE(u.custom_js,             ''),
-  COALESCE(u.external_font_hosts,   ''),
-  COALESCE(u.google_id,             ''),
-  COALESCE(u.openid_connect_id,     ''),
-  COALESCE(u.display_mode,          'standalone'),
-  COALESCE(u.entry_order,           'published_at'),
-  COALESCE(u.default_reading_speed, 0),
-  COALESCE(u.cjk_reading_speed,     0),
-  COALESCE(u.default_home_page,     ''),
-  COALESCE(u.categories_sorting_order, 'unread_count'),
-  COALESCE(u.mark_read_on_view,     FALSE),
-  COALESCE(u.mark_read_on_media_player_completion, FALSE),
-  COALESCE(u.media_playback_rate,   0),
-  COALESCE(u.block_filter_entry_rules, ''),
-  COALESCE(u.keep_filter_entry_rules,  ''),
-  COALESCE(u.extra,                 '{}'::jsonb)
-FROM sessions s LEFT JOIN users u ON s.user_id = u.id
-WHERE s.id = $1`
+  u.stylesheet,
+  u.custom_js,
+  u.external_font_hosts,
+  u.google_id,
+  u.openid_connect_id,
+  u.display_mode,
+  u.entry_order,
+  u.default_reading_speed,
+  u.cjk_reading_speed,
+  u.default_home_page,
+  u.categories_sorting_order,
+  u.mark_read_on_view,
+  u.mark_read_on_media_player_completion,
+  u.media_playback_rate,
+  u.block_filter_entry_rules,
+  u.keep_filter_entry_rules,
+  u.extra
+FROM sessions s, users u
+WHERE s.id = $1 AND u.id = s.user_id`
 
 	user := &model.User{}
 	sess := &model.Session{ID: id}
 
 	err := s.db.QueryRow(ctx, query, id).Scan(
+		&sess.UserID,
 		&sess.Data,
 		&sess.CreatedAt,
+		&sess.UpdatedAt,
 		&user.ID,
 		&user.Username,
 		&user.IsAdmin,
@@ -648,10 +652,6 @@ WHERE s.id = $1`
 		return nil, nil, nil
 	} else if err != nil {
 		return nil, nil, fmt.Errorf("storage: fetch user with session: %w", err)
-	}
-
-	if user.ID > 0 {
-		sess.UserID = user.ID
 	}
 	return user, sess, nil
 }
