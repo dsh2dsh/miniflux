@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/securecookie"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/template"
 	"miniflux.app/v2/internal/worker"
@@ -20,6 +21,8 @@ type handler struct {
 	store  *storage.Storage
 	tpl    *template.Engine
 	pool   *worker.Pool
+
+	secureCookie *securecookie.SecureCookie
 }
 
 // Serve declares all routes for the user interface.
@@ -31,7 +34,14 @@ func Serve(router *mux.Router, store *storage.Storage, pool *worker.Pool) {
 		panic(err)
 	}
 
-	handler := &handler{router, store, templateEngine, pool}
+	handler := &handler{
+		router: router,
+		store:  store,
+		tpl:    templateEngine,
+		pool:   pool,
+
+		secureCookie: securecookie.New(),
+	}
 
 	uiRouter := router.NewRoute().Subrouter()
 	uiRouter.Use(middleware.handleUserSession)

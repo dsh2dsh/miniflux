@@ -63,6 +63,10 @@ func (self *UserSession) skipPublic(r *http.Request) bool {
 		return false
 	}
 
+	if _, ok := self.publicRoutes[p]; ok {
+		return false
+	}
+
 	for s := range self.publicRoutes {
 		if strings.HasPrefix(p, s) {
 			return false

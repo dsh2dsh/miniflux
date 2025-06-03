@@ -4,13 +4,17 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 
+	"miniflux.app/v2/internal/http/cookie"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/logging"
+	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/oauth2"
 	"miniflux.app/v2/internal/ui/session"
 )
@@ -35,20 +39,42 @@ func (h *handler) oauth2Redirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s := request.Session(r)
-	if s == nil {
-		s, err = h.store.CreateAppSession(ctx, r.UserAgent(), request.ClientIP(r))
-		if err != nil {
-			html.ServerError(w, r, err)
-			return
-		}
+	auth := oauth2.GenerateAuthorization(authProvider.GetConfig())
+	if s := request.Session(r); s != nil {
+		r = r.WithContext(request.WithSession(ctx, s))
+		session.New(h.store, r).
+			SetOAuth2State(auth.State()).
+			SetOAuth2CodeVerifier(auth.CodeVerifier()).
+			Commit(ctx)
+		html.Redirect(w, r, auth.RedirectURL())
+		return
 	}
 
-	auth := oauth2.GenerateAuthorization(authProvider.GetConfig())
-	r = r.WithContext(request.WithSession(ctx, s))
-	session.New(h.store, r).
-		SetOAuth2State(auth.State()).
-		SetOAuth2CodeVerifier(auth.CodeVerifier()).
-		Commit(ctx)
+	sessionData := model.SessionData{
+		OAuth2State:        auth.State(),
+		OAuth2CodeVerifier: auth.CodeVerifier(),
+	}
+	if err := h.setSessionDataCookie(w, &sessionData); err != nil {
+		log.Error("Unable to set OAuth2 session cookie", slog.Any("error", err))
+		html.Redirect(w, r, route.Path(h.router, "login"))
+		return
+	}
 	html.Redirect(w, r, auth.RedirectURL())
+}
+
+func (h *handler) setSessionDataCookie(w http.ResponseWriter,
+	data *model.SessionData,
+) error {
+	b, err := json.Marshal(&data)
+	if err != nil {
+		return fmt.Errorf("ui: marshal session data to cookie: %w", err)
+	}
+
+	encrypted, err := h.secureCookie.EncryptCookie(b)
+	if err != nil {
+		return fmt.Errorf("ui: encrypt session data cookie: %w", err)
+	}
+
+	http.SetCookie(w, cookie.NewSessionData(encrypted))
+	return nil
 }

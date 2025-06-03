@@ -17,18 +17,6 @@ import (
 	"miniflux.app/v2/internal/model"
 )
 
-// CreateAppSessionWithUserPrefs creates a new application session with the
-// given user preferences.
-func (s *Storage) CreateAppSessionWithUserPrefs(ctx context.Context,
-	userID int64,
-) (*model.Session, error) {
-	user, err := s.UserByID(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	return s.CreateAppSessionForUser(ctx, user, "", "")
-}
-
 func (s *Storage) CreateAppSessionForUser(ctx context.Context, user *model.User,
 	userAgent, ip string,
 ) (*model.Session, error) {

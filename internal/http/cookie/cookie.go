@@ -14,11 +14,16 @@ import (
 const (
 	CookieAppSessionID = "MinifluxAppSessionID"
 	CookieCSRF         = "MinifluxCSRF"
+	CookieSessionData  = "MinifluxSession"
 )
 
 func NewCSRF(v string) *http.Cookie { return makeSessionCookie(CookieCSRF, v) }
 
 func NewSession(id string) *http.Cookie { return New(CookieAppSessionID, id) }
+
+func NewSessionData(v string) *http.Cookie {
+	return makeSessionCookie(CookieSessionData, v)
+}
 
 // New creates a new cookie.
 func New(name, value string) *http.Cookie {
@@ -44,8 +49,9 @@ func makeSessionCookie(name, value string) *http.Cookie {
 	}
 }
 
-func ExpiredCSRF() *http.Cookie    { return Expired(CookieCSRF) }
-func ExpiredSession() *http.Cookie { return Expired(CookieAppSessionID) }
+func ExpiredCSRF() *http.Cookie        { return Expired(CookieCSRF) }
+func ExpiredSession() *http.Cookie     { return Expired(CookieAppSessionID) }
+func ExpiredSessionData() *http.Cookie { return Expired(CookieSessionData) }
 
 // Expired returns an expired cookie.
 func Expired(name string) *http.Cookie {

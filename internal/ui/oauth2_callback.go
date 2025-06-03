@@ -5,7 +5,9 @@ package ui // import "miniflux.app/v2/internal/ui"
 
 import (
 	"crypto/subtle"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -38,8 +40,16 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sessionData, err := h.sessionData(r)
+	if err != nil {
+		log.Error("Unable load OAuth2 session data", slog.Any("error", err))
+		html.Redirect(w, r, route.Path(h.router, "login"))
+		return
+
+	}
+
 	state := request.QueryStringParam(r, "state", "")
-	wantState := request.OAuth2State(r)
+	wantState := sessionData.OAuth2State
 	stateInvalid := subtle.ConstantTimeCompare([]byte(state),
 		[]byte(wantState)) == 0
 	if stateInvalid {
@@ -60,7 +70,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	profile, err := authProvider.GetProfile(ctx, code,
-		request.OAuth2CodeVerifier(r))
+		sessionData.OAuth2CodeVerifier)
 	if err != nil {
 		log.Warn("Unable to get OAuth2 profile from provider",
 			slog.String("provider", provider),
@@ -68,14 +78,6 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 		html.Redirect(w, r, route.Path(h.router, "login"))
 		return
 	}
-
-	s := request.Session(r)
-	if s == nil {
-		log.Error("expected session not found")
-		html.Redirect(w, r, route.Path(h.router, "login"))
-		return
-	}
-	printer := locale.NewPrinter(request.UserLanguage(r))
 
 	if user := request.User(r); user != nil {
 		exists, err := h.store.AnotherUserWithFieldExists(ctx, user.ID, profile.Key,
@@ -90,14 +92,18 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		s := session.New(h.store, r).
+			SetOAuth2State("").
+			SetOAuth2CodeVerifier("")
+		printer := locale.NewPrinter(request.UserLanguage(r))
+
 		if exists {
 			log.Error(
-				"Oauth2 user cannot be associated because it is already associated with another user",
+				"OAuth2 user cannot be associated because it is already associated with another user",
 				slog.Int64("user_id", user.ID),
 				slog.String("oauth2_provider", provider),
 				slog.String("oauth2_profile_id", profile.ID))
-			session.New(h.store, r).
-				NewFlashErrorMessage(printer.Print("error.duplicate_linked_account")).
+			s.NewFlashErrorMessage(printer.Print("error.duplicate_linked_account")).
 				Commit(ctx)
 			html.Redirect(w, r, route.Path(h.router, "settings"))
 			return
@@ -109,9 +115,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		session.New(h.store, r).
-			NewFlashMessage(printer.Print("alert.account_linked")).
-			Commit(ctx)
+		s.NewFlashMessage(printer.Print("alert.account_linked")).Commit(ctx)
 		html.Redirect(w, r, route.Path(h.router, "settings"))
 		return
 	}
@@ -129,6 +133,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if h.store.UserExists(ctx, profile.Username) {
+			printer := locale.NewPrinter(request.UserLanguage(r))
 			html.BadRequest(w, r, errors.New(
 				printer.Print("error.user_already_exists")))
 			return
@@ -151,12 +156,11 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 		slog.Bool("authentication_successful", true),
 		slog.String("client_ip", clientIP),
 		slog.Group("user",
-			slog.String("agent", r.UserAgent()),
 			slog.Int64("id", user.ID),
-			slog.String("name", user.Username)),
-		slog.String("session_id", s.ID))
+			slog.String("name", user.Username),
+			slog.String("agent", r.UserAgent())))
 
-	err = h.store.UpdateAppSessionUserId(ctx, s, user.ID)
+	s, err := h.store.CreateAppSessionForUser(ctx, user, r.UserAgent(), clientIP)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
@@ -167,11 +171,31 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session.New(h.store, r).
-		SetLanguage(user.Language).
-		SetTheme(user.Theme).
-		Commit(ctx)
-
+	http.SetCookie(w, cookie.ExpiredSessionData())
 	http.SetCookie(w, cookie.NewSession(s.ID))
 	html.Redirect(w, r, route.Path(h.router, user.DefaultHomePage))
+}
+
+func (h *handler) sessionData(r *http.Request) (*model.SessionData, error) {
+	if s := request.Session(r); s != nil {
+		return s.Data, nil
+	}
+
+	plaintext := request.CookieValue(r, cookie.CookieSessionData)
+	if plaintext == "" {
+		return nil, errors.New("session data cookie not found")
+	}
+
+	b, err := h.secureCookie.DecryptCookie(plaintext)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"ui: unable decrypt session data from cookie: %w", err)
+	}
+
+	sessionData := new(model.SessionData)
+	if err := json.Unmarshal(b, sessionData); err != nil {
+		return nil, fmt.Errorf(
+			"ui: unable unmarshal session data from cookie: %w", err)
+	}
+	return sessionData, nil
 }
