@@ -15,13 +15,24 @@ import (
 	"miniflux.app/v2/internal/logging"
 )
 
+const (
+	cacheControl = "Cache-Control"
+	cacheNoCache = "no-cache, max-age=0, must-revalidate, no-store"
+
+	contentType = "Content-Type"
+	textHTML    = "text/html; charset=utf-8"
+	textPlain   = "text/plain; charset=utf-8"
+
+	contentSecPol = "Content-Security-Policy"
+)
+
 // OK creates a new HTML response with a 200 status code.
 func OK(w http.ResponseWriter, r *http.Request, body any) {
-	builder := response.New(w, r)
-	builder.WithHeader("Content-Type", "text/html; charset=utf-8")
-	builder.WithHeader("Cache-Control", "no-cache, max-age=0, must-revalidate, no-store")
-	builder.WithBody(body)
-	builder.Write()
+	response.New(w, r).
+		WithHeader(contentType, textHTML).
+		WithHeader(cacheControl, cacheNoCache).
+		WithBody(body).
+		Write()
 }
 
 // ServerError sends an internal error to the client.
@@ -51,81 +62,65 @@ func ServerError(w http.ResponseWriter, r *http.Request, err error) {
 
 	response.New(w, r).
 		WithStatus(statusCode).
-		WithHeader("Content-Security-Policy",
+		WithHeader(contentSecPol,
 			response.ContentSecurityPolicyForUntrustedContent).
-		WithHeader("Content-Type", "text/plain; charset=utf-8").
-		WithHeader(
-			"Cache-Control", "no-cache, max-age=0, must-revalidate, no-store").
+		WithHeader(contentType, textPlain).
+		WithHeader(cacheControl, cacheNoCache).
 		WithBody(html.EscapeString(err.Error())).
 		Write()
 }
 
 // BadRequest sends a bad request error to the client.
 func BadRequest(w http.ResponseWriter, r *http.Request, err error) {
-	slog.Warn(http.StatusText(http.StatusBadRequest),
-		slog.Any("error", err),
+	statusCode := http.StatusBadRequest
+	logStatusCode(r, statusCode, err)
+	response.New(w, r).
+		WithStatus(statusCode).
+		WithHeader(contentSecPol,
+			response.ContentSecurityPolicyForUntrustedContent).
+		WithHeader(contentType, textPlain).
+		WithHeader(cacheControl, cacheNoCache).
+		WithBody(html.EscapeString(err.Error())).
+		Write()
+}
+
+func logStatusCode(r *http.Request, statusCode int, err error) {
+	log := logging.FromContext(r.Context())
+	if err != nil {
+		log = log.With(slog.Any("error", err))
+	}
+	log.Warn(http.StatusText(statusCode),
 		slog.String("client_ip", request.ClientIP(r)),
 		slog.Group("request",
 			slog.String("method", r.Method),
 			slog.String("uri", r.RequestURI),
-			slog.String("user_agent", r.UserAgent()),
-		),
+			slog.String("user_agent", r.UserAgent())),
 		slog.Group("response",
-			slog.Int("status_code", http.StatusBadRequest),
-		),
-	)
-
-	builder := response.New(w, r)
-	builder.WithStatus(http.StatusBadRequest)
-	builder.WithHeader("Content-Security-Policy", response.ContentSecurityPolicyForUntrustedContent)
-	builder.WithHeader("Content-Type", "text/plain; charset=utf-8")
-	builder.WithHeader("Cache-Control", "no-cache, max-age=0, must-revalidate, no-store")
-	builder.WithBody(html.EscapeString(err.Error()))
-	builder.Write()
+			slog.Int("status_code", statusCode)))
 }
 
 // Forbidden sends a forbidden error to the client.
 func Forbidden(w http.ResponseWriter, r *http.Request) {
-	slog.Warn(http.StatusText(http.StatusForbidden),
-		slog.String("client_ip", request.ClientIP(r)),
-		slog.Group("request",
-			slog.String("method", r.Method),
-			slog.String("uri", r.RequestURI),
-			slog.String("user_agent", r.UserAgent()),
-		),
-		slog.Group("response",
-			slog.Int("status_code", http.StatusForbidden),
-		),
-	)
-
-	builder := response.New(w, r)
-	builder.WithStatus(http.StatusForbidden)
-	builder.WithHeader("Content-Type", "text/html; charset=utf-8")
-	builder.WithHeader("Cache-Control", "no-cache, max-age=0, must-revalidate, no-store")
-	builder.WithBody("Access Forbidden")
-	builder.Write()
+	statusCode := http.StatusForbidden
+	logStatusCode(r, statusCode, nil)
+	response.New(w, r).
+		WithStatus(statusCode).
+		WithHeader(contentType, textHTML).
+		WithHeader(cacheControl, cacheNoCache).
+		WithBody("Access Forbidden").
+		Write()
 }
 
 // NotFound sends a page not found error to the client.
 func NotFound(w http.ResponseWriter, r *http.Request) {
-	slog.Warn(http.StatusText(http.StatusNotFound),
-		slog.String("client_ip", request.ClientIP(r)),
-		slog.Group("request",
-			slog.String("method", r.Method),
-			slog.String("uri", r.RequestURI),
-			slog.String("user_agent", r.UserAgent()),
-		),
-		slog.Group("response",
-			slog.Int("status_code", http.StatusNotFound),
-		),
-	)
-
-	builder := response.New(w, r)
-	builder.WithStatus(http.StatusNotFound)
-	builder.WithHeader("Content-Type", "text/html; charset=utf-8")
-	builder.WithHeader("Cache-Control", "no-cache, max-age=0, must-revalidate, no-store")
-	builder.WithBody("Page Not Found")
-	builder.Write()
+	statusCode := http.StatusNotFound
+	logStatusCode(r, statusCode, nil)
+	response.New(w, r).
+		WithStatus(statusCode).
+		WithHeader(contentType, textHTML).
+		WithHeader(cacheControl, cacheNoCache).
+		WithBody("Page Not Found").
+		Write()
 }
 
 // Redirect redirects the user to another location.
@@ -134,24 +129,16 @@ func Redirect(w http.ResponseWriter, r *http.Request, uri string) {
 }
 
 // RequestedRangeNotSatisfiable sends a range not satisfiable error to the client.
-func RequestedRangeNotSatisfiable(w http.ResponseWriter, r *http.Request, contentRange string) {
-	slog.Warn(http.StatusText(http.StatusRequestedRangeNotSatisfiable),
-		slog.String("client_ip", request.ClientIP(r)),
-		slog.Group("request",
-			slog.String("method", r.Method),
-			slog.String("uri", r.RequestURI),
-			slog.String("user_agent", r.UserAgent()),
-		),
-		slog.Group("response",
-			slog.Int("status_code", http.StatusRequestedRangeNotSatisfiable),
-		),
-	)
-
-	builder := response.New(w, r)
-	builder.WithStatus(http.StatusRequestedRangeNotSatisfiable)
-	builder.WithHeader("Content-Type", "text/html; charset=utf-8")
-	builder.WithHeader("Cache-Control", "no-cache, max-age=0, must-revalidate, no-store")
-	builder.WithHeader("Content-Range", contentRange)
-	builder.WithBody("Range Not Satisfiable")
-	builder.Write()
+func RequestedRangeNotSatisfiable(w http.ResponseWriter, r *http.Request,
+	contentRange string,
+) {
+	statusCode := http.StatusRequestedRangeNotSatisfiable
+	logStatusCode(r, statusCode, nil)
+	response.New(w, r).
+		WithStatus(http.StatusRequestedRangeNotSatisfiable).
+		WithHeader(contentType, textHTML).
+		WithHeader(cacheControl, cacheNoCache).
+		WithHeader("Content-Range", contentRange).
+		WithBody("Range Not Satisfiable").
+		Write()
 }
