@@ -511,6 +511,7 @@ SELECT EXISTS(
          shaarli_enabled='t' OR
          webhook_enabled='t' OR
          omnivore_enabled='t' OR
+         karakeep_enabled='t' OR
          raindrop_enabled='t' OR
          betula_enabled='t' OR
          cubox_enabled='t' OR

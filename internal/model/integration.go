@@ -120,5 +120,8 @@ type Integration struct {
 }
 
 type IntegrationExtra struct {
-	RSSBridgeToken string `json:"rssbridge_token,omitempty"`
+	KarakeepEnabled bool   `json:"karakeep_enabled,omitempty"`
+	KarakeepAPIKey  string `json:"karakeep_api_key,omitempty"`
+	KarakeepURL     string `json:"karakeep_url,omitempty"`
+	RSSBridgeToken  string `json:"rssbridge_token,omitempty"`
 }
