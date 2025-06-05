@@ -19,7 +19,6 @@ func (h *handler) exportFeeds(w http.ResponseWriter, r *http.Request) {
 		json.ServerError(w, r, err)
 		return
 	}
-
 	xml.OK(w, r, opmlExport)
 }
 
@@ -31,6 +30,7 @@ func (h *handler) importFeeds(w http.ResponseWriter, r *http.Request) {
 		json.ServerError(w, r, err)
 		return
 	}
-
-	json.Created(w, r, map[string]string{"message": "Feeds imported successfully"})
+	json.Created(w, r, map[string]string{
+		"message": "Feeds imported successfully",
+	})
 }

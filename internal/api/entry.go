@@ -6,9 +6,12 @@ package api // import "miniflux.app/v2/internal/api"
 import (
 	json_parser "encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/json"
@@ -28,48 +31,37 @@ func (h *handler) getEntryFromBuilder(w http.ResponseWriter, r *http.Request,
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
-	}
-
-	if entry == nil {
+	} else if entry == nil {
 		json.NotFound(w, r)
 		return
 	}
 
-	entry.Content = mediaproxy.RewriteDocumentWithAbsoluteProxyURL(h.router, entry.Content)
-
+	entry.Content = mediaproxy.RewriteDocumentWithAbsoluteProxyURL(h.router,
+		entry.Content)
 	entry.Enclosures.ProxifyEnclosureURL(h.router)
-
 	json.OK(w, r, entry)
 }
 
 func (h *handler) getFeedEntry(w http.ResponseWriter, r *http.Request) {
 	feedID := request.RouteInt64Param(r, "feedID")
-	entryID := request.RouteInt64Param(r, "entryID")
-
-	builder := h.store.NewEntryQueryBuilder(request.UserID(r))
-	builder.WithFeedID(feedID)
-	builder.WithEntryID(entryID)
-
-	h.getEntryFromBuilder(w, r, builder)
+	id := request.RouteInt64Param(r, "entryID")
+	h.getEntryFromBuilder(w, r, h.store.NewEntryQueryBuilder(request.UserID(r)).
+		WithFeedID(feedID).
+		WithEntryID(id))
 }
 
 func (h *handler) getCategoryEntry(w http.ResponseWriter, r *http.Request) {
 	categoryID := request.RouteInt64Param(r, "categoryID")
-	entryID := request.RouteInt64Param(r, "entryID")
-
-	builder := h.store.NewEntryQueryBuilder(request.UserID(r))
-	builder.WithCategoryID(categoryID)
-	builder.WithEntryID(entryID)
-
-	h.getEntryFromBuilder(w, r, builder)
+	id := request.RouteInt64Param(r, "entryID")
+	h.getEntryFromBuilder(w, r, h.store.NewEntryQueryBuilder(request.UserID(r)).
+		WithCategoryID(categoryID).
+		WithEntryID(id))
 }
 
 func (h *handler) getEntry(w http.ResponseWriter, r *http.Request) {
-	entryID := request.RouteInt64Param(r, "entryID")
-	builder := h.store.NewEntryQueryBuilder(request.UserID(r))
-	builder.WithEntryID(entryID)
-
-	h.getEntryFromBuilder(w, r, builder)
+	id := request.RouteInt64Param(r, "entryID")
+	h.getEntryFromBuilder(w, r, h.store.NewEntryQueryBuilder(request.UserID(r)).
+		WithEntryID(id))
 }
 
 func (h *handler) getFeedEntries(w http.ResponseWriter, r *http.Request) {
@@ -78,15 +70,17 @@ func (h *handler) getFeedEntries(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) getCategoryEntries(w http.ResponseWriter, r *http.Request) {
-	categoryID := request.RouteInt64Param(r, "categoryID")
-	h.findEntries(w, r, 0, categoryID)
+	id := request.RouteInt64Param(r, "categoryID")
+	h.findEntries(w, r, 0, id)
 }
 
 func (h *handler) getEntries(w http.ResponseWriter, r *http.Request) {
 	h.findEntries(w, r, 0, 0)
 }
 
-func (h *handler) findEntries(w http.ResponseWriter, r *http.Request, feedID int64, categoryID int64) {
+func (h *handler) findEntries(w http.ResponseWriter, r *http.Request, feedID,
+	categoryID int64,
+) {
 	statuses := request.QueryStringParamList(r, "status")
 	for _, status := range statuses {
 		if err := validator.ValidateEntryStatus(status); err != nil {
@@ -101,7 +95,8 @@ func (h *handler) findEntries(w http.ResponseWriter, r *http.Request, feedID int
 		return
 	}
 
-	direction := request.QueryStringParam(r, "direction", model.DefaultSortingDirection)
+	direction := request.QueryStringParam(r, "direction",
+		model.DefaultSortingDirection)
 	if err := validator.ValidateDirection(direction); err != nil {
 		json.BadRequest(w, r, err)
 		return
@@ -114,21 +109,31 @@ func (h *handler) findEntries(w http.ResponseWriter, r *http.Request, feedID int
 		return
 	}
 
+	g, ctx := errgroup.WithContext(r.Context())
+	errInvalid := errors.New("invalid")
+
 	userID := request.UserID(r)
 	categoryID = request.QueryInt64Param(r, "category_id", categoryID)
-	if categoryID > 0 && !h.store.CategoryIDExists(r.Context(), userID, categoryID) {
-		json.BadRequest(w, r, errors.New("invalid category ID"))
-		return
+	if categoryID > 0 {
+		g.Go(func() error {
+			if !h.store.CategoryIDExists(ctx, userID, categoryID) {
+				return fmt.Errorf("%w category ID", errInvalid)
+			}
+			return nil
+		})
 	}
 
 	feedID = request.QueryInt64Param(r, "feed_id", feedID)
-	if feedID > 0 && !h.store.FeedExists(r.Context(), userID, feedID) {
-		json.BadRequest(w, r, errors.New("invalid feed ID"))
-		return
+	if feedID > 0 {
+		g.Go(func() error {
+			if !h.store.FeedExists(ctx, userID, feedID) {
+				return fmt.Errorf("%w feed ID", errInvalid)
+			}
+			return nil
+		})
 	}
 
 	tags := request.QueryStringParamList(r, "tags")
-
 	builder := h.store.NewEntryQueryBuilder(userID).
 		WithFeedID(feedID).
 		WithCategoryID(categoryID).
@@ -142,58 +147,65 @@ func (h *handler) findEntries(w http.ResponseWriter, r *http.Request, feedID int
 
 	if request.HasQueryParam(r, "globally_visible") {
 		globallyVisible := request.QueryBoolParam(r, "globally_visible", true)
-
 		if globallyVisible {
 			builder.WithGloballyVisible()
 		}
 	}
-
 	configureFilters(builder, r)
 
-	entries, err := builder.GetEntries(r.Context())
-	if err != nil {
-		json.ServerError(w, r, err)
+	var entries model.Entries
+	g.Go(func() (err error) {
+		entries, err = builder.GetEntries(r.Context())
 		return
-	}
+	})
 
-	count, err := builder.CountEntries(r.Context())
-	if err != nil {
-		json.ServerError(w, r, err)
+	var count int
+	g.Go(func() (err error) {
+		count, err = builder.CountEntries(r.Context())
+		return
+	})
+
+	if err := g.Wait(); err != nil {
+		if errors.Is(err, errInvalid) {
+			json.BadRequest(w, r, err)
+		} else {
+			json.ServerError(w, r, err)
+		}
 		return
 	}
 
 	for i := range entries {
-		entries[i].Content = mediaproxy.RewriteDocumentWithAbsoluteProxyURL(h.router, entries[i].Content)
+		entries[i].Content = mediaproxy.RewriteDocumentWithAbsoluteProxyURL(
+			h.router, entries[i].Content)
 	}
-
 	json.OK(w, r, &entriesResponse{Total: count, Entries: entries})
 }
 
 func (h *handler) setEntryStatus(w http.ResponseWriter, r *http.Request) {
-	var entriesStatusUpdateRequest model.EntriesStatusUpdateRequest
-	if err := json_parser.NewDecoder(r.Body).Decode(&entriesStatusUpdateRequest); err != nil {
+	var updateRequest model.EntriesStatusUpdateRequest
+	if err := json_parser.NewDecoder(r.Body).Decode(&updateRequest); err != nil {
 		json.BadRequest(w, r, err)
 		return
 	}
 
-	if err := validator.ValidateEntriesStatusUpdateRequest(&entriesStatusUpdateRequest); err != nil {
+	err := validator.ValidateEntriesStatusUpdateRequest(&updateRequest)
+	if err != nil {
 		json.BadRequest(w, r, err)
 		return
 	}
 
-	err := h.store.SetEntriesStatus(r.Context(), request.UserID(r),
-		entriesStatusUpdateRequest.EntryIDs, entriesStatusUpdateRequest.Status)
+	err = h.store.SetEntriesStatus(r.Context(), request.UserID(r),
+		updateRequest.EntryIDs, updateRequest.Status)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
-
 	json.NoContent(w, r)
 }
 
 func (h *handler) toggleBookmark(w http.ResponseWriter, r *http.Request) {
-	entryID := request.RouteInt64Param(r, "entryID")
-	err := h.store.ToggleBookmark(r.Context(), request.UserID(r), entryID)
+	id := request.RouteInt64Param(r, "entryID")
+	err := h.store.ToggleBookmark(r.Context(), request.UserID(r), id)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -202,134 +214,126 @@ func (h *handler) toggleBookmark(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) saveEntry(w http.ResponseWriter, r *http.Request) {
-	entryID := request.RouteInt64Param(r, "entryID")
-	builder := h.store.NewEntryQueryBuilder(request.UserID(r))
-	builder.WithEntryID(entryID)
-	builder.WithoutStatus(model.EntryStatusRemoved)
+	id := request.RouteInt64Param(r, "entryID")
+	builder := h.store.NewEntryQueryBuilder(request.UserID(r)).
+		WithEntryID(id).
+		WithoutStatus(model.EntryStatusRemoved)
 
-	if !h.store.HasSaveEntry(r.Context(), request.UserID(r)) {
-		json.BadRequest(w, r, errors.New("no third-party integration enabled"))
+	g, ctx := errgroup.WithContext(r.Context())
+	userID := request.UserID(r)
+	errIntegration := errors.New("no third-party integration enabled")
+
+	g.Go(func() (err error) {
+		if !h.store.HasSaveEntry(ctx, userID) {
+			return errIntegration
+		}
+		return
+	})
+
+	var entry *model.Entry
+	g.Go(func() (err error) {
+		entry, err = builder.GetEntry(ctx)
+		return
+	})
+
+	var settings *model.Integration
+	g.Go(func() (err error) {
+		settings, err = h.store.Integration(ctx, userID)
+		return
+	})
+
+	if err := g.Wait(); err != nil {
+		if errors.Is(err, errIntegration) {
+			json.BadRequest(w, r, err)
+		} else {
+			json.ServerError(w, r, err)
+		}
 		return
 	}
 
-	entry, err := builder.GetEntry(r.Context())
+	entry, err := builder.GetEntry(ctx)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
-	}
-
-	if entry == nil {
+	} else if entry == nil {
 		json.NotFound(w, r)
 		return
 	}
 
-	settings, err := h.store.Integration(r.Context(), request.UserID(r))
-	if err != nil {
-		json.ServerError(w, r, err)
-		return
-	}
-
-	go integration.SendEntry(entry, settings)
-
+	integration.SendEntry(entry, settings)
 	json.Accepted(w, r)
 }
 
 func (h *handler) updateEntry(w http.ResponseWriter, r *http.Request) {
-	var entryUpdateRequest model.EntryUpdateRequest
-	if err := json_parser.NewDecoder(r.Body).Decode(&entryUpdateRequest); err != nil {
+	var updateRequest model.EntryUpdateRequest
+	if err := json_parser.NewDecoder(r.Body).Decode(&updateRequest); err != nil {
 		json.BadRequest(w, r, err)
 		return
 	}
 
-	if err := validator.ValidateEntryModification(&entryUpdateRequest); err != nil {
+	if err := validator.ValidateEntryModification(&updateRequest); err != nil {
 		json.BadRequest(w, r, err)
 		return
 	}
 
-	loggedUserID := request.UserID(r)
-	entryID := request.RouteInt64Param(r, "entryID")
+	userID := request.UserID(r)
+	id := request.RouteInt64Param(r, "entryID")
+	entryBuilder := h.store.NewEntryQueryBuilder(userID).
+		WithEntryID(id).
+		WithoutStatus(model.EntryStatusRemoved)
 
-	entryBuilder := h.store.NewEntryQueryBuilder(loggedUserID)
-	entryBuilder.WithEntryID(entryID)
-	entryBuilder.WithoutStatus(model.EntryStatusRemoved)
-
-	entry, err := entryBuilder.GetEntry(r.Context())
+	ctx := r.Context()
+	entry, err := entryBuilder.GetEntry(ctx)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
-	}
-
-	if entry == nil {
+	} else if entry == nil {
 		json.NotFound(w, r)
 		return
 	}
 
-	user, err := h.store.UserByID(r.Context(), loggedUserID)
-	if err != nil {
-		json.ServerError(w, r, err)
-		return
-	}
-
-	if user == nil {
-		json.NotFound(w, r)
-		return
-	}
-
-	entryUpdateRequest.Patch(entry)
+	updateRequest.Patch(entry)
+	user := request.User(r)
 	if user.ShowReadingTime {
-		entry.ReadingTime = readingtime.EstimateReadingTime(entry.Content, user.DefaultReadingSpeed, user.CJKReadingSpeed)
+		entry.ReadingTime = readingtime.EstimateReadingTime(entry.Content,
+			user.DefaultReadingSpeed, user.CJKReadingSpeed)
 	}
 
-	err = h.store.UpdateEntryTitleAndContent(r.Context(), entry)
+	err = h.store.UpdateEntryTitleAndContent(ctx, entry)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
-
 	json.Created(w, r, entry)
 }
 
 func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
-	loggedUserID := request.UserID(r)
+	userID := request.UserID(r)
 	entryID := request.RouteInt64Param(r, "entryID")
+	builder := h.store.NewEntryQueryBuilder(userID).
+		WithEntryID(entryID).
+		WithoutStatus(model.EntryStatusRemoved)
+	ctx := r.Context()
 
-	entryBuilder := h.store.NewEntryQueryBuilder(loggedUserID)
-	entryBuilder.WithEntryID(entryID)
-	entryBuilder.WithoutStatus(model.EntryStatusRemoved)
-
-	entry, err := entryBuilder.GetEntry(r.Context())
+	entry, err := builder.GetEntry(ctx)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
-	}
-
-	if entry == nil {
+	} else if entry == nil {
 		json.NotFound(w, r)
 		return
 	}
 
-	user, err := h.store.UserByID(r.Context(), loggedUserID)
+	feed, err := h.store.FeedByID(ctx, userID, entry.FeedID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
-	}
-
-	if user == nil {
+	} else if feed == nil {
 		json.NotFound(w, r)
 		return
 	}
 
-	feed, err := h.store.FeedByID(r.Context(), loggedUserID, entry.FeedID)
-	if err != nil {
-		json.ServerError(w, r, err)
-		return
-	}
-
-	if feed == nil {
-		json.NotFound(w, r)
-		return
-	}
-
+	user := request.User(r)
 	if err := processor.ProcessEntryWebPage(feed, entry, user); err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -337,20 +341,19 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 
 	shouldUpdateContent := request.QueryBoolParam(r, "update_content", false)
 	if shouldUpdateContent {
-		err := h.store.UpdateEntryTitleAndContent(r.Context(), entry)
+		err := h.store.UpdateEntryTitleAndContent(ctx, entry)
 		if err != nil {
 			json.ServerError(w, r, err)
 			return
 		}
 
 		json.OK(w, r, map[string]any{
-			"content": mediaproxy.RewriteDocumentWithRelativeProxyURL(
-				h.router, entry.Content),
+			"content": mediaproxy.RewriteDocumentWithRelativeProxyURL(h.router,
+				entry.Content),
 			"reading_time": entry.ReadingTime,
 		})
 		return
 	}
-
 	json.OK(w, r, map[string]string{"content": entry.Content})
 }
 
@@ -364,39 +367,48 @@ func (h *handler) flushHistory(w http.ResponseWriter, r *http.Request) {
 }
 
 func configureFilters(builder *storage.EntryQueryBuilder, r *http.Request) {
-	if beforeEntryID := request.QueryInt64Param(r, "before_entry_id", 0); beforeEntryID > 0 {
+	beforeEntryID := request.QueryInt64Param(r, "before_entry_id", 0)
+	if beforeEntryID > 0 {
 		builder.BeforeEntryID(beforeEntryID)
 	}
 
-	if afterEntryID := request.QueryInt64Param(r, "after_entry_id", 0); afterEntryID > 0 {
+	afterEntryID := request.QueryInt64Param(r, "after_entry_id", 0)
+	if afterEntryID > 0 {
 		builder.AfterEntryID(afterEntryID)
 	}
 
-	if beforePublishedTimestamp := request.QueryInt64Param(r, "before", 0); beforePublishedTimestamp > 0 {
-		builder.BeforePublishedDate(time.Unix(beforePublishedTimestamp, 0))
+	beforePublished := request.QueryInt64Param(r, "before", 0)
+	if beforePublished > 0 {
+		builder.BeforePublishedDate(time.Unix(beforePublished, 0))
 	}
 
-	if afterPublishedTimestamp := request.QueryInt64Param(r, "after", 0); afterPublishedTimestamp > 0 {
-		builder.AfterPublishedDate(time.Unix(afterPublishedTimestamp, 0))
+	afterPublished := request.QueryInt64Param(r, "after", 0)
+	if afterPublished > 0 {
+		builder.AfterPublishedDate(time.Unix(afterPublished, 0))
 	}
 
-	if beforePublishedTimestamp := request.QueryInt64Param(r, "published_before", 0); beforePublishedTimestamp > 0 {
-		builder.BeforePublishedDate(time.Unix(beforePublishedTimestamp, 0))
+	beforePublished = request.QueryInt64Param(r, "published_before", 0)
+	if beforePublished > 0 {
+		builder.BeforePublishedDate(time.Unix(beforePublished, 0))
 	}
 
-	if afterPublishedTimestamp := request.QueryInt64Param(r, "published_after", 0); afterPublishedTimestamp > 0 {
-		builder.AfterPublishedDate(time.Unix(afterPublishedTimestamp, 0))
+	afterPublished = request.QueryInt64Param(r, "published_after", 0)
+	if afterPublished > 0 {
+		builder.AfterPublishedDate(time.Unix(afterPublished, 0))
 	}
 
-	if beforeChangedTimestamp := request.QueryInt64Param(r, "changed_before", 0); beforeChangedTimestamp > 0 {
-		builder.BeforeChangedDate(time.Unix(beforeChangedTimestamp, 0))
+	beforeChanged := request.QueryInt64Param(r, "changed_before", 0)
+	if beforeChanged > 0 {
+		builder.BeforeChangedDate(time.Unix(beforeChanged, 0))
 	}
 
-	if afterChangedTimestamp := request.QueryInt64Param(r, "changed_after", 0); afterChangedTimestamp > 0 {
-		builder.AfterChangedDate(time.Unix(afterChangedTimestamp, 0))
+	afterChanged := request.QueryInt64Param(r, "changed_after", 0)
+	if afterChanged > 0 {
+		builder.AfterChangedDate(time.Unix(afterChanged, 0))
 	}
 
-	if categoryID := request.QueryInt64Param(r, "category_id", 0); categoryID > 0 {
+	categoryID := request.QueryInt64Param(r, "category_id", 0)
+	if categoryID > 0 {
 		builder.WithCategoryID(categoryID)
 	}
 
@@ -407,7 +419,8 @@ func configureFilters(builder *storage.EntryQueryBuilder, r *http.Request) {
 		}
 	}
 
-	if searchQuery := request.QueryStringParam(r, "search", ""); searchQuery != "" {
+	searchQuery := request.QueryStringParam(r, "search", "")
+	if searchQuery != "" {
 		builder.WithSearchQuery(searchQuery)
 	}
 }

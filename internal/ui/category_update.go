@@ -45,9 +45,12 @@ func (h *handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	modifyRequest.Patch(category)
-	err = h.store.UpdateCategory(r.Context(), category)
+	affected, err := h.store.UpdateCategory(r.Context(), category)
 	if err != nil {
 		html.ServerError(w, r, err)
+		return
+	} else if !affected {
+		html.NotFound(w, r)
 		return
 	}
 	html.Redirect(w, r, route.Path(h.router, "categoryFeeds", "categoryID", id))

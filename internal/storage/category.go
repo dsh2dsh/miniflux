@@ -208,32 +208,28 @@ INSERT INTO categories (user_id, title, hide_globally)
 
 // UpdateCategory updates an existing category.
 func (s *Storage) UpdateCategory(ctx context.Context, category *model.Category,
-) error {
-	_, err := s.db.Exec(ctx, `
+) (bool, error) {
+	result, err := s.db.Exec(ctx, `
 UPDATE categories
    SET title=$1, hide_globally=$2
  WHERE id=$3 AND user_id=$4`,
 		category.Title, category.HideGlobally, category.ID, category.UserID)
 	if err != nil {
-		return fmt.Errorf(`store: unable to update category: %w`, err)
+		return false, fmt.Errorf(`store: unable to update category: %w`, err)
 	}
-	return nil
+	return result.RowsAffected() != 0, nil
 }
 
 // RemoveCategory deletes a category.
 func (s *Storage) RemoveCategory(ctx context.Context, userID, categoryID int64,
-) error {
+) (bool, error) {
 	result, err := s.db.Exec(ctx,
 		`DELETE FROM categories WHERE id = $1 AND user_id = $2`,
 		categoryID, userID)
 	if err != nil {
-		return fmt.Errorf(`store: unable to remove this category: %w`, err)
+		return false, fmt.Errorf("storage: unable to remove this category: %w", err)
 	}
-
-	if result.RowsAffected() == 0 {
-		return errors.New(`store: no category has been removed`)
-	}
-	return nil
+	return result.RowsAffected() != 0, nil
 }
 
 // delete the given categories, replacing those categories with the user's first

@@ -386,47 +386,6 @@ SELECT EXISTS(
 	return result, nil
 }
 
-// UserByAPIKey returns a User from an API Key.
-func (s *Storage) UserByAPIKey(ctx context.Context, token string,
-) (*model.User, error) {
-	query := `
-SELECT
-  u.id,
-  u.username,
-  u.is_admin,
-  u.theme,
-  u.language,
-  u.timezone,
-  u.entry_direction,
-  u.entries_per_page,
-  u.keyboard_shortcuts,
-  u.show_reading_time,
-  u.entry_swipe,
-  u.gesture_nav,
-  u.last_login_at,
-  u.stylesheet,
-  u.custom_js,
-  u.external_font_hosts,
-  u.google_id,
-  u.openid_connect_id,
-  u.display_mode,
-  u.entry_order,
-  u.default_reading_speed,
-  u.cjk_reading_speed,
-  u.default_home_page,
-  u.categories_sorting_order,
-  u.mark_read_on_view,
-  u.mark_read_on_media_player_completion,
-  u.media_playback_rate,
-  u.block_filter_entry_rules,
-  u.keep_filter_entry_rules,
-  u.extra
-FROM users u
-     LEFT JOIN api_keys ON api_keys.user_id=u.id
-WHERE api_keys.token = $1`
-	return s.fetchUser(ctx, query, token)
-}
-
 func (s *Storage) fetchUser(ctx context.Context, query string, args ...any,
 ) (*model.User, error) {
 	rows, _ := s.db.Query(ctx, query, args...)
@@ -441,18 +400,19 @@ func (s *Storage) fetchUser(ctx context.Context, query string, args ...any,
 }
 
 // RemoveUser deletes user data.
-func (s *Storage) RemoveUser(ctx context.Context, userID int64) error {
+func (s *Storage) RemoveUser(ctx context.Context, userID int64) (bool, error) {
 	log := logging.FromContext(ctx).With(slog.Int64("user_id", userID))
 	if err := s.deleteUserFeeds(ctx, userID); err != nil {
 		log.Error("Unable to delete user feeds", slog.Any("error", err))
-		return err
+		return false, err
 	}
 
-	if err := s.removeUser(ctx, userID); err != nil {
+	affected, err := s.removeUser(ctx, userID)
+	if err != nil {
 		log.Error("storage: failed delete user", slog.Any("error", err))
-		return err
+		return false, err
 	}
-	return nil
+	return affected, nil
 }
 
 func (s *Storage) deleteUserFeeds(ctx context.Context, userID int64) error {
@@ -470,23 +430,26 @@ func (s *Storage) deleteUserFeeds(ctx context.Context, userID int64) error {
 }
 
 // removeUser deletes a user.
-func (s *Storage) removeUser(ctx context.Context, userID int64) error {
+func (s *Storage) removeUser(ctx context.Context, userID int64) (bool, error) {
+	var affected bool
 	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		_, err := tx.Exec(ctx, `DELETE FROM users WHERE id=$1`, userID)
-		if err != nil {
-			return fmt.Errorf("remove user: %w", err)
-		}
-
-		_, err = tx.Exec(ctx, `DELETE FROM integrations WHERE user_id=$1`, userID)
+		_, err := tx.Exec(ctx, `DELETE FROM integrations WHERE user_id=$1`, userID)
 		if err != nil {
 			return fmt.Errorf("remove integration settings: %w", err)
 		}
+
+		result, err := tx.Exec(ctx, `DELETE FROM users WHERE id=$1`, userID)
+		if err != nil {
+			return fmt.Errorf("remove user: %w", err)
+		}
+		affected = result.RowsAffected() != 0
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf(`storage: unable to remove user #%d: %w`, userID, err)
+		return false, fmt.Errorf("storage: unable to remove user #%d: %w", userID,
+			err)
 	}
-	return nil
+	return affected, nil
 }
 
 // Users returns all users.
@@ -536,22 +499,20 @@ FROM users ORDER BY username ASC`)
 // CheckPassword validate the hashed password.
 func (s *Storage) CheckPassword(ctx context.Context, username, password string,
 ) error {
-	var hash string
 	username = strings.ToLower(username)
-
-	rows, _ := s.db.Query(ctx,
-		`SELECT password FROM users WHERE username=$1`, username)
+	rows, _ := s.db.Query(ctx, `SELECT password FROM users WHERE username = $1`,
+		username)
 
 	hash, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[string])
 	if errors.Is(err, pgx.ErrNoRows) {
-		return fmt.Errorf(`store: unable to find this user: %s`, username)
+		return fmt.Errorf("storage: user %q not found: %w", username, err)
 	} else if err != nil {
-		return fmt.Errorf(`store: unable to fetch user: %w`, err)
+		return fmt.Errorf("storage: unable to fetch user %q: %w", username, err)
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	if err != nil {
-		return fmt.Errorf(`store: invalid password for %q: %w`, username, err)
+		return fmt.Errorf("storage: invalid password for %q: %w", username, err)
 	}
 	return nil
 }
@@ -569,8 +530,9 @@ SELECT EXISTS(
 	return result, nil
 }
 
-func (s *Storage) UserSession(ctx context.Context, id string,
-) (*model.User, *model.Session, error) {
+func (s *Storage) UserSession(ctx context.Context, id string) (*model.User,
+	*model.Session, error,
+) {
 	query := `
 SELECT
   s.user_id,
@@ -654,4 +616,94 @@ WHERE s.id = $1 AND u.id = s.user_id`
 		return nil, nil, fmt.Errorf("storage: fetch user with session: %w", err)
 	}
 	return user, sess, nil
+}
+
+func (s *Storage) UserAPIKey(ctx context.Context, token string) (*model.User,
+	*model.APIKey, error,
+) {
+	query := `
+SELECT
+  k.id,
+  k.user_id,
+  k.description,
+  k.created_at,
+  k.last_used_at,
+  u.id,
+  u.username,
+  u.is_admin,
+  u.language,
+  u.timezone,
+  u.theme,
+  u.entry_direction,
+  u.keyboard_shortcuts,
+  u.entries_per_page,
+  u.show_reading_time,
+  u.entry_swipe,
+  u.gesture_nav,
+  u.last_login_at,
+  u.stylesheet,
+  u.custom_js,
+  u.external_font_hosts,
+  u.google_id,
+  u.openid_connect_id,
+  u.display_mode,
+  u.entry_order,
+  u.default_reading_speed,
+  u.cjk_reading_speed,
+  u.default_home_page,
+  u.categories_sorting_order,
+  u.mark_read_on_view,
+  u.mark_read_on_media_player_completion,
+  u.media_playback_rate,
+  u.block_filter_entry_rules,
+  u.keep_filter_entry_rules,
+  u.extra
+FROM api_keys k, users u
+WHERE k.token = $1 AND u.id = k.user_id`
+
+	user := &model.User{}
+	apiKey := &model.APIKey{Token: token}
+
+	err := s.db.QueryRow(ctx, query, token).Scan(
+		&apiKey.ID,
+		&apiKey.UserID,
+		&apiKey.Description,
+		&apiKey.CreatedAt,
+		&apiKey.LastUsedAt,
+		&user.ID,
+		&user.Username,
+		&user.IsAdmin,
+		&user.Language,
+		&user.Timezone,
+		&user.Theme,
+		&user.EntryDirection,
+		&user.KeyboardShortcuts,
+		&user.EntriesPerPage,
+		&user.ShowReadingTime,
+		&user.EntrySwipe,
+		&user.GestureNav,
+		&user.LastLoginAt,
+		&user.Stylesheet,
+		&user.CustomJS,
+		&user.ExternalFontHosts,
+		&user.GoogleID,
+		&user.OpenIDConnectID,
+		&user.DisplayMode,
+		&user.EntryOrder,
+		&user.DefaultReadingSpeed,
+		&user.CJKReadingSpeed,
+		&user.DefaultHomePage,
+		&user.CategoriesSortingOrder,
+		&user.MarkReadOnView,
+		&user.MarkReadOnMediaPlayerCompletion,
+		&user.MediaPlaybackRate,
+		&user.BlockFilterEntryRules,
+		&user.KeepFilterEntryRules,
+		&user.Extra)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil, nil
+	} else if err != nil {
+		return nil, nil, fmt.Errorf("storage: fetch user with api key: %w", err)
+	}
+	return user, apiKey, nil
 }

@@ -503,7 +503,7 @@ func (h *handler) handleWriteFeeds(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go func() {
-		err := h.store.MarkFeedAsRead(r.Context(), userID, feedID, before)
+		_, err := h.store.MarkFeedAsRead(r.Context(), userID, feedID, before)
 		if err != nil {
 			slog.Error("[Fever] Unable to mark feed as read",
 				slog.Int64("user_id", userID),
@@ -543,7 +543,7 @@ func (h *handler) handleWriteGroups(w http.ResponseWriter, r *http.Request) {
 		if groupID == 0 {
 			err = h.store.MarkAllAsRead(r.Context(), userID)
 		} else {
-			err = h.store.MarkCategoryAsRead(r.Context(), userID, groupID, before)
+			_, err = h.store.MarkCategoryAsRead(r.Context(), userID, groupID, before)
 		}
 
 		if err != nil {

@@ -319,6 +319,7 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
 		return gzhttp.GzipHandler(next)
 	})
 	subrouter.Use(middleware.RequestId)
+	subrouter.Use(middleware.ClientIP)
 
 	publicRoutes := middleware.WithPublicRoutes(map[string]struct{}{
 		"/favicon.ico":           {},
@@ -347,8 +348,9 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
 		"/oauth2/redirect/": {},
 	})
 	subrouter.Use(mux.MiddlewareFunc(userSession))
+	subrouter.Use(api.WithKeyAuth(store))
+	subrouter.Use(api.WithBasicAuth(store))
 
-	subrouter.Use(middleware.ClientIP)
 	accessLog := middleware.WithAccessLog(map[string]struct{}{
 		"/healthcheck": {},
 		"/metrics":     {},

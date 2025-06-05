@@ -49,14 +49,15 @@ func ServerError(w http.ResponseWriter, r *http.Request, err error) {
 		slog.Group("response",
 			slog.Int("status_code", http.StatusInternalServerError)))
 
-	builder := response.New(w, r)
-	builder.WithStatus(statusCode)
-	builder.WithHeader("Content-Security-Policy",
-		response.ContentSecurityPolicyForUntrustedContent)
-	builder.WithHeader("Content-Type", "text/plain; charset=utf-8")
-	builder.WithHeader("Cache-Control", "no-cache, max-age=0, must-revalidate, no-store")
-	builder.WithBody(html.EscapeString(err.Error()))
-	builder.Write()
+	response.New(w, r).
+		WithStatus(statusCode).
+		WithHeader("Content-Security-Policy",
+			response.ContentSecurityPolicyForUntrustedContent).
+		WithHeader("Content-Type", "text/plain; charset=utf-8").
+		WithHeader(
+			"Cache-Control", "no-cache, max-age=0, must-revalidate, no-store").
+		WithBody(html.EscapeString(err.Error())).
+		Write()
 }
 
 // BadRequest sends a bad request error to the client.

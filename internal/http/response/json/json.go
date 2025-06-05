@@ -4,6 +4,7 @@
 package json // import "miniflux.app/v2/internal/http/response/json"
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
+	"miniflux.app/v2/internal/logging"
 )
 
 const contentTypeHeader = `application/json`
@@ -62,31 +64,42 @@ func Accepted(w http.ResponseWriter, r *http.Request) {
 
 // ServerError sends an internal error to the client.
 func ServerError(w http.ResponseWriter, r *http.Request, err error) {
-	slog.Error(http.StatusText(http.StatusInternalServerError),
+	log := logging.FromContext(r.Context()).With(
 		slog.Any("error", err),
 		slog.String("client_ip", request.ClientIP(r)),
 		slog.Group("request",
 			slog.String("method", r.Method),
 			slog.String("uri", r.RequestURI),
-			slog.String("user_agent", r.UserAgent()),
-		),
-		slog.Group("response",
-			slog.Int("status_code", http.StatusInternalServerError),
-		),
-	)
+			slog.String("user_agent", r.UserAgent())))
 
-	responseBody, jsonErr := generateJSONError(err)
-	if jsonErr != nil {
-		slog.Error("Unable to generate JSON error", slog.Any("error", jsonErr))
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	clientClosed := errors.Is(err, context.Canceled) &&
+		errors.Is(r.Context().Err(), context.Canceled)
+	if clientClosed {
+		statusCode := 499
+		log.Debug("client closed request",
+			slog.Group("response", slog.Int("status_code", statusCode)))
+		http.Error(w, err.Error(), statusCode)
 		return
 	}
 
-	builder := response.New(w, r)
-	builder.WithStatus(http.StatusInternalServerError)
-	builder.WithHeader("Content-Type", contentTypeHeader)
-	builder.WithBody(responseBody)
-	builder.Write()
+	statusCode := http.StatusInternalServerError
+	log.Error(http.StatusText(statusCode),
+		slog.Group("response",
+			slog.Int("status_code", statusCode)))
+
+	body, jsonErr := generateJSONError(err)
+	if jsonErr != nil {
+		logging.FromContext(r.Context()).Error("Unable to generate JSON error",
+			slog.Any("error", jsonErr))
+		http.Error(w, http.StatusText(statusCode), statusCode)
+		return
+	}
+
+	response.New(w, r).
+		WithStatus(statusCode).
+		WithHeader("Content-Type", contentTypeHeader).
+		WithBody(body).
+		Write()
 }
 
 // BadRequest sends a bad request error to the client.

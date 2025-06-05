@@ -34,9 +34,12 @@ func (h *handler) removeCategoryFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.store.RemoveFeed(r.Context(), userID, feedID)
+	affected, err := h.store.RemoveFeed(r.Context(), userID, feedID)
 	if err != nil {
 		html.ServerError(w, r, err)
+		return
+	} else if !affected {
+		html.NotFound(w, r)
 		return
 	}
 	html.Redirect(w, r, route.Path(h.router, "categoryFeeds", "categoryID",

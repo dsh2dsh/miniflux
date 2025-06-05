@@ -9,83 +9,85 @@ import (
 	"net/http"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/json"
+	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	feedHandler "miniflux.app/v2/internal/reader/handler"
 	"miniflux.app/v2/internal/validator"
 )
 
 func (h *handler) createFeed(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	userID := request.UserID(r)
 
-	var feedCreationRequest model.FeedCreationRequest
-	if err := json_parser.NewDecoder(r.Body).Decode(&feedCreationRequest); err != nil {
+	var createRequest model.FeedCreationRequest
+	if err := json_parser.NewDecoder(r.Body).Decode(&createRequest); err != nil {
 		json.BadRequest(w, r, err)
 		return
 	}
 
 	// Make the feed category optional for clients who don't support categories.
-	if feedCreationRequest.CategoryID == 0 {
-		category, err := h.store.FirstCategory(r.Context(), userID)
+	if createRequest.CategoryID == 0 {
+		category, err := h.store.FirstCategory(ctx, userID)
 		if err != nil {
 			json.ServerError(w, r, err)
 			return
 		}
-		feedCreationRequest.CategoryID = category.ID
+		createRequest.CategoryID = category.ID
 	}
 
-	validationErr := validator.ValidateFeedCreation(r.Context(),
-		h.store, userID, &feedCreationRequest)
-	if validationErr != nil {
-		json.BadRequest(w, r, validationErr.Error())
+	lerr := validator.ValidateFeedCreation(ctx, h.store, userID, &createRequest)
+	if lerr != nil {
+		json.BadRequest(w, r, lerr.Error())
 		return
 	}
 
-	feed, localizedError := feedHandler.CreateFeed(r.Context(),
-		h.store, userID, &feedCreationRequest)
+	feed, localizedError := feedHandler.CreateFeed(ctx,
+		h.store, userID, &createRequest)
 	if localizedError != nil {
 		json.ServerError(w, r, localizedError)
 		return
 	}
-
 	json.Created(w, r, &feedCreationResponse{FeedID: feed.ID})
 }
 
 func (h *handler) refreshFeed(w http.ResponseWriter, r *http.Request) {
-	feedID := request.RouteInt64Param(r, "feedID")
+	ctx := r.Context()
+	id := request.RouteInt64Param(r, "feedID")
 	userID := request.UserID(r)
 
-	if !h.store.FeedExists(r.Context(), userID, feedID) {
+	if !h.store.FeedExists(ctx, userID, id) {
 		json.NotFound(w, r)
 		return
 	}
 
-	localizedError := feedHandler.RefreshFeed(r.Context(), h.store, userID,
-		feedID, false)
-	if localizedError != nil {
-		json.ServerError(w, r, localizedError)
+	lerr := feedHandler.RefreshFeed(ctx, h.store, userID, id, false)
+	if lerr != nil {
+		json.ServerError(w, r, lerr)
 		return
 	}
-
 	json.NoContent(w, r)
 }
 
 func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	userID := request.UserID(r)
 
 	err := h.store.NewBatchBuilder().
 		WithUserID(userID).
 		WithoutDisabledFeeds().
 		WithErrorLimit(config.Opts.PollingParsingErrorLimit()).
-		ResetNextCheckAt(r.Context())
+		ResetNextCheckAt(ctx)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
 
-	slog.Info(
+	logging.FromContext(ctx).Info(
 		"Triggered a manual refresh of all feeds from the API",
 		slog.Int64("user_id", userID))
 
@@ -94,67 +96,57 @@ func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
-	var feedModificationRequest model.FeedModificationRequest
-	if err := json_parser.NewDecoder(r.Body).Decode(&feedModificationRequest); err != nil {
+	var modifyRequest model.FeedModificationRequest
+	if err := json_parser.NewDecoder(r.Body).Decode(&modifyRequest); err != nil {
 		json.BadRequest(w, r, err)
 		return
 	}
 
+	ctx := r.Context()
 	userID := request.UserID(r)
-	feedID := request.RouteInt64Param(r, "feedID")
+	id := request.RouteInt64Param(r, "feedID")
 
-	originalFeed, err := h.store.FeedByID(r.Context(), userID, feedID)
+	feed, err := h.store.FeedByID(ctx, userID, id)
 	if err != nil {
+		json.NotFound(w, r)
+		return
+	} else if feed == nil {
 		json.NotFound(w, r)
 		return
 	}
 
-	if originalFeed == nil {
-		json.NotFound(w, r)
+	lerr := validator.ValidateFeedModification(ctx, h.store, userID,
+		feed.ID, &modifyRequest)
+	if lerr != nil {
+		json.BadRequest(w, r, lerr.Error())
 		return
 	}
 
-	validationErr := validator.ValidateFeedModification(r.Context(),
-		h.store, userID, originalFeed.ID, &feedModificationRequest)
-	if validationErr != nil {
-		json.BadRequest(w, r, validationErr.Error())
-		return
-	}
-
-	feedModificationRequest.Patch(originalFeed)
-	originalFeed.ResetErrorCounter()
-	if err := h.store.UpdateFeed(r.Context(), originalFeed); err != nil {
+	modifyRequest.Patch(feed)
+	feed.ResetErrorCounter()
+	if err := h.store.UpdateFeed(ctx, feed); err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
 
-	originalFeed, err = h.store.FeedByID(r.Context(), userID, feedID)
+	feed, err = h.store.FeedByID(ctx, userID, id)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
-
-	json.Created(w, r, originalFeed)
+	json.Created(w, r, feed)
 }
 
 func (h *handler) markFeedAsRead(w http.ResponseWriter, r *http.Request) {
-	feedID := request.RouteInt64Param(r, "feedID")
+	id := request.RouteInt64Param(r, "feedID")
 	userID := request.UserID(r)
 
-	feed, err := h.store.FeedByID(r.Context(), userID, feedID)
-	if err != nil {
-		json.NotFound(w, r)
-		return
-	}
-
-	if feed == nil {
-		json.NotFound(w, r)
-		return
-	}
-
-	err = h.store.MarkFeedAsRead(r.Context(), userID, feedID, time.Now())
+	affected, err := h.store.MarkFeedAsRead(r.Context(), userID, id, time.Now())
 	if err != nil {
 		json.ServerError(w, r, err)
+		return
+	} else if !affected {
+		json.NotFound(w, r)
 		return
 	}
 	json.NoContent(w, r)
@@ -162,26 +154,28 @@ func (h *handler) markFeedAsRead(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) getCategoryFeeds(w http.ResponseWriter, r *http.Request) {
 	userID := request.UserID(r)
-	categoryID := request.RouteInt64Param(r, "categoryID")
+	id := request.RouteInt64Param(r, "categoryID")
 
-	category, err := h.store.Category(r.Context(), userID, categoryID)
-	if err != nil {
+	g, ctx := errgroup.WithContext(r.Context())
+	var category *model.Category
+	g.Go(func() (err error) {
+		category, err = h.store.Category(ctx, userID, id)
+		return
+	})
+
+	var feeds model.Feeds
+	g.Go(func() (err error) {
+		feeds, err = h.store.FeedsByCategoryWithCounters(ctx, userID, id)
+		return
+	})
+
+	if err := g.Wait(); err != nil {
 		json.ServerError(w, r, err)
 		return
-	}
-
-	if category == nil {
+	} else if category == nil {
 		json.NotFound(w, r)
 		return
 	}
-
-	feeds, err := h.store.FeedsByCategoryWithCounters(
-		r.Context(), userID, categoryID)
-	if err != nil {
-		json.ServerError(w, r, err)
-		return
-	}
-
 	json.OK(w, r, feeds)
 }
 
@@ -191,7 +185,6 @@ func (h *handler) getFeeds(w http.ResponseWriter, r *http.Request) {
 		json.ServerError(w, r, err)
 		return
 	}
-
 	json.OK(w, r, feeds)
 }
 
@@ -201,37 +194,32 @@ func (h *handler) fetchCounters(w http.ResponseWriter, r *http.Request) {
 		json.ServerError(w, r, err)
 		return
 	}
-
 	json.OK(w, r, counters)
 }
 
 func (h *handler) getFeed(w http.ResponseWriter, r *http.Request) {
-	feedID := request.RouteInt64Param(r, "feedID")
-	feed, err := h.store.FeedByID(r.Context(), request.UserID(r), feedID)
+	id := request.RouteInt64Param(r, "feedID")
+	feed, err := h.store.FeedByID(r.Context(), request.UserID(r), id)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
-	}
-
-	if feed == nil {
+	} else if feed == nil {
 		json.NotFound(w, r)
 		return
 	}
-
 	json.OK(w, r, feed)
 }
 
 func (h *handler) removeFeed(w http.ResponseWriter, r *http.Request) {
-	feedID := request.RouteInt64Param(r, "feedID")
+	id := request.RouteInt64Param(r, "feedID")
 	userID := request.UserID(r)
 
-	if !h.store.FeedExists(r.Context(), userID, feedID) {
-		json.NotFound(w, r)
-		return
-	}
-
-	if err := h.store.RemoveFeed(r.Context(), userID, feedID); err != nil {
+	affected, err := h.store.RemoveFeed(r.Context(), userID, id)
+	if err != nil {
 		json.ServerError(w, r, err)
+		return
+	} else if !affected {
+		json.NotFound(w, r)
 		return
 	}
 	json.NoContent(w, r)

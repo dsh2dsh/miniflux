@@ -5,7 +5,6 @@ package storage // import "miniflux.app/v2/internal/storage"
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -13,8 +12,6 @@ import (
 	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/model"
 )
-
-var ErrAPIKeyNotFound = errors.New("store: API Key not found")
 
 // APIKeyExists checks if an API Key with the same description exists.
 func (s *Storage) APIKeyExists(ctx context.Context, userID int64,
@@ -83,13 +80,12 @@ RETURNING id, user_id, token, description, last_used_at, created_at`,
 }
 
 // DeleteAPIKey deletes an API Key.
-func (s *Storage) DeleteAPIKey(ctx context.Context, userID, keyID int64) error {
+func (s *Storage) DeleteAPIKey(ctx context.Context, userID, keyID int64,
+) (bool, error) {
 	result, err := s.db.Exec(ctx,
 		`DELETE FROM api_keys WHERE id = $1 AND user_id = $2`, keyID, userID)
 	if err != nil {
-		return fmt.Errorf(`store: unable to delete this API Key: %w`, err)
-	} else if result.RowsAffected() == 0 {
-		return ErrAPIKeyNotFound
+		return false, fmt.Errorf("storage: unable to delete this API Key: %w", err)
 	}
-	return nil
+	return result.RowsAffected() != 0, nil
 }

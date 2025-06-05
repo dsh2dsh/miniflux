@@ -14,18 +14,13 @@ import (
 func (h *handler) removeCategory(w http.ResponseWriter, r *http.Request) {
 	userID := request.UserID(r)
 	id := request.RouteInt64Param(r, "categoryID")
-	category, err := h.store.Category(r.Context(), userID, id)
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	} else if category == nil {
-		html.NotFound(w, r)
-		return
-	}
 
-	err = h.store.RemoveCategory(r.Context(), userID, id)
+	affected, err := h.store.RemoveCategory(r.Context(), userID, id)
 	if err != nil {
 		html.ServerError(w, r, err)
+		return
+	} else if !affected {
+		html.NotFound(w, r)
 		return
 	}
 	html.Redirect(w, r, route.Path(h.router, "categories"))

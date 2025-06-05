@@ -14,66 +14,48 @@ import (
 )
 
 func (h *handler) getEnclosureByID(w http.ResponseWriter, r *http.Request) {
-	enclosureID := request.RouteInt64Param(r, "enclosureID")
-
-	enclosure, err := h.store.GetEnclosure(r.Context(), enclosureID)
+	id := request.RouteInt64Param(r, "enclosureID")
+	enclosure, err := h.store.GetEnclosure(r.Context(), id)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
-	}
-
-	if enclosure == nil {
-		json.NotFound(w, r)
-		return
-	}
-
-	userID := request.UserID(r)
-	if enclosure.UserID != userID {
+	} else if enclosure == nil || enclosure.UserID != request.UserID(r) {
 		json.NotFound(w, r)
 		return
 	}
 
 	enclosure.ProxifyEnclosureURL(h.router)
-
 	json.OK(w, r, enclosure)
 }
 
 func (h *handler) updateEnclosureByID(w http.ResponseWriter, r *http.Request) {
-	enclosureID := request.RouteInt64Param(r, "enclosureID")
-
-	var enclosureUpdateRequest model.EnclosureUpdateRequest
-	if err := json_parser.NewDecoder(r.Body).Decode(&enclosureUpdateRequest); err != nil {
+	var updateRequest model.EnclosureUpdateRequest
+	if err := json_parser.NewDecoder(r.Body).Decode(&updateRequest); err != nil {
 		json.BadRequest(w, r, err)
 		return
 	}
 
-	if err := validator.ValidateEnclosureUpdateRequest(&enclosureUpdateRequest); err != nil {
+	err := validator.ValidateEnclosureUpdateRequest(&updateRequest)
+	if err != nil {
 		json.BadRequest(w, r, err)
 		return
 	}
 
-	enclosure, err := h.store.GetEnclosure(r.Context(), enclosureID)
+	id := request.RouteInt64Param(r, "enclosureID")
+	ctx := r.Context()
+	enclosure, err := h.store.GetEnclosure(ctx, id)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
-	}
-
-	if enclosure == nil {
+	} else if enclosure == nil || enclosure.UserID != request.UserID(r) {
 		json.NotFound(w, r)
 		return
 	}
 
-	userID := request.UserID(r)
-	if enclosure.UserID != userID {
-		json.NotFound(w, r)
-		return
-	}
-
-	enclosure.MediaProgression = enclosureUpdateRequest.MediaProgression
-	if err := h.store.UpdateEnclosure(r.Context(), enclosure); err != nil {
+	enclosure.MediaProgression = updateRequest.MediaProgression
+	if err := h.store.UpdateEnclosure(ctx, enclosure); err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
-
 	json.NoContent(w, r)
 }

@@ -16,14 +16,10 @@ import (
 	"miniflux.app/v2/internal/validator"
 )
 
-func (h *handler) currentUser(w http.ResponseWriter, r *http.Request) {
-	user, err := h.store.UserByID(r.Context(), request.UserID(r))
-	if err != nil {
-		json.ServerError(w, r, err)
-		return
-	}
+var cleanEnd = regexp.MustCompile(`(?m)\r\n\s*$`)
 
-	json.OK(w, r, user)
+func (h *handler) currentUser(w http.ResponseWriter, r *http.Request) {
+	json.OK(w, r, request.User(r))
 }
 
 func (h *handler) createUser(w http.ResponseWriter, r *http.Request) {
@@ -32,20 +28,21 @@ func (h *handler) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var userCreationRequest model.UserCreationRequest
-	if err := json_parser.NewDecoder(r.Body).Decode(&userCreationRequest); err != nil {
+	var createRequest model.UserCreationRequest
+	if err := json_parser.NewDecoder(r.Body).Decode(&createRequest); err != nil {
 		json.BadRequest(w, r, err)
 		return
 	}
 
-	validationErr := validator.ValidateUserCreationWithPassword(
-		r.Context(), h.store, &userCreationRequest)
-	if validationErr != nil {
-		json.BadRequest(w, r, validationErr.Error())
+	ctx := r.Context()
+	lerr := validator.ValidateUserCreationWithPassword(ctx, h.store,
+		&createRequest)
+	if lerr != nil {
+		json.BadRequest(w, r, lerr.Error())
 		return
 	}
 
-	user, err := h.store.CreateUser(r.Context(), &userCreationRequest)
+	user, err := h.store.CreateUser(ctx, &createRequest)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -54,92 +51,83 @@ func (h *handler) createUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) updateUser(w http.ResponseWriter, r *http.Request) {
-	userID := request.RouteInt64Param(r, "userID")
-
-	var userModificationRequest model.UserModificationRequest
-	if err := json_parser.NewDecoder(r.Body).Decode(&userModificationRequest); err != nil {
+	id := request.RouteInt64Param(r, "userID")
+	var m model.UserModificationRequest
+	if err := json_parser.NewDecoder(r.Body).Decode(&m); err != nil {
 		json.BadRequest(w, r, err)
 		return
 	}
 
-	originalUser, err := h.store.UserByID(r.Context(), userID)
+	ctx := r.Context()
+	user, err := h.store.UserByID(ctx, id)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
-	}
-
-	if originalUser == nil {
+	} else if user == nil {
 		json.NotFound(w, r)
 		return
 	}
 
 	if !request.IsAdminUser(r) {
-		if originalUser.ID != request.UserID(r) {
+		if user.ID != request.UserID(r) {
 			json.Forbidden(w, r)
 			return
 		}
 
-		if userModificationRequest.IsAdmin != nil && *userModificationRequest.IsAdmin {
-			json.BadRequest(w, r, errors.New("only administrators can change permissions of standard users"))
+		if m.IsAdmin != nil && *m.IsAdmin {
+			json.BadRequest(w, r, errors.New(
+				"only administrators can change permissions of standard users"))
 			return
 		}
 	}
 
-	cleanEnd := regexp.MustCompile(`(?m)\r\n\s*$`)
-	if userModificationRequest.BlockFilterEntryRules != nil {
-		*userModificationRequest.BlockFilterEntryRules = cleanEnd.ReplaceAllLiteralString(*userModificationRequest.BlockFilterEntryRules, "")
+	if m.BlockFilterEntryRules != nil {
+		*m.BlockFilterEntryRules = cleanEnd.ReplaceAllLiteralString(
+			*m.BlockFilterEntryRules, "")
 		// Clean carriage returns for Windows environments
-		*userModificationRequest.BlockFilterEntryRules = strings.ReplaceAll(*userModificationRequest.BlockFilterEntryRules, "\r\n", "\n")
-	}
-	if userModificationRequest.KeepFilterEntryRules != nil {
-		*userModificationRequest.KeepFilterEntryRules = cleanEnd.ReplaceAllLiteralString(*userModificationRequest.KeepFilterEntryRules, "")
-		// Clean carriage returns for Windows environments
-		*userModificationRequest.KeepFilterEntryRules = strings.ReplaceAll(*userModificationRequest.KeepFilterEntryRules, "\r\n", "\n")
+		*m.BlockFilterEntryRules = strings.ReplaceAll(*m.BlockFilterEntryRules,
+			"\r\n", "\n")
 	}
 
-	validationErr := validator.ValidateUserModification(r.Context(),
-		h.store, originalUser.ID, &userModificationRequest)
-	if validationErr != nil {
-		json.BadRequest(w, r, validationErr.Error())
+	if m.KeepFilterEntryRules != nil {
+		*m.KeepFilterEntryRules = cleanEnd.ReplaceAllLiteralString(
+			*m.KeepFilterEntryRules, "")
+		// Clean carriage returns for Windows environments
+		*m.KeepFilterEntryRules = strings.ReplaceAll(*m.KeepFilterEntryRules,
+			"\r\n", "\n")
+	}
+
+	lerr := validator.ValidateUserModification(ctx, h.store, user.ID, &m)
+	if lerr != nil {
+		json.BadRequest(w, r, lerr.Error())
 		return
 	}
 
-	userModificationRequest.Patch(originalUser)
-	if err = h.store.UpdateUser(r.Context(), originalUser); err != nil {
+	m.Patch(user)
+	if err = h.store.UpdateUser(ctx, user); err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
-
-	json.Created(w, r, originalUser)
+	json.Created(w, r, user)
 }
 
 func (h *handler) markUserAsRead(w http.ResponseWriter, r *http.Request) {
-	userID := request.RouteInt64Param(r, "userID")
-	if userID != request.UserID(r) {
+	id := request.RouteInt64Param(r, "userID")
+	if id != request.UserID(r) {
 		json.Forbidden(w, r)
 		return
 	}
 
-	if _, err := h.store.UserByID(r.Context(), userID); err != nil {
-		json.NotFound(w, r)
-		return
-	}
-
-	if err := h.store.MarkAllAsRead(r.Context(), userID); err != nil {
+	if err := h.store.MarkAllAsRead(r.Context(), id); err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
 	json.NoContent(w, r)
 }
 
-func (h *handler) getIntegrationsStatus(w http.ResponseWriter, r *http.Request) {
+func (h *handler) getIntegrationsStatus(w http.ResponseWriter, r *http.Request,
+) {
 	userID := request.UserID(r)
-
-	if _, err := h.store.UserByID(r.Context(), userID); err != nil {
-		json.NotFound(w, r)
-		return
-	}
-
 	hasIntegrations := h.store.HasSaveEntry(r.Context(), userID)
 
 	response := struct {
@@ -147,8 +135,7 @@ func (h *handler) getIntegrationsStatus(w http.ResponseWriter, r *http.Request) 
 	}{
 		HasIntegrations: hasIntegrations,
 	}
-
-	json.OK(w, r, response)
+	json.OK(w, r, &response)
 }
 
 func (h *handler) users(w http.ResponseWriter, r *http.Request) {
@@ -176,11 +163,10 @@ func (h *handler) userByID(w http.ResponseWriter, r *http.Request) {
 	userID := request.RouteInt64Param(r, "userID")
 	user, err := h.store.UserByID(r.Context(), userID)
 	if err != nil {
-		json.BadRequest(w, r, errors.New("unable to fetch this user from the database"))
+		json.BadRequest(w, r, errors.New(
+			"unable to fetch this user from the database"))
 		return
-	}
-
-	if user == nil {
+	} else if user == nil {
 		json.NotFound(w, r)
 		return
 	}
@@ -198,43 +184,32 @@ func (h *handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 	username := request.RouteStringParam(r, "username")
 	user, err := h.store.UserByUsername(r.Context(), username)
 	if err != nil {
-		json.BadRequest(w, r, errors.New("unable to fetch this user from the database"))
+		json.BadRequest(w, r, errors.New(
+			"unable to fetch this user from the database"))
 		return
-	}
-
-	if user == nil {
+	} else if user == nil {
 		json.NotFound(w, r)
 		return
 	}
-
 	json.OK(w, r, user)
 }
 
 func (h *handler) removeUser(w http.ResponseWriter, r *http.Request) {
+	userID := request.RouteInt64Param(r, "userID")
 	if !request.IsAdminUser(r) {
 		json.Forbidden(w, r)
 		return
-	}
-
-	userID := request.RouteInt64Param(r, "userID")
-	user, err := h.store.UserByID(r.Context(), userID)
-	if err != nil {
-		json.ServerError(w, r, err)
-		return
-	}
-
-	if user == nil {
-		json.NotFound(w, r)
-		return
-	}
-
-	if user.ID == request.UserID(r) {
+	} else if userID == request.UserID(r) {
 		json.BadRequest(w, r, errors.New("you cannot remove yourself"))
 		return
 	}
 
-	if err := h.store.RemoveUser(r.Context(), user.ID); err != nil {
+	affected, err := h.store.RemoveUser(r.Context(), userID)
+	if err != nil {
 		json.ServerError(w, r, err)
+	} else if !affected {
+		json.NotFound(w, r)
+		return
 	}
 	json.NoContent(w, r)
 }

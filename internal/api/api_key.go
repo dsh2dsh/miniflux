@@ -5,36 +5,35 @@ package api // import "miniflux.app/v2/internal/api"
 
 import (
 	json_parser "encoding/json"
-	"errors"
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/model"
-	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/validator"
 )
 
 func (h *handler) createAPIKey(w http.ResponseWriter, r *http.Request) {
-	userID := request.UserID(r)
-
-	var apiKeyCreationRequest model.APIKeyCreationRequest
-	if err := json_parser.NewDecoder(r.Body).Decode(&apiKeyCreationRequest); err != nil {
+	var createRequest model.APIKeyCreationRequest
+	err := json_parser.NewDecoder(r.Body).Decode(&createRequest)
+	if err != nil {
 		json.BadRequest(w, r, err)
 		return
 	}
 
-	if validationErr := validator.ValidateAPIKeyCreation(r.Context(), h.store, userID, &apiKeyCreationRequest); validationErr != nil {
-		json.BadRequest(w, r, validationErr.Error())
+	ctx := r.Context()
+	userID := request.UserID(r)
+	lerr := validator.ValidateAPIKeyCreation(ctx, h.store, userID, &createRequest)
+	if lerr != nil {
+		json.BadRequest(w, r, lerr.Error())
 		return
 	}
 
-	apiKey, err := h.store.CreateAPIKey(r.Context(), userID, apiKeyCreationRequest.Description)
+	apiKey, err := h.store.CreateAPIKey(ctx, userID, createRequest.Description)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
-
 	json.Created(w, r, apiKey)
 }
 
@@ -50,14 +49,14 @@ func (h *handler) getAPIKeys(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) deleteAPIKey(w http.ResponseWriter, r *http.Request) {
 	userID := request.UserID(r)
-	apiKeyID := request.RouteInt64Param(r, "apiKeyID")
+	id := request.RouteInt64Param(r, "apiKeyID")
 
-	if err := h.store.DeleteAPIKey(r.Context(), userID, apiKeyID); err != nil {
-		if errors.Is(err, storage.ErrAPIKeyNotFound) {
-			json.NotFound(w, r)
-			return
-		}
+	affected, err := h.store.DeleteAPIKey(r.Context(), userID, id)
+	if err != nil {
 		json.ServerError(w, r, err)
+		return
+	} else if !affected {
+		json.NotFound(w, r)
 		return
 	}
 	json.NoContent(w, r)

@@ -934,8 +934,12 @@ func (h *handler) renameTagHandler(w http.ResponseWriter, r *http.Request) {
 
 	categoryModificationRequest.Patch(category)
 
-	if err := h.store.UpdateCategory(r.Context(), category); err != nil {
+	affected, err := h.store.UpdateCategory(r.Context(), category)
+	if err != nil {
 		json.ServerError(w, r, err)
+		return
+	} else if !affected {
+		json.NotFound(w, r)
 		return
 	}
 
@@ -1294,9 +1298,12 @@ func (h *handler) markAllAsReadHandler(w http.ResponseWriter, r *http.Request) {
 			json.BadRequest(w, r, err)
 			return
 		}
-		err = h.store.MarkFeedAsRead(r.Context(), userID, feedID, before)
+		affected, err := h.store.MarkFeedAsRead(r.Context(), userID, feedID, before)
 		if err != nil {
 			json.ServerError(w, r, err)
+			return
+		} else if !affected {
+			json.NotFound(w, r)
 			return
 		}
 	case LabelStream:
@@ -1308,9 +1315,12 @@ func (h *handler) markAllAsReadHandler(w http.ResponseWriter, r *http.Request) {
 			json.NotFound(w, r)
 			return
 		}
-		err = h.store.MarkCategoryAsRead(r.Context(), userID, category.ID, before)
+		affected, err := h.store.MarkCategoryAsRead(r.Context(), userID, category.ID, before)
 		if err != nil {
 			json.ServerError(w, r, err)
+			return
+		} else if !affected {
+			json.NotFound(w, r)
 			return
 		}
 	case ReadingListStream:

@@ -482,7 +482,10 @@ RETURNING parsing_error_count`,
 }
 
 // RemoveFeed removes a feed and all entries.
-func (s *Storage) RemoveFeed(ctx context.Context, userID, feedID int64) error {
+func (s *Storage) RemoveFeed(ctx context.Context, userID, feedID int64) (bool,
+	error,
+) {
+	var affected bool
 	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx,
 			`DELETE FROM entries WHERE user_id=$1 AND feed_id=$2`, userID, feedID)
@@ -490,17 +493,19 @@ func (s *Storage) RemoveFeed(ctx context.Context, userID, feedID int64) error {
 			return fmt.Errorf("delete entries: %w", err)
 		}
 
-		_, err = tx.Exec(ctx,
+		result, err := tx.Exec(ctx,
 			`DELETE FROM feeds WHERE id=$1 AND user_id=$2`, feedID, userID)
 		if err != nil {
 			return fmt.Errorf("delete feed: %w", err)
 		}
+		affected = result.RowsAffected() != 0
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("storage: unable to delete feed #%d: %w", feedID, err)
+		return false, fmt.Errorf("storage: unable to delete feed #%d: %w", feedID,
+			err)
 	}
-	return nil
+	return affected, nil
 }
 
 func (s *Storage) RemoveMultipleFeeds(ctx context.Context, userID int64,

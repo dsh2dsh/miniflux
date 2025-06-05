@@ -5,99 +5,92 @@ package api // import "miniflux.app/v2/internal/api"
 
 import (
 	json_parser "encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
 
-	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/json"
+	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/validator"
 )
 
 func (h *handler) createCategory(w http.ResponseWriter, r *http.Request) {
-	userID := request.UserID(r)
-
-	var categoryCreationRequest model.CategoryCreationRequest
-	if err := json_parser.NewDecoder(r.Body).Decode(&categoryCreationRequest); err != nil {
+	var createRequest model.CategoryCreationRequest
+	if err := json_parser.NewDecoder(r.Body).Decode(&createRequest); err != nil {
 		json.BadRequest(w, r, err)
 		return
 	}
 
-	validationErr := validator.ValidateCategoryCreation(r.Context(),
-		h.store, userID, &categoryCreationRequest)
-	if validationErr != nil {
-		json.BadRequest(w, r, validationErr.Error())
+	userID := request.UserID(r)
+	ctx := r.Context()
+	lerr := validator.ValidateCategoryCreation(ctx, h.store, userID,
+		&createRequest)
+	if lerr != nil {
+		json.BadRequest(w, r, lerr.Error())
 		return
 	}
 
-	category, err := h.store.CreateCategory(r.Context(),
-		userID, &categoryCreationRequest)
+	category, err := h.store.CreateCategory(ctx, userID, &createRequest)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
-
 	json.Created(w, r, category)
 }
 
 func (h *handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 	userID := request.UserID(r)
-	categoryID := request.RouteInt64Param(r, "categoryID")
+	id := request.RouteInt64Param(r, "categoryID")
+	ctx := r.Context()
 
-	category, err := h.store.Category(r.Context(), userID, categoryID)
+	category, err := h.store.Category(ctx, userID, id)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
-	}
-
-	if category == nil {
+	} else if category == nil {
 		json.NotFound(w, r)
 		return
 	}
 
-	var categoryModificationRequest model.CategoryModificationRequest
-	if err := json_parser.NewDecoder(r.Body).Decode(&categoryModificationRequest); err != nil {
+	var modifyRequest model.CategoryModificationRequest
+	if err := json_parser.NewDecoder(r.Body).Decode(&modifyRequest); err != nil {
 		json.BadRequest(w, r, err)
 		return
 	}
 
-	validationErr := validator.ValidateCategoryModification(r.Context(),
-		h.store, userID, category.ID, &categoryModificationRequest)
-	if validationErr != nil {
-		json.BadRequest(w, r, validationErr.Error())
+	lerr := validator.ValidateCategoryModification(ctx, h.store, userID,
+		category.ID, &modifyRequest)
+	if lerr != nil {
+		json.BadRequest(w, r, lerr.Error())
 		return
 	}
 
-	categoryModificationRequest.Patch(category)
-
-	if err := h.store.UpdateCategory(r.Context(), category); err != nil {
+	modifyRequest.Patch(category)
+	affected, err := h.store.UpdateCategory(ctx, category)
+	if err != nil {
 		json.ServerError(w, r, err)
 		return
+	} else if !affected {
+		json.NotFound(w, r)
+		return
 	}
-
 	json.Created(w, r, category)
 }
 
 func (h *handler) markCategoryAsRead(w http.ResponseWriter, r *http.Request) {
 	userID := request.UserID(r)
-	categoryID := request.RouteInt64Param(r, "categoryID")
+	id := request.RouteInt64Param(r, "categoryID")
 
-	category, err := h.store.Category(r.Context(), userID, categoryID)
+	affected, err := h.store.MarkCategoryAsRead(r.Context(), userID, id,
+		time.Now())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
-	}
-
-	if category == nil {
+	} else if !affected {
 		json.NotFound(w, r)
-		return
-	}
-
-	err = h.store.MarkCategoryAsRead(r.Context(), userID, categoryID, time.Now())
-	if err != nil {
-		json.ServerError(w, r, err)
 		return
 	}
 	json.NoContent(w, r)
@@ -108,11 +101,12 @@ func (h *handler) getCategories(w http.ResponseWriter, r *http.Request) {
 	var err error
 	includeCounts := request.QueryStringParam(r, "counts", "false")
 
+	ctx := r.Context()
+	userID := request.UserID(r)
 	if includeCounts == "true" {
-		categories, err = h.store.CategoriesWithFeedCount(
-			r.Context(), request.UserID(r))
+		categories, err = h.store.CategoriesWithFeedCount(ctx, userID)
 	} else {
-		categories, err = h.store.Categories(r.Context(), request.UserID(r))
+		categories, err = h.store.Categories(ctx, userID)
 	}
 
 	if err != nil {
@@ -124,41 +118,39 @@ func (h *handler) getCategories(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) removeCategory(w http.ResponseWriter, r *http.Request) {
 	userID := request.UserID(r)
-	categoryID := request.RouteInt64Param(r, "categoryID")
+	id := request.RouteInt64Param(r, "categoryID")
 
-	if !h.store.CategoryIDExists(r.Context(), userID, categoryID) {
+	affected, err := h.store.RemoveCategory(r.Context(), userID, id)
+	if err != nil {
+		json.ServerError(w, r, fmt.Errorf(
+			"api: unable remove category id=%v user_id=%v: %w", id, userID, err))
+		return
+	} else if !affected {
 		json.NotFound(w, r)
 		return
 	}
-
-	err := h.store.RemoveCategory(r.Context(), userID, categoryID)
-	if err != nil {
-		json.ServerError(w, r, err)
-		return
-	}
-
 	json.NoContent(w, r)
 }
 
 func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request) {
 	userID := request.UserID(r)
-	categoryID := request.RouteInt64Param(r, "categoryID")
+	id := request.RouteInt64Param(r, "categoryID")
+	ctx := r.Context()
 
 	err := h.store.NewBatchBuilder().
 		WithUserID(userID).
-		WithCategoryID(categoryID).
+		WithCategoryID(id).
 		WithoutDisabledFeeds().
-		WithErrorLimit(config.Opts.PollingParsingErrorLimit()).
-		ResetNextCheckAt(r.Context())
+		ResetNextCheckAt(ctx)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
 
-	slog.Info(
+	logging.FromContext(ctx).Info(
 		"Triggered a manual refresh of all feeds for a given category from the API",
 		slog.Int64("user_id", userID),
-		slog.Int64("category_id", categoryID))
+		slog.Int64("category_id", id))
 
 	h.pool.Wakeup()
 	json.NoContent(w, r)

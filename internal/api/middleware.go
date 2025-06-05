@@ -5,27 +5,28 @@ package api // import "miniflux.app/v2/internal/api"
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/json"
+	"miniflux.app/v2/internal/logging"
+	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/storage"
 )
 
-type middleware struct {
-	store *storage.Storage
-}
-
-func newMiddleware(s *storage.Storage) *middleware {
-	return &middleware{s}
-}
-
-func (m *middleware) handleCORS(next http.Handler) http.Handler {
+func handleCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "X-Auth-Token, Authorization, Content-Type, Accept")
+		w.Header().Set("Access-Control-Allow-Methods",
+			"GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"X-Auth-Token, Authorization, Content-Type, Accept")
 		if r.Method == http.MethodOptions {
 			w.Header().Set("Access-Control-Max-Age", "3600")
 			w.WriteHeader(http.StatusOK)
@@ -35,153 +36,194 @@ func (m *middleware) handleCORS(next http.Handler) http.Handler {
 	})
 }
 
-func (m *middleware) apiKeyAuth(next http.Handler) http.Handler {
+func handleRequestUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		clientIP := request.ClientIP(r)
-		token := r.Header.Get("X-Auth-Token")
-
-		if token == "" {
-			slog.Debug("[API] Skipped API token authentication because no API Key has been provided",
-				slog.String("client_ip", clientIP),
-				slog.String("user_agent", r.UserAgent()),
-			)
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		user, err := m.store.UserByAPIKey(r.Context(), token)
-		if err != nil {
-			json.ServerError(w, r, err)
-			return
-		}
-
+		ctx := r.Context()
+		user := request.User(r)
 		if user == nil {
-			slog.Warn("[API] No user found with the provided API key",
-				slog.Bool("authentication_failed", true),
-				slog.String("client_ip", clientIP),
-				slog.String("user_agent", r.UserAgent()),
-			)
+			logging.FromContext(ctx).Warn(
+				"[API] No Basic HTTP Authentication header sent with the request",
+				slog.Bool("authentication_failed", true))
+			w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
 			json.Unauthorized(w, r)
 			return
 		}
 
-		slog.Info("[API] User authenticated successfully with the API Token Authentication",
-			slog.Bool("authentication_successful", true),
-			slog.String("client_ip", clientIP),
-			slog.String("user_agent", r.UserAgent()),
-			slog.String("username", user.Username),
-		)
-
-		if err := m.store.SetLastLogin(r.Context(), user.ID); err != nil {
-			slog.Error("[API] failed set last login",
-				slog.String("client_ip", clientIP),
-				slog.String("user_agent", r.UserAgent()),
-				slog.String("username", user.Username),
-				slog.Any("error", err),
-			)
-		}
-
-		if err := m.store.SetAPIKeyUsedTimestamp(r.Context(), user.ID, token); err != nil {
-			slog.Error("[API] failed set key used timestamp",
-				slog.String("client_ip", clientIP),
-				slog.String("user_agent", r.UserAgent()),
-				slog.String("username", user.Username),
-				slog.Any("error", err),
-			)
-		}
-
-		ctx := r.Context()
 		ctx = context.WithValue(ctx, request.UserIDContextKey, user.ID)
 		ctx = context.WithValue(ctx, request.UserTimezoneContextKey, user.Timezone)
 		ctx = context.WithValue(ctx, request.IsAdminUserContextKey, user.IsAdmin)
 		ctx = context.WithValue(ctx, request.IsAuthenticatedContextKey, true)
-
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
-func (m *middleware) basicAuth(next http.Handler) http.Handler {
+func WithKeyAuth(store *storage.Storage) func(next http.Handler) http.Handler {
+	self := &keyAuth{store: store}
+	return self.Middleware
+}
+
+type keyAuth struct {
+	store *storage.Storage
+}
+
+func (self *keyAuth) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if request.IsAuthenticated(r) {
+		if user := request.User(r); user != nil {
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+		token := r.Header.Get("X-Auth-Token")
+		if token == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
 
 		clientIP := request.ClientIP(r)
+		ctx := r.Context()
+		log := logging.FromContext(ctx).With(
+			slog.String("client_ip", clientIP),
+			slog.String("user_agent", r.UserAgent()))
+
+		user, apiKey, err := self.store.UserAPIKey(ctx, token)
+		if err != nil {
+			json.ServerError(w, r, err)
+			return
+		} else if user == nil {
+			log.Warn("[API] No user found with the provided API key",
+				slog.Bool("authentication_failed", true))
+			json.Unauthorized(w, r)
+			return
+		}
+
+		log = log.With(slog.String("username", user.Username))
+		log.Debug(
+			"[API] User authenticated successfully with the API Token Authentication",
+			slog.Bool("authentication_successful", true))
+
+		g, ctx := errgroup.WithContext(ctx)
+		userLastLogin := user.LastLoginAt
+		if userLastLogin == nil || time.Since(*userLastLogin) > 5*time.Minute {
+			g.Go(func() error {
+				if err := self.store.SetLastLogin(ctx, user.ID); err != nil {
+					log.Error("[API] failed set last login", slog.Any("error", err))
+					return err
+				}
+				return nil
+			})
+		}
+
+		keyLastUsed := apiKey.LastUsedAt
+		if keyLastUsed == nil || time.Since(*keyLastUsed) > 5*time.Minute {
+			g.Go(func() error {
+				err := self.store.SetAPIKeyUsedTimestamp(ctx, user.ID, token)
+				if err != nil {
+					log.Error("[API] failed set key used timestamp", slog.Any("error", err))
+					return err
+				}
+				return nil
+			})
+		}
+
+		if err := g.Wait(); err != nil {
+			json.ServerError(w, r, err)
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(request.WithUser(ctx, user)))
+	})
+}
+
+func WithBasicAuth(store *storage.Storage) func(next http.Handler,
+) http.Handler {
+	self := &basicAuth{store: store}
+	return self.Middleware
+}
+
+type basicAuth struct {
+	store *storage.Storage
+}
+
+func (self *basicAuth) Middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if user := request.User(r); user != nil {
+			next.ServeHTTP(w, r)
+			return
+		} else if auth := r.Header.Get("Authorization"); auth == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		clientIP := request.ClientIP(r)
+		ctx := r.Context()
+		log := logging.FromContext(ctx).With(
+			slog.String("client_ip", clientIP),
+			slog.String("user_agent", r.UserAgent()))
+
+		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
 		username, password, authOK := r.BasicAuth()
 		if !authOK {
-			slog.Warn("[API] No Basic HTTP Authentication header sent with the request",
-				slog.Bool("authentication_failed", true),
-				slog.String("client_ip", clientIP),
-				slog.String("user_agent", r.UserAgent()),
-			)
+			log.Warn(
+				"[API] No Basic HTTP Authentication header sent with the request",
+				slog.Bool("authentication_failed", true))
 			json.Unauthorized(w, r)
 			return
 		}
 
 		if username == "" || password == "" {
-			slog.Warn("[API] Empty username or password provided during Basic HTTP Authentication",
-				slog.Bool("authentication_failed", true),
-				slog.String("client_ip", clientIP),
-				slog.String("user_agent", r.UserAgent()),
-			)
+			log.Warn(
+				"[API] Empty username or password provided during Basic HTTP Authentication",
+				slog.Bool("authentication_failed", true))
+			json.Unauthorized(w, r)
+			return
+		}
+		log = log.With(slog.String("username", username))
+
+		g, ctx := errgroup.WithContext(ctx)
+		errNotFound := errors.New("invalid username or password")
+		g.Go(func() error {
+			if err := self.store.CheckPassword(ctx, username, password); err != nil {
+				log.Warn(
+					"[API] Invalid username or password provided during Basic HTTP Authentication",
+					slog.Bool("authentication_failed", true))
+				json.Unauthorized(w, r)
+				return fmt.Errorf("%w: %w", errNotFound, err)
+			}
+			return nil
+		})
+
+		var user *model.User
+		g.Go(func() (err error) {
+			user, err = self.store.UserByUsername(ctx, username)
+			return
+		})
+
+		if err := g.Wait(); err != nil {
+			if errors.Is(err, errNotFound) {
+				json.Unauthorized(w, r)
+			} else {
+				json.ServerError(w, r, err)
+			}
+			return
+		} else if user == nil {
+			log.Warn("[API] User not found while using Basic HTTP Authentication",
+				slog.Bool("authentication_failed", true))
 			json.Unauthorized(w, r)
 			return
 		}
 
-		err := m.store.CheckPassword(r.Context(), username, password)
-		if err != nil {
-			slog.Warn("[API] Invalid username or password provided during Basic HTTP Authentication",
-				slog.Bool("authentication_failed", true),
-				slog.String("client_ip", clientIP),
-				slog.String("user_agent", r.UserAgent()),
-				slog.String("username", username),
-			)
-			json.Unauthorized(w, r)
-			return
+		log.Debug(
+			"[API] User authenticated successfully with the Basic HTTP Authentication",
+			slog.Bool("authentication_successful", true))
+
+		ctx = r.Context()
+		lastLoginAt := user.LastLoginAt
+		if lastLoginAt == nil || time.Since(*lastLoginAt) > 5*time.Minute {
+			if err := self.store.SetLastLogin(ctx, user.ID); err != nil {
+				log.Error("[API] failed set last login", slog.Any("error", err))
+				json.ServerError(w, r, err)
+				return
+			}
 		}
-
-		user, err := m.store.UserByUsername(r.Context(), username)
-		if err != nil {
-			json.ServerError(w, r, err)
-			return
-		}
-
-		if user == nil {
-			slog.Warn("[API] User not found while using Basic HTTP Authentication",
-				slog.Bool("authentication_failed", true),
-				slog.String("client_ip", clientIP),
-				slog.String("user_agent", r.UserAgent()),
-				slog.String("username", username),
-			)
-			json.Unauthorized(w, r)
-			return
-		}
-
-		slog.Info("[API] User authenticated successfully with the Basic HTTP Authentication",
-			slog.Bool("authentication_successful", true),
-			slog.String("client_ip", clientIP),
-			slog.String("user_agent", r.UserAgent()),
-			slog.String("username", username),
-		)
-
-		if err := m.store.SetLastLogin(r.Context(), user.ID); err != nil {
-			slog.Error("[API] failed set last login",
-				slog.String("client_ip", clientIP),
-				slog.String("user_agent", r.UserAgent()),
-				slog.String("username", username),
-				slog.Any("error", err),
-			)
-		}
-
-		ctx := r.Context()
-		ctx = context.WithValue(ctx, request.UserIDContextKey, user.ID)
-		ctx = context.WithValue(ctx, request.UserTimezoneContextKey, user.Timezone)
-		ctx = context.WithValue(ctx, request.IsAdminUserContextKey, user.IsAdmin)
-		ctx = context.WithValue(ctx, request.IsAuthenticatedContextKey, true)
-
-		next.ServeHTTP(w, r.WithContext(ctx))
+		next.ServeHTTP(w, r.WithContext(request.WithUser(ctx, user)))
 	})
 }

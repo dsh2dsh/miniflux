@@ -17,51 +17,47 @@ import (
 	"miniflux.app/v2/internal/validator"
 )
 
-func (h *handler) discoverSubscriptions(w http.ResponseWriter, r *http.Request) {
-	var subscriptionDiscoveryRequest model.SubscriptionDiscoveryRequest
-	if err := json_parser.NewDecoder(r.Body).Decode(&subscriptionDiscoveryRequest); err != nil {
+func (h *handler) discoverSubscriptions(w http.ResponseWriter, r *http.Request,
+) {
+	var discovery model.SubscriptionDiscoveryRequest
+	if err := json_parser.NewDecoder(r.Body).Decode(&discovery); err != nil {
 		json.BadRequest(w, r, err)
 		return
 	}
 
-	if validationErr := validator.ValidateSubscriptionDiscovery(&subscriptionDiscoveryRequest); validationErr != nil {
-		json.BadRequest(w, r, validationErr.Error())
+	if lerr := validator.ValidateSubscriptionDiscovery(&discovery); lerr != nil {
+		json.BadRequest(w, r, lerr.Error())
 		return
 	}
 
+	ctx := r.Context()
 	var rssbridgeURL, rssbridgeToken string
-	intg, err := h.store.Integration(r.Context(), request.UserID(r))
+	intg, err := h.store.Integration(ctx, request.UserID(r))
 	if err == nil && intg != nil && intg.RSSBridgeEnabled {
 		rssbridgeURL = intg.RSSBridgeURL
 		rssbridgeToken = intg.Extra.RSSBridgeToken
 	}
 
-	requestBuilder := fetcher.NewRequestBuilder()
-	requestBuilder.WithTimeout(config.Opts.HTTPClientTimeout())
-	requestBuilder.WithProxyRotator(proxyrotator.ProxyRotatorInstance)
-	requestBuilder.WithCustomFeedProxyURL(subscriptionDiscoveryRequest.ProxyURL)
-	requestBuilder.WithCustomApplicationProxyURL(config.Opts.HTTPClientProxyURL())
-	requestBuilder.UseCustomApplicationProxyURL(subscriptionDiscoveryRequest.FetchViaProxy)
-	requestBuilder.WithUserAgent(subscriptionDiscoveryRequest.UserAgent, config.Opts.HTTPClientUserAgent())
-	requestBuilder.WithCookie(subscriptionDiscoveryRequest.Cookie)
-	requestBuilder.WithUsernameAndPassword(subscriptionDiscoveryRequest.Username, subscriptionDiscoveryRequest.Password)
-	requestBuilder.IgnoreTLSErrors(subscriptionDiscoveryRequest.AllowSelfSignedCertificates)
-	requestBuilder.DisableHTTP2(subscriptionDiscoveryRequest.DisableHTTP2)
+	requestBuilder := fetcher.NewRequestBuilder().
+		WithTimeout(config.Opts.HTTPClientTimeout()).
+		WithProxyRotator(proxyrotator.ProxyRotatorInstance).
+		WithCustomFeedProxyURL(discovery.ProxyURL).
+		WithCustomApplicationProxyURL(config.Opts.HTTPClientProxyURL()).
+		UseCustomApplicationProxyURL(discovery.FetchViaProxy).
+		WithUserAgent(discovery.UserAgent, config.Opts.HTTPClientUserAgent()).
+		WithCookie(discovery.Cookie).
+		WithUsernameAndPassword(discovery.Username, discovery.Password).
+		IgnoreTLSErrors(discovery.AllowSelfSignedCertificates).
+		DisableHTTP2(discovery.DisableHTTP2)
 
-	subscriptions, localizedError := subscription.
-		NewSubscriptionFinder(requestBuilder).
-		FindSubscriptions(r.Context(), subscriptionDiscoveryRequest.URL,
-			rssbridgeURL, rssbridgeToken)
-
-	if localizedError != nil {
-		json.ServerError(w, r, localizedError)
+	s, lerr := subscription.NewSubscriptionFinder(requestBuilder).
+		FindSubscriptions(ctx, discovery.URL, rssbridgeURL, rssbridgeToken)
+	if lerr != nil {
+		json.ServerError(w, r, lerr)
 		return
-	}
-
-	if len(subscriptions) == 0 {
+	} else if len(s) == 0 {
 		json.NotFound(w, r)
 		return
 	}
-
-	json.OK(w, r, subscriptions)
+	json.OK(w, r, s)
 }

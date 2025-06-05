@@ -74,11 +74,12 @@ func (s *Storage) IconByFeedID(ctx context.Context, userID, feedID int64,
 ) (*model.Icon, error) {
 	rows, _ := s.db.Query(ctx, `
 SELECT icons.id, icons.hash, icons.mime_type, icons.content, icons.external_id
-  FROM icons
-       LEFT JOIN feed_icons ON feed_icons.icon_id=icons.id
-       LEFT JOIN feeds ON feeds.id=feed_icons.feed_id
- WHERE feeds.user_id=$1 AND feeds.id=$2 LIMIT 1`,
-		userID, feedID)
+  FROM feeds, feed_icons, icons
+ WHERE feeds.id = $1 AND feeds.user_id = $2
+       AND feeds.id = feed_icons.feed_id
+       AND feed_icons.icon_id = icons.id
+ LIMIT 1`,
+		feedID, userID)
 
 	icon, err := pgx.CollectExactlyOneRow(rows,
 		pgx.RowToAddrOfStructByName[model.Icon])

@@ -632,14 +632,15 @@ UPDATE entries
 // MarkFeedAsRead updates all feed entries to the read status.
 func (s *Storage) MarkFeedAsRead(ctx context.Context, userID, feedID int64,
 	before time.Time,
-) error {
+) (bool, error) {
 	result, err := s.db.Exec(ctx, `
 UPDATE entries
    SET status=$1, changed_at=now()
  WHERE user_id=$2 AND feed_id=$3 AND status=$4 AND published_at < $5`,
 		model.EntryStatusRead, userID, feedID, model.EntryStatusUnread, before)
 	if err != nil {
-		return fmt.Errorf(`store: unable to mark feed entries as read: %w`, err)
+		return false, fmt.Errorf(
+			"storage: unable to mark feed entries as read: %w", err)
 	}
 
 	logging.FromContext(ctx).Debug("Marked feed entries as read",
@@ -647,13 +648,13 @@ UPDATE entries
 		slog.Int64("feed_id", feedID),
 		slog.Int64("nb_entries", result.RowsAffected()),
 		slog.String("before", before.Format(time.RFC3339)))
-	return nil
+	return result.RowsAffected() != 0, nil
 }
 
 // MarkCategoryAsRead updates all category entries to the read status.
-func (s *Storage) MarkCategoryAsRead(ctx context.Context,
-	userID, categoryID int64, before time.Time,
-) error {
+func (s *Storage) MarkCategoryAsRead(ctx context.Context, userID,
+	categoryID int64, before time.Time,
+) (bool, error) {
 	result, err := s.db.Exec(ctx, `
 UPDATE entries
    SET status=$1, changed_at=now()
@@ -662,8 +663,8 @@ UPDATE entries
        AND feeds.category_id=$5`,
 		model.EntryStatusRead, userID, model.EntryStatusUnread, before, categoryID)
 	if err != nil {
-		return fmt.Errorf(
-			`store: unable to mark category entries as read: %w`, err)
+		return false, fmt.Errorf(
+			"storage: unable to mark category entries as read: %w", err)
 	}
 
 	logging.FromContext(ctx).Debug("Marked category entries as read",
@@ -671,7 +672,7 @@ UPDATE entries
 		slog.Int64("category_id", categoryID),
 		slog.Int64("nb_entries", result.RowsAffected()),
 		slog.String("before", before.Format(time.RFC3339)))
-	return nil
+	return result.RowsAffected() != 0, nil
 }
 
 // EntryShareCode returns the share code of the provided entry. It generates a

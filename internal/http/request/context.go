@@ -182,7 +182,11 @@ func getContextInt64Value(r *http.Request, key ContextKey) int64 {
 
 func WithUserSession(ctx context.Context, user *model.User, s *model.Session,
 ) context.Context {
-	return WithSession(context.WithValue(ctx, userKey, user), s)
+	return WithSession(WithUser(ctx, user), s)
+}
+
+func WithUser(ctx context.Context, user *model.User) context.Context {
+	return context.WithValue(ctx, userKey, user)
 }
 
 func User(r *http.Request) *model.User {
