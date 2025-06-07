@@ -31,17 +31,11 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := request.UserID(r)
-	intg, err := h.store.Integration(r.Context(), userID)
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
-
+	user := request.User(r)
 	var rssBridgeURL, rssBridgeToken string
-	if intg != nil && intg.RSSBridgeEnabled {
-		rssBridgeURL = intg.RSSBridgeURL
-		rssBridgeToken = intg.Extra.RSSBridgeToken
+	if i := user.Integration(); i.RSSBridgeEnabled {
+		rssBridgeURL = i.RSSBridgeURL
+		rssBridgeToken = i.RSSBridgeToken
 	}
 
 	requestBuilder := fetcher.NewRequestBuilder().
@@ -58,9 +52,10 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 		IgnoreTLSErrors(f.AllowSelfSignedCertificates).
 		DisableHTTP2(f.DisableHTTP2)
 
+	ctx := r.Context()
 	finder := subscription.NewSubscriptionFinder(requestBuilder)
-	subscriptions, lerr := finder.FindSubscriptions(r.Context(),
-		f.URL, rssBridgeURL, rssBridgeToken)
+	subscriptions, lerr := finder.FindSubscriptions(ctx, f.URL, rssBridgeURL,
+		rssBridgeToken)
 	if lerr != nil {
 		h.showSubmitSubscriptionError(w, r, func(v *View) {
 			v.Set("form", f).
@@ -81,8 +76,8 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 		})
 
 	case n == 1 && finder.IsFeedAlreadyDownloaded():
-		feed, lerr := feedHandler.CreateFeedFromSubscriptionDiscovery(r.Context(),
-			h.store, userID,
+		feed, lerr := feedHandler.CreateFeedFromSubscriptionDiscovery(ctx, h.store,
+			user.ID,
 			&model.FeedCreationRequestFromSubscriptionDiscovery{
 				Content:      finder.FeedResponseInfo().Content,
 				ETag:         finder.FeedResponseInfo().ETag,
@@ -117,8 +112,8 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 		html.Redirect(w, r, route.Path(h.router, "feedEntries", "feedID", feed.ID))
 
 	case n == 1 && !finder.IsFeedAlreadyDownloaded():
-		feed, lerr := feedHandler.CreateFeed(r.Context(),
-			h.store, userID, &model.FeedCreationRequest{
+		feed, lerr := feedHandler.CreateFeed(ctx, h.store, user.ID,
+			&model.FeedCreationRequest{
 				CategoryID:                  f.CategoryID,
 				FeedURL:                     subscriptions[0].URL,
 				Crawler:                     f.Crawler,

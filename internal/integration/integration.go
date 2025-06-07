@@ -38,10 +38,11 @@ import (
 )
 
 // SendEntry sends the entry to third-party providers when the user click on "Save".
-func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
+func SendEntry(entry *model.Entry, user *model.User) {
+	userIntegrations := user.Integration()
 	if userIntegrations.BetulaEnabled {
 		slog.Debug("Sending entry to Betula",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
@@ -54,7 +55,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 		)
 		if err != nil {
 			slog.Error("Unable to send entry to Betula",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),
@@ -64,7 +65,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 	if userIntegrations.PinboardEnabled {
 		slog.Debug("Sending entry to Pinboard",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
@@ -78,7 +79,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 		)
 		if err != nil {
 			slog.Error("Unable to send entry to Pinboard",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),
@@ -88,7 +89,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 	if userIntegrations.InstapaperEnabled {
 		slog.Debug("Sending entry to Instapaper",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
@@ -96,7 +97,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 		client := instapaper.NewClient(userIntegrations.InstapaperUsername, userIntegrations.InstapaperPassword)
 		if err := client.AddURL(entry.URL, entry.Title); err != nil {
 			slog.Error("Unable to send entry to Instapaper",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),
@@ -106,7 +107,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 	if userIntegrations.WallabagEnabled {
 		slog.Debug("Sending entry to Wallabag",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
@@ -122,7 +123,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 		if err := client.CreateEntry(entry.URL, entry.Title, entry.Content); err != nil {
 			slog.Error("Unable to send entry to Wallabag",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),
@@ -132,7 +133,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 	if userIntegrations.NotionEnabled {
 		slog.Debug("Sending entry to Notion",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
@@ -143,7 +144,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 		)
 		if err := client.UpdateDocument(entry.URL, entry.Title); err != nil {
 			slog.Error("Unable to send entry to Notion",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),
@@ -153,7 +154,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 	if userIntegrations.NunuxKeeperEnabled {
 		slog.Debug("Sending entry to NunuxKeeper",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
@@ -165,7 +166,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 		if err := client.AddEntry(entry.URL, entry.Title, entry.Content); err != nil {
 			slog.Error("Unable to send entry to NunuxKeeper",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),
@@ -175,7 +176,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 	if userIntegrations.EspialEnabled {
 		slog.Debug("Sending entry to Espial",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
@@ -187,7 +188,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 		if err := client.CreateLink(entry.URL, entry.Title, userIntegrations.EspialTags); err != nil {
 			slog.Error("Unable to send entry to Espial",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),
@@ -197,7 +198,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 	if userIntegrations.PocketEnabled {
 		slog.Debug("Sending entry to Pocket",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
@@ -205,7 +206,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 		client := pocket.NewClient(config.Opts.PocketConsumerKey(userIntegrations.PocketConsumerKey), userIntegrations.PocketAccessToken)
 		if err := client.AddURL(entry.URL, entry.Title); err != nil {
 			slog.Error("Unable to send entry to Pocket",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),
@@ -215,7 +216,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 	if userIntegrations.LinkAceEnabled {
 		slog.Debug("Sending entry to LinkAce",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
@@ -229,7 +230,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 		)
 		if err := client.AddURL(entry.URL, entry.Title); err != nil {
 			slog.Error("Unable to send entry to LinkAce",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),
@@ -239,7 +240,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 	if userIntegrations.LinkdingEnabled {
 		slog.Debug("Sending entry to Linkding",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
@@ -252,7 +253,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 		)
 		if err := client.CreateBookmark(entry.URL, entry.Title); err != nil {
 			slog.Error("Unable to send entry to Linkding",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),
@@ -262,7 +263,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 	if userIntegrations.LinkwardenEnabled {
 		slog.Debug("Sending entry to linkwarden",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
@@ -273,7 +274,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 		)
 		if err := client.CreateBookmark(entry.URL, entry.Title); err != nil {
 			slog.Error("Unable to send entry to Linkwarden",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),
@@ -283,7 +284,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 	if userIntegrations.ReadeckEnabled {
 		slog.Debug("Sending entry to Readeck",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
@@ -296,7 +297,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 		)
 		if err := client.CreateBookmark(entry.URL, entry.Title, entry.Content); err != nil {
 			slog.Error("Unable to send entry to Readeck",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),
@@ -306,7 +307,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 	if userIntegrations.ReadwiseEnabled {
 		slog.Debug("Sending entry to Readwise",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
@@ -317,7 +318,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 		if err := client.CreateDocument(entry.URL); err != nil {
 			slog.Error("Unable to send entry to Readwise",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),
@@ -327,7 +328,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 	if userIntegrations.CuboxEnabled {
 		slog.Debug("Sending entry to Cubox",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
@@ -336,7 +337,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 		if err := client.SaveLink(entry.URL); err != nil {
 			slog.Error("Unable to send entry to Cubox",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),
@@ -346,7 +347,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 	if userIntegrations.ShioriEnabled {
 		slog.Debug("Sending entry to Shiori",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
@@ -359,7 +360,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 		if err := client.CreateBookmark(entry.URL, entry.Title); err != nil {
 			slog.Error("Unable to send entry to Shiori",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),
@@ -369,7 +370,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 	if userIntegrations.ShaarliEnabled {
 		slog.Debug("Sending entry to Shaarli",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
@@ -381,7 +382,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 		if err := client.CreateLink(entry.URL, entry.Title); err != nil {
 			slog.Error("Unable to send entry to Shaarli",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),
@@ -391,7 +392,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 	if userIntegrations.WebhookEnabled {
 		slog.Debug("Sending entry to Webhook",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 			slog.String("webhook_url", userIntegrations.WebhookURL),
@@ -400,7 +401,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 		webhookClient := webhook.NewClient(userIntegrations.WebhookURL, userIntegrations.WebhookSecret)
 		if err := webhookClient.SendSaveEntryWebhookEvent(entry); err != nil {
 			slog.Error("Unable to send entry to Webhook",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.String("webhook_url", userIntegrations.WebhookURL),
@@ -411,7 +412,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 	if userIntegrations.OmnivoreEnabled {
 		slog.Debug("Sending entry to Omnivore",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
@@ -419,7 +420,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 		client := omnivore.NewClient(userIntegrations.OmnivoreAPIKey, userIntegrations.OmnivoreURL)
 		if err := client.SaveUrl(entry.URL); err != nil {
 			slog.Error("Unable to send entry to Omnivore",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),
@@ -427,18 +428,18 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 		}
 	}
 
-	if userIntegrations.Extra.KarakeepEnabled {
+	if userIntegrations.KarakeepEnabled {
 		slog.Debug("Sending entry to Karakeep",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
 
-		client := karakeep.NewClient(userIntegrations.Extra.KarakeepAPIKey,
-			userIntegrations.Extra.KarakeepURL)
+		client := karakeep.NewClient(userIntegrations.KarakeepAPIKey,
+			userIntegrations.KarakeepURL)
 		if err := client.SaveUrl(entry.URL); err != nil {
 			slog.Error("Unable to send entry to Karakeep",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),
@@ -448,7 +449,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 
 	if userIntegrations.RaindropEnabled {
 		slog.Debug("Sending entry to Raindrop",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
@@ -456,7 +457,7 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 		client := raindrop.NewClient(userIntegrations.RaindropToken, userIntegrations.RaindropCollectionID, userIntegrations.RaindropTags)
 		if err := client.CreateRaindrop(entry.URL, entry.Title); err != nil {
 			slog.Error("Unable to send entry to Raindrop",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),
@@ -466,10 +467,11 @@ func SendEntry(entry *model.Entry, userIntegrations *model.Integration) {
 }
 
 // PushEntries pushes a list of entries to activated third-party providers during feed refreshes.
-func PushEntries(feed *model.Feed, entries model.Entries, userIntegrations *model.Integration) {
+func PushEntries(feed *model.Feed, entries model.Entries, user *model.User) {
+	userIntegrations := user.Integration()
 	if userIntegrations.MatrixBotEnabled {
 		slog.Debug("Sending new entries to Matrix",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int("nb_entries", len(entries)),
 			slog.Int64("feed_id", feed.ID),
 		)
@@ -484,7 +486,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, userIntegrations *mode
 		)
 		if err != nil {
 			slog.Error("Unable to send new entries to Matrix",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int("nb_entries", len(entries)),
 				slog.Int64("feed_id", feed.ID),
 				slog.Any("error", err),
@@ -501,7 +503,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, userIntegrations *mode
 		}
 
 		slog.Debug("Sending new entries to Webhook",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int("nb_entries", len(entries)),
 			slog.Int64("feed_id", feed.ID),
 			slog.String("webhook_url", webhookURL),
@@ -510,7 +512,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, userIntegrations *mode
 		webhookClient := webhook.NewClient(webhookURL, userIntegrations.WebhookSecret)
 		if err := webhookClient.SendNewEntriesWebhookEvent(feed, entries); err != nil {
 			slog.Debug("Unable to send new entries to Webhook",
-				slog.Int64("user_id", userIntegrations.UserID),
+				slog.Int64("user_id", user.ID),
 				slog.Int("nb_entries", len(entries)),
 				slog.Int64("feed_id", feed.ID),
 				slog.String("webhook_url", webhookURL),
@@ -525,7 +527,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, userIntegrations *mode
 			ntfyTopic = userIntegrations.NtfyTopic
 		}
 		slog.Debug("Sending new entries to Ntfy",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int("nb_entries", len(entries)),
 			slog.Int64("feed_id", feed.ID),
 			slog.String("topic", ntfyTopic),
@@ -549,7 +551,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, userIntegrations *mode
 
 	if userIntegrations.AppriseEnabled {
 		slog.Debug("Sending new entries to Apprise",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int("nb_entries", len(entries)),
 			slog.Int64("feed_id", feed.ID),
 		)
@@ -571,7 +573,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, userIntegrations *mode
 
 	if userIntegrations.DiscordEnabled {
 		slog.Debug("Sending new entries to Discord",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int("nb_entries", len(entries)),
 			slog.Int64("feed_id", feed.ID),
 		)
@@ -587,7 +589,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, userIntegrations *mode
 
 	if userIntegrations.SlackEnabled {
 		slog.Debug("Sending new entries to Slack",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int("nb_entries", len(entries)),
 			slog.Int64("feed_id", feed.ID),
 		)
@@ -603,7 +605,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, userIntegrations *mode
 
 	if userIntegrations.PushoverEnabled && feed.PushoverEnabled {
 		slog.Debug("Sending new entries to Pushover",
-			slog.Int64("user_id", userIntegrations.UserID),
+			slog.Int64("user_id", user.ID),
 			slog.Int("nb_entries", len(entries)),
 			slog.Int64("feed_id", feed.ID),
 		)
@@ -626,7 +628,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, userIntegrations *mode
 		for _, entry := range entries {
 			if userIntegrations.TelegramBotEnabled {
 				slog.Debug("Sending a new entry to Telegram",
-					slog.Int64("user_id", userIntegrations.UserID),
+					slog.Int64("user_id", user.ID),
 					slog.Int64("entry_id", entry.ID),
 					slog.String("entry_url", entry.URL),
 				)
@@ -642,7 +644,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, userIntegrations *mode
 					userIntegrations.TelegramBotDisableButtons,
 				); err != nil {
 					slog.Error("Unable to send entry to Telegram",
-						slog.Int64("user_id", userIntegrations.UserID),
+						slog.Int64("user_id", user.ID),
 						slog.Int64("entry_id", entry.ID),
 						slog.String("entry_url", entry.URL),
 						slog.Any("error", err),

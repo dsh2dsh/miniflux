@@ -322,17 +322,14 @@ func (self *Refresh) pushIntegrations(ctx context.Context,
 		return
 	}
 
-	integrations, err := self.store.Integration(ctx, self.userID)
+	user, err := self.store.UserByID(ctx, self.userID)
 	if err != nil {
 		logging.FromContext(ctx).Error(
 			"Fetching integrations failed; the refresh process will go on, but no integrations will run this time",
 			slog.Any("error", err))
 		return
-	} else if integrations == nil {
-		return
 	}
-
-	integration.PushEntries(self.feed, entries, integrations)
+	integration.PushEntries(self.feed, entries, user)
 }
 
 func (self *Refresh) updateFeed(ctx context.Context,

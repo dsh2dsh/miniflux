@@ -127,13 +127,11 @@ func (h *handler) markUserAsRead(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) getIntegrationsStatus(w http.ResponseWriter, r *http.Request,
 ) {
-	userID := request.UserID(r)
-	hasIntegrations := h.store.HasSaveEntry(r.Context(), userID)
-
+	user := request.User(r)
 	response := struct {
 		HasIntegrations bool `json:"has_integrations"`
 	}{
-		HasIntegrations: hasIntegrations,
+		HasIntegrations: user.HasSaveEntry(),
 	}
 	json.OK(w, r, &response)
 }

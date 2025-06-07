@@ -672,4 +672,14 @@ ALTER TABLE sessions
 	sqlMigration(`
 ALTER TABLE sessions
   ADD COLUMN updated_at timestamp with time zone NOT NULL DEFAULT now()`),
+
+	// 116
+	sqlMigration(`
+UPDATE users u
+   SET extra = jsonb_set(u.extra, '{integration}',
+                 (to_jsonb(i) - '{user_id,extra}'::text[] || i.extra))
+  FROM integrations i
+ WHERE i.user_id = u.id;
+CREATE INDEX ON users ((extra->'integration'->>'fever_token'));
+DROP TABLE integrations;`),
 }

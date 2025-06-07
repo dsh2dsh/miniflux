@@ -406,6 +406,7 @@ as=? where ? is replaced with read, saved or unsaved
 id=? where ? is replaced with the id of the item to modify
 */
 func (h *handler) handleWriteItems(w http.ResponseWriter, r *http.Request) {
+	user := request.User(r)
 	userID := request.UserID(r)
 	slog.Debug("[Fever] Receiving mark=item call",
 		slog.Int64("user_id", userID),
@@ -460,12 +461,7 @@ func (h *handler) handleWriteItems(w http.ResponseWriter, r *http.Request) {
 			json.ServerError(w, r, err)
 			return
 		}
-		settings, err := h.store.Integration(r.Context(), userID)
-		if err != nil {
-			json.ServerError(w, r, err)
-			return
-		}
-		go func() { integration.SendEntry(entry, settings) }()
+		integration.SendEntry(entry, user)
 	case "unsaved":
 		slog.Debug("[Fever] Mark entry as unsaved",
 			slog.Int64("user_id", userID),

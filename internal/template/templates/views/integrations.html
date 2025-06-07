@@ -118,9 +118,6 @@
                 <input type="checkbox" name="fever_enabled" value="1" {{ if .form.FeverEnabled }}checked{{ end }}> {{ t "form.integration.fever_activate" }}
             </label>
 
-            <label for="form-fever-username">{{ t "form.integration.fever_username" }}</label>
-            <input type="text" name="fever_username" id="form-fever-username" value="{{ .form.FeverUsername }}" autocomplete="username" spellcheck="false">
-
             <label for="form-fever-password">{{ t "form.integration.fever_password" }}</label>
             <input type="password" name="fever_password" id="form-fever-password" value="{{ .form.FeverPassword }}" autocomplete="new-password">
 
@@ -138,9 +135,6 @@
             <label>
                 <input type="checkbox" name="googlereader_enabled" value="1" {{ if .form.GoogleReaderEnabled }}checked{{ end }}> {{ t "form.integration.googlereader_activate" }}
             </label>
-
-            <label for="form-googlereader-username">{{ t "form.integration.googlereader_username" }}</label>
-            <input type="text" name="googlereader_username" id="form-googlereader-username" value="{{ .form.GoogleReaderUsername }}" autocomplete="username" spellcheck="false">
 
             <label for="form-googlereader-password">{{ t "form.integration.googlereader_password" }}</label>
             <input type="password" name="googlereader_password" id="form-googlereader-password" value="{{ .form.GoogleReaderPassword }}" autocomplete="new-password">

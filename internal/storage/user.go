@@ -141,12 +141,6 @@ RETURNING
 		if err != nil {
 			return fmt.Errorf(`create default category: %w`, err)
 		}
-
-		_, err = tx.Exec(ctx,
-			`INSERT INTO integrations (user_id) VALUES ($1)`, user.ID)
-		if err != nil {
-			return fmt.Errorf(`create integration row: %w`, err)
-		}
 		return nil
 	})
 	if err != nil {
@@ -329,7 +323,12 @@ FROM users WHERE username=LOWER($1)`
 // UserByField finds a user by a field value.
 func (s *Storage) UserByField(ctx context.Context, field, value string,
 ) (*model.User, error) {
-	query := fmt.Sprintf(`
+	query := userByFieldQuery(pgx.Identifier([]string{field}).Sanitize())
+	return s.fetchUser(ctx, query, value)
+}
+
+func userByFieldQuery(field string) string {
+	return `
 SELECT
   id,
   username,
@@ -361,9 +360,7 @@ SELECT
   block_filter_entry_rules,
   keep_filter_entry_rules,
   extra
-FROM users WHERE %s = $1`,
-		pgx.Identifier([]string{field}).Sanitize())
-	return s.fetchUser(ctx, query, value)
+FROM users WHERE ` + field + " = $1"
 }
 
 // AnotherUserWithFieldExists returns true if a user has the value set for the
@@ -431,25 +428,12 @@ func (s *Storage) deleteUserFeeds(ctx context.Context, userID int64) error {
 
 // removeUser deletes a user.
 func (s *Storage) removeUser(ctx context.Context, userID int64) (bool, error) {
-	var affected bool
-	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		_, err := tx.Exec(ctx, `DELETE FROM integrations WHERE user_id=$1`, userID)
-		if err != nil {
-			return fmt.Errorf("remove integration settings: %w", err)
-		}
-
-		result, err := tx.Exec(ctx, `DELETE FROM users WHERE id=$1`, userID)
-		if err != nil {
-			return fmt.Errorf("remove user: %w", err)
-		}
-		affected = result.RowsAffected() != 0
-		return nil
-	})
+	result, err := s.db.Exec(ctx, `DELETE FROM users WHERE id = $1`, userID)
 	if err != nil {
-		return false, fmt.Errorf("storage: unable to remove user #%d: %w", userID,
-			err)
+		return false, fmt.Errorf("storage: unable to remove user #%d: %w",
+			userID, err)
 	}
-	return affected, nil
+	return result.RowsAffected() != 0, nil
 }
 
 // Users returns all users.
@@ -706,4 +690,11 @@ WHERE k.token = $1 AND u.id = k.user_id`
 		return nil, nil, fmt.Errorf("storage: fetch user with api key: %w", err)
 	}
 	return user, apiKey, nil
+}
+
+// UserByFeverToken returns a user by using the Fever API token.
+func (s *Storage) UserByFeverToken(ctx context.Context, token string,
+) (*model.User, error) {
+	query := userByFieldQuery(`extra->'integration'->>'fever_token'`)
+	return s.fetchUser(ctx, query, token)
 }

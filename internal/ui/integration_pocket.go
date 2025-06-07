@@ -17,26 +17,19 @@ import (
 )
 
 func (h *handler) pocketAuthorize(w http.ResponseWriter, r *http.Request) {
-	printer := locale.NewPrinter(request.UserLanguage(r))
-	userID := request.UserID(r)
-
-	integration, err := h.store.Integration(r.Context(), userID)
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
-
+	user := request.User(r)
 	sess := session.New(h.store, r)
 	defer sess.Commit(r.Context())
 
 	connector := pocket.NewConnector(
-		config.Opts.PocketConsumerKey(integration.PocketConsumerKey))
+		config.Opts.PocketConsumerKey(user.Integration().PocketConsumerKey))
 	redirectURL := config.Opts.RootURL() + route.Path(h.router, "pocketCallback")
 	requestToken, err := connector.RequestToken(redirectURL)
 	if err != nil {
 		slog.Warn("Pocket authorization request failed",
-			slog.Any("user_id", userID),
+			slog.Any("user_id", user.ID),
 			slog.Any("error", err))
+		printer := locale.NewPrinter(request.UserLanguage(r))
 		sess.NewFlashErrorMessage(printer.Print("error.pocket_request_token"))
 		html.Redirect(w, r, route.Path(h.router, "integrations"))
 		return
@@ -47,24 +40,17 @@ func (h *handler) pocketAuthorize(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) pocketCallback(w http.ResponseWriter, r *http.Request) {
+	user := request.User(r)
 	printer := locale.NewPrinter(request.UserLanguage(r))
-	userID := request.UserID(r)
-
 	sess := session.New(h.store, r)
 	defer sess.Commit(r.Context())
 
-	integration, err := h.store.Integration(r.Context(), userID)
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
-
 	connector := pocket.NewConnector(
-		config.Opts.PocketConsumerKey(integration.PocketConsumerKey))
+		config.Opts.PocketConsumerKey(user.Integration().PocketConsumerKey))
 	accessToken, err := connector.AccessToken(request.PocketRequestToken(r))
 	if err != nil {
 		slog.Warn("Unable to get Pocket access token",
-			slog.Any("user_id", userID),
+			slog.Any("user_id", user.ID),
 			slog.Any("error", err))
 		sess.NewFlashErrorMessage(printer.Print("error.pocket_access_token"))
 		html.Redirect(w, r, route.Path(h.router, "integrations"))
@@ -72,10 +58,8 @@ func (h *handler) pocketCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sess.SetPocketRequestToken("")
-	integration.PocketAccessToken = accessToken
-
-	err = h.store.UpdateIntegration(r.Context(), integration)
-	if err != nil {
+	user.Integration().PocketAccessToken = accessToken
+	if err := h.store.UpdateUser(r.Context(), user); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}

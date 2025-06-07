@@ -45,8 +45,9 @@ type User struct {
 }
 
 type UserExtra struct {
-	MarkReadOnScroll        bool `json:"mark_read_on_scroll,omitempty"`
-	AlwaysOpenExternalLinks bool `json:"always_open_external_links,omitempty"`
+	AlwaysOpenExternalLinks bool        `json:"always_open_external_links,omitempty"`
+	Integration             Integration `json:"integration,omitzero"`
+	MarkReadOnScroll        bool        `json:"mark_read_on_scroll,omitempty"`
 }
 
 // UserCreationRequest represents the request to create a user.
@@ -222,10 +223,38 @@ func (u *User) UseTimezone(tz string) {
 	}
 }
 
-func (u *User) MarkReadOnScroll() bool { return u.Extra.MarkReadOnScroll }
-
 func (u *User) AlwaysOpenExternalLinks() bool {
 	return u.Extra.AlwaysOpenExternalLinks
+}
+
+func (u *User) Integration() *Integration { return &u.Extra.Integration }
+func (u *User) MarkReadOnScroll() bool    { return u.Extra.MarkReadOnScroll }
+
+func (u *User) HasSaveEntry() bool {
+	i := u.Integration()
+	return i.AppriseEnabled ||
+		i.BetulaEnabled ||
+		i.CuboxEnabled ||
+		i.DiscordEnabled ||
+		i.EspialEnabled ||
+		i.InstapaperEnabled ||
+		i.KarakeepEnabled ||
+		i.LinkAceEnabled ||
+		i.LinkdingEnabled ||
+		i.LinkwardenEnabled ||
+		i.NotionEnabled ||
+		i.NunuxKeeperEnabled ||
+		i.OmnivoreEnabled ||
+		i.PocketEnabled ||
+		i.RaindropEnabled ||
+		i.ReadeckEnabled ||
+		i.ReadwiseEnabled ||
+		i.ShaarliEnabled ||
+		i.ShioriEnabled ||
+		i.SlackEnabled ||
+		i.WallabagEnabled ||
+		i.WebhookEnabled ||
+		i.PinboardEnabled
 }
 
 // Users represents a list of users.

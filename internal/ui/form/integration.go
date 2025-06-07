@@ -20,10 +20,8 @@ type IntegrationForm struct {
 	InstapaperUsername               string
 	InstapaperPassword               string
 	FeverEnabled                     bool
-	FeverUsername                    string
 	FeverPassword                    string
 	GoogleReaderEnabled              bool
-	GoogleReaderUsername             string
 	GoogleReaderPassword             string
 	WallabagEnabled                  bool
 	WallabagOnlyURL                  bool
@@ -138,9 +136,7 @@ func (i IntegrationForm) Merge(integration *model.Integration) {
 	integration.InstapaperUsername = i.InstapaperUsername
 	integration.InstapaperPassword = i.InstapaperPassword
 	integration.FeverEnabled = i.FeverEnabled
-	integration.FeverUsername = i.FeverUsername
 	integration.GoogleReaderEnabled = i.GoogleReaderEnabled
-	integration.GoogleReaderUsername = i.GoogleReaderUsername
 	integration.WallabagEnabled = i.WallabagEnabled
 	integration.WallabagOnlyURL = i.WallabagOnlyURL
 	integration.WallabagURL = i.WallabagURL
@@ -208,13 +204,13 @@ func (i IntegrationForm) Merge(integration *model.Integration) {
 	integration.WebhookURL = i.WebhookURL
 	integration.RSSBridgeEnabled = i.RSSBridgeEnabled
 	integration.RSSBridgeURL = i.RSSBridgeURL
-	integration.Extra.RSSBridgeToken = i.RSSBridgeToken
+	integration.RSSBridgeToken = i.RSSBridgeToken
 	integration.OmnivoreEnabled = i.OmnivoreEnabled
 	integration.OmnivoreAPIKey = i.OmnivoreAPIKey
 	integration.OmnivoreURL = i.OmnivoreURL
-	integration.Extra.KarakeepEnabled = i.KarakeepEnabled
-	integration.Extra.KarakeepAPIKey = i.KarakeepAPIKey
-	integration.Extra.KarakeepURL = i.KarakeepURL
+	integration.KarakeepEnabled = i.KarakeepEnabled
+	integration.KarakeepAPIKey = i.KarakeepAPIKey
+	integration.KarakeepURL = i.KarakeepURL
 	integration.RaindropEnabled = i.RaindropEnabled
 	integration.RaindropToken = i.RaindropToken
 	integration.RaindropCollectionID = i.RaindropCollectionID
@@ -254,10 +250,8 @@ func NewIntegrationForm(r *http.Request) *IntegrationForm {
 		InstapaperUsername:               r.FormValue("instapaper_username"),
 		InstapaperPassword:               r.FormValue("instapaper_password"),
 		FeverEnabled:                     r.FormValue("fever_enabled") == "1",
-		FeverUsername:                    r.FormValue("fever_username"),
 		FeverPassword:                    r.FormValue("fever_password"),
 		GoogleReaderEnabled:              r.FormValue("googlereader_enabled") == "1",
-		GoogleReaderUsername:             r.FormValue("googlereader_username"),
 		GoogleReaderPassword:             r.FormValue("googlereader_password"),
 		WallabagEnabled:                  r.FormValue("wallabag_enabled") == "1",
 		WallabagOnlyURL:                  r.FormValue("wallabag_only_url") == "1",

@@ -71,10 +71,7 @@ func (self *View) Go(fn func(ctx context.Context) error) {
 }
 
 func (self *View) WithSaveEntry() *View {
-	self.Go(func(ctx context.Context) error {
-		self.hasSaveEntry = self.store.HasSaveEntry(ctx, self.UserID())
-		return nil
-	})
+	self.hasSaveEntry = self.user.HasSaveEntry()
 	return self
 }
 

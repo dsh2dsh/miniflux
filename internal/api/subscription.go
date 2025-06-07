@@ -30,12 +30,11 @@ func (h *handler) discoverSubscriptions(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	ctx := r.Context()
 	var rssbridgeURL, rssbridgeToken string
-	intg, err := h.store.Integration(ctx, request.UserID(r))
-	if err == nil && intg != nil && intg.RSSBridgeEnabled {
-		rssbridgeURL = intg.RSSBridgeURL
-		rssbridgeToken = intg.Extra.RSSBridgeToken
+	user := request.User(r)
+	if i := user.Integration(); i.RSSBridgeEnabled {
+		rssbridgeURL = i.RSSBridgeURL
+		rssbridgeToken = i.RSSBridgeToken
 	}
 
 	requestBuilder := fetcher.NewRequestBuilder().
@@ -51,7 +50,7 @@ func (h *handler) discoverSubscriptions(w http.ResponseWriter, r *http.Request,
 		DisableHTTP2(discovery.DisableHTTP2)
 
 	s, lerr := subscription.NewSubscriptionFinder(requestBuilder).
-		FindSubscriptions(ctx, discovery.URL, rssbridgeURL, rssbridgeToken)
+		FindSubscriptions(r.Context(), discovery.URL, rssbridgeURL, rssbridgeToken)
 	if lerr != nil {
 		json.ServerError(w, r, lerr)
 		return

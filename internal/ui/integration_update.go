@@ -6,7 +6,6 @@ package ui // import "miniflux.app/v2/internal/ui"
 import (
 	"crypto/md5"
 	"fmt"
-	"log/slog"
 	"net/http"
 
 	"miniflux.app/v2/internal/crypto"
@@ -14,96 +13,56 @@ import (
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
-	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/ui/form"
 	"miniflux.app/v2/internal/ui/session"
 )
 
 func (h *handler) updateIntegration(w http.ResponseWriter, r *http.Request) {
+	user := request.User(r)
+	i := user.Integration()
 	printer := locale.NewPrinter(request.UserLanguage(r))
-	userID := request.UserID(r)
-
+	ctx := r.Context()
 	sess := session.New(h.store, r)
-	defer sess.Commit(r.Context())
+	defer sess.Commit(ctx)
 
-	integration, err := h.store.Integration(r.Context(), userID)
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
+	f := form.NewIntegrationForm(r)
+	f.Merge(i)
 
-	integrationForm := form.NewIntegrationForm(r)
-	integrationForm.Merge(integration)
-
-	if integration.FeverUsername != "" {
-		alreadyExists, err := h.store.HasDuplicateFeverUsername(
-			r.Context(), userID, integration.FeverUsername)
-		if err != nil {
-			logging.FromContext(r.Context()).Error(
-				"storage: unable check duplicate Fever username",
-				slog.Any("error", err))
-			html.ServerError(w, r, err)
-			return
-		} else if alreadyExists {
-			sess.NewFlashErrorMessage(printer.Print("error.duplicate_fever_username"))
-			html.Redirect(w, r, route.Path(h.router, "integrations"))
-			return
-		}
-	}
-
-	if integration.FeverEnabled {
-		if integrationForm.FeverPassword != "" {
-			integration.FeverToken = fmt.Sprintf("%x", md5.Sum([]byte(
-				integration.FeverUsername+":"+integrationForm.FeverPassword)))
+	if i.FeverEnabled {
+		if f.FeverPassword != "" {
+			i.FeverToken = fmt.Sprintf("%x",
+				md5.Sum([]byte(user.Username+":"+f.FeverPassword)))
 		}
 	} else {
-		integration.FeverToken = ""
+		i.FeverToken = ""
 	}
 
-	if integration.GoogleReaderUsername != "" {
-		alreadyExists, err := h.store.HasDuplicateGoogleReaderUsername(
-			r.Context(), userID, integration.GoogleReaderUsername)
-		if err != nil {
-			logging.FromContext(r.Context()).Error(
-				"unable check duplicate Google Reader username",
-				slog.Any("error", err))
-			html.ServerError(w, r, err)
-			return
-		} else if alreadyExists {
-			sess.NewFlashErrorMessage(printer.Print(
-				"error.duplicate_googlereader_username"))
-			html.Redirect(w, r, route.Path(h.router, "integrations"))
-			return
-		}
-	}
-
-	if integration.GoogleReaderEnabled {
-		if integrationForm.GoogleReaderPassword != "" {
-			integration.GoogleReaderPassword, err = crypto.HashPassword(
-				integrationForm.GoogleReaderPassword)
+	if i.GoogleReaderEnabled {
+		if f.GoogleReaderPassword != "" {
+			pw, err := crypto.HashPassword(f.GoogleReaderPassword)
 			if err != nil {
 				html.ServerError(w, r, err)
 				return
 			}
+			i.GoogleReaderPassword = pw
 		}
 	} else {
-		integration.GoogleReaderPassword = ""
+		i.GoogleReaderPassword = ""
 	}
 
-	if integrationForm.WebhookEnabled {
-		if integrationForm.WebhookURL == "" {
-			integration.WebhookEnabled = false
-			integration.WebhookSecret = ""
-		} else if integration.WebhookSecret == "" {
-			integration.WebhookSecret = crypto.GenerateRandomStringHex(32)
+	if f.WebhookEnabled {
+		if f.WebhookURL == "" {
+			i.WebhookEnabled = false
+			i.WebhookSecret = ""
+		} else if i.WebhookSecret == "" {
+			i.WebhookSecret = crypto.GenerateRandomStringHex(32)
 		}
 	} else {
-		integration.WebhookURL = ""
-		integration.WebhookSecret = ""
+		i.WebhookURL = ""
+		i.WebhookSecret = ""
 	}
 
-	err = h.store.UpdateIntegration(r.Context(), integration)
-	if err != nil {
+	if err := h.store.UpdateUser(ctx, user); err != nil {
 		html.ServerError(w, r, err)
 		return
 	}

@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
@@ -167,7 +169,33 @@ func (h *handler) clientLoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.store.GoogleReaderUserCheckPassword(r.Context(), username, password); err != nil {
+	user, err := h.store.UserByUsername(r.Context(), username)
+	if err != nil {
+		slog.Warn("[GoogleReader] Invalid username or password",
+			slog.Bool("authentication_failed", true),
+			slog.String("client_ip", clientIP),
+			slog.String("user_agent", r.UserAgent()),
+			slog.String("username", username),
+			slog.Any("error", err),
+		)
+		json.Unauthorized(w, r)
+		return
+	} else if user == nil || !user.Integration().GoogleReaderEnabled {
+		slog.Warn("[GoogleReader] Invalid username or password",
+			slog.Bool("authentication_failed", true),
+			slog.String("client_ip", clientIP),
+			slog.String("user_agent", r.UserAgent()),
+			slog.String("username", username),
+			slog.Any("error", errors.New("googlereader: unable to find user")),
+		)
+		json.Unauthorized(w, r)
+		return
+	}
+
+	err = bcrypt.CompareHashAndPassword(
+		[]byte(user.Integration().GoogleReaderPassword),
+		[]byte(password))
+	if err != nil {
 		slog.Warn("[GoogleReader] Invalid username or password",
 			slog.Bool("authentication_failed", true),
 			slog.String("client_ip", clientIP),
@@ -186,20 +214,13 @@ func (h *handler) clientLoginHandler(w http.ResponseWriter, r *http.Request) {
 		slog.String("username", username),
 	)
 
-	integration, err := h.store.GoogleReaderUserGetIntegration(
-		r.Context(), username)
+	err = h.store.SetLastLogin(r.Context(), user.ID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
 
-	err = h.store.SetLastLogin(r.Context(), integration.UserID)
-	if err != nil {
-		json.ServerError(w, r, err)
-		return
-	}
-
-	token := getAuthToken(integration.GoogleReaderUsername, integration.GoogleReaderPassword)
+	token := getAuthToken(user.Username, user.Integration().GoogleReaderPassword)
 	slog.Debug("[GoogleReader] Created token",
 		slog.String("client_ip", clientIP),
 		slog.String("user_agent", r.UserAgent()),
@@ -262,6 +283,7 @@ func (h *handler) tokenHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) editTagHandler(w http.ResponseWriter, r *http.Request) {
+	user := request.User(r)
 	userID := request.UserID(r)
 	clientIP := request.ClientIP(r)
 
@@ -385,17 +407,9 @@ func (h *handler) editTagHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(entries) > 0 {
-		settings, err := h.store.Integration(r.Context(), userID)
-		if err != nil {
-			json.ServerError(w, r, err)
-			return
-		}
-
 		for _, entry := range entries {
 			e := entry
-			go func() {
-				integration.SendEntry(e, settings)
-			}()
+			integration.SendEntry(e, user)
 		}
 	}
 
@@ -403,6 +417,7 @@ func (h *handler) editTagHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) quickAddHandler(w http.ResponseWriter, r *http.Request) {
+	user := request.User(r)
 	userID := request.UserID(r)
 	clientIP := request.ClientIP(r)
 
@@ -430,10 +445,9 @@ func (h *handler) quickAddHandler(w http.ResponseWriter, r *http.Request) {
 	requestBuilder.WithProxyRotator(proxyrotator.ProxyRotatorInstance)
 
 	var rssBridgeURL, rssBridgeToken string
-	intg, err := h.store.Integration(r.Context(), userID)
-	if err == nil && intg != nil && intg.RSSBridgeEnabled {
-		rssBridgeURL = intg.RSSBridgeURL
-		rssBridgeToken = intg.Extra.RSSBridgeToken
+	if i := user.Integration(); i.RSSBridgeEnabled {
+		rssBridgeURL = i.RSSBridgeURL
+		rssBridgeToken = i.RSSBridgeToken
 	}
 
 	subscriptions, localizedError := mfs.

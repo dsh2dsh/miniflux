@@ -214,44 +214,17 @@ func (h *handler) toggleBookmark(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) saveEntry(w http.ResponseWriter, r *http.Request) {
-	id := request.RouteInt64Param(r, "entryID")
-	builder := h.store.NewEntryQueryBuilder(request.UserID(r)).
-		WithEntryID(id).
-		WithoutStatus(model.EntryStatusRemoved)
-
-	g, ctx := errgroup.WithContext(r.Context())
-	userID := request.UserID(r)
-	errIntegration := errors.New("no third-party integration enabled")
-
-	g.Go(func() (err error) {
-		if !h.store.HasSaveEntry(ctx, userID) {
-			return errIntegration
-		}
-		return
-	})
-
-	var entry *model.Entry
-	g.Go(func() (err error) {
-		entry, err = builder.GetEntry(ctx)
-		return
-	})
-
-	var settings *model.Integration
-	g.Go(func() (err error) {
-		settings, err = h.store.Integration(ctx, userID)
-		return
-	})
-
-	if err := g.Wait(); err != nil {
-		if errors.Is(err, errIntegration) {
-			json.BadRequest(w, r, err)
-		} else {
-			json.ServerError(w, r, err)
-		}
-		return
+	user := request.User(r)
+	if !user.HasSaveEntry() {
+		json.BadRequest(w, r, errors.New("no third-party integration enabled"))
 	}
 
-	entry, err := builder.GetEntry(ctx)
+	id := request.RouteInt64Param(r, "entryID")
+	userID := request.UserID(r)
+	entry, err := h.store.NewEntryQueryBuilder(userID).
+		WithEntryID(id).
+		WithoutStatus(model.EntryStatusRemoved).
+		GetEntry(r.Context())
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -260,7 +233,7 @@ func (h *handler) saveEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	integration.SendEntry(entry, settings)
+	integration.SendEntry(entry, user)
 	json.Accepted(w, r)
 }
 
