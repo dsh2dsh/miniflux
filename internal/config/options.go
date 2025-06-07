@@ -26,8 +26,8 @@ const (
 	defaultHTTPClientProxy = ""
 )
 
-var defaultHTTPClientUserAgent = "Mozilla/5.0 (compatible; Miniflux/" +
-	version.Version + "; +https://miniflux.app)"
+var defaultHTTPClientUserAgent = "Mozilla/5.0 (compatible; Miniflux-dsh2dsh/" +
+	version.Version + "; +https://github.com/dsh2dsh/miniflux)"
 
 // Option contains a key to value map of a single option. It may be used to
 // output debug strings.
