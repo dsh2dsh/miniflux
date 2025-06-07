@@ -5,7 +5,6 @@ package model // import "miniflux.app/v2/internal/model"
 
 import (
 	"fmt"
-	"math"
 	"strings"
 	"text/template"
 	"time"
@@ -15,10 +14,7 @@ import (
 	"miniflux.app/v2/internal/config"
 )
 
-// List of supported schedulers.
 const (
-	SchedulerRoundRobin     = "round_robin"
-	SchedulerEntryFrequency = "entry_frequency"
 	// Default settings for the feed query builder
 	DefaultFeedSorting          = "parsing_error_count"
 	DefaultFeedSortingDirection = "desc"
@@ -129,33 +125,18 @@ func (f *Feed) CheckedNow() {
 	}
 }
 
-// ScheduleNextCheck set "next_check_at" of a feed based on the scheduler selected from the configuration.
-func (f *Feed) ScheduleNextCheck(weeklyCount int, refreshDelayInMinutes int) int {
+// ScheduleNextCheck set "next_check_at" of a feed.
+func (f *Feed) ScheduleNextCheck(refreshDelayInMinutes int) int {
 	// Default to the global config Polling Frequency.
-	intervalMinutes := config.Opts.SchedulerRoundRobinMinInterval()
-
-	if config.Opts.PollingScheduler() == SchedulerEntryFrequency {
-		if weeklyCount <= 0 {
-			intervalMinutes = config.Opts.SchedulerEntryFrequencyMaxInterval()
-		} else {
-			intervalMinutes = int(math.Round(float64(7*24*60) / float64(weeklyCount*config.Opts.SchedulerEntryFrequencyFactor())))
-			intervalMinutes = min(intervalMinutes, config.Opts.SchedulerEntryFrequencyMaxInterval())
-			intervalMinutes = max(intervalMinutes, config.Opts.SchedulerEntryFrequencyMinInterval())
-		}
-	}
-
-	// Use the RSS TTL field, Retry-After, Cache-Control or Expires HTTP headers if defined.
-	if refreshDelayInMinutes > 0 && refreshDelayInMinutes > intervalMinutes {
-		intervalMinutes = refreshDelayInMinutes
-	}
+	//
+	// Use the RSS TTL field, Retry-After, Cache-Control or Expires HTTP headers
+	// if defined.
+	intervalMinutes := max(config.Opts.SchedulerRoundRobinMinInterval(),
+		refreshDelayInMinutes)
 
 	// Limit the max interval value for misconfigured feeds.
-	switch config.Opts.PollingScheduler() {
-	case SchedulerRoundRobin:
-		intervalMinutes = min(intervalMinutes, config.Opts.SchedulerRoundRobinMaxInterval())
-	case SchedulerEntryFrequency:
-		intervalMinutes = min(intervalMinutes, config.Opts.SchedulerEntryFrequencyMaxInterval())
-	}
+	intervalMinutes = min(config.Opts.SchedulerRoundRobinMaxInterval(),
+		intervalMinutes)
 
 	f.NextCheckAt = time.Now().Add(time.Minute * time.Duration(intervalMinutes))
 	return intervalMinutes

@@ -47,98 +47,94 @@ type Options struct {
 }
 
 type EnvOptions struct {
-	DisableHSTS                        bool     `env:"DISABLE_HSTS"`
-	DisableHttpService                 bool     `env:"DISABLE_HTTP_SERVICE"`
-	DisableScheduler                   bool     `env:"DISABLE_SCHEDULER_SERVICE"`
-	HTTPS                              bool     `env:"HTTPS"`
-	LogFile                            string   `env:"LOG_FILE" validate:"required"`
-	LogDateTime                        bool     `env:"LOG_DATE_TIME"`
-	LogFormat                          string   `env:"LOG_FORMAT" validate:"required,oneof=human json text"`
-	LogLevel                           string   `env:"LOG_LEVEL" validate:"required,oneof=debug info warning error"`
-	Logging                            []Log    `envPrefix:"LOG" validate:"dive,required"`
-	ServerTimingHeader                 bool     `env:"SERVER_TIMING_HEADER"`
-	BaseURL                            string   `env:"BASE_URL" validate:"required"`
-	DatabaseURL                        string   `env:"DATABASE_URL" validate:"required"`
-	DatabaseURLFile                    *string  `env:"DATABASE_URL_FILE,file"`
-	DatabaseMaxConns                   int      `env:"DATABASE_MAX_CONNS" validate:"min=1"`
-	DatabaseMinConns                   int      `env:"DATABASE_MIN_CONNS" validate:"min=0"`
-	DatabaseConnectionLifetime         int      `env:"DATABASE_CONNECTION_LIFETIME" validate:"min=0"`
-	RunMigrations                      bool     `env:"RUN_MIGRATIONS"`
-	ListenAddr                         string   `env:"LISTEN_ADDR" validate:"required"`
-	Port                               string   `env:"PORT"`
-	CertFile                           string   `env:"CERT_FILE" validate:"omitempty,filepath"`
-	CertDomain                         string   `env:"CERT_DOMAIN"`
-	CertKeyFile                        string   `env:"KEY_FILE" validate:"omitempty,filepath"`
-	CleanupFrequencyHours              int      `env:"CLEANUP_FREQUENCY_HOURS" validate:"min=0"`
-	CleanupArchiveReadDays             int      `env:"CLEANUP_ARCHIVE_READ_DAYS" validate:"min=0"`
-	CleanupArchiveUnreadDays           int      `env:"CLEANUP_ARCHIVE_UNREAD_DAYS" validate:"min=0"`
-	CleanupArchiveBatchSize            int      `env:"CLEANUP_ARCHIVE_BATCH_SIZE" validate:"min=0"`
-	CleanupRemoveSessionsDays          int      `env:"CLEANUP_REMOVE_SESSIONS_DAYS" validate:"min=0"`
-	CleanupInactiveSessionsDays        int      `env:"CLEANUP_INACTIVE_SESSIONS_DAYS" validate:"min=0"`
-	PollingFrequency                   int      `env:"POLLING_FREQUENCY" validate:"min=0"`
-	ForceRefreshInterval               int      `env:"FORCE_REFRESH_INTERVAL" validate:"min=0"`
-	BatchSize                          int      `env:"BATCH_SIZE" validate:"min=0"`
-	PollingScheduler                   string   `env:"POLLING_SCHEDULER" validate:"required,oneof=round_robin entry_frequency"`
-	SchedulerEntryFrequencyMinInterval int      `env:"SCHEDULER_ENTRY_FREQUENCY_MIN_INTERVAL" validate:"min=0"`
-	SchedulerEntryFrequencyMaxInterval int      `env:"SCHEDULER_ENTRY_FREQUENCY_MAX_INTERVAL" validate:"min=0"`
-	SchedulerEntryFrequencyFactor      int      `env:"SCHEDULER_ENTRY_FREQUENCY_FACTOR" validate:"min=0"`
-	SchedulerRoundRobinMinInterval     int      `env:"SCHEDULER_ROUND_ROBIN_MIN_INTERVAL" validate:"min=0"`
-	SchedulerRoundRobinMaxInterval     int      `env:"SCHEDULER_ROUND_ROBIN_MAX_INTERVAL" validate:"min=0"`
-	PollingParsingErrorLimit           int      `env:"POLLING_PARSING_ERROR_LIMIT" validate:"min=0"`
-	WorkerPoolSize                     int      `env:"WORKER_POOL_SIZE" validate:"min=0"`
-	CreateAdmin                        bool     `env:"CREATE_ADMIN"`
-	AdminUsername                      string   `env:"ADMIN_USERNAME"`
-	AdminUsernameFile                  *string  `env:"ADMIN_USERNAME_FILE,file"`
-	AdminPassword                      string   `env:"ADMIN_PASSWORD"`
-	AdminPasswordFile                  *string  `env:"ADMIN_PASSWORD_FILE,file"`
-	MediaProxyHTTPClientTimeout        int      `env:"MEDIA_PROXY_HTTP_CLIENT_TIMEOUT" validate:"min=0"`
-	MediaProxyMode                     string   `env:"MEDIA_PROXY_MODE" validate:"required,oneof=none http-only all"`
-	MediaProxyResourceTypes            []string `env:"MEDIA_PROXY_RESOURCE_TYPES" validate:"omitempty,required"`
-	MediaProxyCustomURL                string   `env:"MEDIA_PROXY_CUSTOM_URL" validate:"omitempty,url"`
-	FetchBilibiliWatchTime             bool     `env:"FETCH_BILIBILI_WATCH_TIME"`
-	FetchNebulaWatchTime               bool     `env:"FETCH_NEBULA_WATCH_TIME"`
-	FetchOdyseeWatchTime               bool     `env:"FETCH_ODYSEE_WATCH_TIME"`
-	FetchYouTubeWatchTime              bool     `env:"FETCH_YOUTUBE_WATCH_TIME"`
-	FilterEntryMaxAgeDays              int      `env:"FILTER_ENTRY_MAX_AGE_DAYS" validate:"min=0"`
-	YouTubeApiKey                      string   `env:"YOUTUBE_API_KEY"`
-	YouTubeEmbedUrlOverride            string   `env:"YOUTUBE_EMBED_URL_OVERRIDE" validate:"omitempty,url"`
-	Oauth2UserCreationAllowed          bool     `env:"OAUTH2_USER_CREATION"`
-	Oauth2ClientID                     string   `env:"OAUTH2_CLIENT_ID"`
-	Oauth2ClientIDFile                 *string  `env:"OAUTH2_CLIENT_ID_FILE,file"`
-	Oauth2ClientSecret                 string   `env:"OAUTH2_CLIENT_SECRET"`
-	Oauth2ClientSecretFile             *string  `env:"OAUTH2_CLIENT_SECRET_FILE,file"`
-	Oauth2RedirectURL                  string   `env:"OAUTH2_REDIRECT_URL" validate:"omitempty,url"`
-	OidcDiscoveryEndpoint              string   `env:"OAUTH2_OIDC_DISCOVERY_ENDPOINT" validate:"omitempty,url"`
-	OidcProviderName                   string   `env:"OAUTH2_OIDC_PROVIDER_NAME"`
-	Oauth2Provider                     string   `env:"OAUTH2_PROVIDER" validate:"omitempty,oneof=oidc google"`
-	DisableLocalAuth                   bool     `env:"DISABLE_LOCAL_AUTH"`
-	PocketConsumerKey                  string   `env:"POCKET_CONSUMER_KEY"`
-	PocketConsumerKeyFile              *string  `env:"POCKET_CONSUMER_KEY_FILE,file"`
-	HttpClientTimeout                  int      `env:"HTTP_CLIENT_TIMEOUT" validate:"min=0"`
-	HttpClientMaxBodySize              int64    `env:"HTTP_CLIENT_MAX_BODY_SIZE" validate:"min=0"`
-	HttpClientProxyURL                 *url.URL `env:"HTTP_CLIENT_PROXY"`
-	HttpClientProxies                  []string `env:"HTTP_CLIENT_PROXIES" validate:"dive,required,url"`
-	HttpClientUserAgent                string   `env:"HTTP_CLIENT_USER_AGENT"`
-	HttpServerTimeout                  int      `env:"HTTP_SERVER_TIMEOUT" validate:"min=0"`
-	AuthProxyHeader                    string   `env:"AUTH_PROXY_HEADER"`
-	AuthProxyUserCreation              bool     `env:"AUTH_PROXY_USER_CREATION"`
-	MaintenanceMode                    bool     `env:"MAINTENANCE_MODE"`
-	MaintenanceMessage                 string   `env:"MAINTENANCE_MESSAGE" validate:"required_with=MaintenanceMode"`
-	MetricsCollector                   bool     `env:"METRICS_COLLECTOR"`
-	MetricsRefreshInterval             int      `env:"METRICS_REFRESH_INTERVAL" validate:"min=0"`
-	MetricsAllowedNetworks             []string `env:"METRICS_ALLOWED_NETWORKS" validate:"dive,required"`
-	MetricsUsername                    string   `env:"METRICS_USERNAME"`
-	MetricsUsernameFile                *string  `env:"METRICS_USERNAME_FILE,file"`
-	MetricsPassword                    string   `env:"METRICS_PASSWORD"`
-	MetricsPasswordFile                *string  `env:"METRICS_PASSWORD_FILE,file"`
-	Watchdog                           bool     `env:"WATCHDOG"`
-	InvidiousInstance                  string   `env:"INVIDIOUS_INSTANCE"`
-	MediaProxyPrivateKey               string   `env:"MEDIA_PROXY_PRIVATE_KEY"`
-	WebAuthn                           bool     `env:"WEBAUTHN"`
-	PreferSiteIcon                     bool     `env:"PREFER_SITE_ICON"`
-	ConnectionsPerSever                int64    `env:"CONNECTIONS_PER_SERVER" validate:"min=1"`
-	RateLimitPerServer                 float64  `env:"RATE_LIMIT_PER_SERVER" validate:"gt=0"`
-	TrustedProxies                     []string `env:"TRUSTED_PROXIES" validate:"dive,required,ip"`
+	DisableHSTS                    bool     `env:"DISABLE_HSTS"`
+	DisableHttpService             bool     `env:"DISABLE_HTTP_SERVICE"`
+	DisableScheduler               bool     `env:"DISABLE_SCHEDULER_SERVICE"`
+	HTTPS                          bool     `env:"HTTPS"`
+	LogFile                        string   `env:"LOG_FILE" validate:"required"`
+	LogDateTime                    bool     `env:"LOG_DATE_TIME"`
+	LogFormat                      string   `env:"LOG_FORMAT" validate:"required,oneof=human json text"`
+	LogLevel                       string   `env:"LOG_LEVEL" validate:"required,oneof=debug info warning error"`
+	Logging                        []Log    `envPrefix:"LOG" validate:"dive,required"`
+	ServerTimingHeader             bool     `env:"SERVER_TIMING_HEADER"`
+	BaseURL                        string   `env:"BASE_URL" validate:"required"`
+	DatabaseURL                    string   `env:"DATABASE_URL" validate:"required"`
+	DatabaseURLFile                *string  `env:"DATABASE_URL_FILE,file"`
+	DatabaseMaxConns               int      `env:"DATABASE_MAX_CONNS" validate:"min=1"`
+	DatabaseMinConns               int      `env:"DATABASE_MIN_CONNS" validate:"min=0"`
+	DatabaseConnectionLifetime     int      `env:"DATABASE_CONNECTION_LIFETIME" validate:"min=0"`
+	RunMigrations                  bool     `env:"RUN_MIGRATIONS"`
+	ListenAddr                     string   `env:"LISTEN_ADDR" validate:"required"`
+	Port                           string   `env:"PORT"`
+	CertFile                       string   `env:"CERT_FILE" validate:"omitempty,filepath"`
+	CertDomain                     string   `env:"CERT_DOMAIN"`
+	CertKeyFile                    string   `env:"KEY_FILE" validate:"omitempty,filepath"`
+	CleanupFrequencyHours          int      `env:"CLEANUP_FREQUENCY_HOURS" validate:"min=0"`
+	CleanupArchiveReadDays         int      `env:"CLEANUP_ARCHIVE_READ_DAYS" validate:"min=0"`
+	CleanupArchiveUnreadDays       int      `env:"CLEANUP_ARCHIVE_UNREAD_DAYS" validate:"min=0"`
+	CleanupArchiveBatchSize        int      `env:"CLEANUP_ARCHIVE_BATCH_SIZE" validate:"min=0"`
+	CleanupRemoveSessionsDays      int      `env:"CLEANUP_REMOVE_SESSIONS_DAYS" validate:"min=0"`
+	CleanupInactiveSessionsDays    int      `env:"CLEANUP_INACTIVE_SESSIONS_DAYS" validate:"min=0"`
+	PollingFrequency               int      `env:"POLLING_FREQUENCY" validate:"min=0"`
+	ForceRefreshInterval           int      `env:"FORCE_REFRESH_INTERVAL" validate:"min=0"`
+	BatchSize                      int      `env:"BATCH_SIZE" validate:"min=0"`
+	SchedulerRoundRobinMinInterval int      `env:"SCHEDULER_ROUND_ROBIN_MIN_INTERVAL" validate:"min=0"`
+	SchedulerRoundRobinMaxInterval int      `env:"SCHEDULER_ROUND_ROBIN_MAX_INTERVAL" validate:"min=0"`
+	PollingParsingErrorLimit       int      `env:"POLLING_PARSING_ERROR_LIMIT" validate:"min=0"`
+	WorkerPoolSize                 int      `env:"WORKER_POOL_SIZE" validate:"min=0"`
+	CreateAdmin                    bool     `env:"CREATE_ADMIN"`
+	AdminUsername                  string   `env:"ADMIN_USERNAME"`
+	AdminUsernameFile              *string  `env:"ADMIN_USERNAME_FILE,file"`
+	AdminPassword                  string   `env:"ADMIN_PASSWORD"`
+	AdminPasswordFile              *string  `env:"ADMIN_PASSWORD_FILE,file"`
+	MediaProxyHTTPClientTimeout    int      `env:"MEDIA_PROXY_HTTP_CLIENT_TIMEOUT" validate:"min=0"`
+	MediaProxyMode                 string   `env:"MEDIA_PROXY_MODE" validate:"required,oneof=none http-only all"`
+	MediaProxyResourceTypes        []string `env:"MEDIA_PROXY_RESOURCE_TYPES" validate:"omitempty,required"`
+	MediaProxyCustomURL            string   `env:"MEDIA_PROXY_CUSTOM_URL" validate:"omitempty,url"`
+	FetchBilibiliWatchTime         bool     `env:"FETCH_BILIBILI_WATCH_TIME"`
+	FetchNebulaWatchTime           bool     `env:"FETCH_NEBULA_WATCH_TIME"`
+	FetchOdyseeWatchTime           bool     `env:"FETCH_ODYSEE_WATCH_TIME"`
+	FetchYouTubeWatchTime          bool     `env:"FETCH_YOUTUBE_WATCH_TIME"`
+	FilterEntryMaxAgeDays          int      `env:"FILTER_ENTRY_MAX_AGE_DAYS" validate:"min=0"`
+	YouTubeApiKey                  string   `env:"YOUTUBE_API_KEY"`
+	YouTubeEmbedUrlOverride        string   `env:"YOUTUBE_EMBED_URL_OVERRIDE" validate:"omitempty,url"`
+	Oauth2UserCreationAllowed      bool     `env:"OAUTH2_USER_CREATION"`
+	Oauth2ClientID                 string   `env:"OAUTH2_CLIENT_ID"`
+	Oauth2ClientIDFile             *string  `env:"OAUTH2_CLIENT_ID_FILE,file"`
+	Oauth2ClientSecret             string   `env:"OAUTH2_CLIENT_SECRET"`
+	Oauth2ClientSecretFile         *string  `env:"OAUTH2_CLIENT_SECRET_FILE,file"`
+	Oauth2RedirectURL              string   `env:"OAUTH2_REDIRECT_URL" validate:"omitempty,url"`
+	OidcDiscoveryEndpoint          string   `env:"OAUTH2_OIDC_DISCOVERY_ENDPOINT" validate:"omitempty,url"`
+	OidcProviderName               string   `env:"OAUTH2_OIDC_PROVIDER_NAME"`
+	Oauth2Provider                 string   `env:"OAUTH2_PROVIDER" validate:"omitempty,oneof=oidc google"`
+	DisableLocalAuth               bool     `env:"DISABLE_LOCAL_AUTH"`
+	PocketConsumerKey              string   `env:"POCKET_CONSUMER_KEY"`
+	PocketConsumerKeyFile          *string  `env:"POCKET_CONSUMER_KEY_FILE,file"`
+	HttpClientTimeout              int      `env:"HTTP_CLIENT_TIMEOUT" validate:"min=0"`
+	HttpClientMaxBodySize          int64    `env:"HTTP_CLIENT_MAX_BODY_SIZE" validate:"min=0"`
+	HttpClientProxyURL             *url.URL `env:"HTTP_CLIENT_PROXY"`
+	HttpClientProxies              []string `env:"HTTP_CLIENT_PROXIES" validate:"dive,required,url"`
+	HttpClientUserAgent            string   `env:"HTTP_CLIENT_USER_AGENT"`
+	HttpServerTimeout              int      `env:"HTTP_SERVER_TIMEOUT" validate:"min=0"`
+	AuthProxyHeader                string   `env:"AUTH_PROXY_HEADER"`
+	AuthProxyUserCreation          bool     `env:"AUTH_PROXY_USER_CREATION"`
+	MaintenanceMode                bool     `env:"MAINTENANCE_MODE"`
+	MaintenanceMessage             string   `env:"MAINTENANCE_MESSAGE" validate:"required_with=MaintenanceMode"`
+	MetricsCollector               bool     `env:"METRICS_COLLECTOR"`
+	MetricsRefreshInterval         int      `env:"METRICS_REFRESH_INTERVAL" validate:"min=0"`
+	MetricsAllowedNetworks         []string `env:"METRICS_ALLOWED_NETWORKS" validate:"dive,required"`
+	MetricsUsername                string   `env:"METRICS_USERNAME"`
+	MetricsUsernameFile            *string  `env:"METRICS_USERNAME_FILE,file"`
+	MetricsPassword                string   `env:"METRICS_PASSWORD"`
+	MetricsPasswordFile            *string  `env:"METRICS_PASSWORD_FILE,file"`
+	Watchdog                       bool     `env:"WATCHDOG"`
+	InvidiousInstance              string   `env:"INVIDIOUS_INSTANCE"`
+	MediaProxyPrivateKey           string   `env:"MEDIA_PROXY_PRIVATE_KEY"`
+	WebAuthn                       bool     `env:"WEBAUTHN"`
+	PreferSiteIcon                 bool     `env:"PREFER_SITE_ICON"`
+	ConnectionsPerSever            int64    `env:"CONNECTIONS_PER_SERVER" validate:"min=1"`
+	RateLimitPerServer             float64  `env:"RATE_LIMIT_PER_SERVER" validate:"gt=0"`
+	TrustedProxies                 []string `env:"TRUSTED_PROXIES" validate:"dive,required,ip"`
 
 	// Deprecated
 	Debug                  bool     `env:"DEBUG"`
@@ -164,50 +160,46 @@ func NewOptions() *Options {
 
 	return &Options{
 		env: EnvOptions{
-			LogFile:                            "stderr",
-			LogFormat:                          "text",
-			LogLevel:                           "info",
-			BaseURL:                            defaultBaseURL,
-			DatabaseURL:                        defaultDatabaseURL,
-			DatabaseMaxConns:                   maxConns,
-			DatabaseMinConns:                   0,
-			DatabaseConnectionLifetime:         60,
-			ListenAddr:                         "127.0.0.1:8080",
-			CleanupFrequencyHours:              24,
-			CleanupArchiveReadDays:             60,
-			CleanupArchiveUnreadDays:           180,
-			CleanupArchiveBatchSize:            10000,
-			CleanupRemoveSessionsDays:          30,
-			CleanupInactiveSessionsDays:        10,
-			PollingFrequency:                   60,
-			ForceRefreshInterval:               30,
-			BatchSize:                          100,
-			PollingScheduler:                   "round_robin",
-			SchedulerEntryFrequencyMinInterval: 5,
-			SchedulerEntryFrequencyMaxInterval: 24 * 60,
-			SchedulerEntryFrequencyFactor:      1,
-			SchedulerRoundRobinMinInterval:     60,
-			SchedulerRoundRobinMaxInterval:     1440,
-			PollingParsingErrorLimit:           3,
-			WorkerPoolSize:                     16,
-			MediaProxyHTTPClientTimeout:        120,
-			MediaProxyMode:                     "http-only",
-			MediaProxyResourceTypes:            []string{"image"},
-			YouTubeEmbedUrlOverride:            "https://www.youtube-nocookie.com/embed/",
-			OidcProviderName:                   "OpenID Connect",
-			HttpClientTimeout:                  20,
-			HttpClientMaxBodySize:              15,
-			HttpClientProxies:                  []string{},
-			HttpClientUserAgent:                defaultHTTPClientUserAgent,
-			HttpServerTimeout:                  300,
-			MaintenanceMessage:                 "Miniflux is currently under maintenance",
-			MetricsRefreshInterval:             60,
-			MetricsAllowedNetworks:             []string{"127.0.0.1/8"},
-			Watchdog:                           true,
-			InvidiousInstance:                  "yewtu.be",
-			ConnectionsPerSever:                8,
-			RateLimitPerServer:                 10,
-			TrustedProxies:                     []string{"127.0.0.1"},
+			LogFile:                        "stderr",
+			LogFormat:                      "text",
+			LogLevel:                       "info",
+			BaseURL:                        defaultBaseURL,
+			DatabaseURL:                    defaultDatabaseURL,
+			DatabaseMaxConns:               maxConns,
+			DatabaseMinConns:               0,
+			DatabaseConnectionLifetime:     60,
+			ListenAddr:                     "127.0.0.1:8080",
+			CleanupFrequencyHours:          24,
+			CleanupArchiveReadDays:         60,
+			CleanupArchiveUnreadDays:       180,
+			CleanupArchiveBatchSize:        10000,
+			CleanupRemoveSessionsDays:      30,
+			CleanupInactiveSessionsDays:    10,
+			PollingFrequency:               60,
+			ForceRefreshInterval:           30,
+			BatchSize:                      100,
+			SchedulerRoundRobinMinInterval: 60,
+			SchedulerRoundRobinMaxInterval: 1440,
+			PollingParsingErrorLimit:       3,
+			WorkerPoolSize:                 16,
+			MediaProxyHTTPClientTimeout:    120,
+			MediaProxyMode:                 "http-only",
+			MediaProxyResourceTypes:        []string{"image"},
+			YouTubeEmbedUrlOverride:        "https://www.youtube-nocookie.com/embed/",
+			OidcProviderName:               "OpenID Connect",
+			HttpClientTimeout:              20,
+			HttpClientMaxBodySize:          15,
+			HttpClientProxies:              []string{},
+			HttpClientUserAgent:            defaultHTTPClientUserAgent,
+			HttpServerTimeout:              300,
+			MaintenanceMessage:             "Miniflux is currently under maintenance",
+			MetricsRefreshInterval:         60,
+			MetricsAllowedNetworks:         []string{"127.0.0.1/8"},
+			Watchdog:                       true,
+			InvidiousInstance:              "yewtu.be",
+			ConnectionsPerSever:            8,
+			RateLimitPerServer:             10,
+			TrustedProxies:                 []string{"127.0.0.1"},
 		},
 
 		rootURL: defaultBaseURL,
@@ -223,7 +215,6 @@ func (o *Options) init() (err error) {
 		return err
 	}
 
-	o.env.PollingScheduler = strings.ToLower(o.env.PollingScheduler)
 	o.env.HttpClientMaxBodySize *= 1024 * 1024
 	o.env.MediaProxyResourceTypes = uniqStringList(o.env.MediaProxyResourceTypes)
 
@@ -519,27 +510,6 @@ func (o *Options) ForceRefreshInterval() int {
 // BatchSize returns the number of feeds to send for background processing.
 func (o *Options) BatchSize() int { return o.env.BatchSize }
 
-// PollingScheduler returns the scheduler used for polling feeds.
-func (o *Options) PollingScheduler() string { return o.env.PollingScheduler }
-
-// SchedulerEntryFrequencyMaxInterval returns the maximum interval in minutes
-// for the entry frequency scheduler.
-func (o *Options) SchedulerEntryFrequencyMaxInterval() int {
-	return o.env.SchedulerEntryFrequencyMaxInterval
-}
-
-// SchedulerEntryFrequencyMinInterval returns the minimum interval in minutes
-// for the entry frequency scheduler.
-func (o *Options) SchedulerEntryFrequencyMinInterval() int {
-	return o.env.SchedulerEntryFrequencyMinInterval
-}
-
-// SchedulerEntryFrequencyFactor returns the factor for the entry frequency
-// scheduler.
-func (o *Options) SchedulerEntryFrequencyFactor() int {
-	return o.env.SchedulerEntryFrequencyFactor
-}
-
 func (o *Options) SchedulerRoundRobinMinInterval() int {
 	return o.env.SchedulerRoundRobinMinInterval
 }
@@ -811,92 +781,88 @@ func (o *Options) SortedOptions(redactSecret bool) []Option {
 	}
 
 	keyValues := map[string]any{
-		"ADMIN_PASSWORD":                         secretValue(o.AdminPassword(), redactSecret),
-		"ADMIN_USERNAME":                         o.AdminUsername(),
-		"AUTH_PROXY_HEADER":                      o.AuthProxyHeader(),
-		"AUTH_PROXY_USER_CREATION":               o.IsAuthProxyUserCreationAllowed(),
-		"BASE_PATH":                              o.BasePath(),
-		"BASE_URL":                               o.BaseURL(),
-		"BATCH_SIZE":                             o.BatchSize(),
-		"CERT_DOMAIN":                            o.CertDomain(),
-		"CERT_FILE":                              o.CertFile(),
-		"CLEANUP_ARCHIVE_BATCH_SIZE":             o.CleanupArchiveBatchSize(),
-		"CLEANUP_ARCHIVE_READ_DAYS":              o.CleanupArchiveReadDays(),
-		"CLEANUP_ARCHIVE_UNREAD_DAYS":            o.CleanupArchiveUnreadDays(),
-		"CLEANUP_FREQUENCY_HOURS":                o.CleanupFrequencyHours(),
-		"CLEANUP_REMOVE_SESSIONS_DAYS":           o.CleanupRemoveSessionsDays(),
-		"CLEANUP_INACTIVE_SESSIONS_DAYS":         o.CleanupInactiveSessionsDays(),
-		"CONNECTIONS_PER_SERVER":                 o.ConnectionsPerServer(),
-		"CREATE_ADMIN":                           o.CreateAdmin(),
-		"DATABASE_CONNECTION_LIFETIME":           o.env.DatabaseConnectionLifetime,
-		"DATABASE_MAX_CONNS":                     o.DatabaseMaxConns(),
-		"DATABASE_MIN_CONNS":                     o.DatabaseMinConns(),
-		"DATABASE_URL":                           secretValue(o.DatabaseURL(), redactSecret),
-		"DISABLE_HSTS":                           !o.HasHSTS(),
-		"DISABLE_HTTP_SERVICE":                   !o.HasHTTPService(),
-		"DISABLE_SCHEDULER_SERVICE":              !o.HasSchedulerService(),
-		"FILTER_ENTRY_MAX_AGE_DAYS":              o.FilterEntryMaxAgeDays(),
-		"FETCH_YOUTUBE_WATCH_TIME":               o.FetchYouTubeWatchTime(),
-		"FETCH_NEBULA_WATCH_TIME":                o.FetchNebulaWatchTime(),
-		"FETCH_ODYSEE_WATCH_TIME":                o.FetchOdyseeWatchTime(),
-		"FETCH_BILIBILI_WATCH_TIME":              o.FetchBilibiliWatchTime(),
-		"HTTPS":                                  o.HasHSTS(),
-		"HTTP_CLIENT_MAX_BODY_SIZE":              o.HTTPClientMaxBodySize(),
-		"HTTP_CLIENT_PROXIES":                    clientProxyURLsRedacted,
-		"HTTP_CLIENT_PROXY":                      clientProxyURLRedacted,
-		"HTTP_CLIENT_TIMEOUT":                    o.HTTPClientTimeout(),
-		"HTTP_CLIENT_USER_AGENT":                 o.HTTPClientUserAgent(),
-		"HTTP_SERVER_TIMEOUT":                    o.HTTPServerTimeout(),
-		"HTTP_SERVICE":                           o.HasHTTPService(),
-		"INVIDIOUS_INSTANCE":                     o.InvidiousInstance(),
-		"KEY_FILE":                               o.CertKeyFile(),
-		"LISTEN_ADDR":                            o.ListenAddr(),
-		"LOG_FILE":                               o.LogFile(),
-		"LOG_DATE_TIME":                          o.LogDateTime(),
-		"LOG_FORMAT":                             o.LogFormat(),
-		"LOG_LEVEL":                              o.LogLevel(),
-		"MAINTENANCE_MESSAGE":                    o.MaintenanceMessage(),
-		"MAINTENANCE_MODE":                       o.HasMaintenanceMode(),
-		"METRICS_ALLOWED_NETWORKS":               strings.Join(o.MetricsAllowedNetworks(), ","),
-		"METRICS_COLLECTOR":                      o.HasMetricsCollector(),
-		"METRICS_PASSWORD":                       secretValue(o.MetricsPassword(), redactSecret),
-		"METRICS_REFRESH_INTERVAL":               o.env.MetricsRefreshInterval,
-		"METRICS_USERNAME":                       o.MetricsUsername(),
-		"OAUTH2_CLIENT_ID":                       o.OAuth2ClientID(),
-		"OAUTH2_CLIENT_SECRET":                   secretValue(o.OAuth2ClientSecret(), redactSecret),
-		"OAUTH2_OIDC_DISCOVERY_ENDPOINT":         o.OIDCDiscoveryEndpoint(),
-		"OAUTH2_OIDC_PROVIDER_NAME":              o.OIDCProviderName(),
-		"OAUTH2_PROVIDER":                        o.OAuth2Provider(),
-		"OAUTH2_REDIRECT_URL":                    o.OAuth2RedirectURL(),
-		"OAUTH2_USER_CREATION":                   o.IsOAuth2UserCreationAllowed(),
-		"DISABLE_LOCAL_AUTH":                     o.DisableLocalAuth(),
-		"POCKET_CONSUMER_KEY":                    secretValue(o.PocketConsumerKey(""), redactSecret),
-		"POLLING_FREQUENCY":                      o.PollingFrequency(),
-		"FORCE_REFRESH_INTERVAL":                 o.ForceRefreshInterval(),
-		"POLLING_PARSING_ERROR_LIMIT":            o.PollingParsingErrorLimit(),
-		"POLLING_SCHEDULER":                      o.PollingScheduler(),
-		"MEDIA_PROXY_HTTP_CLIENT_TIMEOUT":        o.MediaProxyHTTPClientTimeout(),
-		"MEDIA_PROXY_RESOURCE_TYPES":             o.MediaProxyResourceTypes(),
-		"MEDIA_PROXY_MODE":                       o.MediaProxyMode(),
-		"MEDIA_PROXY_PRIVATE_KEY":                mediaProxyPrivateKeyValue,
-		"MEDIA_PROXY_CUSTOM_URL":                 o.MediaCustomProxyURL(),
-		"ROOT_URL":                               o.RootURL(),
-		"RUN_MIGRATIONS":                         o.RunMigrations(),
-		"SCHEDULER_ENTRY_FREQUENCY_MAX_INTERVAL": o.SchedulerEntryFrequencyMaxInterval(),
-		"SCHEDULER_ENTRY_FREQUENCY_MIN_INTERVAL": o.SchedulerEntryFrequencyMinInterval(),
-		"SCHEDULER_ENTRY_FREQUENCY_FACTOR":       o.SchedulerEntryFrequencyFactor(),
-		"SCHEDULER_ROUND_ROBIN_MIN_INTERVAL":     o.SchedulerRoundRobinMinInterval(),
-		"SCHEDULER_ROUND_ROBIN_MAX_INTERVAL":     o.SchedulerRoundRobinMaxInterval(),
-		"SCHEDULER_SERVICE":                      !o.HasSchedulerService(),
-		"SERVER_TIMING_HEADER":                   o.HasServerTimingHeader(),
-		"WATCHDOG":                               o.HasWatchdog(),
-		"WORKER_POOL_SIZE":                       o.WorkerPoolSize(),
-		"YOUTUBE_API_KEY":                        secretValue(o.YouTubeApiKey(), redactSecret),
-		"YOUTUBE_EMBED_URL_OVERRIDE":             o.YouTubeEmbedUrlOverride(),
-		"WEBAUTHN":                               o.WebAuthn(),
-		"PREFER_SITE_ICON":                       o.PreferSiteIcon(),
-		"RATE_LIMIT_PER_SERVER":                  o.RateLimitPerServer(),
-		"TRUSTED_PROXIES":                        strings.Join(o.env.TrustedProxies, ","),
+		"ADMIN_PASSWORD":                     secretValue(o.AdminPassword(), redactSecret),
+		"ADMIN_USERNAME":                     o.AdminUsername(),
+		"AUTH_PROXY_HEADER":                  o.AuthProxyHeader(),
+		"AUTH_PROXY_USER_CREATION":           o.IsAuthProxyUserCreationAllowed(),
+		"BASE_PATH":                          o.BasePath(),
+		"BASE_URL":                           o.BaseURL(),
+		"BATCH_SIZE":                         o.BatchSize(),
+		"CERT_DOMAIN":                        o.CertDomain(),
+		"CERT_FILE":                          o.CertFile(),
+		"CLEANUP_ARCHIVE_BATCH_SIZE":         o.CleanupArchiveBatchSize(),
+		"CLEANUP_ARCHIVE_READ_DAYS":          o.CleanupArchiveReadDays(),
+		"CLEANUP_ARCHIVE_UNREAD_DAYS":        o.CleanupArchiveUnreadDays(),
+		"CLEANUP_FREQUENCY_HOURS":            o.CleanupFrequencyHours(),
+		"CLEANUP_REMOVE_SESSIONS_DAYS":       o.CleanupRemoveSessionsDays(),
+		"CLEANUP_INACTIVE_SESSIONS_DAYS":     o.CleanupInactiveSessionsDays(),
+		"CONNECTIONS_PER_SERVER":             o.ConnectionsPerServer(),
+		"CREATE_ADMIN":                       o.CreateAdmin(),
+		"DATABASE_CONNECTION_LIFETIME":       o.env.DatabaseConnectionLifetime,
+		"DATABASE_MAX_CONNS":                 o.DatabaseMaxConns(),
+		"DATABASE_MIN_CONNS":                 o.DatabaseMinConns(),
+		"DATABASE_URL":                       secretValue(o.DatabaseURL(), redactSecret),
+		"DISABLE_HSTS":                       !o.HasHSTS(),
+		"DISABLE_HTTP_SERVICE":               !o.HasHTTPService(),
+		"DISABLE_SCHEDULER_SERVICE":          !o.HasSchedulerService(),
+		"FILTER_ENTRY_MAX_AGE_DAYS":          o.FilterEntryMaxAgeDays(),
+		"FETCH_YOUTUBE_WATCH_TIME":           o.FetchYouTubeWatchTime(),
+		"FETCH_NEBULA_WATCH_TIME":            o.FetchNebulaWatchTime(),
+		"FETCH_ODYSEE_WATCH_TIME":            o.FetchOdyseeWatchTime(),
+		"FETCH_BILIBILI_WATCH_TIME":          o.FetchBilibiliWatchTime(),
+		"HTTPS":                              o.HasHSTS(),
+		"HTTP_CLIENT_MAX_BODY_SIZE":          o.HTTPClientMaxBodySize(),
+		"HTTP_CLIENT_PROXIES":                clientProxyURLsRedacted,
+		"HTTP_CLIENT_PROXY":                  clientProxyURLRedacted,
+		"HTTP_CLIENT_TIMEOUT":                o.HTTPClientTimeout(),
+		"HTTP_CLIENT_USER_AGENT":             o.HTTPClientUserAgent(),
+		"HTTP_SERVER_TIMEOUT":                o.HTTPServerTimeout(),
+		"HTTP_SERVICE":                       o.HasHTTPService(),
+		"INVIDIOUS_INSTANCE":                 o.InvidiousInstance(),
+		"KEY_FILE":                           o.CertKeyFile(),
+		"LISTEN_ADDR":                        o.ListenAddr(),
+		"LOG_FILE":                           o.LogFile(),
+		"LOG_DATE_TIME":                      o.LogDateTime(),
+		"LOG_FORMAT":                         o.LogFormat(),
+		"LOG_LEVEL":                          o.LogLevel(),
+		"MAINTENANCE_MESSAGE":                o.MaintenanceMessage(),
+		"MAINTENANCE_MODE":                   o.HasMaintenanceMode(),
+		"METRICS_ALLOWED_NETWORKS":           strings.Join(o.MetricsAllowedNetworks(), ","),
+		"METRICS_COLLECTOR":                  o.HasMetricsCollector(),
+		"METRICS_PASSWORD":                   secretValue(o.MetricsPassword(), redactSecret),
+		"METRICS_REFRESH_INTERVAL":           o.env.MetricsRefreshInterval,
+		"METRICS_USERNAME":                   o.MetricsUsername(),
+		"OAUTH2_CLIENT_ID":                   o.OAuth2ClientID(),
+		"OAUTH2_CLIENT_SECRET":               secretValue(o.OAuth2ClientSecret(), redactSecret),
+		"OAUTH2_OIDC_DISCOVERY_ENDPOINT":     o.OIDCDiscoveryEndpoint(),
+		"OAUTH2_OIDC_PROVIDER_NAME":          o.OIDCProviderName(),
+		"OAUTH2_PROVIDER":                    o.OAuth2Provider(),
+		"OAUTH2_REDIRECT_URL":                o.OAuth2RedirectURL(),
+		"OAUTH2_USER_CREATION":               o.IsOAuth2UserCreationAllowed(),
+		"DISABLE_LOCAL_AUTH":                 o.DisableLocalAuth(),
+		"POCKET_CONSUMER_KEY":                secretValue(o.PocketConsumerKey(""), redactSecret),
+		"POLLING_FREQUENCY":                  o.PollingFrequency(),
+		"FORCE_REFRESH_INTERVAL":             o.ForceRefreshInterval(),
+		"POLLING_PARSING_ERROR_LIMIT":        o.PollingParsingErrorLimit(),
+		"MEDIA_PROXY_HTTP_CLIENT_TIMEOUT":    o.MediaProxyHTTPClientTimeout(),
+		"MEDIA_PROXY_RESOURCE_TYPES":         o.MediaProxyResourceTypes(),
+		"MEDIA_PROXY_MODE":                   o.MediaProxyMode(),
+		"MEDIA_PROXY_PRIVATE_KEY":            mediaProxyPrivateKeyValue,
+		"MEDIA_PROXY_CUSTOM_URL":             o.MediaCustomProxyURL(),
+		"ROOT_URL":                           o.RootURL(),
+		"RUN_MIGRATIONS":                     o.RunMigrations(),
+		"SCHEDULER_ROUND_ROBIN_MIN_INTERVAL": o.SchedulerRoundRobinMinInterval(),
+		"SCHEDULER_ROUND_ROBIN_MAX_INTERVAL": o.SchedulerRoundRobinMaxInterval(),
+		"SCHEDULER_SERVICE":                  !o.HasSchedulerService(),
+		"SERVER_TIMING_HEADER":               o.HasServerTimingHeader(),
+		"WATCHDOG":                           o.HasWatchdog(),
+		"WORKER_POOL_SIZE":                   o.WorkerPoolSize(),
+		"YOUTUBE_API_KEY":                    secretValue(o.YouTubeApiKey(), redactSecret),
+		"YOUTUBE_EMBED_URL_OVERRIDE":         o.YouTubeEmbedUrlOverride(),
+		"WEBAUTHN":                           o.WebAuthn(),
+		"PREFER_SITE_ICON":                   o.PreferSiteIcon(),
+		"RATE_LIMIT_PER_SERVER":              o.RateLimitPerServer(),
+		"TRUSTED_PROXIES":                    strings.Join(o.env.TrustedProxies, ","),
 	}
 
 	keys := make([]string, 0, len(keyValues))

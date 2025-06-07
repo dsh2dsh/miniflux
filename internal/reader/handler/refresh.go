@@ -60,13 +60,8 @@ func (self *Refresh) RefreshFeed(ctx context.Context,
 		return err
 	}
 
-	weeklyCount, lerr := self.weeklyCount(ctx)
-	if lerr != nil {
-		return lerr
-	}
-
 	self.feed.CheckedNow()
-	self.feed.ScheduleNextCheck(weeklyCount, 0)
+	self.feed.ScheduleNextCheck(0)
 
 	resp, err := self.response(ctx)
 	if err != nil {
@@ -76,10 +71,10 @@ func (self *Refresh) RefreshFeed(ctx context.Context,
 	defer resp.Close()
 
 	if resp.IsRateLimited() {
-		self.logRateLimited(logging.WithLogger(ctx, log), resp, weeklyCount)
+		self.logRateLimited(logging.WithLogger(ctx, log), resp)
 	}
 
-	lerr = self.respLocalizedError(logging.WithLogger(ctx, log), resp)
+	lerr := self.respLocalizedError(logging.WithLogger(ctx, log), resp)
 	if lerr != nil {
 		return lerr
 	}
@@ -91,7 +86,7 @@ func (self *Refresh) RefreshFeed(ctx context.Context,
 
 	var refreshed model.FeedRefreshed
 	if self.refreshAnyway(resp) {
-		r, lerr := self.refreshFeed(logging.WithLogger(ctx, log), resp, weeklyCount)
+		r, lerr := self.refreshFeed(logging.WithLogger(ctx, log), resp)
 		if lerr != nil {
 			return lerr
 		}
@@ -132,21 +127,6 @@ func (self *Refresh) initFeed(ctx context.Context,
 	return nil
 }
 
-func (self *Refresh) weeklyCount(ctx context.Context) (int,
-	*locale.LocalizedErrorWrapper,
-) {
-	var weeklyCount int
-	if config.Opts.PollingScheduler() == model.SchedulerEntryFrequency {
-		cnt, err := self.store.WeeklyFeedEntryCount(ctx, self.userID, self.feedID)
-		if err != nil {
-			return 0, locale.NewLocalizedErrorWrapper(err,
-				"error.database_error", err)
-		}
-		weeklyCount = cnt
-	}
-	return weeklyCount, nil
-}
-
 func (self *Refresh) response(ctx context.Context) (*fetcher.ResponseSemaphore,
 	error,
 ) {
@@ -184,11 +164,11 @@ func (self *Refresh) ignoreHTTPCache() bool {
 }
 
 func (self *Refresh) logRateLimited(ctx context.Context,
-	resp *fetcher.ResponseSemaphore, weeklyCount int,
+	resp *fetcher.ResponseSemaphore,
 ) {
 	retryDelaySeconds := resp.ParseRetryDelay()
 	refreshDelay := retryDelaySeconds / 60
-	nextCheck := self.feed.ScheduleNextCheck(weeklyCount, refreshDelay)
+	nextCheck := self.feed.ScheduleNextCheck(refreshDelay)
 
 	logging.FromContext(ctx).Warn("Feed is rate limited",
 		slog.String("feed_url", self.feed.FeedURL),
@@ -235,7 +215,7 @@ func (self *Refresh) anotherFeedURLExists(ctx context.Context, url string,
 }
 
 func (self *Refresh) refreshFeed(ctx context.Context,
-	resp *fetcher.ResponseSemaphore, weeklyCount int,
+	resp *fetcher.ResponseSemaphore,
 ) (refreshed model.FeedRefreshed, _ *locale.LocalizedErrorWrapper) {
 	log := logging.FromContext(ctx)
 	log.Debug("Feed modified",
@@ -277,7 +257,7 @@ func (self *Refresh) refreshFeed(ctx context.Context,
 	refreshDelay := max(ttl, cacheControl, expires)
 
 	// Set the next check at with updated arguments.
-	nextCheck := self.feed.ScheduleNextCheck(weeklyCount, refreshDelay)
+	nextCheck := self.feed.ScheduleNextCheck(refreshDelay)
 
 	log.Debug("Updated next check date",
 		slog.String("feed_url", self.feed.FeedURL),

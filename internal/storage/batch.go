@@ -64,7 +64,7 @@ func (b *BatchBuilder) WithoutDisabledFeeds() *BatchBuilder {
 }
 
 func (b *BatchBuilder) FetchJobs(ctx context.Context) ([]model.Job, error) {
-	query := `SELECT id, user_id FROM feeds`
+	query := "SELECT id, user_id, feed_url FROM feeds"
 	if len(b.conditions) > 0 {
 		query += " WHERE " + strings.Join(b.conditions, " AND ")
 	}

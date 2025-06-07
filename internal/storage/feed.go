@@ -215,36 +215,6 @@ func (s *Storage) FeedsByCategoryWithCounters(ctx context.Context,
 	return getFeedsSorted(ctx, builder)
 }
 
-// WeeklyFeedEntryCount returns the weekly entry count for a feed.
-//
-// Calculate a virtual weekly count based on the average updating frequency.
-// This helps after just adding a high volume feed.
-//
-// Return 0 when the 'count(*)' is zero(0) or one(1).
-func (s *Storage) WeeklyFeedEntryCount(ctx context.Context,
-	userID, feedID int64,
-) (int, error) {
-	rows, _ := s.db.Query(ctx, `
-SELECT
-	COALESCE(CAST(CEIL(
-		(EXTRACT(epoch from interval '1 week'))	/
-		NULLIF((EXTRACT(epoch from (max(published_at)-min(published_at))/NULLIF((count(*)-1), 0) )), 0)
-	) AS BIGINT), 0)
- FROM entries
-WHERE entries.user_id=$1 AND entries.feed_id=$2
-      AND entries.published_at >= now() - interval '1 week'`,
-		userID, feedID)
-
-	count, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[int])
-	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, nil
-	} else if err != nil {
-		return 0, fmt.Errorf(
-			`store: unable to fetch weekly count for feed #%d: %w`, feedID, err)
-	}
-	return count, nil
-}
-
 // FeedByID returns a feed by the ID.
 func (s *Storage) FeedByID(ctx context.Context, userID, feedID int64,
 ) (*model.Feed, error) {

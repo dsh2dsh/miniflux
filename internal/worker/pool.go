@@ -4,9 +4,12 @@
 package worker // import "miniflux.app/v2/internal/worker"
 
 import (
+	"cmp"
 	"context"
 	"log/slog"
-	"math/rand/v2"
+	"maps"
+	"net/url"
+	"slices"
 	"sync"
 	"time"
 
@@ -74,13 +77,10 @@ func (self *Pool) Push(ctx context.Context, jobs []model.Job) {
 	log := logging.FromContext(ctx).With(slog.Int("jobs", len(jobs)))
 	log.Info("worker: created a batch of feeds")
 
-	rand.Shuffle(len(jobs), func(i, j int) {
-		jobs[i], jobs[j] = jobs[j], jobs[i]
-	})
-
 	var wg sync.WaitGroup
 	beginJob := func() { wg.Add(1) }
 	startTime := time.Now()
+	jobs = distributeJobs(jobs)
 
 jobsLoop:
 	for i := range jobs {
@@ -146,4 +146,42 @@ func (self *Pool) refreshFeed(job queueItem) {
 			WithLabelValues(status).
 			Observe(time.Since(startTime).Seconds())
 	}
+}
+
+func distributeJobs(jobs []model.Job) []model.Job {
+	perHost := map[string][]int{}
+	for i := range jobs {
+		j := &jobs[i]
+		u, err := url.Parse(j.FeedURL)
+		if err != nil {
+			perHost[j.FeedURL] = append(perHost[j.FeedURL], i)
+		} else {
+			perHost[u.Host] = append(perHost[u.Host], i)
+		}
+	}
+
+	hosts := slices.SortedFunc(maps.Keys(perHost), func(a, b string) int {
+		return cmp.Compare(len(perHost[b]), len(perHost[a]))
+	})
+
+	distributed := make([]model.Job, 0, len(jobs))
+	for len(hosts) > 0 {
+		var deleted bool
+		for i, host := range hosts {
+			hostJobs := perHost[host]
+			j := hostJobs[len(hostJobs)-1]
+			distributed = append(distributed, jobs[j])
+			if len(hostJobs) > 1 {
+				perHost[host] = hostJobs[:len(hostJobs)-1]
+			} else {
+				hosts[i] = ""
+				deleted = true
+			}
+		}
+		if deleted {
+			hosts = slices.DeleteFunc(hosts,
+				func(host string) bool { return host == "" })
+		}
+	}
+	return distributed
 }

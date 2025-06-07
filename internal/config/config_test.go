@@ -377,62 +377,6 @@ func TestBatchSize(t *testing.T) {
 	assert.Equal(t, 42, opts.BatchSize())
 }
 
-func TestDefautPollingSchedulerValue(t *testing.T) {
-	os.Clearenv()
-	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, NewOptions().PollingScheduler(), opts.PollingScheduler())
-}
-
-func TestPollingScheduler(t *testing.T) {
-	os.Clearenv()
-	const expected = "entry_frequency"
-	t.Setenv("POLLING_SCHEDULER", expected)
-	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, expected, opts.PollingScheduler())
-}
-
-func TestDefautSchedulerEntryFrequencyMaxIntervalValue(t *testing.T) {
-	os.Clearenv()
-	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, NewOptions().SchedulerEntryFrequencyMaxInterval(),
-		opts.SchedulerEntryFrequencyMaxInterval())
-}
-
-func TestSchedulerEntryFrequencyMaxInterval(t *testing.T) {
-	os.Clearenv()
-	t.Setenv("SCHEDULER_ENTRY_FREQUENCY_MAX_INTERVAL", "30")
-	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, 30, opts.SchedulerEntryFrequencyMaxInterval())
-}
-
-func TestDefautSchedulerEntryFrequencyMinIntervalValue(t *testing.T) {
-	os.Clearenv()
-	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, NewOptions().SchedulerEntryFrequencyMinInterval(),
-		opts.SchedulerEntryFrequencyMinInterval())
-}
-
-func TestSchedulerEntryFrequencyMinInterval(t *testing.T) {
-	os.Clearenv()
-	t.Setenv("SCHEDULER_ENTRY_FREQUENCY_MIN_INTERVAL", "30")
-	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, 30, opts.SchedulerEntryFrequencyMinInterval())
-}
-
-func TestDefautSchedulerEntryFrequencyFactorValue(t *testing.T) {
-	os.Clearenv()
-	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, NewOptions().SchedulerEntryFrequencyFactor(),
-		opts.SchedulerEntryFrequencyFactor())
-}
-
-func TestSchedulerEntryFrequencyFactor(t *testing.T) {
-	os.Clearenv()
-	t.Setenv("SCHEDULER_ENTRY_FREQUENCY_FACTOR", "2")
-	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, 2, opts.SchedulerEntryFrequencyFactor())
-}
-
 func TestDefaultSchedulerRoundRobinValue(t *testing.T) {
 	os.Clearenv()
 	opts := parseEnvironmentVariables(t)
