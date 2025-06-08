@@ -3,13 +3,17 @@
 
 package timezone // import "miniflux.app/v2/internal/timezone"
 
-import "time"
+import (
+	"sync"
+	"time"
+
+	"golang.org/x/sync/singleflight"
+)
 
 // Convert converts provided date time to actual timezone.
 func Convert(tz string, t time.Time) time.Time {
-	userTimezone := getLocation(tz)
-
 	if t.Location().String() == "" {
+		userTimezone := getLocation(tz)
 		if t.Before(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)) {
 			return time.Date(0, time.January, 1, 0, 0, 0, 0, userTimezone)
 		}
@@ -29,8 +33,8 @@ func Convert(tz string, t time.Time) time.Time {
 		)
 	}
 
-	if t.Location() != userTimezone {
-		return t.In(userTimezone)
+	if t.Location().String() != tz {
+		return t.In(getLocation(tz))
 	}
 	return t
 }
@@ -38,10 +42,37 @@ func Convert(tz string, t time.Time) time.Time {
 // Now returns the current time with the given timezone.
 func Now(tz string) time.Time { return time.Now().In(getLocation(tz)) }
 
-func getLocation(tz string) *time.Location {
-	loc, err := time.LoadLocation(tz)
-	if err != nil {
-		loc = time.Local
+func getLocation(tz string) *time.Location { return locations.Location(tz) }
+
+var locations = newLocationCache()
+
+func newLocationCache() *locationCache {
+	return &locationCache{locations: make(map[string]*time.Location)}
+}
+
+type locationCache struct {
+	mu        sync.RWMutex
+	locations map[string]*time.Location
+	sg        singleflight.Group
+}
+
+func (self *locationCache) Location(tz string) *time.Location {
+	self.mu.RLock()
+	loc, ok := self.locations[tz]
+	self.mu.RUnlock()
+	if ok {
+		return loc
 	}
-	return loc
+
+	v, _, _ := self.sg.Do(tz, func() (any, error) {
+		loc, err := time.LoadLocation(tz)
+		if err != nil {
+			loc = time.Local
+		}
+		self.mu.Lock()
+		self.locations[tz] = loc
+		self.mu.Unlock()
+		return loc, nil
+	})
+	return v.(*time.Location)
 }
