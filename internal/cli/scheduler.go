@@ -35,15 +35,15 @@ func (self *Daemon) feedScheduler(ctx context.Context,
 	d := time.Duration(freq) * time.Minute
 	slog.Info("feed scheduler started", slog.Duration("freq", d))
 
-	ticker := time.NewTicker(d)
-	defer ticker.Stop()
+	timer := time.NewTimer(d)
+	defer timer.Stop()
 
 forLoop:
 	for {
 		select {
 		case <-ctx.Done():
 			break forLoop
-		case <-ticker.C:
+		case <-timer.C:
 			slog.Info("feed scheduler got tick")
 			for {
 				hasJobs := refreshFeeds(ctx, self.store, self.pool, batchSize,
@@ -54,11 +54,12 @@ forLoop:
 				}
 				slog.Info("scheduler: check for more jobs")
 			}
-			fetcher.ExpireHostLimits(d)
 		case <-self.pool.WakeupSignal():
 			slog.Info("feed scheduler got wakeup signal")
 			refreshFeeds(ctx, self.store, self.pool, batchSize, errorLimit)
 		}
+		fetcher.ExpireHostLimits(d)
+		timer.Reset(d)
 	}
 	slog.Info("feed scheduler stopped",
 		slog.Any("reason", context.Cause(ctx)))
