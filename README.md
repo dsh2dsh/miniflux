@@ -10,7 +10,10 @@ This project is an opinionated fork of Miniflux.
 
 ## Breaking changes!!!
 
-* The database migration will make your database incompatible with the upstream.
+* The database schema is incompatible with the upstream.
+
+  Actually the database migration works fine from version 2.2.8, but not from
+  later versions. So better use a new database for this fork.
 
 ## Changes from [upstream](https://github.com/miniflux/v2):
 
