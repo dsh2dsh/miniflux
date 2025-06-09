@@ -8,6 +8,10 @@ Official website: <https://miniflux.app>
 
 This project is an opinionated fork of Miniflux.
 
+## Breaking changes!!!
+
+* The database migration will make your database incompatible with the upstream.
+
 ## Changes from [upstream](https://github.com/miniflux/v2):
 
 * Google Reader API applies user's `Entry sorting` as default sort direction.
