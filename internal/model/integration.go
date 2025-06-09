@@ -118,3 +118,17 @@ type Integration struct {
 	WebhookSecret                    string `json:"webhook_secret,omitempty"`
 	WebhookURL                       string `json:"webhook_url,omitempty"`
 }
+
+func (self *Integration) RSSBridgeURLIfEnabled() string {
+	if self.RSSBridgeEnabled {
+		return self.RSSBridgeURL
+	}
+	return ""
+}
+
+func (self *Integration) RSSBridgeTokenIfEnabled() string {
+	if self.RSSBridgeEnabled {
+		return self.RSSBridgeToken
+	}
+	return ""
+}

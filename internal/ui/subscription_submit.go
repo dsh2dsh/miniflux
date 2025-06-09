@@ -32,12 +32,6 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := request.User(r)
-	var rssBridgeURL, rssBridgeToken string
-	if i := user.Integration(); i.RSSBridgeEnabled {
-		rssBridgeURL = i.RSSBridgeURL
-		rssBridgeToken = i.RSSBridgeToken
-	}
-
 	requestBuilder := fetcher.NewRequestBuilder().
 		WithTimeout(config.Opts.HTTPClientTimeout()).
 		WithProxyRotator(proxyrotator.ProxyRotatorInstance).
@@ -54,8 +48,9 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 	finder := subscription.NewSubscriptionFinder(requestBuilder)
-	subscriptions, lerr := finder.FindSubscriptions(ctx, f.URL, rssBridgeURL,
-		rssBridgeToken)
+	subscriptions, lerr := finder.FindSubscriptions(ctx, f.URL,
+		user.Integration().RSSBridgeURLIfEnabled(),
+		user.Integration().RSSBridgeTokenIfEnabled())
 	if lerr != nil {
 		h.showSubmitSubscriptionError(w, r, func(v *View) {
 			v.Set("form", f).

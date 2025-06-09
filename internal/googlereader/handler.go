@@ -444,15 +444,11 @@ func (h *handler) quickAddHandler(w http.ResponseWriter, r *http.Request) {
 	requestBuilder.WithTimeout(config.Opts.HTTPClientTimeout())
 	requestBuilder.WithProxyRotator(proxyrotator.ProxyRotatorInstance)
 
-	var rssBridgeURL, rssBridgeToken string
-	if i := user.Integration(); i.RSSBridgeEnabled {
-		rssBridgeURL = i.RSSBridgeURL
-		rssBridgeToken = i.RSSBridgeToken
-	}
-
 	subscriptions, localizedError := mfs.
 		NewSubscriptionFinder(requestBuilder).
-		FindSubscriptions(r.Context(), feedURL, rssBridgeURL, rssBridgeToken)
+		FindSubscriptions(r.Context(), feedURL,
+			user.Integration().RSSBridgeURLIfEnabled(),
+			user.Integration().RSSBridgeTokenIfEnabled())
 	if localizedError != nil {
 		json.ServerError(w, r, localizedError)
 		return
