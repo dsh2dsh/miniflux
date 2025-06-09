@@ -47,10 +47,10 @@ type FeedQueryBuilder struct {
 func (f *FeedQueryBuilder) WithCategoryID(categoryID int64) *FeedQueryBuilder {
 	if categoryID > 0 {
 		f.conditions = append(f.conditions,
-			fmt.Sprintf("f.category_id = $%d", len(f.args)+1))
+			"f.category_id = $"+strconv.Itoa(len(f.args)+1))
 		f.args = append(f.args, categoryID)
 		f.counterConditions = append(f.counterConditions,
-			fmt.Sprintf("f.category_id = $%d", len(f.counterArgs)+1))
+			"f.category_id = $"+strconv.Itoa(len(f.counterArgs)+1))
 		f.counterArgs = append(f.counterArgs, categoryID)
 		f.counterJoinFeeds = true
 	}
