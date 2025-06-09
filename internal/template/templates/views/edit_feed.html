@@ -131,7 +131,7 @@
                     {{ t "form.feed.label.scraper_rules" }}
                 </label>
                 &nbsp;
-                <a href="https://miniflux.app/docs/rules.html#scraper-rules" target="_blank">
+                <a href="https://miniflux.app/docs/rules.html#scraper-rules" {{ $.user.TargetBlank }}>
                     {{ icon "external-link" }}
                 </a>
             </div>
@@ -142,7 +142,7 @@
                     {{ t "form.feed.label.rewrite_rules" }}
                 </label>
                 &nbsp;
-                <a href="https://miniflux.app/docs/rules.html#rewrite-rules" target="_blank">
+                <a href="https://miniflux.app/docs/rules.html#rewrite-rules" {{ $.user.TargetBlank }}>
                     {{ icon "external-link" }}
                 </a>
             </div>
@@ -152,7 +152,7 @@
                     {{ t "form.feed.label.blocklist_rules" }}
                 </label>
                 &nbsp;
-                <a href="https://miniflux.app/docs/rules.html#feed-filtering-rules" target="_blank">
+                <a href="https://miniflux.app/docs/rules.html#feed-filtering-rules" {{ $.user.TargetBlank }}>
                     {{ icon "external-link" }}
                 </a>
             </div>
@@ -163,7 +163,7 @@
                     {{ t "form.feed.label.keeplist_rules" }}
                 </label>
                 &nbsp;
-                <a href="https://miniflux.app/docs/rules.html#feed-filtering-rules" target="_blank">
+                <a href="https://miniflux.app/docs/rules.html#feed-filtering-rules" {{ $.user.TargetBlank }}>
                     {{ icon "external-link" }}
                 </a>
             </div>
@@ -174,7 +174,7 @@
                     {{ t "form.feed.label.urlrewrite_rules" }}
                 </label>
                 &nbsp;
-                <a href="https://miniflux.app/docs/rules.html#rewriteurl-rules" target="_blank">
+                <a href="https://miniflux.app/docs/rules.html#rewriteurl-rules" {{ $.user.TargetBlank }}>
                     {{ icon "external-link" }}
                 </a>
             </div>
@@ -212,7 +212,7 @@
                         {{ t "form.feed.label.ntfy_priority" }}
                     </label>
                     &nbsp;
-                    <a href="https://docs.ntfy.sh/publish/#message-priority" target="_blank">
+                    <a href="https://docs.ntfy.sh/publish/#message-priority" {{ $.user.TargetBlank }}>
                         {{ icon "external-link" }}
                     </a>
                 </div>
@@ -233,7 +233,7 @@
                         {{ t "form.feed.label.pushover_priority" }}
                     </label>
                     &nbsp;
-                    <a href="https://pushover.net/api#priority" target="_blank">
+                    <a href="https://pushover.net/api#priority" {{ $.user.TargetBlank }}>
                         {{ icon "external-link" }}
                     </a>
                 </div>

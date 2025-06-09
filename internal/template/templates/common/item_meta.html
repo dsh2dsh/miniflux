@@ -62,9 +62,9 @@
         {{ if .entry.ShareCode }}
         <li class="item-meta-icons-share">
             <a href="{{ route "sharedEntry" "shareCode" .entry.ShareCode }}"
+               {{ $.user.TargetBlank }}
                aria-describedby="entry-title-{{ .entry.ID }}"
-               title="{{ t "entry.shared_entry.title" }}"
-               target="_blank">
+               title="{{ t "entry.shared_entry.title" }}">
                 {{ icon "share" }}
                 <span class="icon-label">{{ t "entry.shared_entry.label" }}</span>
             </a>
@@ -103,8 +103,8 @@
         {{ if not .user.AlwaysOpenExternalLinks }}
         <li class="item-meta-icons-external-url">
             <a href="{{ .entry.URL | safeURL  }}"
+               {{ $.user.TargetBlank }}
                aria-describedby="entry-title-{{ .entry.ID }}"
-               target="_blank"
                rel="noopener noreferrer"
                referrerpolicy="no-referrer"
                data-original-link="{{ .user.MarkReadOnView }}">
@@ -117,9 +117,9 @@
         {{ if .entry.CommentsURL }}
         <li class="item-meta-icons-comments">
             <a href="{{ .entry.CommentsURL | safeURL  }}"
+               {{ $.user.TargetBlank }}
                aria-describedby="entry-title-{{ .entry.ID }}"
                title="{{ t "entry.comments.title" }}"
-               target="_blank"
                rel="noopener noreferrer"
                referrerpolicy="no-referrer"
                data-comments-link="{{ .user.MarkReadOnView }}">

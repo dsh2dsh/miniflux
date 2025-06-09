@@ -75,6 +75,9 @@
     "entry.status.toast.read": "Ditandai sebagai telah dibaca",
     "entry.status.toast.unread": "Ditandai sebagai belum dibaca",
     "entry.tags.label": "Tanda:",
+    "entry.tags.more_tags_label": [
+        "Tampilkan %d tag lainnya"
+    ],
     "entry.unshare.label": "Batal bagikan",
     "error.api_key_already_exists": "Kunci API ini sudah ada.",
     "error.bad_credentials": "Nama pengguna atau kata sandi tidak valid.",
@@ -350,6 +353,7 @@
     "form.prefs.label.mark_read_on_view": "Secara otomatis menandai entri sebagai telah dibaca saat dilihat",
     "form.prefs.label.mark_read_on_view_or_media_completion": "Tandai entri sebagai telah dibaca ketika dilihat. Untuk audio/video, tandai sebagai telah dibaca ketika sudah 90% didengar/ditonton.",
     "form.prefs.label.media_playback_rate": "Kecepatan pemutaran audio/video",
+    "form.prefs.label.open_external_links_in_new_tab": "Buka tautan eksternal di tab baru (menambahkan target=\"_blank\" ke tautan)",
     "form.prefs.label.show_reading_time": "Tampilkan perkiraan waktu baca untuk artikel",
     "form.prefs.label.theme": "Tema",
     "form.prefs.label.timezone": "Zona Waktu",
@@ -430,6 +434,9 @@
     "page.api_keys.table.last_used_at": "Terakhir Digunakan",
     "page.api_keys.table.token": "Token",
     "page.api_keys.title": "Kunci API",
+    "page.categories_count": [
+        "%d kategori"
+    ],
     "page.categories.entries": "Artikel",
     "page.categories.feed_count": [
         "Ada %d umpan."
@@ -437,9 +444,6 @@
     "page.categories.feeds": "Langganan",
     "page.categories.no_feed": "Tidak ada umpan.",
     "page.categories.title": "Kategori",
-    "page.categories_count": [
-        "%d category"
-    ],
     "page.category_label": "Category: %s",
     "page.edit_category.title": "Sunting Kategori: %s",
     "page.edit_feed.etag_header": "Tajuk ETag:",
@@ -542,21 +546,21 @@
     "page.settings.webauthn.passkeys": "Passkey",
     "page.settings.webauthn.register": "Daftar passkey",
     "page.settings.webauthn.register.error": "Tidak dapat mendaftarkan passkey",
-    "page.shared_entries.title": "Entri yang Dibagikan",
     "page.shared_entries_count": [
-        "%d shared entry"
+        "%d entri yang dibagikan"
+    ],
+    "page.shared_entries.title": "Entri yang Dibagikan",
+    "page.starred_entry_count": [
+        "%d entri dimarkahi"
     ],
     "page.starred.title": "Markah",
-    "page.starred_entry_count": [
-        "%d starred entry"
-    ],
     "page.total_entry_count": [
-        "%d entry in total"
+        "%d entri secara total"
+    ],
+    "page.unread_entry_count": [
+        "%d entri belum dibaca"
     ],
     "page.unread.title": "Belum Dibaca",
-    "page.unread_entry_count": [
-        "%d unread entry"
-    ],
     "page.users.actions": "Tindakan",
     "page.users.admin.no": "Tidak",
     "page.users.admin.yes": "Ya",

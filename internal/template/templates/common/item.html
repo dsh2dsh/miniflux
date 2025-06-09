@@ -10,7 +10,7 @@
         <h2 id="entry-title-{{ .entry.ID }}" class="item-title">
             {{ if .user.AlwaysOpenExternalLinks }}
             <a href="{{ .entry.URL | safeURL  }}"
-               target="_blank"
+               {{ .user.TargetBlank }}
                rel="noopener noreferrer"
                referrerpolicy="no-referrer"
                data-original-link="{{ .user.MarkReadOnView }}">

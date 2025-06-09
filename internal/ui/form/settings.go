@@ -49,12 +49,13 @@ type SettingsForm struct {
 	MarkReadOnView         bool
 	// MarkReadBehavior is a string representation of the MarkReadOnView and
 	// MarkReadOnMediaPlayerCompletion fields together.
-	MarkReadBehavior        MarkReadBehavior
-	MediaPlaybackRate       float64
-	BlockFilterEntryRules   string
-	KeepFilterEntryRules    string
-	MarkReadOnScroll        bool
-	AlwaysOpenExternalLinks bool
+	MarkReadBehavior          MarkReadBehavior
+	MediaPlaybackRate         float64
+	BlockFilterEntryRules     string
+	KeepFilterEntryRules      string
+	MarkReadOnScroll          bool
+	AlwaysOpenExternalLinks   bool
+	OpenExternalLinksInNewTab bool
 }
 
 // MarkAsReadBehavior returns the MarkReadBehavior from the given MarkReadOnView and MarkReadOnMediaPlayerCompletion values.
@@ -123,6 +124,7 @@ func (s *SettingsForm) Merge(user *model.User) *model.User {
 	user.MarkReadOnMediaPlayerCompletion = MarkReadOnMediaPlayerCompletion
 	user.Extra.MarkReadOnScroll = s.MarkReadOnScroll
 	user.Extra.AlwaysOpenExternalLinks = s.AlwaysOpenExternalLinks
+	user.Extra.OpenExternalLinksInNewTab = s.OpenExternalLinksInNewTab
 
 	if s.Password != "" {
 		user.Password = s.Password
@@ -184,33 +186,34 @@ func NewSettingsForm(r *http.Request) *SettingsForm {
 		mediaPlaybackRate = 1
 	}
 	return &SettingsForm{
-		Username:                r.FormValue("username"),
-		Password:                r.FormValue("password"),
-		Confirmation:            r.FormValue("confirmation"),
-		Theme:                   r.FormValue("theme"),
-		Language:                r.FormValue("language"),
-		Timezone:                r.FormValue("timezone"),
-		EntryDirection:          r.FormValue("entry_direction"),
-		EntryOrder:              r.FormValue("entry_order"),
-		EntriesPerPage:          int(entriesPerPage),
-		KeyboardShortcuts:       r.FormValue("keyboard_shortcuts") == "1",
-		ShowReadingTime:         r.FormValue("show_reading_time") == "1",
-		CustomCSS:               r.FormValue("custom_css"),
-		CustomJS:                r.FormValue("custom_js"),
-		ExternalFontHosts:       r.FormValue("external_font_hosts"),
-		EntrySwipe:              r.FormValue("entry_swipe") == "1",
-		GestureNav:              r.FormValue("gesture_nav"),
-		DisplayMode:             r.FormValue("display_mode"),
-		DefaultReadingSpeed:     int(defaultReadingSpeed),
-		CJKReadingSpeed:         int(cjkReadingSpeed),
-		DefaultHomePage:         r.FormValue("default_home_page"),
-		CategoriesSortingOrder:  r.FormValue("categories_sorting_order"),
-		MarkReadOnView:          r.FormValue("mark_read_on_view") == "1",
-		MarkReadBehavior:        MarkReadBehavior(r.FormValue("mark_read_behavior")),
-		MediaPlaybackRate:       mediaPlaybackRate,
-		BlockFilterEntryRules:   r.FormValue("block_filter_entry_rules"),
-		KeepFilterEntryRules:    r.FormValue("keep_filter_entry_rules"),
-		MarkReadOnScroll:        r.FormValue("mark_read_on_scroll") != "",
-		AlwaysOpenExternalLinks: r.FormValue("always_open_external_links") != "",
+		Username:                  r.FormValue("username"),
+		Password:                  r.FormValue("password"),
+		Confirmation:              r.FormValue("confirmation"),
+		Theme:                     r.FormValue("theme"),
+		Language:                  r.FormValue("language"),
+		Timezone:                  r.FormValue("timezone"),
+		EntryDirection:            r.FormValue("entry_direction"),
+		EntryOrder:                r.FormValue("entry_order"),
+		EntriesPerPage:            int(entriesPerPage),
+		KeyboardShortcuts:         r.FormValue("keyboard_shortcuts") == "1",
+		ShowReadingTime:           r.FormValue("show_reading_time") == "1",
+		CustomCSS:                 r.FormValue("custom_css"),
+		CustomJS:                  r.FormValue("custom_js"),
+		ExternalFontHosts:         r.FormValue("external_font_hosts"),
+		EntrySwipe:                r.FormValue("entry_swipe") == "1",
+		GestureNav:                r.FormValue("gesture_nav"),
+		DisplayMode:               r.FormValue("display_mode"),
+		DefaultReadingSpeed:       int(defaultReadingSpeed),
+		CJKReadingSpeed:           int(cjkReadingSpeed),
+		DefaultHomePage:           r.FormValue("default_home_page"),
+		CategoriesSortingOrder:    r.FormValue("categories_sorting_order"),
+		MarkReadOnView:            r.FormValue("mark_read_on_view") == "1",
+		MarkReadBehavior:          MarkReadBehavior(r.FormValue("mark_read_behavior")),
+		MediaPlaybackRate:         mediaPlaybackRate,
+		BlockFilterEntryRules:     r.FormValue("block_filter_entry_rules"),
+		KeepFilterEntryRules:      r.FormValue("keep_filter_entry_rules"),
+		MarkReadOnScroll:          r.FormValue("mark_read_on_scroll") != "",
+		AlwaysOpenExternalLinks:   r.FormValue("always_open_external_links") != "",
+		OpenExternalLinksInNewTab: r.FormValue("open_external_links_in_new_tab") != "",
 	}
 }

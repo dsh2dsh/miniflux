@@ -437,7 +437,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 
 		client := karakeep.NewClient(userIntegrations.KarakeepAPIKey,
 			userIntegrations.KarakeepURL)
-		if err := client.SaveUrl(entry.URL); err != nil {
+		if err := client.SaveURL(entry.URL); err != nil {
 			slog.Error("Unable to send entry to Karakeep",
 				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),

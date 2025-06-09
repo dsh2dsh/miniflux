@@ -107,13 +107,16 @@ func (f *funcMap) Map() template.FuncMap {
 		"isodate": func(ts time.Time) string {
 			return ts.Format("2006-01-02 15:04:05")
 		},
+
 		"nonce": func() string {
 			return crypto.GenerateRandomStringHex(16)
 		},
 
 		"deRef": func(i *int) int { return *i },
 
-		// These functions are overrode at runtime after the parsing.
+		"subtract": func(a, b int) int { return a - b },
+
+		// These functions are overridden at runtime after parsing.
 		"elapsed": func(timezone string, t time.Time) string {
 			return ""
 		},
