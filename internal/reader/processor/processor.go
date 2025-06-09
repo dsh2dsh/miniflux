@@ -127,7 +127,7 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 		// The sanitizer should always run at the end of the process to make sure unsafe HTML is filtered out.
 		entry.Content = sanitizer.SanitizeHTML(pageBaseURL, entry.Content,
 			&sanitizer.SanitizerOptions{
-				OpenLinksInNewTab: user.OpenExternalLinksInNewTab(),
+				OpenLinksInNewTab: !user.OpenExternalLinkSameTab(),
 			})
 
 		updateEntryReadingTime(ctx, store, feed, entry, entryIsNew, user)
@@ -186,7 +186,7 @@ func ProcessEntryWebPage(feed *model.Feed, entry *model.Entry, user *model.User)
 	rewrite.Rewriter(rewrittenEntryURL, entry, entry.Feed.RewriteRules)
 	entry.Content = sanitizer.SanitizeHTML(pageBaseURL, entry.Content,
 		&sanitizer.SanitizerOptions{
-			OpenLinksInNewTab: user.OpenExternalLinksInNewTab(),
+			OpenLinksInNewTab: !user.OpenExternalLinkSameTab(),
 		})
 
 	return nil

@@ -46,10 +46,10 @@ type User struct {
 }
 
 type UserExtra struct {
-	AlwaysOpenExternalLinks   bool        `json:"always_open_external_links,omitempty"`
-	Integration               Integration `json:"integration,omitzero"`
-	MarkReadOnScroll          bool        `json:"mark_read_on_scroll,omitempty"`
-	OpenExternalLinksInNewTab bool        `json:"open_external_links_in_new_tab,omitempty"`
+	AlwaysOpenExternalLinks bool        `json:"always_open_external_links,omitempty"`
+	Integration             Integration `json:"integration,omitzero"`
+	MarkReadOnScroll        bool        `json:"mark_read_on_scroll,omitempty"`
+	OpenExternalLinkSameTab bool        `json:"open_external_link_same_tab,omitempty"`
 }
 
 // UserCreationRequest represents the request to create a user.
@@ -93,7 +93,7 @@ type UserModificationRequest struct {
 	KeepFilterEntryRules            *string  `json:"keep_filter_entry_rules"`
 	MarkReadOnScroll                *bool    `json:"mark_read_on_scroll,omitempty"`
 	AlwaysOpenExternalLinks         *bool    `json:"always_open_external_links,omitempty"`
-	OpenExternalLinksInNewTab       *bool    `json:"open_external_links_in_new_tab,omitempty"`
+	OpenExternalLinkSameTab         *bool    `json:"open_external_link_same_tab,omitempty"`
 }
 
 // Patch updates the User object with the modification request.
@@ -218,8 +218,8 @@ func (u *UserModificationRequest) Patch(user *User) {
 		user.Extra.AlwaysOpenExternalLinks = *u.AlwaysOpenExternalLinks
 	}
 
-	if u.OpenExternalLinksInNewTab != nil {
-		user.Extra.OpenExternalLinksInNewTab = *u.OpenExternalLinksInNewTab
+	if u.OpenExternalLinkSameTab != nil {
+		user.Extra.OpenExternalLinkSameTab = *u.OpenExternalLinkSameTab
 	}
 }
 
@@ -237,15 +237,15 @@ func (u *User) AlwaysOpenExternalLinks() bool {
 func (u *User) Integration() *Integration { return &u.Extra.Integration }
 func (u *User) MarkReadOnScroll() bool    { return u.Extra.MarkReadOnScroll }
 
-func (u *User) OpenExternalLinksInNewTab() bool {
-	return u.Extra.OpenExternalLinksInNewTab
+func (u *User) OpenExternalLinkSameTab() bool {
+	return u.Extra.OpenExternalLinkSameTab
 }
 
 func (u *User) TargetBlank() template.HTMLAttr {
-	if u.Extra.OpenExternalLinksInNewTab {
-		return `target="_blank"`
+	if u.OpenExternalLinkSameTab() {
+		return ""
 	}
-	return ""
+	return `target="_blank"`
 }
 
 func (u *User) HasSaveEntry() bool {
