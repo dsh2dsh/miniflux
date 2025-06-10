@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"unicode/utf8"
 
 	"miniflux.app/v2/internal/reader/encoding"
 )
@@ -25,7 +24,7 @@ func NewXMLDecoder(data io.ReadSeeker) *xml.Decoder {
 	enc := getEncoding(buffer.Bytes())
 	if enc == "" || strings.EqualFold(enc, "utf-8") {
 		// filter invalid chars now, since decoder.CharsetReader not called for utf-8 content
-		filteredBytes := filterValidXMLChars(buffer.Bytes())
+		filteredBytes := bytes.Map(filterValidXMLChar, buffer.Bytes())
 		decoder = xml.NewDecoder(bytes.NewReader(filteredBytes))
 	} else {
 		// filter invalid chars later within decoder.CharsetReader
@@ -44,30 +43,11 @@ func NewXMLDecoder(data io.ReadSeeker) *xml.Decoder {
 		if err != nil {
 			return nil, fmt.Errorf("encoding: unable to read data: %w", err)
 		}
-		filteredBytes := filterValidXMLChars(rawData)
+		filteredBytes := bytes.Map(filterValidXMLChar, rawData)
 		return bytes.NewReader(filteredBytes), nil
 	}
 
 	return decoder
-}
-
-// filterValidXMLChars filters inplace invalid XML characters.
-// This function is inspired from bytes.Map
-func filterValidXMLChars(s []byte) []byte {
-	j := 0
-	for i := 0; i < len(s); {
-		wid := 1
-		r := rune(s[i])
-		if r >= utf8.RuneSelf {
-			r, wid = utf8.DecodeRune(s[i:])
-		}
-		if r = filterValidXMLChar(r); r >= 0 {
-			utf8.EncodeRune(s[j:], r)
-			j += wid
-		}
-		i += wid
-	}
-	return s[:j]
 }
 
 // This function is copied from encoding/xml package,
