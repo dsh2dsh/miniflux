@@ -99,6 +99,16 @@ func TestImgWithIncorrectWidthAndHeightAttribute(t *testing.T) {
 	}
 }
 
+func TestImgWithEmptywidthAndHeightAttribute(t *testing.T) {
+	input := `<img src="https://example.org/image.png" width="" height="">`
+	expected := `<img src="https://example.org/image.png" loading="lazy">`
+	output := SanitizeHTMLWithDefaultOptions("http://example.org/", input)
+
+	if output != expected {
+		t.Errorf(`Wrong output: %s`, output)
+	}
+}
+
 func TestImgWithTextDataURL(t *testing.T) {
 	input := `<img src="data:text/plain;base64,SGVsbG8sIFdvcmxkIQ==" alt="Example">`
 	expected := ``
@@ -136,6 +146,100 @@ func TestImgWithSrcsetAndNoSrcAttribute(t *testing.T) {
 
 	if output != expected {
 		t.Errorf(`Wrong output: %s`, output)
+	}
+}
+
+func TestImgWithFetchPriorityAttribute(t *testing.T) {
+	cases := []struct {
+		input    string
+		expected string
+	}{
+		{
+			`<img src="https://example.org/image.png" fetchpriority="high">`,
+			`<img src="https://example.org/image.png" fetchpriority="high" loading="lazy">`,
+		},
+		{
+			`<img src="https://example.org/image.png" fetchpriority="low">`,
+			`<img src="https://example.org/image.png" fetchpriority="low" loading="lazy">`,
+		},
+		{
+			`<img src="https://example.org/image.png" fetchpriority="auto">`,
+			`<img src="https://example.org/image.png" fetchpriority="auto" loading="lazy">`,
+		},
+	}
+
+	for _, tc := range cases {
+		output := SanitizeHTMLWithDefaultOptions("http://example.org/", tc.input)
+		if output != tc.expected {
+			t.Errorf(`Wrong output for input %q: expected %q, got %q`, tc.input, tc.expected, output)
+		}
+	}
+}
+
+func TestImgWithInvalidFetchPriorityAttribute(t *testing.T) {
+	input := `<img src="https://example.org/image.png" fetchpriority="invalid">`
+	expected := `<img src="https://example.org/image.png" loading="lazy">`
+	output := SanitizeHTMLWithDefaultOptions("http://example.org/", input)
+
+	if output != expected {
+		t.Errorf(`Wrong output: expected %q, got %q`, expected, output)
+	}
+}
+
+func TestNonImgWithFetchPriorityAttribute(t *testing.T) {
+	input := `<p fetchpriority="high">Text</p>`
+	expected := `<p>Text</p>`
+	output := SanitizeHTMLWithDefaultOptions("http://example.org/", input)
+
+	if output != expected {
+		t.Errorf(`Wrong output: expected %q, got %q`, expected, output)
+	}
+}
+
+func TestImgWithDecodingAttribute(t *testing.T) {
+	cases := []struct {
+		input    string
+		expected string
+	}{
+		{
+			`<img src="https://example.org/image.png" decoding="sync">`,
+			`<img src="https://example.org/image.png" decoding="sync" loading="lazy">`,
+		},
+		{
+			`<img src="https://example.org/image.png" decoding="async">`,
+			`<img src="https://example.org/image.png" decoding="async" loading="lazy">`,
+		},
+		{
+			`<img src="https://example.org/image.png" decoding="auto">`,
+			`<img src="https://example.org/image.png" decoding="auto" loading="lazy">`,
+		},
+	}
+
+	for _, tc := range cases {
+		output := SanitizeHTMLWithDefaultOptions("http://example.org/", tc.input)
+		if output != tc.expected {
+			t.Errorf(`Wrong output for input %q: expected %q, got %q`, tc.input, tc.expected, output)
+		}
+	}
+}
+
+func TestImgWithInvalidDecodingAttribute(t *testing.T) {
+	input := `<img src="https://example.org/image.png" decoding="invalid">`
+	expected := `<img src="https://example.org/image.png" loading="lazy">`
+	output := SanitizeHTMLWithDefaultOptions("http://example.org/", input)
+
+	if output != expected {
+		t.Errorf(`Wrong output: expected %q, got %q`, expected, output)
+	}
+}
+
+func TestNonImgWithDecodingAttribute(t *testing.T) {
+	input := `<p decoding="async">Text</p>`
+	expected := `<p>Text</p>`
+	output := SanitizeHTMLWithDefaultOptions("http://example.org/", input)
+
+	if output != expected {
+		t.Errorf(`Wrong output: expected %q, got %q`, expected, output)
 	}
 }
 
@@ -727,6 +831,16 @@ func TestAttributesAreStripped(t *testing.T) {
 
 func TestMathML(t *testing.T) {
 	input := `<math xmlns="http://www.w3.org/1998/Math/MathML"><msup><mi>x</mi><mn>2</mn></msup></math>`
+	expected := `<math xmlns="http://www.w3.org/1998/Math/MathML"><msup><mi>x</mi><mn>2</mn></msup></math>`
+	output := SanitizeHTMLWithDefaultOptions("http://example.org/", input)
+
+	if expected != output {
+		t.Errorf(`Wrong output: "%s" != "%s"`, expected, output)
+	}
+}
+
+func TestInvalidMathMLXMLNamespace(t *testing.T) {
+	input := `<math xmlns="http://example.org"><msup><mi>x</mi><mn>2</mn></msup></math>`
 	expected := `<math xmlns="http://www.w3.org/1998/Math/MathML"><msup><mi>x</mi><mn>2</mn></msup></math>`
 	output := SanitizeHTMLWithDefaultOptions("http://example.org/", input)
 

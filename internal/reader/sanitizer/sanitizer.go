@@ -46,7 +46,7 @@ var tagAllowList = map[string][]string{
 	"h6":         {"id"},
 	"hr":         {},
 	"iframe":     {"width", "height", "frameborder", "src", "allowfullscreen"},
-	"img":        {"alt", "title", "src", "srcset", "sizes", "width", "height"},
+	"img":        {"alt", "title", "src", "srcset", "sizes", "width", "height", "fetchpriority", "decoding"},
 	"ins":        {},
 	"kbd":        {},
 	"li":         {"id"},
@@ -232,6 +232,22 @@ func sanitizeAttributes(baseURL, tagName string, attributes []html.Attribute, sa
 
 		if !isValidAttribute(tagName, attribute.Key) {
 			continue
+		}
+
+		if tagName == "math" && attribute.Key == "xmlns" && value != "http://www.w3.org/1998/Math/MathML" {
+			value = "http://www.w3.org/1998/Math/MathML"
+		}
+
+		if tagName == "img" && attribute.Key == "fetchpriority" {
+			if !isValidFetchPriorityValue(value) {
+				continue
+			}
+		}
+
+		if tagName == "img" && attribute.Key == "decoding" {
+			if !isValidDecodingValue(value) {
+				continue
+			}
 		}
 
 		if (tagName == "img" || tagName == "source") && attribute.Key == "srcset" {
@@ -525,6 +541,9 @@ func isValidDataAttribute(value string) bool {
 }
 
 func isPositiveInteger(value string) bool {
+	if value == "" {
+		return false
+	}
 	if number, err := strconv.Atoi(value); err == nil {
 		return number > 0
 	}
@@ -539,4 +558,14 @@ func getIntegerAttributeValue(name string, attributes []html.Attribute) int {
 		}
 	}
 	return 0
+}
+
+func isValidFetchPriorityValue(value string) bool {
+	allowedValues := []string{"high", "low", "auto"}
+	return slices.Contains(allowedValues, value)
+}
+
+func isValidDecodingValue(value string) bool {
+	allowedValues := []string{"sync", "async", "auto"}
+	return slices.Contains(allowedValues, value)
 }
