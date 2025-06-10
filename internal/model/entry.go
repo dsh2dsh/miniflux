@@ -47,6 +47,8 @@ type Entry struct {
 	Enclosures  EnclosureList `json:"enclosures"`
 	Feed        *Feed         `json:"feed,omitempty" db:"feed"`
 	Tags        []string      `json:"tags" db:"tags"`
+
+	markStored bool
 }
 
 func NewEntry() *Entry {
@@ -102,6 +104,9 @@ func (e *Entry) SetCommentsURL(rawURL string) (err error) {
 	e.CommentsURL = u.String()
 	return nil
 }
+
+func (e *Entry) MarkStored()  { e.markStored = true }
+func (e *Entry) Stored() bool { return e.markStored }
 
 // Entries represents a list of entries.
 type Entries []*Entry

@@ -108,7 +108,7 @@ func TestIsRecentEntry(t *testing.T) {
 		{&model.Entry{Title: "Example4", Date: time.Date(2024, 3, 15, 0o5, 0o5, 0o5, 0o5, time.UTC)}, true},
 	}
 	for _, tc := range scenarios {
-		result := isRecentEntry(tc.entry)
+		result := recentEntry(tc.entry)
 		if tc.expected != result {
 			t.Errorf(`Unexpected result, got %v for entry %q`, result, tc.entry.Title)
 		}

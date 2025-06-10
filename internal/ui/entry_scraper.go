@@ -45,12 +45,13 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := request.User(r)
-	if err := processor.ProcessEntryWebPage(feed, entry, user); err != nil {
+	err := processor.ProcessEntryWebPage(r.Context(), feed, entry, user)
+	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
 
-	err := h.store.UpdateEntryTitleAndContent(r.Context(), entry)
+	err = h.store.UpdateEntryTitleAndContent(r.Context(), entry)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return

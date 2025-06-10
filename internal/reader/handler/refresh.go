@@ -269,8 +269,12 @@ func (self *Refresh) refreshFeed(ctx context.Context,
 		slog.Time("new_next_check_at", self.feed.NextCheckAt))
 
 	self.feed.Entries = remoteFeed.Entries
-	processor.ProcessFeedEntries(ctx, self.store, self.feed, self.userID,
+	err = processor.ProcessFeedEntries(ctx, self.store, self.feed, self.userID,
 		self.force)
+	if err != nil {
+		return refreshed, self.incFeedError(ctx,
+			locale.NewLocalizedErrorWrapper(err, "error.database_error", err))
+	}
 
 	// We don't update existing entries when the crawler is enabled (we crawl
 	// only inexisting entries). Unless it is forced to refresh.

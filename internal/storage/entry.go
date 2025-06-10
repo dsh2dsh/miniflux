@@ -194,28 +194,16 @@ func (s *Storage) refreshEntries(ctx context.Context, tx pgx.Tx, feedID int64,
 func (s *Storage) knownEntries(ctx context.Context, tx pgx.Tx, feedID int64,
 	hashes []string, entries []*model.Entry,
 ) ([]*model.Entry, []*model.Entry, error) {
-	rows, _ := tx.Query(ctx, `
-SELECT hash, published_at FROM entries WHERE feed_id = $1 AND hash=ANY($2)`,
-		feedID, hashes)
-
-	knownHashes := make(map[string]time.Time, len(entries))
-	var hash string
-	var publishedAt time.Time
-
-	_, err := pgx.ForEachRow(rows, []any{&hash, &publishedAt},
-		func() error {
-			knownHashes[hash] = publishedAt
-			return nil
-		})
-	if errors.Is(err, pgx.ErrNoRows) {
+	published, err := s.publishedEntryHashes(ctx, tx, feedID, hashes)
+	if err != nil {
+		return nil, nil, err
+	} else if len(published) == 0 {
 		return nil, entries, nil
-	} else if err != nil {
-		return nil, nil, fmt.Errorf("storage: check entries exist: %w", err)
 	}
 
 	var updatedEntries, newEntries []*model.Entry
 	for _, e := range entries {
-		if publishedAt, ok := knownHashes[e.Hash]; ok {
+		if publishedAt, ok := published[e.Hash]; ok {
 			if publishedAt.Before(e.Date) {
 				updatedEntries = append(updatedEntries, e)
 			}
@@ -224,6 +212,35 @@ SELECT hash, published_at FROM entries WHERE feed_id = $1 AND hash=ANY($2)`,
 		}
 	}
 	return updatedEntries, newEntries, nil
+}
+
+func (s *Storage) publishedEntryHashes(
+	ctx context.Context,
+	db interface {
+		Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	},
+	feedID int64, hashes []string,
+) (map[string]time.Time, error) {
+	rows, _ := db.Query(ctx, `
+SELECT hash, published_at
+  FROM entries
+ WHERE feed_id = $1 AND hash = ANY($2)`, feedID, hashes)
+
+	var hash string
+	var publishedAt time.Time
+	scans := []any{&hash, &publishedAt}
+	published := make(map[string]time.Time, len(hashes))
+
+	_, err := pgx.ForEachRow(rows, scans, func() error {
+		published[hash] = publishedAt
+		return nil
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	} else if err != nil {
+		return nil, fmt.Errorf("storage: check entries exist: %w", err)
+	}
+	return published, nil
 }
 
 // updateEntry updates an entry when a feed is refreshed.
@@ -269,6 +286,24 @@ RETURNING id, status, changed_at`,
 		enc.UserID, enc.EntryID = e.UserID, e.ID
 	}
 	return s.updateEnclosures(ctx, tx, e)
+}
+
+func removeDuplicates(items []string) []string {
+	seen := make(map[string]struct{}, len(items))
+	for i, s := range items {
+		if s = strings.TrimSpace(s); s != "" {
+			if _, found := seen[s]; !found {
+				seen[s] = struct{}{}
+			} else {
+				s = ""
+			}
+		}
+		items[i] = s
+	}
+	if len(seen) < len(items) {
+		items = slices.DeleteFunc(items, func(s string) bool { return s == "" })
+	}
+	return items
 }
 
 func (s *Storage) createEntries(ctx context.Context, tx pgx.Tx,
@@ -717,20 +752,19 @@ func (s *Storage) UnshareEntry(ctx context.Context, userID, entryID int64,
 	return nil
 }
 
-func removeDuplicates(items []string) []string {
-	seen := make(map[string]struct{}, len(items))
-	for i, s := range items {
-		if s = strings.TrimSpace(s); s != "" {
-			if _, found := seen[s]; !found {
-				seen[s] = struct{}{}
-			} else {
-				s = ""
-			}
-		}
-		items[i] = s
+func (s *Storage) KnownEntryHashes(ctx context.Context, feedID int64,
+	hashes []string,
+) ([]string, error) {
+	rows, _ := s.db.Query(ctx,
+		`SELECT hash FROM entries WHERE feed_id = $1 AND hash = ANY($2)`,
+		feedID, hashes)
+	known, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	} else if err != nil {
+		return nil, fmt.Errorf(
+			"storage: check entries exist: feed=%v hashes=%v: %w",
+			feedID, len(hashes), err)
 	}
-	if len(seen) < len(items) {
-		items = slices.DeleteFunc(items, func(s string) bool { return s == "" })
-	}
-	return items
+	return known, nil
 }

@@ -307,7 +307,7 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := request.User(r)
-	if err := processor.ProcessEntryWebPage(feed, entry, user); err != nil {
+	if err := processor.ProcessEntryWebPage(ctx, feed, entry, user); err != nil {
 		json.ServerError(w, r, err)
 		return
 	}

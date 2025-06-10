@@ -141,7 +141,11 @@ func createFeed(ctx context.Context, store *storage.Storage, userID int64,
 	feed.ContentChanged(body)
 	feed.CheckedNow()
 
-	processor.ProcessFeedEntries(ctx, store, feed, userID, true)
+	err = processor.ProcessFeedEntries(ctx, store, feed, userID, true)
+	if err != nil {
+		return nil, locale.NewLocalizedErrorWrapper(err,
+			"error.database_error", err)
+	}
 
 	if err := store.CreateFeed(ctx, feed); err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err,
