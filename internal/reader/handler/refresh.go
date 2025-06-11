@@ -79,11 +79,6 @@ func (self *Refresh) RefreshFeed(ctx context.Context,
 		return lerr
 	}
 
-	lerr = self.anotherFeedURLExists(ctx, resp.EffectiveURL())
-	if lerr != nil {
-		return lerr
-	}
-
 	var refreshed model.FeedRefreshed
 	if self.refreshAnyway(resp) {
 		r, lerr := self.refreshFeed(logging.WithLogger(ctx, log), resp)
@@ -202,16 +197,6 @@ func (self *Refresh) incFeedError(ctx context.Context,
 		return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
 	}
 	return lerr
-}
-
-func (self *Refresh) anotherFeedURLExists(ctx context.Context, url string,
-) *locale.LocalizedErrorWrapper {
-	if self.store.AnotherFeedURLExists(ctx, self.userID, self.feedID, url) {
-		lerr := locale.NewLocalizedErrorWrapper(ErrDuplicatedFeed,
-			"error.duplicated_feed")
-		return self.incFeedError(ctx, lerr)
-	}
-	return nil
 }
 
 func (self *Refresh) refreshFeed(ctx context.Context,
