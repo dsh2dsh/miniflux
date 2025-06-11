@@ -257,8 +257,11 @@ func (self *Refresh) refreshFeed(ctx context.Context,
 	err = processor.ProcessFeedEntries(ctx, self.store, self.feed, self.userID,
 		self.force)
 	if err != nil {
-		return refreshed, self.incFeedError(ctx,
-			locale.NewLocalizedErrorWrapper(err, "error.database_error", err))
+		lerr := locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
+		if errors.Is(err, processor.ErrScrape) {
+			return refreshed, self.incFeedError(ctx, lerr)
+		}
+		return refreshed, lerr
 	}
 
 	// We don't update existing entries when the crawler is enabled (we crawl
@@ -267,8 +270,8 @@ func (self *Refresh) refreshFeed(ctx context.Context,
 	refreshed, err = self.store.RefreshFeedEntries(ctx, self.userID, self.feedID,
 		self.feed.Entries, update)
 	if err != nil {
-		return refreshed, self.incFeedError(ctx,
-			locale.NewLocalizedErrorWrapper(err, "error.database_error", err))
+		return refreshed, locale.NewLocalizedErrorWrapper(err,
+			"error.database_error", err)
 	}
 
 	self.pushIntegrations(logging.WithLogger(ctx, log), refreshed.CreatedEntries)

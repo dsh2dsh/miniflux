@@ -5,6 +5,7 @@ package processor // import "miniflux.app/v2/internal/reader/processor"
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -24,6 +25,8 @@ import (
 	"miniflux.app/v2/internal/reader/urlcleaner"
 	"miniflux.app/v2/internal/storage"
 )
+
+var ErrScrape = errors.New("internal/reader/processor: unable scrape entry")
 
 var customReplaceRuleRegex = regexp.MustCompile(
 	`rewrite\("([^"]+)"\|"([^"]+)"\)`)
@@ -72,9 +75,8 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 
 			scrapedURL, _, err := scrape(ctx, feed, entry)
 			if err != nil {
-				log.Warn("Unable to scrape entry", slog.Any("error", err))
-				return fmt.Errorf(
-					"internal/reader/processor: scrape entry: %w", err)
+				log.Warn("Unable scrape entry", slog.Any("error", err))
+				return fmt.Errorf("%w: %w", ErrScrape, err)
 			} else if scrapedURL != "" {
 				pageBaseURL = scrapedURL
 			}

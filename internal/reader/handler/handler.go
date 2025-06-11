@@ -143,13 +143,11 @@ func createFeed(ctx context.Context, store *storage.Storage, userID int64,
 
 	err = processor.ProcessFeedEntries(ctx, store, feed, userID, true)
 	if err != nil {
-		return nil, locale.NewLocalizedErrorWrapper(err,
-			"error.database_error", err)
+		return nil, locale.NewLocalizedErrorWrapper(err, "", err)
 	}
 
 	if err := store.CreateFeed(ctx, feed); err != nil {
-		return nil, locale.NewLocalizedErrorWrapper(err,
-			"error.database_error", err)
+		return nil, locale.NewLocalizedErrorWrapper(err, "", err)
 	}
 	logging.FromContext(ctx).Debug("Created feed")
 
