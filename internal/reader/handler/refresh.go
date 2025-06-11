@@ -51,10 +51,12 @@ type Refresh struct {
 func (self *Refresh) RefreshFeed(ctx context.Context,
 ) *locale.LocalizedErrorWrapper {
 	log := logging.FromContext(ctx).With(
-		slog.Int64("user_id", self.userID), slog.Int64("feed_id", self.feedID))
+		slog.Int64("user_id", self.userID),
+		slog.Int64("feed_id", self.feedID))
 	log.Debug("Begin feed refresh process",
 		slog.Bool("force_refresh", self.force))
 
+	ctx = storage.WithTraceStat(ctx)
 	startTime := time.Now()
 	if err := self.initFeed(ctx); err != nil {
 		return err
@@ -104,7 +106,8 @@ func (self *Refresh) RefreshFeed(ctx context.Context,
 		return err
 	}
 
-	self.logFeedRefresh(log, &refreshed, time.Since(startTime))
+	self.logFeedRefreshed(logging.WithLogger(ctx, log), &refreshed,
+		time.Since(startTime))
 	return nil
 }
 
@@ -321,10 +324,12 @@ func (self *Refresh) updateFeed(ctx context.Context,
 	return nil
 }
 
-func (self *Refresh) logFeedRefresh(log *slog.Logger,
+func (self *Refresh) logFeedRefreshed(ctx context.Context,
 	refreshed *model.FeedRefreshed, elapsed time.Duration,
 ) {
+	log := logging.FromContext(ctx)
 	var msg string
+
 	switch {
 	case refreshed.Refreshed:
 		msg = "Feed refreshed"
@@ -333,10 +338,7 @@ func (self *Refresh) logFeedRefresh(log *slog.Logger,
 			slog.String("hash", strconv.FormatUint(self.feed.Extra.Hash, 16)),
 			slog.Int("entries", len(self.feed.Entries)),
 			slog.Int("updated", len(refreshed.UpdatedEntires)),
-			slog.Int("created", len(refreshed.CreatedEntries)),
-			slog.Group("storage",
-				slog.Int("queries", refreshed.StorageQueries),
-				slog.Duration("elapsed", refreshed.StorageElapsed)))
+			slog.Int("created", len(refreshed.CreatedEntries)))
 	case refreshed.NotModified == notModifiedHeaders:
 		msg = "Response not modified"
 		log = log.With(
@@ -349,6 +351,12 @@ func (self *Refresh) logFeedRefresh(log *slog.Logger,
 			slog.String("hash", strconv.FormatUint(self.feed.Extra.Hash, 16)))
 	default:
 		msg = "Feed not refreshed with unknown reason"
+	}
+
+	if t := storage.TraceStatFrom(ctx); t != nil && t.Queries > 0 {
+		log = log.With(slog.Group("storage",
+			slog.Int64("queries", t.Queries),
+			slog.Duration("elapsed", t.Elapsed)))
 	}
 
 	log.Info(msg,

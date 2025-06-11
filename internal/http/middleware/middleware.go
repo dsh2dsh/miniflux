@@ -12,6 +12,7 @@ import (
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/logging"
+	"miniflux.app/v2/internal/storage"
 )
 
 type MiddlewareFunc func(next http.Handler) http.Handler
@@ -48,10 +49,10 @@ type AccessLog struct {
 }
 
 func (self *AccessLog) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := storage.WithTraceStat(r.Context())
 	startTime := time.Now()
-	self.next.ServeHTTP(w, r)
+	self.next.ServeHTTP(w, r.WithContext(ctx))
 
-	ctx := r.Context()
 	log := logging.FromContext(ctx).With(
 		slog.String("client_ip", request.ClientIP(r)),
 		slog.String("proto", r.Proto))
@@ -62,9 +63,15 @@ func (self *AccessLog) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			slog.String("name", u.Username)))
 	}
 
+	if t := storage.TraceStatFrom(ctx); t != nil && t.Queries > 0 {
+		log = log.With(slog.Group("storage",
+			slog.Int64("queries", t.Queries),
+			slog.Duration("elapsed", t.Elapsed)))
+	}
+
 	methodURL := r.Method + " " + r.URL.Path
 	log.LogAttrs(ctx, self.level(r), methodURL,
-		slog.Duration("elapsed_time", time.Since(startTime)))
+		slog.Duration("request_time", time.Since(startTime)))
 }
 
 func (self *AccessLog) level(r *http.Request) slog.Level {

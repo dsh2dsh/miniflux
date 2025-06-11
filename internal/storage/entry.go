@@ -136,9 +136,6 @@ func (s *Storage) RefreshFeedEntries(ctx context.Context, userID, feedID int64,
 		hashes[i] = e.Hash
 	}
 
-	start := time.Now()
-	ctx = withTraceStats(ctx)
-
 	if len(entries) > 0 {
 		err = pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
 			r, err := s.refreshEntries(ctx, tx, feedID, hashes, entries,
@@ -157,11 +154,6 @@ func (s *Storage) RefreshFeedEntries(ctx context.Context, userID, feedID int64,
 
 	if err = s.cleanupEntries(ctx, feedID, hashes); err != nil {
 		return
-	}
-
-	refreshed.StorageElapsed = time.Since(start)
-	if t := traceStatsFrom(ctx); t != nil {
-		refreshed.StorageQueries = t.queries
 	}
 	return
 }
@@ -214,14 +206,10 @@ func (s *Storage) knownEntries(ctx context.Context, tx pgx.Tx, feedID int64,
 	return updatedEntries, newEntries, nil
 }
 
-func (s *Storage) publishedEntryHashes(
-	ctx context.Context,
-	db interface {
-		Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
-	},
+func (s *Storage) publishedEntryHashes(ctx context.Context, tx pgx.Tx,
 	feedID int64, hashes []string,
 ) (map[string]time.Time, error) {
-	rows, _ := db.Query(ctx, `
+	rows, _ := tx.Query(ctx, `
 SELECT hash, published_at
   FROM entries
  WHERE feed_id = $1 AND hash = ANY($2)`, feedID, hashes)
