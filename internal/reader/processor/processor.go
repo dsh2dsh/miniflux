@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"regexp"
 	"slices"
 	"time"
@@ -52,6 +53,10 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 		}
 	}
 
+	// The errors are handled in RemoveTrackingParameters.
+	feedURL, _ := url.Parse(feed.FeedURL)
+	siteURL, _ := url.Parse(feed.SiteURL)
+
 	for _, entry := range feed.Entries {
 		log := log.With(
 			slog.Int64("user_id", user.ID),
@@ -65,7 +70,7 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 				slog.String("url", feed.FeedURL)))
 		log.Debug("Processing entry")
 
-		removeTracking(feed, entry)
+		removeTracking(feedURL, siteURL, entry)
 		rewriteEntryURL(ctx, feed, entry)
 
 		var pageBaseURL string
@@ -82,7 +87,7 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 			}
 		}
 
-		rewrite.Rewriter(entry.URL, entry, feed.RewriteRules)
+		rewrite.ApplyContentRewriteRules(entry, feed.RewriteRules)
 		if pageBaseURL == "" {
 			pageBaseURL = entry.URL
 		}
@@ -140,9 +145,10 @@ func markStoredEntries(ctx context.Context, store *storage.Storage,
 	return nil
 }
 
-func removeTracking(feed *model.Feed, entry *model.Entry) {
-	cleanURL, err := urlcleaner.RemoveTrackingParameters(feed.FeedURL,
-		feed.SiteURL, entry.URL)
+func removeTracking(feedURL, siteURL *url.URL, entry *model.Entry) {
+	entryURL, _ := url.Parse(entry.URL)
+	cleanURL, err := urlcleaner.RemoveTrackingParameters(feedURL, siteURL,
+		entryURL)
 	if err == nil {
 		entry.URL = cleanURL
 	}
@@ -234,7 +240,7 @@ func ProcessEntryWebPage(ctx context.Context, feed *model.Feed,
 			user.DefaultReadingSpeed, user.CJKReadingSpeed)
 	}
 
-	rewrite.Rewriter(entry.URL, entry, entry.Feed.RewriteRules)
+	rewrite.ApplyContentRewriteRules(entry, entry.Feed.RewriteRules)
 	entry.Content = sanitizer.SanitizeHTML(baseURL, entry.Content,
 		&sanitizer.SanitizerOptions{
 			OpenLinksInNewTab: !user.OpenExternalLinkSameTab(),

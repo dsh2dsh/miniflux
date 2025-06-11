@@ -225,8 +225,10 @@ func sanitizeAttributes(baseURL, tagName string, attributes []html.Attribute, sa
 		isImageLargerThanLayout = imgWidth > 750
 	}
 
+	parsedBaseUrl, _ := url.Parse(baseURL)
 	htmlAttrs := make([]string, 0, len(attributes))
 	attrNames := make([]string, 0, len(attributes))
+
 	for _, attribute := range attributes {
 		value := attribute.Val
 
@@ -283,7 +285,8 @@ func sanitizeAttributes(baseURL, tagName string, attributes []html.Attribute, sa
 				}
 
 				// TODO use feedURL instead of baseURL twice.
-				if cleanedURL, err := urlcleaner.RemoveTrackingParameters(baseURL, baseURL, value); err == nil {
+				parsedValueUrl, _ := url.Parse(value)
+				if cleanedURL, err := urlcleaner.RemoveTrackingParameters(parsedBaseUrl, parsedBaseUrl, parsedValueUrl); err == nil {
 					value = cleanedURL
 				}
 			}
