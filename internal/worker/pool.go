@@ -55,7 +55,8 @@ type queueItem struct {
 	begin func()
 	end   func()
 
-	err error
+	err       error
+	traceStat *storage.TraceStat
 }
 
 func NewItem(job *model.Job, index int, begin, end func()) queueItem {
@@ -83,8 +84,8 @@ func (self *Pool) Push(ctx context.Context, jobs []model.Job) {
 
 	var wg sync.WaitGroup
 	beginJob := func() { wg.Add(1) }
-	startTime := time.Now()
 	items := makeItems(jobs, beginJob, wg.Done)
+	startTime := time.Now()
 
 jobsLoop:
 	for i := range items {
@@ -98,11 +99,18 @@ jobsLoop:
 	}
 	wg.Wait()
 
-	log = log.With(slog.Duration("elapsed", time.Since(startTime)))
+	traceStat := sumTraceStats(items)
+	log = log.With(
+		slog.Group("storage",
+			slog.Int64("queries", traceStat.Queries),
+			slog.Duration("elapsed", traceStat.Elapsed)),
+		slog.Duration("elapsed", time.Since(startTime)))
+
 	for i := range items {
 		if items[i].err != nil {
 			log.Info("worker: refreshed a batch of feeds with error",
 				slog.Any("error", items[i].err))
+			return
 		}
 	}
 	log.Info("worker: refreshed a batch of feeds")
@@ -187,13 +195,19 @@ forLoop:
 
 func (self *Pool) refreshFeed(job *queueItem) {
 	log := logging.FromContext(self.ctx).With(slog.Int("job", job.index))
-	log.Debug("worker: job received",
+	ctx := storage.WithTraceStat(logging.WithLogger(self.ctx, log))
+
+	log = log.With(
 		slog.Int64("user_id", job.UserID),
 		slog.Int64("feed_id", job.FeedID))
+	log.Debug("worker: job received")
 
 	startTime := time.Now()
-	err := handler.RefreshFeed(logging.WithLogger(self.ctx, log),
-		self.store, job.UserID, job.FeedID, false)
+	err := handler.RefreshFeed(ctx, self.store, job.UserID, job.FeedID, false)
+	if err != nil && !errors.Is(err, handler.ErrBadFeed) {
+		job.err = err
+		log.Error("worker: error refreshing feed", slog.Any("error", err))
+	}
 
 	if config.Opts.HasMetricsCollector() {
 		status := "success"
@@ -205,11 +219,18 @@ func (self *Pool) refreshFeed(job *queueItem) {
 			Observe(time.Since(startTime).Seconds())
 	}
 
-	if err != nil && !errors.Is(err, handler.ErrBadFeed) {
-		job.err = err
-		log.Error("worker: error refreshing feed",
-			slog.Int64("user_id", job.UserID),
-			slog.Int64("feed_id", job.FeedID),
-			slog.Any("error", err))
+	if t := storage.TraceStatFrom(ctx); t != nil {
+		job.traceStat = t
 	}
+}
+
+func sumTraceStats(items []queueItem) storage.TraceStat {
+	var traceStat storage.TraceStat
+	for i := range items {
+		item := &items[i]
+		if item.traceStat != nil {
+			traceStat.Add(item.traceStat)
+		}
+	}
+	return traceStat
 }

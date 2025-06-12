@@ -83,7 +83,7 @@ func (self *Refresh) Refresh(ctx context.Context) error {
 	log.Debug("Begin feed refresh process",
 		slog.Bool("force_refresh", self.force))
 
-	ctx = storage.WithTraceStat(ctx)
+	ctx = withTraceStat(ctx)
 	startTime := time.Now()
 	if err := self.initFeed(ctx); err != nil {
 		return err
@@ -135,6 +135,13 @@ func (self *Refresh) Refresh(ctx context.Context) error {
 	self.logFeedRefreshed(logging.WithLogger(ctx, log), &refreshed,
 		time.Since(startTime))
 	return nil
+}
+
+func withTraceStat(ctx context.Context) context.Context {
+	if t := storage.TraceStatFrom(ctx); t != nil {
+		return ctx
+	}
+	return storage.WithTraceStat(ctx)
 }
 
 func (self *Refresh) initFeed(ctx context.Context) error {

@@ -17,6 +17,16 @@ type TraceStat struct {
 	Queries int64
 }
 
+func (self *TraceStat) incQuery(d time.Duration) {
+	atomic.AddInt64(&self.Queries, 1)
+	atomic.AddInt64((*int64)(&self.Elapsed), d.Nanoseconds())
+}
+
+func (self *TraceStat) Add(t *TraceStat) {
+	self.Queries += t.Queries
+	self.Elapsed += t.Elapsed
+}
+
 func WithTraceStat(ctx context.Context) context.Context {
 	return context.WithValue(ctx, TraceStatKey, &TraceStat{})
 }
@@ -51,10 +61,8 @@ func (self queryTracer) TraceQueryStart(ctx context.Context, conn *pgx.Conn,
 func (self queryTracer) TraceQueryEnd(ctx context.Context, conn *pgx.Conn,
 	data pgx.TraceQueryEndData,
 ) {
-	if s := TraceStatFrom(ctx); s != nil {
+	if t := TraceStatFrom(ctx); t != nil {
 		queryData := ctx.Value(traceQueryDataKey).(*traceQueryData)
-		atomic.AddInt64((*int64)(&s.Elapsed),
-			time.Since(queryData.startTime).Nanoseconds())
-		atomic.AddInt64(&s.Queries, 1)
+		t.incQuery(time.Since(queryData.startTime))
 	}
 }
