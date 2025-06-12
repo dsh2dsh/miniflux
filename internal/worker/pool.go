@@ -6,6 +6,7 @@ package worker // import "miniflux.app/v2/internal/worker"
 import (
 	"cmp"
 	"context"
+	"errors"
 	"log/slog"
 	"maps"
 	"net/url"
@@ -131,7 +132,8 @@ forLoop:
 func (self *Pool) refreshFeed(job queueItem) {
 	log := logging.FromContext(self.ctx).With(slog.Int("job", job.index))
 	log.Debug("worker: job received",
-		slog.Int64("user_id", job.UserID), slog.Int64("feed_id", job.FeedID))
+		slog.Int64("user_id", job.UserID),
+		slog.Int64("feed_id", job.FeedID))
 
 	startTime := time.Now()
 	err := handler.RefreshFeed(logging.WithLogger(self.ctx, log),
@@ -145,6 +147,13 @@ func (self *Pool) refreshFeed(job queueItem) {
 		metric.BackgroundFeedRefreshDuration.
 			WithLabelValues(status).
 			Observe(time.Since(startTime).Seconds())
+	}
+
+	if err != nil && !errors.Is(err, handler.ErrBadFeed) {
+		log.Error("worker: error refreshing feed",
+			slog.Int64("user_id", job.UserID),
+			slog.Int64("feed_id", job.FeedID),
+			slog.Any("error", err))
 	}
 }
 

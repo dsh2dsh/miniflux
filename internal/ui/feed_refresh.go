@@ -22,14 +22,14 @@ func (h *handler) refreshFeed(w http.ResponseWriter, r *http.Request) {
 	feedID := request.RouteInt64Param(r, "feedID")
 	forceRefresh := request.QueryBoolParam(r, "forceRefresh", false)
 
-	lerr := feedHandler.RefreshFeed(r.Context(), h.store, userID, feedID,
+	err := feedHandler.RefreshFeed(r.Context(), h.store, userID, feedID,
 		forceRefresh)
-	if lerr != nil {
+	if err != nil {
 		slog.Warn("Unable to refresh feed",
 			slog.Int64("user_id", request.UserID(r)),
 			slog.Int64("feed_id", feedID),
 			slog.Bool("force_refresh", forceRefresh),
-			slog.Any("error", lerr))
+			slog.Any("error", err))
 	}
 	html.Redirect(w, r, route.Path(h.router, "feedEntries", "feedID", feedID))
 }

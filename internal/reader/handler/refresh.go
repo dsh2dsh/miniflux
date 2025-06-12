@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strconv"
 	"time"
@@ -26,16 +27,29 @@ const (
 	notModifiedContent
 )
 
+var ErrBadFeed = errors.New("reader/handler: bad feed")
+
 func RefreshFeed(ctx context.Context, store *storage.Storage, userID,
 	feedID int64, forceRefresh bool,
-) *locale.LocalizedErrorWrapper {
+) error {
 	r := Refresh{
 		store:  store,
 		userID: userID,
 		feedID: feedID,
 		force:  forceRefresh,
 	}
-	return r.RefreshFeed(ctx)
+
+	if err := r.Refresh(ctx); err != nil {
+		var lerr *locale.LocalizedErrorWrapper
+		if errors.As(err, &lerr) {
+			if err := r.incFeedError(ctx, lerr); err != nil {
+				return err
+			}
+			return fmt.Errorf("%w: %w", ErrBadFeed, err)
+		}
+		return err
+	}
+	return nil
 }
 
 type Refresh struct {
@@ -47,9 +61,22 @@ type Refresh struct {
 	feed *model.Feed
 }
 
-// RefreshFeed refreshes a feed.
-func (self *Refresh) RefreshFeed(ctx context.Context,
-) *locale.LocalizedErrorWrapper {
+func (self *Refresh) incFeedError(ctx context.Context,
+	lerr *locale.LocalizedErrorWrapper,
+) error {
+	user, err := self.store.UserByID(ctx, self.userID)
+	if err != nil {
+		return fmt.Errorf("reader/handler: fetch user from db: %w: %w", err, lerr)
+	}
+	self.feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
+	if err := self.store.IncFeedError(ctx, self.feed); err != nil {
+		return fmt.Errorf("reader/handler: inc feed error count: %w: %w", err, lerr)
+	}
+	return nil
+}
+
+// Refresh refreshes a feed.
+func (self *Refresh) Refresh(ctx context.Context) error {
 	log := logging.FromContext(ctx).With(
 		slog.Int64("user_id", self.userID),
 		slog.Int64("feed_id", self.feedID))
@@ -67,8 +94,7 @@ func (self *Refresh) RefreshFeed(ctx context.Context,
 
 	resp, err := self.response(ctx)
 	if err != nil {
-		return locale.NewLocalizedErrorWrapper(err, "error.unable_to_parse_feed",
-			err)
+		return err
 	}
 	defer resp.Close()
 
@@ -76,16 +102,16 @@ func (self *Refresh) RefreshFeed(ctx context.Context,
 		self.logRateLimited(logging.WithLogger(ctx, log), resp)
 	}
 
-	lerr := self.respLocalizedError(logging.WithLogger(ctx, log), resp)
-	if lerr != nil {
-		return lerr
+	err = self.respError(logging.WithLogger(ctx, log), resp)
+	if err != nil {
+		return err
 	}
 
 	var refreshed model.FeedRefreshed
 	if self.refreshAnyway(resp) {
-		r, lerr := self.refreshFeed(logging.WithLogger(ctx, log), resp)
-		if lerr != nil {
-			return lerr
+		r, err := self.refreshFeed(logging.WithLogger(ctx, log), resp)
+		if err != nil {
+			return err
 		}
 		refreshed = r
 	} else {
@@ -111,15 +137,12 @@ func (self *Refresh) RefreshFeed(ctx context.Context,
 	return nil
 }
 
-func (self *Refresh) initFeed(ctx context.Context,
-) *locale.LocalizedErrorWrapper {
+func (self *Refresh) initFeed(ctx context.Context) error {
 	feed, err := self.store.FeedByID(ctx, self.userID, self.feedID)
 	if err != nil {
-		return locale.NewLocalizedErrorWrapper(err,
-			"error.database_error", err)
+		return fmt.Errorf("reader/handler: get feed from db: %w", err)
 	} else if feed == nil {
-		return locale.NewLocalizedErrorWrapper(ErrFeedNotFound,
-			"error.feed_not_found")
+		return fmt.Errorf("reader/handler: %w", ErrFeedNotFound)
 	}
 	self.feed = feed
 	return nil
@@ -147,7 +170,7 @@ func (self *Refresh) response(ctx context.Context) (*fetcher.ResponseSemaphore,
 
 	resp, err := fetcher.NewResponseSemaphore(ctx, r, f.FeedURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("reader/handler: fetch feed with semaphore: %w", err)
 	}
 	return resp, nil
 }
@@ -176,35 +199,21 @@ func (self *Refresh) logRateLimited(ctx context.Context,
 		slog.Time("new_next_check_at", self.feed.NextCheckAt))
 }
 
-func (self *Refresh) respLocalizedError(ctx context.Context,
+func (self *Refresh) respError(ctx context.Context,
 	resp *fetcher.ResponseSemaphore,
-) *locale.LocalizedErrorWrapper {
+) error {
 	if lerr := resp.LocalizedError(); lerr != nil {
 		logging.FromContext(ctx).Warn("Unable to fetch feed",
 			slog.String("feed_url", self.feed.FeedURL),
 			slog.Any("error", lerr))
-		return self.incFeedError(ctx, lerr)
+		return lerr
 	}
 	return nil
 }
 
-func (self *Refresh) incFeedError(ctx context.Context,
-	lerr *locale.LocalizedErrorWrapper,
-) *locale.LocalizedErrorWrapper {
-	user, err := self.store.UserByID(ctx, self.userID)
-	if err != nil {
-		return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
-	}
-	self.feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
-	if err := self.store.IncFeedError(ctx, self.feed); err != nil {
-		return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
-	}
-	return lerr
-}
-
 func (self *Refresh) refreshFeed(ctx context.Context,
 	resp *fetcher.ResponseSemaphore,
-) (refreshed model.FeedRefreshed, _ *locale.LocalizedErrorWrapper) {
+) (refreshed model.FeedRefreshed, _ error) {
 	log := logging.FromContext(ctx)
 	log.Debug("Feed modified",
 		slog.String("etag_header", self.feed.EtagHeader),
@@ -212,7 +221,7 @@ func (self *Refresh) refreshFeed(ctx context.Context,
 
 	body, lerr := resp.ReadBody(config.Opts.HTTPClientMaxBodySize())
 	if lerr != nil {
-		log.Warn("Unable to fetch feed",
+		log.Warn("Unable to fetch feed body",
 			slog.String("feed_url", self.feed.FeedURL),
 			slog.Any("error", lerr))
 		return refreshed, lerr
@@ -227,13 +236,18 @@ func (self *Refresh) refreshFeed(ctx context.Context,
 	remoteFeed, err := parser.ParseFeed(resp.EffectiveURL(),
 		bytes.NewReader(body))
 	if err != nil {
-		lerr := locale.NewLocalizedErrorWrapper(err,
-			"error.unable_to_parse_feed", err)
+		var lerr *locale.LocalizedErrorWrapper
 		if errors.Is(err, parser.ErrFeedFormatNotDetected) {
 			lerr = locale.NewLocalizedErrorWrapper(err,
 				"error.feed_format_not_detected", err)
+		} else {
+			lerr = locale.NewLocalizedErrorWrapper(err, "error.unable_to_parse_feed",
+				err)
 		}
-		return refreshed, self.incFeedError(ctx, lerr)
+		log.Warn("Unable to parse feed body",
+			slog.String("feed_url", self.feed.FeedURL),
+			slog.Any("error", lerr))
+		return refreshed, lerr
 	}
 
 	// Use the RSS TTL value, or the Cache-Control or Expires HTTP headers if
@@ -260,11 +274,11 @@ func (self *Refresh) refreshFeed(ctx context.Context,
 	err = processor.ProcessFeedEntries(ctx, self.store, self.feed, self.userID,
 		self.force)
 	if err != nil {
-		lerr := locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
 		if errors.Is(err, processor.ErrScrape) {
-			return refreshed, self.incFeedError(ctx, lerr)
+			return refreshed, locale.NewLocalizedErrorWrapper(err,
+				"error.unable_to_parse_feed", err)
 		}
-		return refreshed, lerr
+		return refreshed, err
 	}
 
 	// We don't update existing entries when the crawler is enabled (we crawl
@@ -273,8 +287,7 @@ func (self *Refresh) refreshFeed(ctx context.Context,
 	refreshed, err = self.store.RefreshFeedEntries(ctx, self.userID, self.feedID,
 		self.feed.Entries, update)
 	if err != nil {
-		return refreshed, locale.NewLocalizedErrorWrapper(err,
-			"error.database_error", err)
+		return refreshed, fmt.Errorf("reader/handler: store feed entries: %w", err)
 	}
 
 	self.pushIntegrations(logging.WithLogger(ctx, log), refreshed.CreatedEntries)
@@ -307,19 +320,9 @@ func (self *Refresh) pushIntegrations(ctx context.Context,
 	integration.PushEntries(self.feed, entries, user)
 }
 
-func (self *Refresh) updateFeed(ctx context.Context,
-) *locale.LocalizedErrorWrapper {
+func (self *Refresh) updateFeed(ctx context.Context) error {
 	if err := self.store.UpdateFeedRuntime(ctx, self.feed); err != nil {
-		lerr := locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
-		user, err := self.store.UserByID(ctx, self.userID)
-		if err != nil {
-			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
-		}
-		self.feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
-		if err := self.store.IncFeedError(ctx, self.feed); err != nil {
-			return locale.NewLocalizedErrorWrapper(err, "error.database_error", err)
-		}
-		return lerr
+		return fmt.Errorf("reader/handler: update feed runtime: %w", err)
 	}
 	return nil
 }
