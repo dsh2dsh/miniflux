@@ -273,25 +273,11 @@ func startHTTPServer(server *http.Server, g *errgroup.Group) {
 }
 
 func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
-	livenessProbe := func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("OK"))
-	}
-
-	readinessProbe := func(w http.ResponseWriter, r *http.Request) {
-		if err := store.Ping(r.Context()); err != nil {
-			http.Error(w, fmt.Sprintf("Database Connection Error: %q", err),
-				http.StatusServiceUnavailable)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("OK"))
-	}
-
 	router := mux.NewRouter()
 
 	// These routes do not take the base path into consideration and are always
 	// available at the root of the server.
+	readinessProbe := makeReadinessProbe(store)
 	router.HandleFunc("/liveness", livenessProbe).Name("liveness")
 	router.HandleFunc("/healthz", livenessProbe).Name("healthz")
 	router.HandleFunc("/readiness", readinessProbe).Name("readiness")
