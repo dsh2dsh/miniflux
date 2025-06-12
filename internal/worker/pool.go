@@ -7,6 +7,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"iter"
 	"log/slog"
 	"maps"
 	"net/url"
@@ -28,7 +29,7 @@ import (
 func NewPool(ctx context.Context, store *storage.Storage, n int) *Pool {
 	self := &Pool{
 		ctx:      ctx,
-		queue:    make(chan queueItem),
+		queue:    make(chan *queueItem),
 		store:    store,
 		wakeupCh: make(chan struct{}, 1),
 	}
@@ -39,7 +40,7 @@ func NewPool(ctx context.Context, store *storage.Storage, n int) *Pool {
 // Pool handles a pool of workers.
 type Pool struct {
 	ctx   context.Context
-	queue chan queueItem
+	queue chan *queueItem
 	g     errgroup.Group
 
 	store *storage.Storage
@@ -53,6 +54,8 @@ type queueItem struct {
 	index int
 	begin func()
 	end   func()
+
+	err error
 }
 
 func NewItem(job *model.Job, index int, begin, end func()) queueItem {
@@ -81,22 +84,75 @@ func (self *Pool) Push(ctx context.Context, jobs []model.Job) {
 	var wg sync.WaitGroup
 	beginJob := func() { wg.Add(1) }
 	startTime := time.Now()
-	jobs = distributeJobs(jobs)
+	items := makeItems(jobs, beginJob, wg.Done)
 
 jobsLoop:
-	for i := range jobs {
+	for i := range items {
 		select {
 		case <-self.ctx.Done():
 			break jobsLoop
 		case <-ctx.Done():
 			break jobsLoop
-		case self.queue <- NewItem(&jobs[i], i, beginJob, wg.Done):
+		case self.queue <- &items[i]:
+		}
+	}
+	wg.Wait()
+
+	log = log.With(slog.Duration("elapsed", time.Since(startTime)))
+	for i := range items {
+		if items[i].err != nil {
+			log.Info("worker: refreshed a batch of feeds with error",
+				slog.Any("error", items[i].err))
+		}
+	}
+	log.Info("worker: refreshed a batch of feeds")
+}
+
+func makeItems(jobs []model.Job, begin, end func()) []queueItem {
+	items := make([]queueItem, 0, len(jobs))
+	for job := range distributeJobs(jobs) {
+		items = append(items, NewItem(job, len(items), begin, end))
+	}
+	return items
+}
+
+func distributeJobs(jobs []model.Job) iter.Seq[*model.Job] {
+	perHost := map[string][]*model.Job{}
+	for i := range jobs {
+		j := &jobs[i]
+		if u, err := url.Parse(j.FeedURL); err != nil {
+			perHost[j.FeedURL] = append(perHost[j.FeedURL], j)
+		} else {
+			perHost[u.Host] = append(perHost[u.Host], j)
 		}
 	}
 
-	wg.Wait()
-	log.Info("worker: refreshed a batch of feeds",
-		slog.Duration("elapsed", time.Since(startTime)))
+	hosts := slices.SortedFunc(maps.Keys(perHost), func(a, b string) int {
+		return cmp.Compare(len(perHost[b]), len(perHost[a]))
+	})
+
+	return func(yield func(job *model.Job) bool) {
+		for len(hosts) > 0 {
+			var deleted bool
+			for i, host := range hosts {
+				hostJobs := perHost[host]
+				j := hostJobs[len(hostJobs)-1]
+				if !yield(j) {
+					return
+				}
+				if len(hostJobs) > 1 {
+					perHost[host] = hostJobs[:len(hostJobs)-1]
+				} else {
+					hosts[i] = ""
+					deleted = true
+				}
+			}
+			if deleted {
+				hosts = slices.DeleteFunc(hosts,
+					func(host string) bool { return host == "" })
+			}
+		}
+	}
 }
 
 func (self *Pool) Run() error {
@@ -129,7 +185,7 @@ forLoop:
 	return nil
 }
 
-func (self *Pool) refreshFeed(job queueItem) {
+func (self *Pool) refreshFeed(job *queueItem) {
 	log := logging.FromContext(self.ctx).With(slog.Int("job", job.index))
 	log.Debug("worker: job received",
 		slog.Int64("user_id", job.UserID),
@@ -150,47 +206,10 @@ func (self *Pool) refreshFeed(job queueItem) {
 	}
 
 	if err != nil && !errors.Is(err, handler.ErrBadFeed) {
+		job.err = err
 		log.Error("worker: error refreshing feed",
 			slog.Int64("user_id", job.UserID),
 			slog.Int64("feed_id", job.FeedID),
 			slog.Any("error", err))
 	}
-}
-
-func distributeJobs(jobs []model.Job) []model.Job {
-	perHost := map[string][]int{}
-	for i := range jobs {
-		j := &jobs[i]
-		u, err := url.Parse(j.FeedURL)
-		if err != nil {
-			perHost[j.FeedURL] = append(perHost[j.FeedURL], i)
-		} else {
-			perHost[u.Host] = append(perHost[u.Host], i)
-		}
-	}
-
-	hosts := slices.SortedFunc(maps.Keys(perHost), func(a, b string) int {
-		return cmp.Compare(len(perHost[b]), len(perHost[a]))
-	})
-
-	distributed := make([]model.Job, 0, len(jobs))
-	for len(hosts) > 0 {
-		var deleted bool
-		for i, host := range hosts {
-			hostJobs := perHost[host]
-			j := hostJobs[len(hostJobs)-1]
-			distributed = append(distributed, jobs[j])
-			if len(hostJobs) > 1 {
-				perHost[host] = hostJobs[:len(hostJobs)-1]
-			} else {
-				hosts[i] = ""
-				deleted = true
-			}
-		}
-		if deleted {
-			hosts = slices.DeleteFunc(hosts,
-				func(host string) bool { return host == "" })
-		}
-	}
-	return distributed
 }
