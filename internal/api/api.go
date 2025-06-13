@@ -15,6 +15,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const PathPrefix = "/v1"
+
 type handler struct {
 	store  *storage.Storage
 	pool   *worker.Pool
@@ -23,7 +25,7 @@ type handler struct {
 
 // Serve declares API routes for the application.
 func Serve(router *mux.Router, store *storage.Storage, pool *worker.Pool) {
-	sr := router.PathPrefix("/v1").Subrouter()
+	sr := router.PathPrefix(PathPrefix).Subrouter()
 	sr.Use(handleCORS)
 	sr.Use(handleRequestUser)
 

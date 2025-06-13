@@ -329,7 +329,9 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
 	subrouter.Use(mux.MiddlewareFunc(publicRoutes))
 
 	authHandlers := middleware.NewPathPrefix().
-		WithPrefix("/v1/", api.WithKeyAuth(store), api.WithBasicAuth(store)).
+		WithPrefix(api.PathPrefix,
+			api.WithKeyAuth(store),
+			api.WithBasicAuth(store)).
 		WithDefault(middleware.WithUserSession(store,
 			"/oauth2/callback/",
 			"/oauth2/redirect/"))
