@@ -5,14 +5,22 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/storage"
+	"miniflux.app/v2/internal/worker"
 )
 
-func makeReadinessProbe(store *storage.Storage) http.HandlerFunc {
+func makeReadinessProbe(store *storage.Storage, pool *worker.Pool,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := store.Ping(r.Context()); err != nil {
-			http.Error(w, fmt.Sprintf("Database Connection Error: %q", err),
+			http.Error(w, fmt.Sprintf("Database Connection Error: %s", err),
 				http.StatusServiceUnavailable)
 			return
+		}
+
+		if err := pool.Err(); err != nil {
+			http.Error(w,
+				fmt.Sprintf("refresh of feeds completed with error: %s", err),
+				http.StatusServiceUnavailable)
 		}
 		livenessProbe(w, r)
 	}

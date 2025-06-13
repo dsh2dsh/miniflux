@@ -277,7 +277,7 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
 
 	// These routes do not take the base path into consideration and are always
 	// available at the root of the server.
-	readinessProbe := makeReadinessProbe(store)
+	readinessProbe := makeReadinessProbe(store, pool)
 	router.HandleFunc("/liveness", livenessProbe).Name("liveness")
 	router.HandleFunc("/healthz", livenessProbe).Name("healthz")
 	router.HandleFunc("/readiness", readinessProbe).Name("readiness")

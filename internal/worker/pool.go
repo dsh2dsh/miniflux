@@ -46,6 +46,9 @@ type Pool struct {
 	store *storage.Storage
 
 	wakeupCh chan struct{}
+
+	mu  sync.Mutex
+	err error
 }
 
 type queueItem struct {
@@ -77,6 +80,18 @@ func (self *Pool) Wakeup() {
 
 func (self *Pool) WakeupSignal() <-chan struct{} { return self.wakeupCh }
 
+func (self *Pool) Err() error {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	return self.err
+}
+
+func (self *Pool) setErr(err error) {
+	self.mu.Lock()
+	self.err = err
+	self.mu.Unlock()
+}
+
 // Push send a list of jobs to the queue.
 func (self *Pool) Push(ctx context.Context, jobs []model.Job) {
 	log := logging.FromContext(ctx).With(slog.Int("jobs", len(jobs)))
@@ -107,12 +122,15 @@ jobsLoop:
 		slog.Duration("elapsed", time.Since(startTime)))
 
 	for i := range items {
-		if items[i].err != nil {
+		if err := items[i].err; err != nil {
+			self.setErr(err)
 			log.Info("worker: refreshed a batch of feeds with error",
-				slog.Any("error", items[i].err))
+				slog.Any("error", err))
 			return
 		}
 	}
+
+	self.setErr(nil)
 	log.Info("worker: refreshed a batch of feeds")
 }
 
