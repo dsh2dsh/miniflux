@@ -13,7 +13,12 @@ import (
 	"miniflux.app/v2/internal/storage"
 )
 
-func WithUserSession(s *storage.Storage, m map[string]struct{}) MiddlewareFunc {
+func WithUserSession(s *storage.Storage, prefixes ...string) MiddlewareFunc {
+	m := make(map[string]struct{})
+	for _, prefix := range prefixes {
+		m[prefix] = struct{}{}
+	}
+
 	fn := func(next http.Handler) http.Handler {
 		return &UserSession{store: s, next: next, publicRoutes: m}
 	}

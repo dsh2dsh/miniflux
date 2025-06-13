@@ -7,7 +7,12 @@ import (
 	"miniflux.app/v2/internal/http/request"
 )
 
-func WithPublicRoutes(m map[string]struct{}) MiddlewareFunc {
+func WithPublicRoutes(prefixes ...string) MiddlewareFunc {
+	m := make(map[string]struct{}, len(prefixes))
+	for _, prefix := range prefixes {
+		m[prefix] = struct{}{}
+	}
+
 	fn := func(next http.Handler) http.Handler {
 		return &PublicRoutes{m: m, next: next}
 	}
