@@ -120,19 +120,19 @@ type contentItemOrigin struct {
 
 // Unauthorized sends a not authorized error to the client.
 func Unauthorized(w http.ResponseWriter, r *http.Request) {
-	builder := response.New(w, r)
-	builder.WithStatus(http.StatusUnauthorized)
-	builder.WithHeader("Content-Type", "text/plain")
-	builder.WithHeader("X-Reader-Google-Bad-Token", "true")
-	builder.WithBody("Unauthorized")
-	builder.Write()
+	response.New(w, r).
+		WithStatus(http.StatusUnauthorized).
+		WithHeader("Content-Type", "text/plain").
+		WithHeader("X-Reader-Google-Bad-Token", "true").
+		WithBody("Unauthorized").
+		Write()
 }
 
 // OK sends a ok response to the client.
 func OK(w http.ResponseWriter, r *http.Request) {
-	builder := response.New(w, r)
-	builder.WithStatus(http.StatusOK)
-	builder.WithHeader("Content-Type", "text/plain")
-	builder.WithBody("OK")
-	builder.Write()
+	response.New(w, r).
+		WithStatus(http.StatusOK).
+		WithHeader("Content-Type", "text/plain").
+		WithBody("OK").
+		Write()
 }

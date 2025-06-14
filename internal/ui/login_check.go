@@ -58,8 +58,11 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
+	} else if user == nil {
+		log.Warn("User not found")
+		html.OK(w, r, v.Render("login"))
+		return
 	}
-
 	log.Info("User authenticated successfully with username/password",
 		slog.Int64("user_id", user.ID))
 

@@ -30,6 +30,9 @@ func (self *prefixHandler) Middleware(next http.Handler) http.Handler {
 
 func (self *PathPrefix) WithPrefix(prefix string, m ...MiddlewareFunc,
 ) *PathPrefix {
+	if !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
 	self.prefixes = append(self.prefixes, prefixHandler{
 		prefix:      prefix,
 		middlewares: m,

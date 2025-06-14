@@ -5,29 +5,24 @@ package googlereader // import "miniflux.app/v2/internal/googlereader"
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha1"
-	"encoding/hex"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
+	"miniflux.app/v2/internal/http/middleware"
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/logging"
+	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/storage"
 )
 
-type middleware struct {
-	store *storage.Storage
-}
-
-func newMiddleware(s *storage.Storage) *middleware {
-	return &middleware{s}
-}
-
-func (m *middleware) handleCORS(next http.Handler) http.Handler {
+func CORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods",
+			"GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Authorization")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
@@ -37,155 +32,159 @@ func (m *middleware) handleCORS(next http.Handler) http.Handler {
 	})
 }
 
-func (m *middleware) apiKeyAuth(next http.Handler) http.Handler {
+func requestUserSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		clientIP := request.ClientIP(r)
-
-		var token string
-		if r.Method == http.MethodPost {
-			if err := r.ParseForm(); err != nil {
-				slog.Warn("[GoogleReader] Could not parse request form data",
-					slog.Bool("authentication_failed", true),
-					slog.String("client_ip", clientIP),
-					slog.String("user_agent", r.UserAgent()),
-					slog.Any("error", err),
-				)
-				Unauthorized(w, r)
-				return
-			}
-
-			token = r.Form.Get("T")
-			if token == "" {
-				slog.Warn("[GoogleReader] Post-Form T field is empty",
-					slog.Bool("authentication_failed", true),
-					slog.String("client_ip", clientIP),
-					slog.String("user_agent", r.UserAgent()),
-				)
-				Unauthorized(w, r)
-				return
-			}
-		} else {
-			authorization := r.Header.Get("Authorization")
-
-			if authorization == "" {
-				slog.Warn("[GoogleReader] No token provided",
-					slog.Bool("authentication_failed", true),
-					slog.String("client_ip", clientIP),
-					slog.String("user_agent", r.UserAgent()),
-				)
-				Unauthorized(w, r)
-				return
-			}
-			fields := strings.Fields(authorization)
-			if len(fields) != 2 {
-				slog.Warn("[GoogleReader] Authorization header does not have the expected GoogleLogin format auth=xxxxxx",
-					slog.Bool("authentication_failed", true),
-					slog.String("client_ip", clientIP),
-					slog.String("user_agent", r.UserAgent()),
-				)
-				Unauthorized(w, r)
-				return
-			}
-			if fields[0] != "GoogleLogin" {
-				slog.Warn("[GoogleReader] Authorization header does not begin with GoogleLogin",
-					slog.Bool("authentication_failed", true),
-					slog.String("client_ip", clientIP),
-					slog.String("user_agent", r.UserAgent()),
-				)
-				Unauthorized(w, r)
-				return
-			}
-			auths := strings.Split(fields[1], "=")
-			if len(auths) != 2 {
-				slog.Warn("[GoogleReader] Authorization header does not have the expected GoogleLogin format auth=xxxxxx",
-					slog.Bool("authentication_failed", true),
-					slog.String("client_ip", clientIP),
-					slog.String("user_agent", r.UserAgent()),
-				)
-				Unauthorized(w, r)
-				return
-			}
-			if auths[0] != "auth" {
-				slog.Warn("[GoogleReader] Authorization header does not have the expected GoogleLogin format auth=xxxxxx",
-					slog.Bool("authentication_failed", true),
-					slog.String("client_ip", clientIP),
-					slog.String("user_agent", r.UserAgent()),
-				)
-				Unauthorized(w, r)
-				return
-			}
-			token = auths[1]
-		}
-
-		parts := strings.Split(token, "/")
-		if len(parts) != 2 {
-			slog.Warn("[GoogleReader] Auth token does not have the expected structure username/hash",
-				slog.Bool("authentication_failed", true),
-				slog.String("client_ip", clientIP),
-				slog.String("user_agent", r.UserAgent()),
-				slog.String("token", token),
-			)
-			Unauthorized(w, r)
-			return
-		}
-
-		user, err := m.store.UserByUsername(r.Context(), parts[0])
-		if err != nil {
-			slog.Warn("[GoogleReader] No user found with the given Google Reader username",
-				slog.Bool("authentication_failed", true),
-				slog.String("client_ip", clientIP),
-				slog.String("user_agent", r.UserAgent()),
-				slog.Any("error", err),
-			)
-			Unauthorized(w, r)
-			return
-		} else if user == nil || !user.Integration().GoogleReaderEnabled {
-			slog.Warn("[GoogleReader] No user found with the given Google Reader credentials",
-				slog.Bool("authentication_failed", true),
-				slog.String("client_ip", clientIP),
-				slog.String("user_agent", r.UserAgent()),
-			)
-			Unauthorized(w, r)
-			return
-		}
-
-		expectedToken := getAuthToken(user.Username,
-			user.Integration().GoogleReaderPassword)
-		if expectedToken != token {
-			slog.Warn("[GoogleReader] Token does not match",
-				slog.Bool("authentication_failed", true),
-				slog.String("client_ip", clientIP),
-				slog.String("user_agent", r.UserAgent()),
-			)
-			Unauthorized(w, r)
-			return
-		}
-
-		err = m.store.SetLastLogin(r.Context(), user.ID)
-		if err != nil {
-			slog.Error("[GoogleReader] Unable to set last login",
-				slog.String("client_ip", clientIP),
-				slog.String("user_agent", r.UserAgent()),
-				slog.Int64("user_id", user.ID),
-				slog.String("username", user.Username),
-				slog.Any("error", err))
-		}
-
 		ctx := r.Context()
-		ctx = request.WithUser(ctx, user)
-		ctx = context.WithValue(ctx, request.UserIDContextKey, user.ID)
-		ctx = context.WithValue(ctx, request.UserNameContextKey, user.Username)
-		ctx = context.WithValue(ctx, request.UserTimezoneContextKey, user.Timezone)
-		ctx = context.WithValue(ctx, request.IsAdminUserContextKey, user.IsAdmin)
-		ctx = context.WithValue(ctx, request.IsAuthenticatedContextKey, true)
-		ctx = context.WithValue(ctx, request.GoogleReaderToken, token)
+		log := logging.FromContext(ctx).With(
+			slog.String("client_ip", request.ClientIP(r)),
+			slog.String("user_agent", r.UserAgent()))
 
-		next.ServeHTTP(w, r.WithContext(ctx))
+		user := request.User(r)
+		if user == nil {
+			log.Warn(
+				"[GoogleReader] No user found with the given Google Reader credentials",
+				slog.Bool("authentication_failed", true))
+			Unauthorized(w, r)
+			return
+		}
+
+		sess := request.Session(r)
+		if sess == nil {
+			log.Warn(
+				"[GoogleReader] No session found with the given Google Reader credentials",
+				slog.Bool("authentication_failed", true),
+				slog.String("username", user.Username))
+			Unauthorized(w, r)
+			return
+		}
+
+		if r.Method != http.MethodPost {
+			next.ServeHTTP(w, r.WithContext(contextWithSessionKeys(ctx, user, sess)))
+			return
+		}
+
+		if err := checkCSRF(r, sess.ID); err != nil {
+			log.Warn("[GoogleReader] invalid or missing CSRF token",
+				slog.Any("error", err))
+			Unauthorized(w, r)
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(contextWithSessionKeys(ctx, user, sess)))
 	})
 }
 
-func getAuthToken(username, password string) string {
-	token := hex.EncodeToString(
-		hmac.New(sha1.New, []byte(username+password)).Sum(nil))
-	return username + "/" + token
+func checkCSRF(r *http.Request, expected string) error {
+	if token := r.PostFormValue("T"); token == "" {
+		return errors.New("token from T is empty")
+	} else if token != expected {
+		return errors.New("unexpected token")
+	}
+	return nil
+}
+
+func contextWithSessionKeys(ctx context.Context, user *model.User,
+	sess *model.Session,
+) context.Context {
+	ctx = context.WithValue(ctx, request.UserIDContextKey, user.ID)
+	ctx = context.WithValue(ctx, request.UserNameContextKey, user.Username)
+	ctx = context.WithValue(ctx, request.UserTimezoneContextKey, user.Timezone)
+	ctx = context.WithValue(ctx, request.IsAdminUserContextKey, user.IsAdmin)
+	ctx = context.WithValue(ctx, request.IsAuthenticatedContextKey, true)
+	ctx = context.WithValue(ctx, request.GoogleReaderToken, sess.ID)
+	return ctx
+}
+
+func WithKeyAuth(store *storage.Storage) middleware.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return &keyAuth{store: store, next: next}
+	}
+}
+
+type keyAuth struct {
+	store *storage.Storage
+	next  http.Handler
+}
+
+func (self *keyAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if user := request.User(r); user != nil {
+		self.next.ServeHTTP(w, r)
+		return
+	}
+
+	ctx := r.Context()
+	log := logging.FromContext(ctx).With(
+		slog.String("client_ip", request.ClientIP(r)),
+		slog.String("user_agent", r.UserAgent()))
+
+	token, err := authToken(r)
+	if err != nil {
+		log.Warn("[GoogleReader] authentication failed",
+			slog.Bool("authentication_failed", true),
+			slog.Any("error", err))
+		Unauthorized(w, r)
+		return
+	} else if token == "" {
+		self.next.ServeHTTP(w, r)
+		return
+	}
+
+	user, sess, err := self.store.UserSession(ctx, token)
+	if err != nil {
+		log.Warn(
+			"[GoogleReader] No user found with the given Google Reader username",
+			slog.Bool("authentication_failed", true),
+			slog.Any("error", err),
+		)
+		Unauthorized(w, r)
+		return
+	}
+
+	if sess == nil {
+		log.Warn(
+			"[GoogleReader] No session found with the given Google Reader credentials",
+			slog.Bool("authentication_failed", true))
+		Unauthorized(w, r)
+		return
+	}
+
+	if !user.Integration().GoogleReaderEnabled {
+		log.Warn(
+			"[GoogleReader] No user found with the given Google Reader credentials",
+			slog.Bool("authentication_failed", true))
+		Unauthorized(w, r)
+		return
+	}
+
+	self.next.ServeHTTP(w, r.WithContext(
+		request.WithUserSession(ctx, user, sess)))
+
+	if d := time.Since(sess.UpdatedAt); d > 5*time.Minute {
+		err := self.store.UpdateAppSession(ctx, sess, map[string]any{})
+		if err != nil {
+			log.Error("[GoogleReader] Unable update session updated timestamp",
+				slog.String("id", sess.ID),
+				slog.Duration("last_updated_ago", d),
+				slog.Any("error", err))
+		}
+	}
+}
+
+func authToken(r *http.Request) (string, error) {
+	authorization := r.Header.Get("Authorization")
+	if authorization == "" {
+		return "", nil
+	}
+
+	googleLogin, ok := strings.CutPrefix(authorization, "GoogleLogin ")
+	if !ok {
+		return "", errors.New(
+			"authorization header doesn't begin with GoogleLogin")
+	}
+
+	authKey, token, ok := strings.Cut(strings.TrimSpace(googleLogin), "=")
+	if !ok || authKey != "auth" {
+		return "", errors.New(
+			"authorization header doesn't have the expected GoogleLogin format auth=xxxxxx")
+	}
+	return token, nil
 }
