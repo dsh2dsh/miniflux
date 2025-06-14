@@ -860,12 +860,21 @@ func TestYouTubeApiKey(t *testing.T) {
 	assert.Equal(t, expected, opts.YouTubeApiKey())
 }
 
+func TestDefaultYouTubeEmbedUrl(t *testing.T) {
+	os.Clearenv()
+	opts := parseEnvironmentVariables(t)
+	const expected = "https://www.youtube-nocookie.com/embed/"
+	assert.Equal(t, expected, opts.YouTubeEmbedUrlOverride())
+	assert.Equal(t, "www.youtube-nocookie.com", opts.YouTubeEmbedDomain())
+}
+
 func TestYouTubeEmbedUrlOverride(t *testing.T) {
 	os.Clearenv()
 	const expected = "https://invidious.custom/embed/"
 	t.Setenv("YOUTUBE_EMBED_URL_OVERRIDE", expected)
 	opts := parseEnvironmentVariables(t)
 	assert.Equal(t, expected, opts.YouTubeEmbedUrlOverride())
+	assert.Equal(t, "invidious.custom", opts.YouTubeEmbedDomain())
 }
 
 func TestParseConfigDumpOutput(t *testing.T) {

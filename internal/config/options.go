@@ -572,9 +572,14 @@ func (o *Options) FetchYouTubeWatchTime() bool {
 // YouTubeApiKey returns the YouTube API key if defined.
 func (o *Options) YouTubeApiKey() string { return o.env.YouTubeApiKey }
 
-// YouTubeEmbedUrlOverride returns YouTube URL which will be used for embeds
+// YouTubeEmbedUrlOverride returns the YouTube embed URL override if defined.
 func (o *Options) YouTubeEmbedUrlOverride() string {
 	return o.env.YouTubeEmbedUrlOverride.String()
+}
+
+// YouTubeEmbedDomain returns the domain used for YouTube embeds.
+func (o *Options) YouTubeEmbedDomain() string {
+	return o.env.YouTubeEmbedUrlOverride.Hostname()
 }
 
 // FetchNebulaWatchTime returns true if the Nebula video duration should be

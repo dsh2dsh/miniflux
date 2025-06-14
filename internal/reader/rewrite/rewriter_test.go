@@ -67,7 +67,7 @@ func TestRewriteWithNoMatchingRule(t *testing.T) {
 }
 
 func TestRewriteYoutubeVideoLink(t *testing.T) {
-	config.Opts = config.NewOptions()
+	config.Load("")
 
 	controlEntry := &model.Entry{
 		URL:     "https://www.youtube.com/watch?v=1234",
@@ -87,7 +87,7 @@ func TestRewriteYoutubeVideoLink(t *testing.T) {
 }
 
 func TestRewriteYoutubeShortLink(t *testing.T) {
-	config.Opts = config.NewOptions()
+	config.Load("")
 
 	controlEntry := &model.Entry{
 		URL:     "https://www.youtube.com/shorts/1LUWKWZkPjo",
@@ -107,7 +107,7 @@ func TestRewriteYoutubeShortLink(t *testing.T) {
 }
 
 func TestRewriteIncorrectYoutubeLink(t *testing.T) {
-	config.Opts = config.NewOptions()
+	config.Load("")
 
 	controlEntry := &model.Entry{
 		URL:     "https://www.youtube.com/some-page",
@@ -130,9 +130,7 @@ func TestRewriteYoutubeLinkAndCustomEmbedURL(t *testing.T) {
 	os.Clearenv()
 	t.Setenv("YOUTUBE_EMBED_URL_OVERRIDE", "https://invidious.custom/embed/")
 
-	var err error
-	parser := config.NewParser()
-	config.Opts, err = parser.ParseEnvironmentVariables()
+	err := config.Load("")
 	if err != nil {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
@@ -155,7 +153,7 @@ func TestRewriteYoutubeLinkAndCustomEmbedURL(t *testing.T) {
 }
 
 func TestRewriteYoutubeVideoLinkUsingInvidious(t *testing.T) {
-	config.Opts = config.NewOptions()
+	config.Load("")
 	controlEntry := &model.Entry{
 		URL:     "https://www.youtube.com/watch?v=1234",
 		Title:   `A title`,
@@ -175,7 +173,7 @@ func TestRewriteYoutubeVideoLinkUsingInvidious(t *testing.T) {
 }
 
 func TestRewriteYoutubeShortLinkUsingInvidious(t *testing.T) {
-	config.Opts = config.NewOptions()
+	config.Load("")
 	controlEntry := &model.Entry{
 		URL:     "https://www.youtube.com/shorts/1LUWKWZkPjo",
 		Title:   `A title`,

@@ -13,12 +13,6 @@ import (
 	"miniflux.app/v2/internal/config"
 )
 
-func TestMain(m *testing.M) {
-	config.Opts = config.NewOptions()
-	exitCode := m.Run()
-	os.Exit(exitCode)
-}
-
 func BenchmarkSanitize(b *testing.B) {
 	testCases := map[string][]string{
 		"miniflux_github.html":    {"https://github.com/miniflux/v2", ""},
@@ -352,6 +346,8 @@ func TestInvalidNestedTag(t *testing.T) {
 }
 
 func TestInvalidIFrame(t *testing.T) {
+	config.Load("")
+
 	input := `<iframe src="http://example.org/"></iframe>`
 	expected := ``
 	output := SanitizeHTMLWithDefaultOptions("http://example.com/", input)
@@ -361,7 +357,51 @@ func TestInvalidIFrame(t *testing.T) {
 	}
 }
 
+func TestSameDomainIFrame(t *testing.T) {
+	config.Load("")
+
+	input := `<iframe src="http://example.com/test"></iframe>`
+	expected := ``
+	output := SanitizeHTMLWithDefaultOptions("http://example.com/", input)
+
+	if expected != output {
+		t.Errorf(`Wrong output: %q != %q`, expected, output)
+	}
+}
+
+func TestInvidiousIFrame(t *testing.T) {
+	config.Load("")
+
+	input := `<iframe src="https://yewtu.be/watch?v=video_id"></iframe>`
+	expected := `<iframe src="https://yewtu.be/watch?v=video_id" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" loading="lazy"></iframe>`
+	output := SanitizeHTMLWithDefaultOptions("http://example.com/", input)
+
+	if expected != output {
+		t.Errorf(`Wrong output: %q != %q`, expected, output)
+	}
+}
+
+func TestCustomYoutubeEmbedURL(t *testing.T) {
+	t.Setenv("YOUTUBE_EMBED_URL_OVERRIDE", "https://www.invidious.custom/embed/")
+
+	defer os.Clearenv()
+	var err error
+	if config.Opts, err = config.NewParser().ParseEnvironmentVariables(); err != nil {
+		t.Fatalf(`Parsing failure: %v`, err)
+	}
+
+	input := `<iframe src="https://www.invidious.custom/embed/1234"></iframe>`
+	expected := `<iframe src="https://www.invidious.custom/embed/1234" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" loading="lazy"></iframe>`
+	output := SanitizeHTMLWithDefaultOptions("http://example.com/", input)
+
+	if expected != output {
+		t.Errorf(`Wrong output: %q != %q`, expected, output)
+	}
+}
+
 func TestIFrameWithChildElements(t *testing.T) {
+	config.Load("")
+
 	input := `<iframe src="https://www.youtube.com/"><p>test</p></iframe>`
 	expected := `<iframe src="https://www.youtube.com/" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" loading="lazy"></iframe>`
 	output := SanitizeHTMLWithDefaultOptions("http://example.com/", input)
@@ -843,6 +883,32 @@ func TestInvalidMathMLXMLNamespace(t *testing.T) {
 	input := `<math xmlns="http://example.org"><msup><mi>x</mi><mn>2</mn></msup></math>`
 	expected := `<math xmlns="http://www.w3.org/1998/Math/MathML"><msup><mi>x</mi><mn>2</mn></msup></math>`
 	output := SanitizeHTMLWithDefaultOptions("http://example.org/", input)
+
+	if expected != output {
+		t.Errorf(`Wrong output: "%s" != "%s"`, expected, output)
+	}
+}
+
+func TestBlockedResourcesSubstrings(t *testing.T) {
+	input := `<p>Before paragraph.</p><img src="http://stats.wordpress.com/something.php" alt="Blocked Resource"><p>After paragraph.</p>`
+	expected := `<p>Before paragraph.</p><p>After paragraph.</p>`
+	output := SanitizeHTMLWithDefaultOptions("http://example.org/", input)
+
+	if expected != output {
+		t.Errorf(`Wrong output: "%s" != "%s"`, expected, output)
+	}
+
+	input = `<p>Before paragraph.</p><img src="http://twitter.com/share?text=This+is+google+a+search+engine&url=https%3A%2F%2Fwww.google.com" alt="Blocked Resource"><p>After paragraph.</p>`
+	expected = `<p>Before paragraph.</p><p>After paragraph.</p>`
+	output = SanitizeHTMLWithDefaultOptions("http://example.org/", input)
+
+	if expected != output {
+		t.Errorf(`Wrong output: "%s" != "%s"`, expected, output)
+	}
+
+	input = `<p>Before paragraph.</p><img src="http://www.facebook.com/sharer.php?u=https%3A%2F%2Fwww.google.com%[title]=This+Is%2C+Google+a+search+engine" alt="Blocked Resource"><p>After paragraph.</p>`
+	expected = `<p>Before paragraph.</p><p>After paragraph.</p>`
+	output = SanitizeHTMLWithDefaultOptions("http://example.org/", input)
 
 	if expected != output {
 		t.Errorf(`Wrong output: "%s" != "%s"`, expected, output)
