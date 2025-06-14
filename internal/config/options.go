@@ -21,9 +21,8 @@ import (
 )
 
 const (
-	defaultBaseURL         = "http://localhost"
-	defaultDatabaseURL     = "user=postgres password=postgres dbname=miniflux2 sslmode=disable"
-	defaultHTTPClientProxy = ""
+	defaultBaseURL     = "http://localhost"
+	defaultDatabaseURL = "user=postgres password=postgres dbname=miniflux2 sslmode=disable"
 )
 
 var defaultHTTPClientUserAgent = "Mozilla/5.0 (compatible; Miniflux-dsh2dsh/" +
@@ -97,7 +96,7 @@ type EnvOptions struct {
 	FetchYouTubeWatchTime          bool     `env:"FETCH_YOUTUBE_WATCH_TIME"`
 	FilterEntryMaxAgeDays          int      `env:"FILTER_ENTRY_MAX_AGE_DAYS" validate:"min=0"`
 	YouTubeApiKey                  string   `env:"YOUTUBE_API_KEY"`
-	YouTubeEmbedUrlOverride        string   `env:"YOUTUBE_EMBED_URL_OVERRIDE" validate:"omitempty,url"`
+	YouTubeEmbedUrlOverride        *url.URL `env:"YOUTUBE_EMBED_URL_OVERRIDE" envDefault:"https://www.youtube-nocookie.com/embed/"`
 	Oauth2UserCreationAllowed      bool     `env:"OAUTH2_USER_CREATION"`
 	Oauth2ClientID                 string   `env:"OAUTH2_CLIENT_ID"`
 	Oauth2ClientIDFile             *string  `env:"OAUTH2_CLIENT_ID_FILE,file"`
@@ -185,7 +184,6 @@ func NewOptions() *Options {
 			MediaProxyHTTPClientTimeout:    120,
 			MediaProxyMode:                 "http-only",
 			MediaProxyResourceTypes:        []string{"image"},
-			YouTubeEmbedUrlOverride:        "https://www.youtube-nocookie.com/embed/",
 			OidcProviderName:               "OpenID Connect",
 			HttpClientTimeout:              20,
 			HttpClientMaxBodySize:          15,
@@ -217,13 +215,6 @@ func (o *Options) init() (err error) {
 
 	o.env.HttpClientMaxBodySize *= 1024 * 1024
 	o.env.MediaProxyResourceTypes = uniqStringList(o.env.MediaProxyResourceTypes)
-
-	if o.env.HttpClientProxyURL == nil {
-		o.env.HttpClientProxyURL, err = url.Parse(defaultHTTPClientProxy)
-		if err != nil {
-			return fmt.Errorf("config: invalid HTTP_CLIENT_PROXY: %w", err)
-		}
-	}
 
 	o.applyDeprecated()
 	o.applyFileStrings()
@@ -583,7 +574,7 @@ func (o *Options) YouTubeApiKey() string { return o.env.YouTubeApiKey }
 
 // YouTubeEmbedUrlOverride returns YouTube URL which will be used for embeds
 func (o *Options) YouTubeEmbedUrlOverride() string {
-	return o.env.YouTubeEmbedUrlOverride
+	return o.env.YouTubeEmbedUrlOverride.String()
 }
 
 // FetchNebulaWatchTime returns true if the Nebula video duration should be

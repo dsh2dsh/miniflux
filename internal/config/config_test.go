@@ -869,7 +869,7 @@ func TestYouTubeEmbedUrlOverride(t *testing.T) {
 }
 
 func TestParseConfigDumpOutput(t *testing.T) {
-	wantOpts := NewOptions()
+	wantOpts := parseEnvironmentVariables(t)
 	wantOpts.env.AdminUsername = "my-username"
 
 	serialized := wantOpts.String()
