@@ -43,7 +43,6 @@ type SessionData struct {
 	FlashErrorMessage   string          `json:"flash_error_message,omitempty"`
 	Language            string          `json:"language,omitempty"`
 	Theme               string          `json:"theme,omitempty"`
-	PocketRequestToken  string          `json:"pocket_request_token,omitempty"`
 	LastForceRefresh    int64           `json:"last_force_refresh,omitempty"`
 	WebAuthnSessionData WebAuthnSession `json:"webauthn_session_data,omitzero"`
 	UserAgent           string          `json:"user_agent,omitempty"`
@@ -51,7 +50,7 @@ type SessionData struct {
 }
 
 func (self *SessionData) String() string {
-	return fmt.Sprintf(`CSRF=%q, OAuth2State=%q, OAuth2CodeVerifier=%q, FlashMsg=%q, FlashErrMsg=%q, Lang=%q, Theme=%q, PocketTkn=%q, LastForceRefresh=%v, WebAuthnSession=%q`,
+	return fmt.Sprintf(`CSRF=%q, OAuth2State=%q, OAuth2CodeVerifier=%q, FlashMsg=%q, FlashErrMsg=%q, Lang=%q, Theme=%q, LastForceRefresh=%v, WebAuthnSession=%q`,
 		self.CSRF,
 		self.OAuth2State,
 		self.OAuth2CodeVerifier,
@@ -59,7 +58,6 @@ func (self *SessionData) String() string {
 		self.FlashErrorMessage,
 		self.Language,
 		self.Theme,
-		self.PocketRequestToken,
 		self.LastForceRefresh,
 		self.WebAuthnSessionData,
 	)

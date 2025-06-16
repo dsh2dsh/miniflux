@@ -548,21 +548,6 @@ func TestCreateAdmin(t *testing.T) {
 	assert.True(t, opts.CreateAdmin())
 }
 
-func TestPocketConsumerKeyFromEnvVariable(t *testing.T) {
-	os.Clearenv()
-	const expected = "something"
-	t.Setenv("POCKET_CONSUMER_KEY", expected)
-	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, expected, opts.PocketConsumerKey("default"))
-}
-
-func TestPocketConsumerKeyFromUserPrefs(t *testing.T) {
-	os.Clearenv()
-	opts := parseEnvironmentVariables(t)
-	const expected = "default"
-	assert.Equal(t, expected, opts.PocketConsumerKey(expected))
-}
-
 func TestMediaProxyMode(t *testing.T) {
 	os.Clearenv()
 	const expected = "all"
@@ -685,8 +670,6 @@ func TestParseConfigFile(t *testing.T) {
  # This is a comment
 
 LOG_LEVEL = debug
-
- POCKET_CONSUMER_KEY= >#1234
 `)
 
 	tmpfile, err := os.CreateTemp(t.TempDir(), "miniflux.*.unit_test.conf")
@@ -702,7 +685,6 @@ LOG_LEVEL = debug
 	require.NotNil(t, opts)
 
 	assert.Equal(t, "debug", opts.LogLevel())
-	assert.Equal(t, ">#1234", opts.PocketConsumerKey("default"))
 }
 
 func TestParseConfigFile_invalid(t *testing.T) {
@@ -710,8 +692,6 @@ func TestParseConfigFile_invalid(t *testing.T) {
  # This is a comment
 
 LOG_LEVEL = debug
-
- POCKET_CONSUMER_KEY= >#1234
 
 Invalid text
 `)

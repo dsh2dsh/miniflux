@@ -69,9 +69,6 @@ type Integration struct {
 	PinboardMarkAsUnread             bool   `json:"pinboard_mark_as_unread,omitempty"`
 	PinboardTags                     string `json:"pinboard_tags,omitempty"`
 	PinboardToken                    string `json:"pinboard_token,omitempty"`
-	PocketAccessToken                string `json:"pocket_access_token,omitempty"`
-	PocketConsumerKey                string `json:"pocket_consumer_key,omitempty"`
-	PocketEnabled                    bool   `json:"pocket_enabled,omitempty"`
 	PushoverDevice                   string `json:"pushover_device,omitempty"`
 	PushoverEnabled                  bool   `json:"pushover_enabled,omitempty"`
 	PushoverPrefix                   string `json:"pushover_prefix,omitempty"`

@@ -120,8 +120,6 @@ func contextWithSessionKeys(ctx context.Context, sess *model.Session,
 		sess.Data.Language)
 	ctx = context.WithValue(ctx, request.UserThemeContextKey,
 		sess.Data.Theme)
-	ctx = context.WithValue(ctx, request.PocketRequestTokenContextKey,
-		sess.Data.PocketRequestToken)
 	ctx = context.WithValue(ctx, request.LastForceRefreshContextKey,
 		sess.Data.LastForceRefresh)
 	ctx = context.WithValue(ctx, request.WebAuthnDataContextKey,

@@ -106,8 +106,6 @@ type EnvOptions struct {
 	OidcProviderName               string   `env:"OAUTH2_OIDC_PROVIDER_NAME"`
 	Oauth2Provider                 string   `env:"OAUTH2_PROVIDER" validate:"omitempty,oneof=oidc google"`
 	DisableLocalAuth               bool     `env:"DISABLE_LOCAL_AUTH"`
-	PocketConsumerKey              string   `env:"POCKET_CONSUMER_KEY"`
-	PocketConsumerKeyFile          *string  `env:"POCKET_CONSUMER_KEY_FILE,file"`
 	HttpClientTimeout              int      `env:"HTTP_CLIENT_TIMEOUT" validate:"min=0"`
 	HttpClientMaxBodySize          int64    `env:"HTTP_CLIENT_MAX_BODY_SIZE" validate:"min=0"`
 	HttpClientProxyURL             *url.URL `env:"HTTP_CLIENT_PROXY"`
@@ -264,7 +262,6 @@ func (o *Options) applyFileStrings() {
 		{o.env.MetricsUsernameFile, &o.env.MetricsUsername},
 		{o.env.Oauth2ClientIDFile, &o.env.Oauth2ClientID},
 		{o.env.Oauth2ClientSecretFile, &o.env.Oauth2ClientSecret},
-		{o.env.PocketConsumerKeyFile, &o.env.PocketConsumerKey},
 	}
 	for _, opt := range opts {
 		if opt.From != nil {
@@ -570,14 +567,6 @@ func (o *Options) HasHTTPService() bool { return !o.env.DisableHttpService }
 // HasSchedulerService returns true if the scheduler service is enabled.
 func (o *Options) HasSchedulerService() bool { return !o.env.DisableScheduler }
 
-// PocketConsumerKey returns the Pocket Consumer Key if configured.
-func (o *Options) PocketConsumerKey(defaultValue string) string {
-	if o.env.PocketConsumerKey != "" {
-		return o.env.PocketConsumerKey
-	}
-	return defaultValue
-}
-
 // HTTPClientTimeout returns the time limit in seconds before the HTTP client
 // cancel the request.
 func (o *Options) HTTPClientTimeout() int { return o.env.HttpClientTimeout }
@@ -777,7 +766,6 @@ func (o *Options) SortedOptions(redactSecret bool) []Option {
 		"OAUTH2_REDIRECT_URL":                o.OAuth2RedirectURL(),
 		"OAUTH2_USER_CREATION":               o.IsOAuth2UserCreationAllowed(),
 		"DISABLE_LOCAL_AUTH":                 o.DisableLocalAuth(),
-		"POCKET_CONSUMER_KEY":                secretValue(o.PocketConsumerKey(""), redactSecret),
 		"POLLING_FREQUENCY":                  o.PollingFrequency(),
 		"FORCE_REFRESH_INTERVAL":             o.ForceRefreshInterval(),
 		"POLLING_PARSING_ERROR_LIMIT":        o.PollingParsingErrorLimit(),

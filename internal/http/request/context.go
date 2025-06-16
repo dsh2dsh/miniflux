@@ -34,7 +34,6 @@ const (
 	OAuth2CodeVerifierContextKey
 	FlashMessageContextKey
 	FlashErrorMessageContextKey
-	PocketRequestTokenContextKey
 	LastForceRefreshContextKey
 	ClientIPContextKey
 	GoogleReaderToken
@@ -138,11 +137,6 @@ func FlashMessage(r *http.Request) string {
 // FlashErrorMessage returns the message error message if any.
 func FlashErrorMessage(r *http.Request) string {
 	return getContextStringValue(r, FlashErrorMessageContextKey)
-}
-
-// PocketRequestToken returns the Pocket Request Token if any.
-func PocketRequestToken(r *http.Request) string {
-	return getContextStringValue(r, PocketRequestTokenContextKey)
 }
 
 // LastForceRefresh returns the last force refresh timestamp.

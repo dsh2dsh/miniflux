@@ -75,11 +75,6 @@ func (self *Session) SetTheme(theme string) *Session {
 	return self
 }
 
-func (self *Session) SetPocketRequestToken(requestToken string) *Session {
-	self.values["pocket_request_token"] = requestToken
-	return self
-}
-
 func (self *Session) SetWebAuthnSessionData(sessionData *model.WebAuthnSession,
 ) *Session {
 	self.values["webauthn_session_data"] = sessionData

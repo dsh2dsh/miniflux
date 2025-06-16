@@ -6,7 +6,6 @@ package ui // import "miniflux.app/v2/internal/ui"
 import (
 	"net/http"
 
-	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/ui/form"
 )
@@ -48,9 +47,6 @@ func (h *handler) showIntegrationPage(w http.ResponseWriter, r *http.Request) {
 		EspialTags:                       i.EspialTags,
 		ReadwiseEnabled:                  i.ReadwiseEnabled,
 		ReadwiseAPIKey:                   i.ReadwiseAPIKey,
-		PocketEnabled:                    i.PocketEnabled,
-		PocketAccessToken:                i.PocketAccessToken,
-		PocketConsumerKey:                i.PocketConsumerKey,
 		TelegramBotEnabled:               i.TelegramBotEnabled,
 		TelegramBotToken:                 i.TelegramBotToken,
 		TelegramBotChatID:                i.TelegramBotChatID,
@@ -133,8 +129,6 @@ func (h *handler) showIntegrationPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v.Set("menu", "settings").
-		Set("form", f).
-		Set("hasPocketConsumerKeyConfigured",
-			config.Opts.PocketConsumerKey("") != "")
+		Set("form", f)
 	html.OK(w, r, v.Render("integrations"))
 }

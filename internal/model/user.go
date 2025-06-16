@@ -263,7 +263,6 @@ func (u *User) HasSaveEntry() bool {
 		i.NotionEnabled ||
 		i.NunuxKeeperEnabled ||
 		i.OmnivoreEnabled ||
-		i.PocketEnabled ||
 		i.RaindropEnabled ||
 		i.ReadeckEnabled ||
 		i.ReadwiseEnabled ||
