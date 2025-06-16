@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"golang.org/x/sync/errgroup"
 
@@ -35,26 +34,17 @@ type View struct {
 	g   *errgroup.Group
 	ctx context.Context
 
-	startTime            time.Time
-	countUnreadElapsed   time.Duration
-	preProcessingElapsed time.Duration
-	renderingElapsed     time.Duration
-
 	countUnread     int
 	countErrorFeeds int
 	hasSaveEntry    bool
 }
 
 func (self *View) init() *View {
-	self.startTime = time.Now()
-	startCountUnread := time.Now()
-
 	self.Go(func(ctx context.Context) (err error) {
 		self.countUnread, err = self.store.NewEntryQueryBuilder(self.UserID()).
 			WithStatus(model.EntryStatusUnread).
 			WithGloballyVisible().
 			CountEntries(ctx)
-		self.countUnreadElapsed = time.Since(startCountUnread)
 		return
 	})
 
@@ -94,31 +84,11 @@ func (self *View) Wait() error {
 	return nil
 }
 
-func (self *View) Render(templateName string) []byte {
-	self.preProcessingElapsed = time.Since(self.startTime)
-	startTime := time.Now()
-	b := self.View.Render(templateName)
-	self.renderingElapsed = time.Since(startTime)
-	return b
-}
-
 func (self *View) CountErrorFeed() int { return self.countErrorFeeds }
 func (self *View) CountUnread() int    { return self.countUnread }
 func (self *View) HasSaveEntry() bool  { return self.hasSaveEntry }
 func (self *View) User() *model.User   { return self.user }
 func (self *View) UserID() int64       { return self.user.ID }
-
-func (self *View) CountUnreadElapsed() time.Duration {
-	return self.countUnreadElapsed
-}
-
-func (self *View) PreProcessingElapsed() time.Duration {
-	return self.preProcessingElapsed
-}
-
-func (self *View) RenderingElapsed() time.Duration {
-	return self.renderingElapsed
-}
 
 func (self *View) WaitEntriesCount(query *storage.EntryQueryBuilder,
 ) (model.Entries, int, error) {

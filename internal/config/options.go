@@ -55,7 +55,6 @@ type EnvOptions struct {
 	LogFormat                      string   `env:"LOG_FORMAT" validate:"required,oneof=human json text"`
 	LogLevel                       string   `env:"LOG_LEVEL" validate:"required,oneof=debug info warning error"`
 	Logging                        []Log    `envPrefix:"LOG" validate:"dive,required"`
-	ServerTimingHeader             bool     `env:"SERVER_TIMING_HEADER"`
 	BaseURL                        string   `env:"BASE_URL" validate:"required"`
 	DatabaseURL                    string   `env:"DATABASE_URL" validate:"required"`
 	DatabaseURLFile                *string  `env:"DATABASE_URL_FILE,file"`
@@ -353,11 +352,6 @@ func (o *Options) HasMaintenanceMode() bool { return o.env.MaintenanceMode }
 // MaintenanceMessage returns maintenance message.
 func (o *Options) MaintenanceMessage() string {
 	return o.env.MaintenanceMessage
-}
-
-// HasServerTimingHeader returns true if server-timing headers enabled.
-func (o *Options) HasServerTimingHeader() bool {
-	return o.env.ServerTimingHeader
 }
 
 // BaseURL returns the application base URL with path.
@@ -797,7 +791,6 @@ func (o *Options) SortedOptions(redactSecret bool) []Option {
 		"SCHEDULER_ROUND_ROBIN_MIN_INTERVAL": o.SchedulerRoundRobinMinInterval(),
 		"SCHEDULER_ROUND_ROBIN_MAX_INTERVAL": o.SchedulerRoundRobinMaxInterval(),
 		"SCHEDULER_SERVICE":                  !o.HasSchedulerService(),
-		"SERVER_TIMING_HEADER":               o.HasServerTimingHeader(),
 		"WATCHDOG":                           o.HasWatchdog(),
 		"WORKER_POOL_SIZE":                   o.WorkerPoolSize(),
 		"YOUTUBE_API_KEY":                    secretValue(o.YouTubeApiKey(), redactSecret),
