@@ -82,10 +82,16 @@ func (b *BatchBuilder) FetchJobs(ctx context.Context) ([]model.Job, error) {
 }
 
 func (b *BatchBuilder) ResetNextCheckAt(ctx context.Context) error {
-	query := `UPDATE feeds SET next_check_at=now()`
+	query := `
+UPDATE feeds SET
+  parsing_error_count = 0,
+  parsing_error_msg		= '',
+	next_check_at				= now()`
+
 	if len(b.conditions) > 0 {
 		query += " WHERE " + strings.Join(b.conditions, " AND ")
 	}
+
 	if _, err := b.db.Exec(ctx, query, b.args...); err != nil {
 		return fmt.Errorf("storage: failed reset next check: %w", err)
 	}
