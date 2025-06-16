@@ -134,16 +134,6 @@ type EnvOptions struct {
 	ConnectionsPerSever            int64    `env:"CONNECTIONS_PER_SERVER" validate:"min=1"`
 	RateLimitPerServer             float64  `env:"RATE_LIMIT_PER_SERVER" validate:"gt=0"`
 	TrustedProxies                 []string `env:"TRUSTED_PROXIES" validate:"dive,required,ip"`
-
-	// Deprecated
-	Debug                  bool     `env:"DEBUG"`
-	ProxyHTTPClientTimeout *int     `env:"PROXY_HTTP_CLIENT_TIMEOUT" validate:"omitnil,min=0"`
-	ProxyImages            *string  `env:"PROXY_IMAGES"`
-	ProxyImageURL          *string  `env:"PROXY_IMAGE_URL" validate:"omitnil,url"`
-	ProxyMediaTypes        []string `env:"PROXY_MEDIA_TYPES" validate:"omitempty,required"`
-	ProxyOption            *string  `env:"PROXY_OPTION"`
-	ProxyPrivateKey        string   `env:"PROXY_PRIVATE_KEY"`
-	ProxyURL               *string  `env:"PROXY_URL" validate:"omitnil,url"`
 }
 
 type Log struct {
@@ -216,7 +206,6 @@ func (o *Options) init() (err error) {
 	o.env.HttpClientMaxBodySize *= 1024 * 1024
 	o.env.MediaProxyResourceTypes = uniqStringList(o.env.MediaProxyResourceTypes)
 
-	o.applyDeprecated()
 	o.applyFileStrings()
 	if err = o.applyPrivateKeys(); err != nil {
 		return
@@ -264,43 +253,6 @@ func uniqStringList(items []string) []string {
 	return items
 }
 
-func (o *Options) applyDeprecated() {
-	if o.env.Debug {
-		slog.Warn("The DEBUG environment variable is deprecated, use LOG_LEVEL instead")
-		o.env.LogLevel = "debug"
-	}
-
-	if o.env.ProxyHTTPClientTimeout != nil {
-		slog.Warn("The PROXY_HTTP_CLIENT_TIMEOUT environment variable is deprecated, use MEDIA_PROXY_HTTP_CLIENT_TIMEOUT instead")
-		o.env.MediaProxyHTTPClientTimeout = *o.env.ProxyHTTPClientTimeout
-	}
-
-	if o.env.ProxyImages != nil {
-		slog.Warn("The PROXY_IMAGES environment variable is deprecated, use MEDIA_PROXY_MODE instead")
-		o.env.MediaProxyMode = *o.env.ProxyImages
-	}
-
-	if o.env.ProxyImageURL != nil {
-		slog.Warn("The PROXY_IMAGE_URL environment variable is deprecated, use MEDIA_PROXY_CUSTOM_URL instead")
-		o.env.MediaProxyCustomURL = *o.env.ProxyImageURL
-	}
-
-	if o.env.ProxyMediaTypes != nil {
-		slog.Warn("The PROXY_MEDIA_TYPES environment variable is deprecated, use MEDIA_PROXY_RESOURCE_TYPES instead")
-		o.env.MediaProxyResourceTypes = o.env.ProxyMediaTypes
-	}
-
-	if o.env.ProxyOption != nil {
-		slog.Warn("The PROXY_OPTION environment variable is deprecated, use MEDIA_PROXY_MODE instead")
-		o.env.MediaProxyMode = *o.env.ProxyOption
-	}
-
-	if o.env.ProxyURL != nil {
-		slog.Warn("The PROXY_URL environment variable is deprecated, use MEDIA_PROXY_CUSTOM_URL instead")
-		o.env.MediaProxyCustomURL = *o.env.ProxyURL
-	}
-}
-
 func (o *Options) applyFileStrings() {
 	opts := []struct {
 		From *string
@@ -328,11 +280,6 @@ func (o *Options) applyPrivateKeys() error {
 		To         *[]byte
 		Deprecated string
 	}{
-		{
-			From:       o.env.ProxyPrivateKey,
-			To:         &o.mediaProxyPrivateKey,
-			Deprecated: "The PROXY_PRIVATE_KEY environment variable is deprecated, use MEDIA_PROXY_PRIVATE_KEY instead",
-		},
 		{
 			From: o.env.MediaProxyPrivateKey,
 			To:   &o.mediaProxyPrivateKey,

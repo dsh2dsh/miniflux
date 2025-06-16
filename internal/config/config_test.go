@@ -105,19 +105,6 @@ func TestLogFormatWithInvalidValue(t *testing.T) {
 	require.ErrorContains(t, err, "failed on the 'oneof' tag")
 }
 
-func TestDebugModeOn(t *testing.T) {
-	os.Clearenv()
-	t.Setenv("DEBUG", "1")
-	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, "debug", opts.LogLevel())
-}
-
-func TestDebugModeOff(t *testing.T) {
-	os.Clearenv()
-	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, "info", opts.LogLevel())
-}
-
 func TestCustomBaseURL(t *testing.T) {
 	os.Clearenv()
 	const want = "http://example.org"
@@ -640,61 +627,6 @@ func TestMediaProxyPrivateKey(t *testing.T) {
 	assert.Equal(t, []byte(foobar), opts.MediaProxyPrivateKey())
 }
 
-func TestProxyImagesOptionForBackwardCompatibility(t *testing.T) {
-	os.Clearenv()
-	const expectedProxyOption = "all"
-	t.Setenv("PROXY_IMAGES", expectedProxyOption)
-	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, []string{"image"}, opts.MediaProxyResourceTypes())
-	assert.Equal(t, expectedProxyOption, opts.MediaProxyMode())
-}
-
-func TestProxyImageURLForBackwardCompatibility(t *testing.T) {
-	os.Clearenv()
-	const expected = "http://example.org/proxy"
-	t.Setenv("PROXY_IMAGE_URL", expected)
-	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, expected, opts.MediaCustomProxyURL())
-}
-
-func TestProxyURLOptionForBackwardCompatibility(t *testing.T) {
-	os.Clearenv()
-	const expected = "http://example.org/proxy"
-	t.Setenv("PROXY_URL", expected)
-	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, expected, opts.MediaCustomProxyURL())
-}
-
-func TestProxyMediaTypesOptionForBackwardCompatibility(t *testing.T) {
-	os.Clearenv()
-	t.Setenv("PROXY_MEDIA_TYPES", "image,audio")
-	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, []string{"image", "audio"}, opts.MediaProxyResourceTypes())
-}
-
-func TestProxyOptionForBackwardCompatibility(t *testing.T) {
-	os.Clearenv()
-	const expected = "all"
-	t.Setenv("PROXY_OPTION", expected)
-	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, expected, opts.MediaProxyMode())
-}
-
-func TestProxyHTTPClientTimeoutOptionForBackwardCompatibility(t *testing.T) {
-	os.Clearenv()
-	t.Setenv("PROXY_HTTP_CLIENT_TIMEOUT", "24")
-	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, 24, opts.MediaProxyHTTPClientTimeout())
-}
-
-func TestProxyPrivateKeyOptionForBackwardCompatibility(t *testing.T) {
-	os.Clearenv()
-	const foobar = "foobar"
-	t.Setenv("PROXY_PRIVATE_KEY", foobar)
-	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, []byte(foobar), opts.MediaProxyPrivateKey())
-}
-
 func TestHTTPSOff(t *testing.T) {
 	os.Clearenv()
 	opts := parseEnvironmentVariables(t)
@@ -752,7 +684,7 @@ func TestParseConfigFile(t *testing.T) {
 	content := []byte(`
  # This is a comment
 
-DEBUG = 1
+LOG_LEVEL = debug
 
  POCKET_CONSUMER_KEY= >#1234
 `)
@@ -777,7 +709,7 @@ func TestParseConfigFile_invalid(t *testing.T) {
 	invalidContent := []byte(`
  # This is a comment
 
-DEBUG = 1
+LOG_LEVEL = debug
 
  POCKET_CONSUMER_KEY= >#1234
 
