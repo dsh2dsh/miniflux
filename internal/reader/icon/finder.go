@@ -147,10 +147,11 @@ func (f *IconFinder) FetchIconsFromHTMLDocument() (*model.Icon, error) {
 		return nil, err
 	}
 
+	rootURL = responseHandler.EffectiveURL()
 	slog.Debug("Searched icon from HTML document",
 		slog.String("website_url", f.websiteURL),
-		slog.String("icon_urls", strings.Join(iconURLs, ",")),
-	)
+		slog.String("effective_url", rootURL),
+		slog.String("icon_urls", strings.Join(iconURLs, ",")))
 
 	for _, iconURL := range iconURLs {
 		if strings.HasPrefix(iconURL, "data:") {
@@ -160,7 +161,7 @@ func (f *IconFinder) FetchIconsFromHTMLDocument() (*model.Icon, error) {
 			return parseImageDataURL(iconURL)
 		}
 
-		iconURL, err = urllib.AbsoluteURL(f.websiteURL, iconURL)
+		iconURL, err = urllib.AbsoluteURL(rootURL, iconURL)
 		if err != nil {
 			return nil, fmt.Errorf(
 				`icon: unable to convert icon URL to absolute URL: %w`, err)
