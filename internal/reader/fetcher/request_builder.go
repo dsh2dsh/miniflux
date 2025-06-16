@@ -213,7 +213,7 @@ func (r *RequestBuilder) ExecuteRequest(requestURL string) (*http.Response, erro
 		return nil, err
 	}
 
-	req.Header = r.headers
+	req.Header = r.headers.Clone()
 	req.Header.Set("Accept", defaultAcceptHeader)
 	req.Header.Set("Connection", "close")
 
