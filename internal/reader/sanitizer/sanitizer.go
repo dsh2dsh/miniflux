@@ -135,8 +135,8 @@ var (
 		"stats.wordpress.com",
 		"twitter.com/intent/tweet",
 		"twitter.com/share",
-		"www.facebook.com/sharer.php",
-		"www.linkedin.com/shareArticle",
+		"facebook.com/sharer.php",
+		"linkedin.com/shareArticle",
 	}
 
 	validURISchemes = map[string]struct{}{
@@ -179,12 +179,6 @@ var (
 		// iOS Apps
 		"opener": {}, // https://www.opener.link
 		"hack":   {}, // https://apps.apple.com/it/app/hack-for-hacker-news-reader/id1464477788?l=en-GB
-	}
-
-	blockedTags = map[string]struct{}{
-		"noscript": {},
-		"script":   {},
-		"style":    {},
 	}
 
 	dataAttributeAllowedPrefixes = []string{
@@ -540,8 +534,12 @@ func rewriteIframeURL(link string) string {
 }
 
 func isBlockedTag(tagName string) bool {
-	_, ok := blockedTags[tagName]
-	return ok
+	switch tagName {
+	case "noscript", "script", "style":
+		return true
+	default:
+		return false
+	}
 }
 
 func sanitizeSrcsetAttr(baseURL, value string) string {
