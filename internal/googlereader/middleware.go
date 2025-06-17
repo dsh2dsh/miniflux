@@ -159,7 +159,7 @@ func (self *keyAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		request.WithUserSession(ctx, user, sess)))
 
 	if d := time.Since(sess.UpdatedAt); d > 5*time.Minute {
-		err := self.store.UpdateAppSession(ctx, sess, map[string]any{})
+		err := self.store.RefreshAppSession(ctx, sess)
 		if err != nil {
 			log.Error("[GoogleReader] Unable update session updated timestamp",
 				slog.String("id", sess.ID),

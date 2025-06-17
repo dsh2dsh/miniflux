@@ -56,7 +56,7 @@ func (self *UserSession) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	self.next.ServeHTTP(w, r.WithContext(ctx))
 
 	if d := time.Since(sess.UpdatedAt); d > 5*time.Minute {
-		err := self.store.UpdateAppSession(ctx, sess, map[string]any{})
+		err := self.store.RefreshAppSession(ctx, sess)
 		if err != nil {
 			logging.FromContext(ctx).Error("unable update session updated timestamp",
 				slog.String("id", sess.ID),

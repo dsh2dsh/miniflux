@@ -62,16 +62,50 @@ RETURNING created_at, updated_at`,
 }
 
 func (s *Storage) UpdateAppSession(ctx context.Context, m *model.Session,
-	values map[string]any,
+	updated map[string]any, deleted []string,
+) error {
+	if len(updated) == 0 && len(deleted) == 0 {
+		return nil
+	}
+
+	args := make([]any, 0, 3)
+	var merge, deleteKeys string
+
+	if len(updated) != 0 {
+		args = append(args, updated)
+		// data = data || $1::jsonb
+		merge = " || $" + strconv.Itoa(len(args)) + "::jsonb"
+	}
+
+	if len(deleted) != 0 {
+		args = append(args, deleted)
+		// data = data - $2::text[]
+		deleteKeys = " - $" + strconv.Itoa(len(args)) + "::text[]"
+	}
+
+	args = append(args, m.ID)
+	query := `
+UPDATE sessions
+   SET updated_at = now(),
+       data = data` + merge + deleteKeys + `
+ WHERE id = $` + strconv.Itoa(len(args)) + `
+RETURNING updated_at, data`
+
+	err := s.db.QueryRow(ctx, query, args...).Scan(&m.UpdatedAt, m.Data)
+	if err != nil {
+		return fmt.Errorf("storage: unable to update session data: %w", err)
+	}
+	return nil
+}
+
+func (s *Storage) RefreshAppSession(ctx context.Context, m *model.Session,
 ) error {
 	err := s.db.QueryRow(ctx, `
 UPDATE sessions
-   SET data = data || $1::jsonb, updated_at = now()
- WHERE id = $2
-RETURNING updated_at, data`,
-		values, m.ID).Scan(&m.UpdatedAt, m.Data)
+   SET updated_at = now()
+ WHERE id = $1 RETURNING updated_at`, m.ID).Scan(&m.UpdatedAt)
 	if err != nil {
-		return fmt.Errorf("storage: unable to update session data: %w", err)
+		return fmt.Errorf("storage: unable to refresh session time: %w", err)
 	}
 	return nil
 }
