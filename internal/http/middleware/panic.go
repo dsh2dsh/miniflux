@@ -36,6 +36,8 @@ func logPanic(r *http.Request, err any) {
 	log.Error("request aborted with panic", slog.Any("reason", err))
 
 	for line := range bytes.Lines(debug.Stack()) {
+		line = bytes.Replace(line, []byte("\t"), []byte("  "), 1)
+		line = bytes.TrimRight(line, "\n")
 		log.Error("panic: " + string(line))
 	}
 }
