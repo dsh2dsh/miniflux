@@ -111,8 +111,8 @@ func (f *FeedQueryBuilder) buildSorting() string {
 // GetFeedByID returns a single feed that match feedID.
 func (f *FeedQueryBuilder) GetFeedByID(ctx context.Context, feedID int64,
 ) (*model.Feed, error) {
-	f.conditions[0] = "f.id = $1"
-	f.args[0] = feedID
+	f.conditions = append(f.conditions, "f.id = $"+strconv.Itoa(len(f.args)+1))
+	f.args = append(f.args, feedID)
 
 	feeds, err := f.queryFeeds(ctx)
 	if err != nil {
