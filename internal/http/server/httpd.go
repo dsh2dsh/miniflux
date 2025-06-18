@@ -333,6 +333,7 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
 			api.WithKeyAuth(store),
 			api.WithBasicAuth(store)).
 		WithPrefix(googlereader.PathPrefix, googlereader.WithKeyAuth(store)).
+		WithPrefix(fever.PathPrefix, fever.WithKeyAuth(store)).
 		WithDefault(middleware.WithUserSession(store,
 			"/oauth2/callback/",
 			"/oauth2/redirect/"))

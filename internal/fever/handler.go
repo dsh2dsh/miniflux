@@ -10,9 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/integration"
+	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/mediaproxy"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/storage"
@@ -20,12 +23,14 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const PathPrefix = "/fever"
+
 // Serve handles Fever API calls.
 func Serve(router *mux.Router, store *storage.Storage) {
 	handler := &handler{store, router}
 
-	sr := router.PathPrefix("/fever").Subrouter()
-	sr.Use(newMiddleware(store).serve)
+	sr := router.PathPrefix(PathPrefix).Subrouter()
+	sr.Use(requestUser)
 	sr.HandleFunc("/", handler.serve).Name("feverEndpoint")
 }
 
@@ -79,26 +84,26 @@ The “Sparks” super group is not included in this response and is composed of
 is_spark equal to 1.
 */
 func (h *handler) handleGroups(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	userID := request.UserID(r)
-	slog.Debug("[Fever] Fetching groups",
-		slog.Int64("user_id", userID),
-	)
+	logging.FromContext(ctx).Debug("[Fever] Fetching groups",
+		slog.Int64("user_id", userID))
 
-	categories, err := h.store.Categories(r.Context(), userID)
+	categories, err := h.store.Categories(ctx, userID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
 
-	feeds, err := h.store.Feeds(r.Context(), userID)
+	feeds, err := h.store.Feeds(ctx, userID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
 
-	var result groupsResponse
-	for _, category := range categories {
-		result.Groups = append(result.Groups, group{ID: category.ID, Title: category.Title})
+	result := groupsResponse{Groups: make([]group, len(categories))}
+	for i, category := range categories {
+		result.Groups[i] = group{ID: category.ID, Title: category.Title}
 	}
 
 	result.FeedsGroups = h.buildFeedGroups(feeds)
@@ -131,20 +136,19 @@ should be limited to feeds with an is_spark equal to 0.
 For the “Sparks” super group the items should be limited to feeds with an is_spark equal to 1.
 */
 func (h *handler) handleFeeds(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	userID := request.UserID(r)
-	slog.Debug("[Fever] Fetching feeds",
-		slog.Int64("user_id", userID),
-	)
+	logging.FromContext(ctx).Debug("[Fever] Fetching feeds",
+		slog.Int64("user_id", userID))
 
-	feeds, err := h.store.Feeds(r.Context(), userID)
+	feeds, err := h.store.Feeds(ctx, userID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
 
-	var result feedsResponse
-	result.Feeds = make([]feed, 0)
-	for _, f := range feeds {
+	result := feedsResponse{Feeds: make([]feed, len(feeds))}
+	for i, f := range feeds {
 		subscripion := feed{
 			ID:          f.ID,
 			Title:       f.Title,
@@ -157,8 +161,7 @@ func (h *handler) handleFeeds(w http.ResponseWriter, r *http.Request) {
 		if f.Icon != nil {
 			subscripion.FaviconID = f.Icon.IconID
 		}
-
-		result.Feeds = append(result.Feeds, subscripion)
+		result.Feeds[i] = subscripion
 	}
 
 	result.FeedsGroups = h.buildFeedGroups(feeds)
@@ -186,25 +189,21 @@ A PHP/HTML example:
 	echo '<img src="data:'.$favicon['data'].'">';
 */
 func (h *handler) handleFavicons(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	userID := request.UserID(r)
-	slog.Debug("[Fever] Fetching favicons",
-		slog.Int64("user_id", userID),
-	)
+	logging.FromContext(ctx).Debug("[Fever] Fetching favicons",
+		slog.Int64("user_id", userID))
 
-	icons, err := h.store.Icons(r.Context(), userID)
+	icons, err := h.store.Icons(ctx, userID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
 
-	var result faviconsResponse
-	for _, i := range icons {
-		result.Favicons = append(result.Favicons, favicon{
-			ID:   i.ID,
-			Data: i.DataURL(),
-		})
+	result := faviconsResponse{Favicons: make([]favicon, len(icons))}
+	for i, icon := range icons {
+		result.Favicons[i] = favicon{ID: icon.ID, Data: icon.DataURL()}
 	}
-
 	result.SetCommonValues()
 	json.OK(w, r, result)
 }
@@ -240,39 +239,32 @@ Three optional arguments control determine the items included in the response.
 	(added in API version 2)
 */
 func (h *handler) handleItems(w http.ResponseWriter, r *http.Request) {
-	var result itemsResponse
-
+	ctx := r.Context()
 	userID := request.UserID(r)
+	log := logging.FromContext(ctx).With(
+		slog.Int64("user_id", userID))
 
-	builder := h.store.NewEntryQueryBuilder(userID)
-	builder.WithoutStatus(model.EntryStatusRemoved)
-	builder.WithLimit(50)
+	builder := h.store.NewEntryQueryBuilder(userID).
+		WithoutStatus(model.EntryStatusRemoved).
+		WithLimit(50)
 
 	switch {
 	case request.HasQueryParam(r, "since_id"):
 		sinceID := request.QueryInt64Param(r, "since_id", 0)
 		if sinceID > 0 {
-			slog.Debug("[Fever] Fetching items since a given date",
-				slog.Int64("user_id", userID),
-				slog.Int64("since_id", sinceID),
-			)
-			builder.AfterEntryID(sinceID)
-			builder.WithSorting("id", "ASC")
+			log.Debug("[Fever] Fetching items since a given date",
+				slog.Int64("since_id", sinceID))
+			builder.AfterEntryID(sinceID).WithSorting("id", "ASC")
 		}
 	case request.HasQueryParam(r, "max_id"):
 		maxID := request.QueryInt64Param(r, "max_id", 0)
 		if maxID == 0 {
-			slog.Debug("[Fever] Fetching most recent items",
-				slog.Int64("user_id", userID),
-			)
+			log.Debug("[Fever] Fetching most recent items")
 			builder.WithSorting("id", "DESC")
 		} else if maxID > 0 {
-			slog.Debug("[Fever] Fetching items before a given item ID",
-				slog.Int64("user_id", userID),
-				slog.Int64("max_id", maxID),
-			)
-			builder.BeforeEntryID(maxID)
-			builder.WithSorting("id", "DESC")
+			log.Debug("[Fever] Fetching items before a given item ID",
+				slog.Int64("max_id", maxID))
+			builder.BeforeEntryID(maxID).WithSorting("id", "DESC")
 		}
 	case request.HasQueryParam(r, "with_ids"):
 		csvItemIDs := request.QueryStringParam(r, "with_ids", "")
@@ -286,48 +278,53 @@ func (h *handler) handleItems(w http.ResponseWriter, r *http.Request) {
 			builder.WithEntryIDs(itemIDs)
 		}
 	default:
-		slog.Debug("[Fever] Fetching oldest items",
-			slog.Int64("user_id", userID),
-		)
+		log.Debug("[Fever] Fetching oldest items")
 	}
 
-	entries, err := builder.GetEntries(r.Context())
-	if err != nil {
+	g, ctx := errgroup.WithContext(ctx)
+	var entries model.Entries
+	g.Go(func() (err error) {
+		entries, err = builder.GetEntries(ctx)
+		return
+	})
+
+	var result itemsResponse
+	g.Go(func() (err error) {
+		result.Total, err = h.store.NewEntryQueryBuilder(userID).
+			WithoutStatus(model.EntryStatusRemoved).
+			CountEntries(ctx)
+		return
+	})
+
+	if err := g.Wait(); err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
 
-	builder = h.store.NewEntryQueryBuilder(userID)
-	builder.WithoutStatus(model.EntryStatusRemoved)
-	result.Total, err = builder.CountEntries(r.Context())
-	if err != nil {
-		json.ServerError(w, r, err)
-		return
-	}
-
-	result.Items = make([]item, 0)
-	for _, entry := range entries {
-		isRead := 0
+	result.Items = make([]item, len(entries))
+	for i, entry := range entries {
+		var isRead int
 		if entry.Status == model.EntryStatusRead {
 			isRead = 1
 		}
 
-		isSaved := 0
+		var isSaved int
 		if entry.Starred {
 			isSaved = 1
 		}
 
-		result.Items = append(result.Items, item{
-			ID:        entry.ID,
-			FeedID:    entry.FeedID,
-			Title:     entry.Title,
-			Author:    entry.Author,
-			HTML:      mediaproxy.RewriteDocumentWithAbsoluteProxyURL(h.router, entry.Content),
+		result.Items[i] = item{
+			ID:     entry.ID,
+			FeedID: entry.FeedID,
+			Title:  entry.Title,
+			Author: entry.Author,
+			HTML: mediaproxy.RewriteDocumentWithAbsoluteProxyURL(h.router,
+				entry.Content),
 			URL:       entry.URL,
 			IsSaved:   isSaved,
 			IsRead:    isRead,
 			CreatedAt: entry.Date.Unix(),
-		})
+		}
 	}
 
 	result.SetCommonValues()
@@ -343,14 +340,14 @@ A request with the unread_item_ids argument will return one additional member:
 	unread_item_ids (string/comma-separated list of positive integers)
 */
 func (h *handler) handleUnreadItems(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	userID := request.UserID(r)
-	slog.Debug("[Fever] Fetching unread items",
-		slog.Int64("user_id", userID),
-	)
+	logging.FromContext(ctx).Debug("[Fever] Fetching unread items",
+		slog.Int64("user_id", userID))
 
-	builder := h.store.NewEntryQueryBuilder(userID)
-	builder.WithStatus(model.EntryStatusUnread)
-	rawEntryIDs, err := builder.GetEntryIDs(r.Context())
+	rawEntryIDs, err := h.store.NewEntryQueryBuilder(userID).
+		WithStatus(model.EntryStatusUnread).
+		GetEntryIDs(ctx)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -361,8 +358,7 @@ func (h *handler) handleUnreadItems(w http.ResponseWriter, r *http.Request) {
 		itemIDs[i] = strconv.FormatInt(entryID, 10)
 	}
 
-	var result unreadResponse
-	result.ItemIDs = strings.Join(itemIDs, ",")
+	result := unreadResponse{ItemIDs: strings.Join(itemIDs, ",")}
 	result.SetCommonValues()
 	json.OK(w, r, result)
 }
@@ -376,15 +372,14 @@ with the remote Fever installation.
 	saved_item_ids (string/comma-separated list of positive integers)
 */
 func (h *handler) handleSavedItems(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	userID := request.UserID(r)
-	slog.Debug("[Fever] Fetching saved items",
-		slog.Int64("user_id", userID),
-	)
+	logging.FromContext(ctx).Debug("[Fever] Fetching saved items",
+		slog.Int64("user_id", userID))
 
-	builder := h.store.NewEntryQueryBuilder(userID)
-	builder.WithStarred(true)
-
-	entryIDs, err := builder.GetEntryIDs(r.Context())
+	entryIDs, err := h.store.NewEntryQueryBuilder(userID).
+		WithStarred(true).
+		GetEntryIDs(ctx)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -406,74 +401,55 @@ as=? where ? is replaced with read, saved or unsaved
 id=? where ? is replaced with the id of the item to modify
 */
 func (h *handler) handleWriteItems(w http.ResponseWriter, r *http.Request) {
-	user := request.User(r)
+	ctx := r.Context()
 	userID := request.UserID(r)
-	slog.Debug("[Fever] Receiving mark=item call",
-		slog.Int64("user_id", userID),
-	)
+	log := logging.FromContext(ctx).With(slog.Int64("user_id", userID))
+	log.Debug("[Fever] Receiving mark=item call")
 
 	entryID := request.FormInt64Value(r, "id")
 	if entryID <= 0 {
 		return
 	}
 
-	builder := h.store.NewEntryQueryBuilder(userID)
-	builder.WithEntryID(entryID)
-	builder.WithoutStatus(model.EntryStatusRemoved)
-
-	entry, err := builder.GetEntry(r.Context())
+	entry, err := h.store.NewEntryQueryBuilder(userID).
+		WithEntryID(entryID).
+		WithoutStatus(model.EntryStatusRemoved).
+		GetEntry(ctx)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
-	}
-
-	if entry == nil {
-		slog.Debug("[Fever] Entry not found",
-			slog.Int64("user_id", userID),
-			slog.Int64("entry_id", entryID),
-		)
+	} else if entry == nil {
+		log.Debug("[Fever] Entry not found", slog.Int64("entry_id", entryID))
 		json.OK(w, r, newBaseResponse())
 		return
 	}
+	log = log.With(slog.Int64("entry_id", entryID))
 
 	switch r.FormValue("as") {
 	case "read":
-		slog.Debug("[Fever] Mark entry as read",
-			slog.Int64("user_id", userID),
-			slog.Int64("entry_id", entryID),
-		)
-		err = h.store.SetEntriesStatus(r.Context(), userID, []int64{entryID},
+		log.Debug("[Fever] Mark entry as read")
+		err = h.store.SetEntriesStatus(ctx, userID, []int64{entryID},
 			model.EntryStatusRead)
 	case "unread":
-		slog.Debug("[Fever] Mark entry as unread",
-			slog.Int64("user_id", userID),
-			slog.Int64("entry_id", entryID),
-		)
-		err = h.store.SetEntriesStatus(r.Context(), userID, []int64{entryID},
+		log.Debug("[Fever] Mark entry as unread")
+		err = h.store.SetEntriesStatus(ctx, userID, []int64{entryID},
 			model.EntryStatusUnread)
 	case "saved":
-		slog.Debug("[Fever] Mark entry as saved",
-			slog.Int64("user_id", userID),
-			slog.Int64("entry_id", entryID),
-		)
-		err := h.store.ToggleBookmark(r.Context(), userID, entryID)
+		log.Debug("[Fever] Mark entry as saved")
+		err := h.store.ToggleBookmark(ctx, userID, entryID)
 		if err != nil {
 			json.ServerError(w, r, err)
 			return
 		}
-		integration.SendEntry(entry, user)
+		integration.SendEntry(entry, request.User(r))
 	case "unsaved":
-		slog.Debug("[Fever] Mark entry as unsaved",
-			slog.Int64("user_id", userID),
-			slog.Int64("entry_id", entryID),
-		)
-		err = h.store.ToggleBookmark(r.Context(), userID, entryID)
+		log.Debug("[Fever] Mark entry as unsaved")
+		err = h.store.ToggleBookmark(ctx, userID, entryID)
 	}
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
-
 	json.OK(w, r, newBaseResponse())
 }
 
@@ -488,27 +464,21 @@ func (h *handler) handleWriteFeeds(w http.ResponseWriter, r *http.Request) {
 	feedID := request.FormInt64Value(r, "id")
 	before := time.Unix(request.FormInt64Value(r, "before"), 0)
 
-	slog.Debug("[Fever] Mark feed as read before a given date",
+	ctx := r.Context()
+	log := logging.FromContext(ctx).With(
 		slog.Int64("user_id", userID),
 		slog.Int64("feed_id", feedID),
-		slog.Time("before_ts", before),
-	)
+		slog.Time("before_ts", before))
+	log.Debug("[Fever] Mark feed as read before a given date")
 
 	if feedID <= 0 {
 		return
 	}
 
-	go func() {
-		_, err := h.store.MarkFeedAsRead(r.Context(), userID, feedID, before)
-		if err != nil {
-			slog.Error("[Fever] Unable to mark feed as read",
-				slog.Int64("user_id", userID),
-				slog.Int64("feed_id", feedID),
-				slog.Time("before_ts", before),
-				slog.Any("error", err),
-			)
-		}
-	}()
+	_, err := h.store.MarkFeedAsRead(ctx, userID, feedID, before)
+	if err != nil {
+		log.Error("[Fever] Unable to mark feed as read", slog.Any("error", err))
+	}
 	json.OK(w, r, newBaseResponse())
 }
 
@@ -523,35 +493,26 @@ func (h *handler) handleWriteGroups(w http.ResponseWriter, r *http.Request) {
 	groupID := request.FormInt64Value(r, "id")
 	before := time.Unix(request.FormInt64Value(r, "before"), 0)
 
-	slog.Debug("[Fever] Mark group as read before a given date",
+	ctx := r.Context()
+	log := logging.FromContext(ctx).With(
 		slog.Int64("user_id", userID),
 		slog.Int64("group_id", groupID),
-		slog.Time("before_ts", before),
-	)
+		slog.Time("before_ts", before))
+	log.Debug("[Fever] Mark group as read before a given date")
 
 	if groupID < 0 {
 		return
 	}
 
-	go func() {
-		var err error
-
-		if groupID == 0 {
-			err = h.store.MarkAllAsRead(r.Context(), userID)
-		} else {
-			_, err = h.store.MarkCategoryAsRead(r.Context(), userID, groupID, before)
-		}
-
-		if err != nil {
-			slog.Error("[Fever] Unable to mark group as read",
-				slog.Int64("user_id", userID),
-				slog.Int64("group_id", groupID),
-				slog.Time("before_ts", before),
-				slog.Any("error", err),
-			)
-		}
-	}()
-
+	var err error
+	if groupID == 0 {
+		err = h.store.MarkAllAsRead(ctx, userID)
+	} else {
+		_, err = h.store.MarkCategoryAsRead(ctx, userID, groupID, before)
+	}
+	if err != nil {
+		log.Error("[Fever] Unable to mark group as read", slog.Any("error", err))
+	}
 	json.OK(w, r, newBaseResponse())
 }
 
@@ -562,18 +523,16 @@ A feeds_group object has the following members:
 	feed_ids (string/comma-separated list of positive integers)
 */
 func (h *handler) buildFeedGroups(feeds model.Feeds) []feedsGroups {
-	feedsGroupedByCategory := make(map[int64][]string)
+	byCategory := make(map[int64][]string)
 	for _, feed := range feeds {
-		feedsGroupedByCategory[feed.Category.ID] = append(feedsGroupedByCategory[feed.Category.ID], strconv.FormatInt(feed.ID, 10))
+		byCategory[feed.Category.ID] = append(byCategory[feed.Category.ID],
+			strconv.FormatInt(feed.ID, 10))
 	}
 
-	result := make([]feedsGroups, 0)
-	for categoryID, feedIDs := range feedsGroupedByCategory {
-		result = append(result, feedsGroups{
-			GroupID: categoryID,
-			FeedIDs: strings.Join(feedIDs, ","),
-		})
+	result := make([]feedsGroups, 0, len(byCategory))
+	for categoryID, feedIDs := range byCategory {
+		result = append(result,
+			feedsGroups{GroupID: categoryID, FeedIDs: strings.Join(feedIDs, ",")})
 	}
-
 	return result
 }
