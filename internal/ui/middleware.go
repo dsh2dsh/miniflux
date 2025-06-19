@@ -5,6 +5,7 @@ package ui // import "miniflux.app/v2/internal/ui"
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -219,7 +220,7 @@ func (m *middleware) PublicCSRF(next http.Handler) http.Handler {
 		}
 
 		if r.Method != http.MethodPost {
-			csrf := crypto.GenerateRandomString(64)
+			csrf := rand.Text()
 			http.SetCookie(w, cookie.NewCSRF(csrf))
 			ctx := request.WithCSRF(r.Context(), csrf)
 			next.ServeHTTP(w, r.WithContext(ctx))

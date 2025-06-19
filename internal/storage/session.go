@@ -5,6 +5,7 @@ package storage // import "miniflux.app/v2/internal/storage"
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 )
@@ -21,10 +21,10 @@ func (s *Storage) CreateAppSessionForUser(ctx context.Context, user *model.User,
 	userAgent, ip string,
 ) (*model.Session, error) {
 	session := &model.Session{
-		ID:     crypto.GenerateRandomString(32),
+		ID:     rand.Text(),
 		UserID: user.ID,
 		Data: &model.SessionData{
-			CSRF:      crypto.GenerateRandomString(64),
+			CSRF:      rand.Text(),
 			Theme:     user.Theme,
 			Language:  user.Language,
 			UserAgent: userAgent,
@@ -38,9 +38,9 @@ func (s *Storage) CreateAppSessionForUser(ctx context.Context, user *model.User,
 func (s *Storage) CreateAppSession(ctx context.Context, userAgent, ip string,
 ) (*model.Session, error) {
 	session := &model.Session{
-		ID: crypto.GenerateRandomString(32),
+		ID: rand.Text(),
 		Data: &model.SessionData{
-			CSRF:      crypto.GenerateRandomString(64),
+			CSRF:      rand.Text(),
 			UserAgent: userAgent,
 			IP:        ip,
 		},

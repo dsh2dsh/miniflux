@@ -1,7 +1,6 @@
 module miniflux.app/v2
 
-// +heroku goVersion go1.23
-
+// +heroku goVersion go1.24
 go 1.24
 
 require (
