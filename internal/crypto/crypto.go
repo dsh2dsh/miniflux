@@ -10,16 +10,15 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"fmt"
-	"hash/fnv"
+	"strconv"
 
+	"github.com/cespare/xxhash/v2"
 	"golang.org/x/crypto/bcrypt"
 )
 
 // HashFromBytes returns a non-cryptographic checksum of the input.
-func HashFromBytes(value []byte) string {
-	h := fnv.New128a()
-	h.Write(value)
-	return hex.EncodeToString(h.Sum(nil))
+func HashFromBytes(b []byte) string {
+	return strconv.FormatUint(xxhash.Sum64(b), 16)
 }
 
 // SHA256 returns a SHA-256 checksum of a string.
