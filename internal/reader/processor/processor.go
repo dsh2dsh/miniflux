@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
-	"regexp"
 	"slices"
 	"time"
 
@@ -19,6 +18,7 @@ import (
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/proxyrotator"
 	"miniflux.app/v2/internal/reader/fetcher"
+	"miniflux.app/v2/internal/reader/filter"
 	"miniflux.app/v2/internal/reader/readingtime"
 	"miniflux.app/v2/internal/reader/rewrite"
 	"miniflux.app/v2/internal/reader/sanitizer"
@@ -28,9 +28,6 @@ import (
 )
 
 var ErrScrape = errors.New("internal/reader/processor: unable scrape entry")
-
-var customReplaceRuleRegex = regexp.MustCompile(
-	`rewrite\("([^"]+)"\|"([^"]+)"\)`)
 
 // ProcessFeedEntries downloads original web page for entries and apply filters.
 func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
@@ -71,7 +68,7 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 		log.Debug("Processing entry")
 
 		removeTracking(feedURL, siteURL, entry)
-		rewriteEntryURL(ctx, feed, entry)
+		rewrite.RewriteEntryURL(ctx, feed, entry)
 
 		var pageBaseURL string
 		if feed.Crawler && (force || !entry.Stored()) {
@@ -110,8 +107,8 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 func deleteBadEntries(user *model.User, feed *model.Feed) {
 	entries := slices.DeleteFunc(feed.Entries, func(entry *model.Entry) bool {
 		return !recentEntry(entry) ||
-			isBlockedEntry(feed, entry, user) ||
-			!isAllowedEntry(feed, entry, user)
+			filter.IsBlockedEntry(feed, entry, user) ||
+			!filter.IsAllowedEntry(feed, entry, user)
 	})
 	// process older entries first
 	slices.Reverse(entries)
@@ -152,40 +149,6 @@ func removeTracking(feedURL, siteURL *url.URL, entry *model.Entry) {
 	if err == nil {
 		entry.URL = cleanURL
 	}
-}
-
-func rewriteEntryURL(ctx context.Context, feed *model.Feed, entry *model.Entry,
-) {
-	if feed.UrlRewriteRules == "" {
-		return
-	}
-
-	log := logging.FromContext(ctx)
-	parts := customReplaceRuleRegex.FindStringSubmatch(feed.UrlRewriteRules)
-	if len(parts) < 3 {
-		log.Debug("Cannot find search and replace terms for replace rule",
-			slog.String("entry_url", entry.URL),
-			slog.Int64("feed_id", feed.ID),
-			slog.String("feed_url", feed.FeedURL),
-			slog.String("url_rewrite_rules", feed.UrlRewriteRules))
-		return
-	}
-
-	re, err := regexp.Compile(parts[1])
-	if err != nil {
-		log.Error("Failed on regexp compilation",
-			slog.String("url_rewrite_rules", feed.UrlRewriteRules),
-			slog.Any("error", err))
-		return
-	}
-
-	rewrittenURL := re.ReplaceAllString(entry.URL, parts[2])
-	log.Debug("Rewriting entry URL",
-		slog.String("original_entry_url", entry.URL),
-		slog.String("rewritten_entry_url", rewrittenURL),
-		slog.Int64("feed_id", feed.ID),
-		slog.String("feed_url", feed.FeedURL))
-	entry.URL = rewrittenURL
 }
 
 func scrape(ctx context.Context, feed *model.Feed, entry *model.Entry,
@@ -229,7 +192,7 @@ func scrape(ctx context.Context, feed *model.Feed, entry *model.Entry,
 func ProcessEntryWebPage(ctx context.Context, feed *model.Feed,
 	entry *model.Entry, user *model.User,
 ) error {
-	rewriteEntryURL(ctx, feed, entry)
+	rewrite.RewriteEntryURL(ctx, feed, entry)
 	baseURL, content, err := scrape(ctx, feed, entry)
 	if err != nil || content == "" {
 		return err

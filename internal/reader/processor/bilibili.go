@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"strings"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/model"
@@ -16,18 +17,13 @@ import (
 	"miniflux.app/v2/internal/reader/fetcher"
 )
 
-var (
-	bilibiliURLRegex     = regexp.MustCompile(`bilibili\.com/video/(.*)$`)
-	bilibiliVideoIdRegex = regexp.MustCompile(`/video/(?:av(\d+)|BV([a-zA-Z0-9]+))`)
-)
+var bilibiliVideoIdRegex = regexp.MustCompile(`/video/(?:av(\d+)|BV([a-zA-Z0-9]+))`)
 
 func shouldFetchBilibiliWatchTime(entry *model.Entry) bool {
 	if !config.Opts.FetchBilibiliWatchTime() {
 		return false
 	}
-	matches := bilibiliURLRegex.FindStringSubmatch(entry.URL)
-	urlMatchesBilibiliPattern := len(matches) == 2
-	return urlMatchesBilibiliPattern
+	return strings.Contains(entry.URL, "bilibili.com/video/")
 }
 
 func extractBilibiliVideoID(websiteURL string) (string, string, error) {
@@ -53,7 +49,7 @@ func fetchBilibiliWatchTime(websiteURL string) (int, error) {
 	if extractErr != nil {
 		return 0, extractErr
 	}
-	bilibiliApiURL := fmt.Sprintf("https://api.bilibili.com/x/web-interface/view?%s=%s", idType, videoID)
+	bilibiliApiURL := "https://api.bilibili.com/x/web-interface/view?" + idType + "=" + videoID
 
 	responseHandler := fetcher.NewResponseHandler(requestBuilder.ExecuteRequest(bilibiliApiURL))
 	defer responseHandler.Close()
