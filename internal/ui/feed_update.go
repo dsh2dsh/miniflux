@@ -18,7 +18,7 @@ import (
 
 func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
 	f := form.NewFeedForm(r)
-	modifyRequest := model.FeedModificationRequest{
+	modify := model.FeedModificationRequest{
 		FeedURL:             model.OptionalString(f.FeedURL),
 		SiteURL:             model.OptionalString(f.SiteURL),
 		Title:               model.OptionalString(f.Title),
@@ -30,11 +30,13 @@ func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
 		UrlRewriteRules:     model.OptionalString(f.UrlRewriteRules),
 		ProxyURL:            model.OptionalString(f.ProxyURL),
 	}
-	userID := request.UserID(r)
+
+	ctx := r.Context()
+	user := request.User(r)
 	feedID := request.RouteInt64Param(r, "feedID")
 
-	lerr := validator.ValidateFeedModification(r.Context(), h.store, userID,
-		feedID, &modifyRequest)
+	lerr := validator.ValidateFeedModification(ctx, h.store, user.ID, feedID,
+		&modify)
 	if lerr != nil {
 		h.showUpdateFeedError(w, r, func(v *View) {
 			v.Set("form", f).
@@ -44,13 +46,13 @@ func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	feed, err := h.store.FeedByID(r.Context(), userID, feedID)
+	feed, err := h.store.FeedByID(ctx, user.ID, feedID)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	err = h.store.UpdateFeed(r.Context(), f.Merge(feed))
+	err = h.store.UpdateFeed(ctx, f.Merge(feed))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
