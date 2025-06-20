@@ -4,9 +4,11 @@
 package filter // import "miniflux.app/v2/internal/reader/filter"
 
 import (
+	"fmt"
 	"log/slog"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -42,36 +44,49 @@ func IsBlockedEntry(feed *model.Feed, entry *model.Entry, user *model.User) bool
 		return true
 	}
 
-	// Check user-defined block rules first
-	if user.BlockFilterEntryRules != "" {
-		if matchesUserRules(user.BlockFilterEntryRules, entry, feed, filterActionBlock) {
+	combinedRules := combineFilterRules(user.BlockFilterEntryRules,
+		feed.Extra.BlockFilterEntryRules)
+	if combinedRules != "" {
+		if matchesEntryFilterRules(combinedRules, entry, feed, filterActionBlock) {
 			return true
 		}
 	}
 
-	// Check feed-level blocklist rules
 	if feed.BlocklistRules == "" {
 		return false
 	}
 
-	return matchesFeedRules(feed.BlocklistRules, entry, feed, filterActionBlock)
+	return matchesEntryRegexRules(feed.BlocklistRules, entry, feed, filterActionBlock)
 }
 
 func IsAllowedEntry(feed *model.Feed, entry *model.Entry, user *model.User) bool {
-	// Check user-defined keep rules first
-	if user.KeepFilterEntryRules != "" {
-		return matchesUserRules(user.KeepFilterEntryRules, entry, feed, filterActionAllow)
+	combinedRules := combineFilterRules(user.KeepFilterEntryRules,
+		feed.Extra.KeepFilterEntryRules)
+	if combinedRules != "" {
+		return matchesEntryFilterRules(combinedRules, entry, feed, filterActionAllow)
 	}
 
-	// Check feed-level keeplist rules
 	if feed.KeeplistRules == "" {
 		return true
 	}
 
-	return matchesFeedRules(feed.KeeplistRules, entry, feed, filterActionAllow)
+	return matchesEntryRegexRules(feed.KeeplistRules, entry, feed, filterActionAllow)
 }
 
-func matchesUserRules(rules string, entry *model.Entry, feed *model.Feed, filterAction filterActionType) bool {
+func combineFilterRules(userRules, feedRules string) string {
+	userRules = strings.TrimSpace(userRules)
+	feedRules = strings.TrimSpace(feedRules)
+
+	if feedRules != "" {
+		if userRules != "" {
+			return userRules + "\n" + feedRules
+		}
+		return feedRules
+	}
+	return userRules
+}
+
+func matchesEntryFilterRules(rules string, entry *model.Entry, feed *model.Feed, filterAction filterActionType) bool {
 	for rule := range strings.SplitSeq(rules, "\n") {
 		if matchesRule(rule, entry) {
 			logFilterAction(entry, feed, rule, filterAction)
@@ -81,10 +96,10 @@ func matchesUserRules(rules string, entry *model.Entry, feed *model.Feed, filter
 	return false
 }
 
-func matchesFeedRules(rules string, entry *model.Entry, feed *model.Feed, filterAction filterActionType) bool {
+func matchesEntryRegexRules(rules string, entry *model.Entry, feed *model.Feed, filterAction filterActionType) bool {
 	compiledRegex, err := regexp.Compile(rules)
 	if err != nil {
-		slog.Debug("Failed on regexp compilation",
+		slog.Warn("Failed on regexp compilation",
 			slog.String("pattern", rules),
 			slog.Any("error", err),
 		)
@@ -188,6 +203,13 @@ func isDateMatchingPattern(pattern string, entryDate time.Time) bool {
 			return false
 		}
 		return entryDate.After(startDate) && entryDate.Before(endDate)
+	case "max-age":
+		duration, err := parseDuration(inputDate)
+		if err != nil {
+			return false
+		}
+		cutoffDate := time.Now().Add(-duration)
+		return entryDate.Before(cutoffDate)
 	}
 	return false
 }
@@ -199,4 +221,29 @@ func containsRegexPattern(pattern string, entries []string) bool {
 		}
 	}
 	return false
+}
+
+func parseDuration(duration string) (time.Duration, error) {
+	// Handle common duration formats like "30d", "7d", "1h", "1m", etc.
+	// Go's time.ParseDuration doesn't support days, so we handle them manually
+	if strings.HasSuffix(duration, "d") {
+		daysStr := strings.TrimSuffix(duration, "d")
+		days := 0
+		if daysStr != "" {
+			var err error
+			days, err = strconv.Atoi(daysStr)
+			if err != nil {
+				return 0, fmt.Errorf("reader/filter: parse days %q: %w", daysStr,
+					err)
+			}
+		}
+		return time.Duration(days) * 24 * time.Hour, nil
+	}
+
+	// For other durations (hours, minutes, seconds), use Go's built-in parser
+	d, err := time.ParseDuration(duration)
+	if err != nil {
+		return 0, fmt.Errorf("reader/filter: parse duration %q: %w", duration, err)
+	}
+	return d, nil
 }

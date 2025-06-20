@@ -355,8 +355,10 @@ SET
 	pushover_enabled = $28,
 	pushover_priority = $29,
 	proxy_url = $30,
-  extra['comments_url_template'] = to_jsonb($31::text)
-WHERE id = $32 AND user_id = $33`,
+  extra['comments_url_template'] = to_jsonb($31::text),
+  extra['block_filter_entry_rules'] = to_jsonb($32::text),
+  extra['keep_filter_entry_rules'] = to_jsonb($33::text)
+WHERE id = $34 AND user_id = $35`,
 		feed.FeedURL,
 		feed.SiteURL,
 		feed.Title,
@@ -388,6 +390,8 @@ WHERE id = $32 AND user_id = $33`,
 		feed.PushoverPriority,
 		feed.ProxyURL,
 		feed.Extra.CommentsURLTemplate,
+		feed.Extra.BlockFilterEntryRules,
+		feed.Extra.KeepFilterEntryRules,
 		feed.ID, feed.UserID)
 	if err != nil {
 		return fmt.Errorf("storage: unable to update feed #%d (%s): %w",

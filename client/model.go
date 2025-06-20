@@ -166,6 +166,7 @@ type Feed struct {
 	FetchViaProxy               bool      `json:"fetch_via_proxy"`
 	ScraperRules                string    `json:"scraper_rules"`
 	RewriteRules                string    `json:"rewrite_rules"`
+	UrlRewriteRules             string    `json:"urlrewrite_rules"`
 	BlocklistRules              string    `json:"blocklist_rules"`
 	KeeplistRules               string    `json:"keeplist_rules"`
 	Crawler                     bool      `json:"crawler"`
@@ -185,6 +186,9 @@ type FeedExtra struct {
 	Hash uint64 `json:"hash,omitempty"`
 
 	CommentsURLTemplate string `json:"comments_url_template,omitempty"`
+
+	BlockFilterEntryRules string `json:"block_filter_entry_rules,omitempty"`
+	KeepFilterEntryRules  string `json:"keep_filter_entry_rules,omitempty"`
 }
 
 // FeedCreationRequest represents the request to create a feed.
@@ -202,8 +206,11 @@ type FeedCreationRequest struct {
 	FetchViaProxy               bool   `json:"fetch_via_proxy"`
 	ScraperRules                string `json:"scraper_rules"`
 	RewriteRules                string `json:"rewrite_rules"`
+	UrlRewriteRules             string `json:"urlrewrite_rules"`
 	BlocklistRules              string `json:"blocklist_rules"`
 	KeeplistRules               string `json:"keeplist_rules"`
+	BlockFilterEntryRules       string `json:"block_filter_entry_rules"`
+	KeepFilterEntryRules        string `json:"keep_filter_entry_rules"`
 	HideGlobally                bool   `json:"hide_globally"`
 	DisableHTTP2                bool   `json:"disable_http2"`
 	ProxyURL                    string `json:"proxy_url"`
@@ -216,8 +223,11 @@ type FeedModificationRequest struct {
 	Title                       *string `json:"title"`
 	ScraperRules                *string `json:"scraper_rules"`
 	RewriteRules                *string `json:"rewrite_rules"`
+	UrlRewriteRules             *string `json:"urlrewrite_rules"`
 	BlocklistRules              *string `json:"blocklist_rules"`
 	KeeplistRules               *string `json:"keeplist_rules"`
+	BlockFilterEntryRules       *string `json:"block_filter_entry_rules"`
+	KeepFilterEntryRules        *string `json:"keep_filter_entry_rules"`
 	Crawler                     *bool   `json:"crawler"`
 	UserAgent                   *string `json:"user_agent"`
 	Cookie                      *string `json:"cookie"`
