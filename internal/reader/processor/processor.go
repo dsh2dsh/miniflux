@@ -106,19 +106,12 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 
 func deleteBadEntries(user *model.User, feed *model.Feed) {
 	entries := slices.DeleteFunc(feed.Entries, func(entry *model.Entry) bool {
-		return !recentEntry(entry) ||
-			filter.IsBlockedEntry(feed, entry, user) ||
+		return filter.IsBlockedEntry(feed, entry, user) ||
 			!filter.IsAllowedEntry(feed, entry, user)
 	})
 	// process older entries first
 	slices.Reverse(entries)
 	feed.Entries = entries
-}
-
-func recentEntry(entry *model.Entry) bool {
-	return config.Opts.FilterEntryMaxAgeDays() == 0 ||
-		entry.Date.After(time.Now().AddDate(
-			0, 0, -config.Opts.FilterEntryMaxAgeDays()))
 }
 
 func markStoredEntries(ctx context.Context, store *storage.Storage,

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/model"
 )
 
@@ -20,7 +21,27 @@ const (
 	filterActionAllow filterActionType = "allow"
 )
 
+func blockedGlobally(entry *model.Entry) bool {
+	if config.Opts == nil || config.Opts.FilterEntryMaxAgeDays() == 0 {
+		return false
+	}
+
+	maxAge := time.Duration(config.Opts.FilterEntryMaxAgeDays()) * 24 * time.Hour
+	if entry.Date.Before(time.Now().Add(-maxAge)) {
+		slog.Debug("Entry is blocked globally due to max age",
+			slog.String("entry_url", entry.URL),
+			slog.Time("entry_date", entry.Date),
+			slog.Duration("max_age", maxAge))
+		return true
+	}
+	return false
+}
+
 func IsBlockedEntry(feed *model.Feed, entry *model.Entry, user *model.User) bool {
+	if blockedGlobally(entry) {
+		return true
+	}
+
 	// Check user-defined block rules first
 	if user.BlockFilterEntryRules != "" {
 		if matchesUserRules(user.BlockFilterEntryRules, entry, feed, filterActionBlock) {
