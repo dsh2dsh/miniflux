@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"miniflux.app/v2/internal/model"
 )
 
 // Client holds API procedure calls.
@@ -76,14 +78,14 @@ func (c *Client) Version() (*VersionResponse, error) {
 }
 
 // Me returns the logged user information.
-func (c *Client) Me() (*User, error) {
+func (c *Client) Me() (*model.User, error) {
 	body, err := c.request.Get("/v1/me")
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var user *User
+	var user *model.User
 	if err := json.NewDecoder(body).Decode(&user); err != nil {
 		return nil, fmt.Errorf("miniflux: json error (%w)", err)
 	}
@@ -92,14 +94,14 @@ func (c *Client) Me() (*User, error) {
 }
 
 // Users returns all users.
-func (c *Client) Users() (Users, error) {
+func (c *Client) Users() (model.Users, error) {
 	body, err := c.request.Get("/v1/users")
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var users Users
+	var users model.Users
 	if err := json.NewDecoder(body).Decode(&users); err != nil {
 		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
@@ -108,14 +110,14 @@ func (c *Client) Users() (Users, error) {
 }
 
 // UserByID returns a single user.
-func (c *Client) UserByID(userID int64) (*User, error) {
+func (c *Client) UserByID(userID int64) (*model.User, error) {
 	body, err := c.request.Get(fmt.Sprintf("/v1/users/%d", userID))
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var user User
+	var user model.User
 	if err := json.NewDecoder(body).Decode(&user); err != nil {
 		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
@@ -124,14 +126,14 @@ func (c *Client) UserByID(userID int64) (*User, error) {
 }
 
 // UserByUsername returns a single user.
-func (c *Client) UserByUsername(username string) (*User, error) {
+func (c *Client) UserByUsername(username string) (*model.User, error) {
 	body, err := c.request.Get("/v1/users/" + username)
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var user User
+	var user model.User
 	if err := json.NewDecoder(body).Decode(&user); err != nil {
 		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
@@ -140,8 +142,8 @@ func (c *Client) UserByUsername(username string) (*User, error) {
 }
 
 // CreateUser creates a new user in the system.
-func (c *Client) CreateUser(username, password string, isAdmin bool) (*User, error) {
-	body, err := c.request.Post("/v1/users", &UserCreationRequest{
+func (c *Client) CreateUser(username, password string, isAdmin bool) (*model.User, error) {
+	body, err := c.request.Post("/v1/users", &model.UserCreationRequest{
 		Username: username,
 		Password: password,
 		IsAdmin:  isAdmin,
@@ -151,7 +153,7 @@ func (c *Client) CreateUser(username, password string, isAdmin bool) (*User, err
 	}
 	defer body.Close()
 
-	var user *User
+	var user *model.User
 	if err := json.NewDecoder(body).Decode(&user); err != nil {
 		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
@@ -160,14 +162,14 @@ func (c *Client) CreateUser(username, password string, isAdmin bool) (*User, err
 }
 
 // UpdateUser updates a user in the system.
-func (c *Client) UpdateUser(userID int64, userChanges *UserModificationRequest) (*User, error) {
+func (c *Client) UpdateUser(userID int64, userChanges *model.UserModificationRequest) (*model.User, error) {
 	body, err := c.request.Put(fmt.Sprintf("/v1/users/%d", userID), userChanges)
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var u *User
+	var u *model.User
 	if err := json.NewDecoder(body).Decode(&u); err != nil {
 		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
@@ -181,14 +183,14 @@ func (c *Client) DeleteUser(userID int64) error {
 }
 
 // APIKeys returns all API keys for the authenticated user.
-func (c *Client) APIKeys() ([]*APIKey, error) {
+func (c *Client) APIKeys() ([]*model.APIKey, error) {
 	body, err := c.request.Get("/v1/api-keys")
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var apiKeys []*APIKey
+	var apiKeys []*model.APIKey
 	if err := json.NewDecoder(body).Decode(&apiKeys); err != nil {
 		return nil, fmt.Errorf("miniflux: response error: %w", err)
 	}
@@ -197,8 +199,8 @@ func (c *Client) APIKeys() ([]*APIKey, error) {
 }
 
 // CreateAPIKey creates a new API key for the authenticated user.
-func (c *Client) CreateAPIKey(description string) (*APIKey, error) {
-	body, err := c.request.Post("/v1/api-keys", &APIKeyCreationRequest{
+func (c *Client) CreateAPIKey(description string) (*model.APIKey, error) {
+	body, err := c.request.Post("/v1/api-keys", &model.APIKeyCreationRequest{
 		Description: description,
 	})
 	if err != nil {
@@ -206,7 +208,7 @@ func (c *Client) CreateAPIKey(description string) (*APIKey, error) {
 	}
 	defer body.Close()
 
-	var apiKey *APIKey
+	var apiKey *model.APIKey
 	if err := json.NewDecoder(body).Decode(&apiKey); err != nil {
 		return nil, fmt.Errorf("miniflux: response error: %w", err)
 	}
@@ -261,14 +263,14 @@ func (c *Client) Discover(url string) (Subscriptions, error) {
 }
 
 // Categories gets the list of categories.
-func (c *Client) Categories() (Categories, error) {
+func (c *Client) Categories() ([]*model.Category, error) {
 	body, err := c.request.Get("/v1/categories")
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var categories Categories
+	var categories []*model.Category
 	if err := json.NewDecoder(body).Decode(&categories); err != nil {
 		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
@@ -277,8 +279,8 @@ func (c *Client) Categories() (Categories, error) {
 }
 
 // CreateCategory creates a new category.
-func (c *Client) CreateCategory(title string) (*Category, error) {
-	body, err := c.request.Post("/v1/categories", &CategoryCreationRequest{
+func (c *Client) CreateCategory(title string) (*model.Category, error) {
+	body, err := c.request.Post("/v1/categories", &model.CategoryCreationRequest{
 		Title: title,
 	})
 	if err != nil {
@@ -286,7 +288,7 @@ func (c *Client) CreateCategory(title string) (*Category, error) {
 	}
 	defer body.Close()
 
-	var category *Category
+	var category *model.Category
 	if err := json.NewDecoder(body).Decode(&category); err != nil {
 		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
@@ -295,14 +297,14 @@ func (c *Client) CreateCategory(title string) (*Category, error) {
 }
 
 // CreateCategoryWithOptions creates a new category with options.
-func (c *Client) CreateCategoryWithOptions(createRequest *CategoryCreationRequest) (*Category, error) {
+func (c *Client) CreateCategoryWithOptions(createRequest *model.CategoryCreationRequest) (*model.Category, error) {
 	body, err := c.request.Post("/v1/categories", createRequest)
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var category *Category
+	var category *model.Category
 	if err := json.NewDecoder(body).Decode(&category); err != nil {
 		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
@@ -310,16 +312,16 @@ func (c *Client) CreateCategoryWithOptions(createRequest *CategoryCreationReques
 }
 
 // UpdateCategory updates a category.
-func (c *Client) UpdateCategory(categoryID int64, title string) (*Category, error) {
-	body, err := c.request.Put(fmt.Sprintf("/v1/categories/%d", categoryID), &CategoryModificationRequest{
-		Title: SetOptionalField(title),
+func (c *Client) UpdateCategory(categoryID int64, title string) (*model.Category, error) {
+	body, err := c.request.Put(fmt.Sprintf("/v1/categories/%d", categoryID), &model.CategoryModificationRequest{
+		Title: model.SetOptionalField(title),
 	})
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var category *Category
+	var category *model.Category
 	if err := json.NewDecoder(body).Decode(&category); err != nil {
 		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
@@ -328,14 +330,14 @@ func (c *Client) UpdateCategory(categoryID int64, title string) (*Category, erro
 }
 
 // UpdateCategoryWithOptions updates a category with options.
-func (c *Client) UpdateCategoryWithOptions(categoryID int64, categoryChanges *CategoryModificationRequest) (*Category, error) {
+func (c *Client) UpdateCategoryWithOptions(categoryID int64, categoryChanges *model.CategoryModificationRequest) (*model.Category, error) {
 	body, err := c.request.Put(fmt.Sprintf("/v1/categories/%d", categoryID), categoryChanges)
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var category *Category
+	var category *model.Category
 	if err := json.NewDecoder(body).Decode(&category); err != nil {
 		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
@@ -350,14 +352,14 @@ func (c *Client) MarkCategoryAsRead(categoryID int64) error {
 }
 
 // CategoryFeeds gets feeds of a category.
-func (c *Client) CategoryFeeds(categoryID int64) (Feeds, error) {
+func (c *Client) CategoryFeeds(categoryID int64) (model.Feeds, error) {
 	body, err := c.request.Get(fmt.Sprintf("/v1/categories/%d/feeds", categoryID))
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var feeds Feeds
+	var feeds model.Feeds
 	if err := json.NewDecoder(body).Decode(&feeds); err != nil {
 		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
@@ -377,14 +379,14 @@ func (c *Client) RefreshCategory(categoryID int64) error {
 }
 
 // Feeds gets all feeds.
-func (c *Client) Feeds() (Feeds, error) {
+func (c *Client) Feeds() (model.Feeds, error) {
 	body, err := c.request.Get("/v1/feeds")
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var feeds Feeds
+	var feeds model.Feeds
 	if err := json.NewDecoder(body).Decode(&feeds); err != nil {
 		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
@@ -415,14 +417,14 @@ func (c *Client) Import(f io.ReadCloser) error {
 }
 
 // Feed gets a feed.
-func (c *Client) Feed(feedID int64) (*Feed, error) {
+func (c *Client) Feed(feedID int64) (*model.Feed, error) {
 	body, err := c.request.Get(fmt.Sprintf("/v1/feeds/%d", feedID))
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var feed *Feed
+	var feed *model.Feed
 	if err := json.NewDecoder(body).Decode(&feed); err != nil {
 		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
@@ -431,7 +433,7 @@ func (c *Client) Feed(feedID int64) (*Feed, error) {
 }
 
 // CreateFeed creates a new feed.
-func (c *Client) CreateFeed(feedCreationRequest *FeedCreationRequest) (int64, error) {
+func (c *Client) CreateFeed(feedCreationRequest *model.FeedCreationRequest) (int64, error) {
 	body, err := c.request.Post("/v1/feeds", feedCreationRequest)
 	if err != nil {
 		return 0, err
@@ -451,14 +453,14 @@ func (c *Client) CreateFeed(feedCreationRequest *FeedCreationRequest) (int64, er
 }
 
 // UpdateFeed updates a feed.
-func (c *Client) UpdateFeed(feedID int64, feedChanges *FeedModificationRequest) (*Feed, error) {
+func (c *Client) UpdateFeed(feedID int64, feedChanges *model.FeedModificationRequest) (*model.Feed, error) {
 	body, err := c.request.Put(fmt.Sprintf("/v1/feeds/%d", feedID), feedChanges)
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var f *Feed
+	var f *model.Feed
 	if err := json.NewDecoder(body).Decode(&f); err != nil {
 		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
@@ -506,14 +508,14 @@ func (c *Client) FeedIcon(feedID int64) (*FeedIcon, error) {
 }
 
 // FeedEntry gets a single feed entry.
-func (c *Client) FeedEntry(feedID, entryID int64) (*Entry, error) {
+func (c *Client) FeedEntry(feedID, entryID int64) (*model.Entry, error) {
 	body, err := c.request.Get(fmt.Sprintf("/v1/feeds/%d/entries/%d", feedID, entryID))
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var entry *Entry
+	var entry *model.Entry
 	if err := json.NewDecoder(body).Decode(&entry); err != nil {
 		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
@@ -522,14 +524,14 @@ func (c *Client) FeedEntry(feedID, entryID int64) (*Entry, error) {
 }
 
 // CategoryEntry gets a single category entry.
-func (c *Client) CategoryEntry(categoryID, entryID int64) (*Entry, error) {
+func (c *Client) CategoryEntry(categoryID, entryID int64) (*model.Entry, error) {
 	body, err := c.request.Get(fmt.Sprintf("/v1/categories/%d/entries/%d", categoryID, entryID))
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var entry *Entry
+	var entry *model.Entry
 	if err := json.NewDecoder(body).Decode(&entry); err != nil {
 		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
@@ -538,14 +540,14 @@ func (c *Client) CategoryEntry(categoryID, entryID int64) (*Entry, error) {
 }
 
 // Entry gets a single entry.
-func (c *Client) Entry(entryID int64) (*Entry, error) {
+func (c *Client) Entry(entryID int64) (*model.Entry, error) {
 	body, err := c.request.Get(fmt.Sprintf("/v1/entries/%d", entryID))
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var entry *Entry
+	var entry *model.Entry
 	if err := json.NewDecoder(body).Decode(&entry); err != nil {
 		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
@@ -619,14 +621,14 @@ func (c *Client) UpdateEntries(entryIDs []int64, status string) error {
 }
 
 // UpdateEntry updates an entry.
-func (c *Client) UpdateEntry(entryID int64, entryChanges *EntryModificationRequest) (*Entry, error) {
+func (c *Client) UpdateEntry(entryID int64, entryChanges *model.EntryUpdateRequest) (*model.Entry, error) {
 	body, err := c.request.Put(fmt.Sprintf("/v1/entries/%d", entryID), entryChanges)
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var entry *Entry
+	var entry *model.Entry
 	if err := json.NewDecoder(body).Decode(&entry); err != nil {
 		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
@@ -666,14 +668,14 @@ func (c *Client) FetchEntryOriginalContent(entryID int64) (string, error) {
 }
 
 // FetchCounters fetches feed counters.
-func (c *Client) FetchCounters() (*FeedCounters, error) {
+func (c *Client) FetchCounters() (*model.FeedCounters, error) {
 	body, err := c.request.Get("/v1/feeds/counters")
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var result FeedCounters
+	var result model.FeedCounters
 	if err := json.NewDecoder(body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("miniflux: response error (%w)", err)
 	}
@@ -704,14 +706,14 @@ func (c *Client) Icon(iconID int64) (*FeedIcon, error) {
 }
 
 // Enclosure fetches a specific enclosure.
-func (c *Client) Enclosure(enclosureID int64) (*Enclosure, error) {
+func (c *Client) Enclosure(enclosureID int64) (*model.Enclosure, error) {
 	body, err := c.request.Get(fmt.Sprintf("/v1/enclosures/%d", enclosureID))
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var enclosure *Enclosure
+	var enclosure *model.Enclosure
 	if err := json.NewDecoder(body).Decode(&enclosure); err != nil {
 		return nil, fmt.Errorf("miniflux: response error(%w)", err)
 	}
@@ -720,7 +722,7 @@ func (c *Client) Enclosure(enclosureID int64) (*Enclosure, error) {
 }
 
 // UpdateEnclosure updates an enclosure.
-func (c *Client) UpdateEnclosure(enclosureID int64, enclosureUpdate *EnclosureUpdateRequest) error {
+func (c *Client) UpdateEnclosure(enclosureID int64, enclosureUpdate *model.EnclosureUpdateRequest) error {
 	_, err := c.request.Put(fmt.Sprintf("/v1/enclosures/%d", enclosureID), enclosureUpdate)
 	return err
 }

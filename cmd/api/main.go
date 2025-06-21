@@ -15,8 +15,8 @@ import (
 	dotenv "github.com/dsh2dsh/expx-dotenv"
 	"golang.org/x/sync/errgroup"
 
-	"miniflux.app/v2/client"
 	"miniflux.app/v2/internal/cli"
+	"miniflux.app/v2/internal/client"
 )
 
 var (

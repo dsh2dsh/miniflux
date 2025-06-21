@@ -22,7 +22,7 @@ type feedCreationResponse struct {
 	FeedID int64 `json:"feed_id"`
 }
 
-type versionResponse struct {
+type VersionResponse struct {
 	Version   string `json:"version"`
 	Commit    string `json:"commit"`
 	BuildDate string `json:"build_date"`

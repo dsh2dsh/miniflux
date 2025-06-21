@@ -4,6 +4,7 @@
 package model // import "miniflux.app/v2/internal/model"
 
 import (
+	"fmt"
 	"html/template"
 	"time"
 
@@ -221,6 +222,10 @@ func (u *UserModificationRequest) Patch(user *User) {
 	if u.OpenExternalLinkSameTab != nil {
 		user.Extra.OpenExternalLinkSameTab = *u.OpenExternalLinkSameTab
 	}
+}
+
+func (u *User) String() string {
+	return fmt.Sprintf("#%d - %s (admin=%v)", u.ID, u.Username, u.IsAdmin)
 }
 
 // UseTimezone converts last login date to the given timezone.

@@ -82,7 +82,7 @@ func Serve(router *mux.Router, store *storage.Storage, pool *worker.Pool) {
 }
 
 func (h *handler) versionHandler(w http.ResponseWriter, r *http.Request) {
-	json.OK(w, r, &versionResponse{
+	json.OK(w, r, &VersionResponse{
 		Version:   version.Version,
 		Commit:    version.Commit,
 		BuildDate: version.BuildDate,

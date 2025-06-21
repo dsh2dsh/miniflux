@@ -21,13 +21,14 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	miniflux "miniflux.app/v2/client"
+	"miniflux.app/v2/internal/client"
+	"miniflux.app/v2/internal/model"
 )
 
 func TestHealthcheckEndpoint(t *testing.T) {
 	cfg := NewIntegrationConfig(t)
-	client := miniflux.NewClient(cfg.BaseURL)
-	require.NoError(t, client.Healthcheck())
+	api := client.NewClient(cfg.BaseURL)
+	require.NoError(t, api.Healthcheck())
 }
 
 func NewIntegrationConfig(t *testing.T) *IntegrationConfig {
@@ -67,7 +68,7 @@ func (c *IntegrationConfig) RandomUsername() string {
 
 func TestEndpointSuite(t *testing.T) {
 	cfg := NewIntegrationConfig(t)
-	admin := miniflux.NewClient(cfg.BaseURL, cfg.AdminUsername,
+	admin := client.NewClient(cfg.BaseURL, cfg.AdminUsername,
 		cfg.AdminPassword)
 	require.NotNil(t, admin)
 	require.NoError(t, admin.Healthcheck())
@@ -91,10 +92,10 @@ type EndpointTestSuite struct {
 	suite.Suite
 
 	cfg   *IntegrationConfig
-	admin *miniflux.Client
+	admin *client.Client
 
-	user   *miniflux.User
-	client *miniflux.Client
+	user   *model.User
+	client *client.Client
 }
 
 func (self *EndpointTestSuite) SetupTest() {
@@ -105,7 +106,7 @@ func (self *EndpointTestSuite) SetupTest() {
 	self.Require().Equal(username, user.Username, "Invalid username")
 	self.user = user
 
-	client := miniflux.NewClient(self.cfg.BaseURL, user.Username,
+	client := client.NewClient(self.cfg.BaseURL, user.Username,
 		self.cfg.RegularPassword)
 	self.Require().NotNil(client)
 	self.client = client
@@ -132,12 +133,12 @@ func (self *EndpointTestSuite) TestVersionEndpoint() {
 }
 
 func (self *EndpointTestSuite) TestInvalidCredentials() {
-	client := miniflux.NewClient(self.cfg.BaseURL, "invalid", "invalid")
-	self.Require().NotNil(client)
+	api := client.NewClient(self.cfg.BaseURL, "invalid", "invalid")
+	self.Require().NotNil(api)
 
-	_, err := client.Users()
+	_, err := api.Users()
 	self.Require().Error(err, "Using bad credentials should raise an error")
-	self.ErrorIs(err, miniflux.ErrNotAuthorized,
+	self.ErrorIs(err, client.ErrNotAuthorized,
 		`A "Not Authorized" error should be raised`)
 }
 
@@ -290,67 +291,67 @@ func (self *EndpointTestSuite) TestUpdateUserEndpoint() {
 
 	tests := []struct {
 		name    string
-		req     miniflux.UserModificationRequest
+		req     model.UserModificationRequest
 		wantErr bool
-		assert  func(updatedUser *miniflux.User)
+		assert  func(updatedUser *model.User)
 	}{
 		{
 			name: "mark_read_on_scroll",
-			req: miniflux.UserModificationRequest{
-				MarkReadOnScroll: miniflux.SetOptionalField(true),
+			req: model.UserModificationRequest{
+				MarkReadOnScroll: model.SetOptionalField(true),
 			},
-			assert: func(updatedUser *miniflux.User) {
+			assert: func(updatedUser *model.User) {
 				self.True(updatedUser.Extra.MarkReadOnScroll)
 			},
 		},
 		{
 			name: "default theme",
-			req: miniflux.UserModificationRequest{
-				Theme: miniflux.SetOptionalField("dark_serif"),
+			req: model.UserModificationRequest{
+				Theme: model.SetOptionalField("dark_serif"),
 			},
-			assert: func(updatedUser *miniflux.User) {
+			assert: func(updatedUser *model.User) {
 				self.Equal("dark_serif", updatedUser.Theme, "Invalid theme")
 			},
 		},
 		{
 			name: "external fonts",
-			req: miniflux.UserModificationRequest{
-				ExternalFontHosts: miniflux.SetOptionalField("  fonts.example.org  "),
+			req: model.UserModificationRequest{
+				ExternalFontHosts: model.SetOptionalField("  fonts.example.org  "),
 			},
-			assert: func(updatedUser *miniflux.User) {
+			assert: func(updatedUser *model.User) {
 				self.Equal("fonts.example.org", updatedUser.ExternalFontHosts,
 					"Invalid external font hosts")
 			},
 		},
 		{
 			name: "invalid external fonts",
-			req: miniflux.UserModificationRequest{
-				ExternalFontHosts: miniflux.SetOptionalField("'self' *"),
+			req: model.UserModificationRequest{
+				ExternalFontHosts: model.SetOptionalField("'self' *"),
 			},
 			wantErr: true,
 		},
 		{
 			name: "custom js",
-			req: miniflux.UserModificationRequest{
-				CustomJS: miniflux.SetOptionalField(js),
+			req: model.UserModificationRequest{
+				CustomJS: model.SetOptionalField(js),
 			},
-			assert: func(updatedUser *miniflux.User) {
+			assert: func(updatedUser *model.User) {
 				self.Equal(js, updatedUser.CustomJS, "Invalid custom JS")
 			},
 		},
 		{
 			name: "invalid theme",
-			req: miniflux.UserModificationRequest{
-				Theme: miniflux.SetOptionalField("invalid_theme"),
+			req: model.UserModificationRequest{
+				Theme: model.SetOptionalField("invalid_theme"),
 			},
 			wantErr: true,
 		},
 		{
 			name: "AlwaysOpenExternalLinks",
-			req: miniflux.UserModificationRequest{
-				AlwaysOpenExternalLinks: miniflux.SetOptionalField(true),
+			req: model.UserModificationRequest{
+				AlwaysOpenExternalLinks: model.SetOptionalField(true),
 			},
-			assert: func(updatedUser *miniflux.User) {
+			assert: func(updatedUser *model.User) {
 				self.True(updatedUser.Extra.AlwaysOpenExternalLinks)
 			},
 		},
@@ -374,8 +375,8 @@ func (self *EndpointTestSuite) TestRegularUsersCannotUpdateOtherUsers() {
 	self.Require().NoError(err)
 	self.Require().NotNil(adminUser)
 
-	userUpdateRequest := miniflux.UserModificationRequest{
-		Theme: miniflux.SetOptionalField("dark_serif"),
+	userUpdateRequest := model.UserModificationRequest{
+		Theme: model.SetOptionalField("dark_serif"),
 	}
 
 	_, err = self.client.UpdateUser(adminUser.ID, &userUpdateRequest)
@@ -405,10 +406,10 @@ func (self *EndpointTestSuite) TestAPIKeysEndpoint() {
 	// Fetch the API keys again.
 	apiKeys, err = self.client.APIKeys()
 	self.Require().NoError(err)
-	self.Equal([]*miniflux.APIKey{apiKey}, apiKeys)
+	self.Equal([]*model.APIKey{apiKey}, apiKeys)
 
 	// Create a new client using the API key.
-	apiKeyClient := miniflux.NewClient(self.cfg.BaseURL, apiKey.Token)
+	apiKeyClient := client.NewClient(self.cfg.BaseURL, apiKey.Token)
 	self.Require().NotNil(apiKeyClient)
 
 	// Fetch the user using the API key client.
@@ -430,7 +431,7 @@ func (self *EndpointTestSuite) TestAPIKeysEndpoint() {
 	// Try to delete the API key again, it should return an error.
 	err = self.client.DeleteAPIKey(apiKey.ID)
 	self.T().Log(err)
-	self.Require().ErrorIs(err, miniflux.ErrNotFound,
+	self.Require().ErrorIs(err, client.ErrNotFound,
 		"Deleting a non-existent API key should raise 'not found' error")
 
 	// Try to create an API key with an empty description.
@@ -448,10 +449,10 @@ func (self *EndpointTestSuite) TestMarkUserAsReadEndpoint() {
 
 func (self *EndpointTestSuite) createFeed() int64 {
 	self.T().Helper()
-	return self.createFeedWith(miniflux.FeedCreationRequest{})
+	return self.createFeedWith(model.FeedCreationRequest{})
 }
 
-func (self *EndpointTestSuite) createFeedWith(r miniflux.FeedCreationRequest,
+func (self *EndpointTestSuite) createFeedWith(r model.FeedCreationRequest,
 ) int64 {
 	self.T().Helper()
 
@@ -473,14 +474,14 @@ func (self *EndpointTestSuite) checkFeedIsRead(feedID int64) {
 	self.Require().NotNil(results)
 	self.T().Log("Got entries:", len(results.Entries))
 
-	i := slices.IndexFunc(results.Entries, func(entry *miniflux.Entry) bool {
-		return entry.Status != miniflux.EntryStatusRead
+	i := slices.IndexFunc(results.Entries, func(entry *model.Entry) bool {
+		return entry.Status != model.EntryStatusRead
 	})
 
 	if !self.Equal(-1, i) {
 		entry := results.Entries[i]
 		self.T().Logf("Status for entry %d was %q instead of %q",
-			entry.ID, entry.Status, miniflux.EntryStatusRead)
+			entry.ID, entry.Status, model.EntryStatusRead)
 	}
 }
 
@@ -502,7 +503,7 @@ func (self *EndpointTestSuite) TestCreateCategoryEndpoint() {
 	self.False(category.HideGlobally, "Invalid hide globally value")
 }
 
-func (self *EndpointTestSuite) createCategory() *miniflux.Category {
+func (self *EndpointTestSuite) createCategory() *model.Category {
 	self.T().Helper()
 	category, err := self.client.CreateCategory("My category")
 	self.Require().NoError(err)
@@ -525,7 +526,7 @@ func (self *EndpointTestSuite) TestCannotCreateDuplicatedCategory() {
 }
 
 func (self *EndpointTestSuite) TestCreateCategoryWithOptions() {
-	categoryCreate := miniflux.CategoryCreationRequest{
+	categoryCreate := model.CategoryCreationRequest{
 		Title:        "My category",
 		HideGlobally: true,
 	}
@@ -536,7 +537,7 @@ func (self *EndpointTestSuite) TestCreateCategoryWithOptions() {
 	categories, err := self.client.Categories()
 	self.Require().NoError(err)
 
-	i := slices.IndexFunc(categories, func(c *miniflux.Category) bool {
+	i := slices.IndexFunc(categories, func(c *model.Category) bool {
 		return c.ID == newCategory.ID
 	})
 	self.Require().GreaterOrEqual(i, 0)
@@ -559,14 +560,14 @@ func (self *EndpointTestSuite) TestUpdateCategoryEndpoint() {
 }
 
 func (self *EndpointTestSuite) TestUpdateCategoryWithOptions() {
-	categoryCreate := miniflux.CategoryCreationRequest{Title: "My category"}
+	categoryCreate := model.CategoryCreationRequest{Title: "My category"}
 	newCategory, err := self.client.CreateCategoryWithOptions(&categoryCreate)
 	self.Require().NoError(err,
 		"Creating a category with options should not raise an error")
 
 	const title = "new title"
-	categoryModify := miniflux.CategoryModificationRequest{
-		Title: miniflux.SetOptionalField(title),
+	categoryModify := model.CategoryModificationRequest{
+		Title: model.SetOptionalField(title),
 	}
 	updatedCategory, err := self.client.UpdateCategoryWithOptions(
 		newCategory.ID, &categoryModify)
@@ -575,8 +576,8 @@ func (self *EndpointTestSuite) TestUpdateCategoryWithOptions() {
 	self.Equal(title, updatedCategory.Title, "Invalid title")
 	self.False(updatedCategory.HideGlobally, "Invalid hide globally value")
 
-	categoryModify = miniflux.CategoryModificationRequest{
-		HideGlobally: miniflux.SetOptionalField(true),
+	categoryModify = model.CategoryModificationRequest{
+		HideGlobally: model.SetOptionalField(true),
 	}
 	updatedCategory, err = self.client.UpdateCategoryWithOptions(
 		newCategory.ID, &categoryModify)
@@ -585,8 +586,8 @@ func (self *EndpointTestSuite) TestUpdateCategoryWithOptions() {
 	self.Equal(title, updatedCategory.Title, "Invalid title")
 	self.True(updatedCategory.HideGlobally, "Invalid hide globally value")
 
-	categoryModify = miniflux.CategoryModificationRequest{
-		HideGlobally: miniflux.SetOptionalField(false),
+	categoryModify = model.CategoryModificationRequest{
+		HideGlobally: model.SetOptionalField(false),
 	}
 	updatedCategory, err = self.client.UpdateCategoryWithOptions(
 		newCategory.ID, &categoryModify)
@@ -638,7 +639,7 @@ func (self *EndpointTestSuite) TestGetCategoriesEndpoint() {
 
 func (self *EndpointTestSuite) TestMarkCategoryAsReadEndpoint() {
 	category := self.createCategory()
-	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
+	feedID := self.createFeedWith(model.FeedCreationRequest{
 		CategoryID: category.ID,
 	})
 	self.Require().NoError(self.client.MarkCategoryAsRead(category.ID))
@@ -647,14 +648,14 @@ func (self *EndpointTestSuite) TestMarkCategoryAsReadEndpoint() {
 
 func (self *EndpointTestSuite) TestCreateFeedEndpoint() {
 	category := self.createCategory()
-	self.createFeedWith(miniflux.FeedCreationRequest{
+	self.createFeedWith(model.FeedCreationRequest{
 		CategoryID: category.ID,
 	})
 }
 
 func (self *EndpointTestSuite) TestCannotCreateDuplicatedFeed() {
 	self.createFeed()
-	_, err := self.client.CreateFeed(&miniflux.FeedCreationRequest{
+	_, err := self.client.CreateFeed(&model.FeedCreationRequest{
 		FeedURL: self.cfg.FeedURL,
 	})
 	self.T().Log(err)
@@ -662,7 +663,7 @@ func (self *EndpointTestSuite) TestCannotCreateDuplicatedFeed() {
 }
 
 func (self *EndpointTestSuite) TestCreateFeedWithInexistingCategory() {
-	_, err := self.client.CreateFeed(&miniflux.FeedCreationRequest{
+	_, err := self.client.CreateFeed(&model.FeedCreationRequest{
 		FeedURL:    self.cfg.FeedURL,
 		CategoryID: 123456789,
 	})
@@ -672,14 +673,14 @@ func (self *EndpointTestSuite) TestCreateFeedWithInexistingCategory() {
 }
 
 func (self *EndpointTestSuite) TestCreateFeedWithEmptyFeedURL() {
-	_, err := self.admin.CreateFeed(&miniflux.FeedCreationRequest{})
+	_, err := self.admin.CreateFeed(&model.FeedCreationRequest{})
 	self.T().Log(err)
 	self.Require().Error(err,
 		"Creating a feed with an empty feed URL should raise an error")
 }
 
 func (self *EndpointTestSuite) TestCreateFeedWithInvalidFeedURL() {
-	_, err := self.client.CreateFeed(&miniflux.FeedCreationRequest{
+	_, err := self.client.CreateFeed(&model.FeedCreationRequest{
 		FeedURL: "invalid_feed_url",
 	})
 	self.T().Log(err)
@@ -688,7 +689,7 @@ func (self *EndpointTestSuite) TestCreateFeedWithInvalidFeedURL() {
 }
 
 func (self *EndpointTestSuite) TestCreateDisabledFeed() {
-	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
+	feedID := self.createFeedWith(model.FeedCreationRequest{
 		Disabled: true,
 	})
 
@@ -699,7 +700,7 @@ func (self *EndpointTestSuite) TestCreateDisabledFeed() {
 }
 
 func (self *EndpointTestSuite) TestCreateFeedWithDisabledHTTPCache() {
-	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
+	feedID := self.createFeedWith(model.FeedCreationRequest{
 		IgnoreHTTPCache: true,
 	})
 
@@ -710,7 +711,7 @@ func (self *EndpointTestSuite) TestCreateFeedWithDisabledHTTPCache() {
 }
 
 func (self *EndpointTestSuite) TestCreateFeedWithScraperRule() {
-	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
+	feedID := self.createFeedWith(model.FeedCreationRequest{
 		ScraperRules: "article",
 	})
 
@@ -724,8 +725,8 @@ func (self *EndpointTestSuite) TestCreateFeedWithScraperRule() {
 func (self *EndpointTestSuite) TestUpdateFeedEndpoint() {
 	const url = "https://example.org/feed.xml"
 	feedID := self.createFeed()
-	feedModify := miniflux.FeedModificationRequest{
-		FeedURL: miniflux.SetOptionalField(url),
+	feedModify := model.FeedModificationRequest{
+		FeedURL: model.SetOptionalField(url),
 	}
 
 	updatedFeed, err := self.client.UpdateFeed(feedID, &feedModify)
@@ -736,12 +737,12 @@ func (self *EndpointTestSuite) TestUpdateFeedEndpoint() {
 
 func (self *EndpointTestSuite) TestCannotHaveDuplicateFeedWhenUpdatingFeed() {
 	self.createFeed()
-	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
+	feedID := self.createFeedWith(model.FeedCreationRequest{
 		FeedURL: "https://github.com/miniflux/v2/commits.atom",
 	})
 
-	feedModify := miniflux.FeedModificationRequest{
-		FeedURL: miniflux.SetOptionalField(self.cfg.FeedURL),
+	feedModify := model.FeedModificationRequest{
+		FeedURL: model.SetOptionalField(self.cfg.FeedURL),
 	}
 
 	_, err := self.client.UpdateFeed(feedID, &feedModify)
@@ -752,8 +753,8 @@ func (self *EndpointTestSuite) TestCannotHaveDuplicateFeedWhenUpdatingFeed() {
 func (self *EndpointTestSuite) TestUpdateFeedWithInvalidCategory() {
 	feedID := self.createFeed()
 
-	feedModify := miniflux.FeedModificationRequest{
-		CategoryID: miniflux.SetOptionalField(int64(123456789)),
+	feedModify := model.FeedModificationRequest{
+		CategoryID: model.SetOptionalField(int64(123456789)),
 	}
 
 	_, err := self.client.UpdateFeed(feedID, &feedModify)
@@ -790,8 +791,8 @@ func (self *EndpointTestSuite) TestUpdateFeedEndpoint_CommentsURLTemplate() {
 	feedID := self.createFeed()
 	for _, tt := range tests {
 		self.Run(tt.name, func() {
-			r := miniflux.FeedModificationRequest{
-				CommentsURLTemplate: miniflux.SetOptionalField(tt.commentsURL),
+			r := model.FeedModificationRequest{
+				CommentsURLTemplate: model.SetOptionalField(tt.commentsURL),
 			}
 
 			feed, err := self.client.UpdateFeed(feedID, &r)
@@ -842,14 +843,14 @@ func (self *EndpointTestSuite) TestRefreshFeedEndpoint() {
 }
 
 func (self *EndpointTestSuite) TestRefreshFeedEndpoint_IgnoreHTTPCache() {
-	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
+	feedID := self.createFeedWith(model.FeedCreationRequest{
 		IgnoreHTTPCache: true,
 	})
 	self.Require().NoError(self.client.RefreshFeed(feedID))
 }
 
 func (self *EndpointTestSuite) TestRefreshFeedEndpoint_flushHistory() {
-	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
+	feedID := self.createFeedWith(model.FeedCreationRequest{
 		IgnoreHTTPCache: true,
 	})
 	self.Require().NoError(self.client.MarkFeedAsRead(feedID))
@@ -858,7 +859,7 @@ func (self *EndpointTestSuite) TestRefreshFeedEndpoint_flushHistory() {
 }
 
 func (self *EndpointTestSuite) TestRefreshFeedEndpoint_markedRead() {
-	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
+	feedID := self.createFeedWith(model.FeedCreationRequest{
 		IgnoreHTTPCache: true,
 	})
 	self.Require().NoError(self.client.MarkFeedAsRead(feedID))
@@ -907,7 +908,7 @@ func (self *EndpointTestSuite) TestGetFeedsEndpoint() {
 
 func (self *EndpointTestSuite) TestGetCategoryFeedsEndpoint() {
 	category := self.createCategory()
-	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
+	feedID := self.createFeedWith(model.FeedCreationRequest{
 		CategoryID: category.ID,
 	})
 
@@ -959,7 +960,7 @@ func (self *EndpointTestSuite) TestDiscoverSubscriptionsWithInvalidURL() {
 
 func (self *EndpointTestSuite) TestDiscoverSubscriptionsWithNoSubscription() {
 	_, err := self.admin.Discover(self.cfg.BaseURL)
-	self.Require().ErrorIs(err, miniflux.ErrNotFound,
+	self.Require().ErrorIs(err, client.ErrNotFound,
 		"Discovering subscriptions with no subscription should raise a 404 error")
 }
 
@@ -979,7 +980,7 @@ func (self *EndpointTestSuite) TestGetAllFeedEntriesEndpoint() {
 
 func (self *EndpointTestSuite) TestGetAllCategoryEntriesEndpoint() {
 	category := self.createCategory()
-	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
+	feedID := self.createFeedWith(model.FeedCreationRequest{
 		CategoryID: category.ID,
 	})
 
@@ -998,7 +999,7 @@ func (self *EndpointTestSuite) TestGetAllCategoryEntriesEndpoint() {
 func (self *EndpointTestSuite) TestGetAllEntriesEndpointWithFilter() {
 	feedID := self.createFeed()
 
-	result, err := self.client.Entries(&miniflux.Filter{FeedID: feedID})
+	result, err := self.client.Entries(&client.Filter{FeedID: feedID})
 	self.Require().NoError(err)
 	self.Require().NotNil(result)
 	self.T().Log("Got entries:", len(result.Entries))
@@ -1009,7 +1010,7 @@ func (self *EndpointTestSuite) TestGetAllEntriesEndpointWithFilter() {
 		"Invalid feed URL")
 	self.NotEmpty(result.Entries[0].Title, "Invalid title")
 
-	recent, err := self.client.Entries(&miniflux.Filter{
+	recent, err := self.client.Entries(&client.Filter{
 		Order:     "published_at",
 		Direction: "desc",
 	})
@@ -1021,26 +1022,26 @@ func (self *EndpointTestSuite) TestGetAllEntriesEndpointWithFilter() {
 	self.NotEqual(result.Entries[0].Title, recent.Entries[0].Title,
 		"Invalid order, got the same title")
 
-	searched, err := self.client.Entries(&miniflux.Filter{Search: "2.2.2"})
+	searched, err := self.client.Entries(&client.Filter{Search: "2.2.2"})
 	self.Require().NoError(err)
 	self.Require().NotNil(searched)
 	self.Equal(1, searched.Total, "Invalid total")
 
-	_, err = self.client.Entries(&miniflux.Filter{Status: "invalid"})
+	_, err = self.client.Entries(&client.Filter{Status: "invalid"})
 	self.T().Log(err)
 	self.Require().Error(err, "Using invalid status should raise an error")
 
-	_, err = self.client.Entries(&miniflux.Filter{Direction: "invalid"})
+	_, err = self.client.Entries(&client.Filter{Direction: "invalid"})
 	self.T().Log(err)
 	self.Require().Error(err, "Using invalid direction should raise an error")
 
-	_, err = self.client.Entries(&miniflux.Filter{Order: "invalid"})
+	_, err = self.client.Entries(&client.Filter{Order: "invalid"})
 	self.T().Log(err)
 	self.Require().Error(err, "Using invalid order should raise an error")
 }
 
 func (self *EndpointTestSuite) TestGetGlobalEntriesEndpoint() {
-	feedID := self.createFeedWith(miniflux.FeedCreationRequest{
+	feedID := self.createFeedWith(model.FeedCreationRequest{
 		HideGlobally: true,
 	})
 
@@ -1051,7 +1052,7 @@ func (self *EndpointTestSuite) TestGetGlobalEntriesEndpoint() {
 		"Expected feed to have globally_hidden set to true")
 
 	/* Not filtering on GloballyVisible should return all entries */
-	feedEntries, err := self.client.Entries(&miniflux.Filter{FeedID: feedID})
+	feedEntries, err := self.client.Entries(&client.Filter{FeedID: feedID})
 	self.Require().NoError(err)
 	self.Require().NotNil(feedEntries)
 	self.NotEmpty(feedEntries.Entries,
@@ -1059,7 +1060,7 @@ func (self *EndpointTestSuite) TestGetGlobalEntriesEndpoint() {
 
 	/* Feed is hidden globally, so this should be empty */
 	globallyVisibleEntries, err := self.client.Entries(
-		&miniflux.Filter{GloballyVisible: true})
+		&client.Filter{GloballyVisible: true})
 	self.Require().NoError(err)
 	self.Require().NotNil(globallyVisibleEntries)
 	self.Empty(globallyVisibleEntries.Entries, "Expected no entries")
@@ -1071,7 +1072,7 @@ func (self *EndpointTestSuite) TestUpdateEnclosureEndpoint() {
 	self.Require().NoError(err, "Failed to get entries")
 	self.Require().NotNil(result)
 
-	var enclosure *miniflux.Enclosure
+	var enclosure *model.Enclosure
 	for _, entry := range result.Entries {
 		if len(entry.Enclosures) > 0 {
 			enclosure = entry.Enclosures[0]
@@ -1081,7 +1082,7 @@ func (self *EndpointTestSuite) TestUpdateEnclosureEndpoint() {
 	self.Require().NotNil(enclosure, "missing enclosure in feed")
 
 	err = self.client.UpdateEnclosure(enclosure.ID,
-		&miniflux.EnclosureUpdateRequest{MediaProgression: 20})
+		&model.EnclosureUpdateRequest{MediaProgression: 20})
 	self.Require().NoError(err)
 
 	updatedEnclosure, err := self.client.Enclosure(enclosure.ID)
@@ -1097,7 +1098,7 @@ func (self *EndpointTestSuite) TestGetEnclosureEndpoint() {
 	self.Require().NoError(err, "Failed to get entries")
 	self.Require().NotNil(result)
 
-	var expectedEnclosure *miniflux.Enclosure
+	var expectedEnclosure *model.Enclosure
 	for _, entry := range result.Entries {
 		if len(entry.Enclosures) > 0 {
 			expectedEnclosure = entry.Enclosures[0]
@@ -1151,13 +1152,13 @@ func (self *EndpointTestSuite) TestUpdateEntryStatusEndpoint() {
 	self.Require().NotEmpty(result.Entries)
 
 	err = self.client.UpdateEntries([]int64{result.Entries[0].ID},
-		miniflux.EntryStatusRead)
+		model.EntryStatusRead)
 	self.Require().NoError(err)
 
 	entry, err := self.client.Entry(result.Entries[0].ID)
 	self.Require().NoError(err)
 	self.Require().NotNil(entry)
-	self.Equal(miniflux.EntryStatusRead, entry.Status, "Invalid status")
+	self.Equal(model.EntryStatusRead, entry.Status, "Invalid status")
 }
 
 func (self *EndpointTestSuite) TestUpdateEntryEndpoint() {
@@ -1167,9 +1168,9 @@ func (self *EndpointTestSuite) TestUpdateEntryEndpoint() {
 	self.Require().NotNil(result)
 	self.Require().NotEmpty(result.Entries)
 
-	entryUpdate := miniflux.EntryModificationRequest{
-		Title:   miniflux.SetOptionalField("New title"),
-		Content: miniflux.SetOptionalField("New content"),
+	entryUpdate := model.EntryUpdateRequest{
+		Title:   model.SetOptionalField("New title"),
+		Content: model.SetOptionalField("New content"),
 	}
 
 	updatedEntry, err := self.client.UpdateEntry(
@@ -1188,7 +1189,7 @@ func (self *EndpointTestSuite) TestUpdateEntryEndpoint() {
 
 func (self *EndpointTestSuite) TestToggleBookmarkEndpoint() {
 	feedID := self.createFeed()
-	result, err := self.client.FeedEntries(feedID, &miniflux.Filter{Limit: 1})
+	result, err := self.client.FeedEntries(feedID, &client.Filter{Limit: 1})
 	self.Require().NoError(err, "Failed to get entries")
 	self.Require().NotNil(result)
 	self.Require().NotEmpty(result.Entries)
@@ -1203,13 +1204,13 @@ func (self *EndpointTestSuite) TestToggleBookmarkEndpoint() {
 
 func (self *EndpointTestSuite) TestSaveEntryEndpoint() {
 	feedID := self.createFeed()
-	result, err := self.client.FeedEntries(feedID, &miniflux.Filter{Limit: 1})
+	result, err := self.client.FeedEntries(feedID, &client.Filter{Limit: 1})
 	self.Require().NoError(err, "Failed to get entries")
 	self.Require().NotNil(result)
 	self.Require().NotEmpty(result.Entries)
 
 	self.Require().ErrorIs(
-		self.client.SaveEntry(result.Entries[0].ID), miniflux.ErrBadRequest,
+		self.client.SaveEntry(result.Entries[0].ID), client.ErrBadRequest,
 		"Saving an entry should raise a bad request error because no integration is configured")
 }
 
@@ -1222,7 +1223,7 @@ func (self *EndpointTestSuite) TestFetchIntegrationsStatusEndpoint() {
 
 func (self *EndpointTestSuite) TestFetchContentEndpoint() {
 	feedID := self.createFeed()
-	result, err := self.client.FeedEntries(feedID, &miniflux.Filter{Limit: 1})
+	result, err := self.client.FeedEntries(feedID, &client.Filter{Limit: 1})
 	self.Require().NoError(err, "Failed to get entries")
 	self.Require().NotNil(result)
 	self.Require().NotEmpty(result.Entries)
@@ -1234,26 +1235,26 @@ func (self *EndpointTestSuite) TestFetchContentEndpoint() {
 
 func (self *EndpointTestSuite) TestFlushHistoryEndpoint() {
 	feedID := self.createFeed()
-	result, err := self.client.FeedEntries(feedID, &miniflux.Filter{Limit: 3})
+	result, err := self.client.FeedEntries(feedID, &client.Filter{Limit: 3})
 	self.Require().NoError(err, "Failed to get entries")
 	self.Require().NotNil(result)
 	self.Require().NotEmpty(result.Entries)
 
 	err = self.client.UpdateEntries(
 		[]int64{result.Entries[0].ID, result.Entries[1].ID},
-		miniflux.EntryStatusRead)
+		model.EntryStatusRead)
 	self.Require().NoError(err)
 
 	self.Require().NoError(self.client.FlushHistory())
 
 	readEntries, err := self.client.Entries(
-		&miniflux.Filter{Status: miniflux.EntryStatusRead})
+		&client.Filter{Status: model.EntryStatusRead})
 	self.Require().NoError(err)
 	self.Require().NotNil(readEntries)
 	self.Zero(readEntries.Total, "Invalid total")
 
 	removedEntries, err := self.client.Entries(
-		&miniflux.Filter{Status: miniflux.EntryStatusRemoved})
+		&client.Filter{Status: model.EntryStatusRemoved})
 	self.Require().NoError(err)
 	self.Require().NotNil(removedEntries)
 	self.Equal(2, removedEntries.Total, "Invalid total")
