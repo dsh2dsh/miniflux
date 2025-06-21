@@ -344,8 +344,8 @@ func (self *Refresh) logFeedRefreshed(ctx context.Context,
 	case refreshed.Refreshed:
 		msg = "Feed refreshed"
 		log = log.With(
-			slog.Uint64("size", self.feed.Extra.Size),
-			slog.String("hash", strconv.FormatUint(self.feed.Extra.Hash, 16)),
+			slog.Uint64("size", self.feed.Size()),
+			slog.String("hash", strconv.FormatUint(self.feed.Hash(), 16)),
 			slog.Int("entries", len(self.feed.Entries)),
 			slog.Int("updated", len(refreshed.UpdatedEntires)),
 			slog.Int("created", len(refreshed.CreatedEntries)))
@@ -357,8 +357,8 @@ func (self *Refresh) logFeedRefreshed(ctx context.Context,
 	case refreshed.NotModified == notModifiedContent:
 		msg = "Content not modified"
 		log = log.With(
-			slog.Uint64("size", self.feed.Extra.Size),
-			slog.String("hash", strconv.FormatUint(self.feed.Extra.Hash, 16)))
+			slog.Uint64("size", self.feed.Size()),
+			slog.String("hash", strconv.FormatUint(self.feed.Hash(), 16)))
 	default:
 		msg = "Feed not refreshed with unknown reason"
 	}

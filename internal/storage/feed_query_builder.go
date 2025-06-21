@@ -170,7 +170,8 @@ SELECT
   f.pushover_enabled,
   f.pushover_priority,
   f.proxy_url,
-  f.extra
+  f.extra,
+  f.runtime
 FROM feeds f
      LEFT JOIN categories c ON c.id=f.category_id
      LEFT JOIN feed_icons fi ON fi.feed_id=f.id
@@ -234,6 +235,7 @@ WHERE `+f.buildCondition()+" "+f.buildSorting(), f.args...)
 			&feed.PushoverPriority,
 			&feed.ProxyURL,
 			&feed.Extra,
+			&feed.Runtime,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("storage: fetch feeds row: %w", err)

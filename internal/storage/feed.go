@@ -281,9 +281,10 @@ INSERT INTO feeds (
   disable_http2,
   description,
   proxy_url,
-  extra)
+  extra,
+  runtime)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-        $17, $18, $19, $20, $21, $22,  $23, $24, $25, $26, $27, $28, $29)
+        $17, $18, $19, $20, $21, $22,  $23, $24, $25, $26, $27, $28, $29, $30)
 RETURNING id`,
 		feed.FeedURL,
 		feed.SiteURL,
@@ -313,7 +314,8 @@ RETURNING id`,
 		feed.DisableHTTP2,
 		feed.Description,
 		feed.ProxyURL,
-		feed.Extra).Scan(&feed.ID)
+		&feed.Extra,
+		&feed.Runtime).Scan(&feed.ID)
 	if err != nil {
 		return fmt.Errorf(`store: unable to create feed %q: %w`, feed.FeedURL, err)
 	}
@@ -355,10 +357,8 @@ SET
 	pushover_enabled = $28,
 	pushover_priority = $29,
 	proxy_url = $30,
-  extra['comments_url_template'] = to_jsonb($31::text),
-  extra['block_filter_entry_rules'] = to_jsonb($32::text),
-  extra['keep_filter_entry_rules'] = to_jsonb($33::text)
-WHERE id = $34 AND user_id = $35`,
+  extra = $31
+WHERE id = $32 AND user_id = $33`,
 		feed.FeedURL,
 		feed.SiteURL,
 		feed.Title,
@@ -389,9 +389,7 @@ WHERE id = $34 AND user_id = $35`,
 		feed.PushoverEnabled,
 		feed.PushoverPriority,
 		feed.ProxyURL,
-		feed.Extra.CommentsURLTemplate,
-		feed.Extra.BlockFilterEntryRules,
-		feed.Extra.KeepFilterEntryRules,
+		&feed.Extra,
 		feed.ID, feed.UserID)
 	if err != nil {
 		return fmt.Errorf("storage: unable to update feed #%d (%s): %w",
@@ -411,17 +409,15 @@ SET
 	parsing_error_msg = $4,
 	parsing_error_count = $5,
 	next_check_at = $6,
-  extra['size'] = to_jsonb($7::numeric),
-  extra['hash'] = to_jsonb($8::numeric)
-WHERE id = $9 AND user_id = $10`,
+  runtime = $7
+WHERE id = $8 AND user_id = $9`,
 		feed.EtagHeader,
 		feed.LastModifiedHeader,
 		feed.CheckedAt,
 		feed.ParsingErrorMsg,
 		feed.ParsingErrorCount,
 		feed.NextCheckAt,
-		feed.Extra.Size,
-		feed.Extra.Hash,
+		&feed.Runtime,
 		feed.ID, feed.UserID)
 	if err != nil {
 		return fmt.Errorf("storage: unable to update feed runtime #%d (%s): %w",

@@ -682,4 +682,12 @@ UPDATE users u
  WHERE i.user_id = u.id;
 CREATE INDEX ON users ((extra->'integration'->>'fever_token'));
 DROP TABLE integrations;`),
+
+	// 117
+	sqlMigration(`
+ALTER TABLE feeds ADD COLUMN runtime jsonb NOT NULL DEFAULT '{}'::jsonb;
+UPDATE feeds
+   SET runtime = extra - '{comments_url_template}'::text[],
+       extra   = extra - '{hash,size}'::text[];
+`),
 }
