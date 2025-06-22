@@ -118,7 +118,8 @@ func (h *handler) markUserAsRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.store.MarkAllAsRead(r.Context(), id); err != nil {
+	user := request.User(r)
+	if err := h.store.MarkAllAsRead(r.Context(), user.ID); err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
