@@ -690,4 +690,17 @@ UPDATE feeds
    SET runtime = extra - '{comments_url_template}'::text[],
        extra   = extra - '{hash,size}'::text[];
 `),
+
+	// 118
+	sqlMigration(`
+UPDATE feeds
+   SET extra['block_filter_entry_rules'] = to_jsonb(concat('Any=', blocklist_rules))
+ WHERE blocklist_rules <> '';
+UPDATE feeds
+   SET extra['keep_filter_entry_rules'] = to_jsonb(concat('Any=', keeplist_rules))
+ WHERE keeplist_rules <> '';
+ALTER TABLE feeds
+  DROP COLUMN blocklist_rules,
+  DROP COLUMN keeplist_rules;
+`),
 }

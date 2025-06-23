@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"miniflux.app/v2/internal/locale"
+	"miniflux.app/v2/internal/reader/filter"
 	"miniflux.app/v2/internal/validator"
 )
 
@@ -25,8 +26,6 @@ type SubscriptionForm struct {
 	ScraperRules                string
 	RewriteRules                string
 	UrlRewriteRules             string
-	BlocklistRules              string
-	KeeplistRules               string
 	BlockFilterEntryRules       string
 	KeepFilterEntryRules        string
 	DisableHTTP2                bool
@@ -43,14 +42,6 @@ func (s *SubscriptionForm) Validate() *locale.LocalizedError {
 		return locale.NewLocalizedError("error.invalid_feed_url")
 	}
 
-	if !validator.IsValidRegex(s.BlocklistRules) {
-		return locale.NewLocalizedError("error.feed_invalid_blocklist_rule")
-	}
-
-	if !validator.IsValidRegex(s.KeeplistRules) {
-		return locale.NewLocalizedError("error.feed_invalid_keeplist_rule")
-	}
-
 	if !validator.IsValidRegex(s.UrlRewriteRules) {
 		return locale.NewLocalizedError("error.feed_invalid_urlrewrite_rule")
 	}
@@ -59,6 +50,19 @@ func (s *SubscriptionForm) Validate() *locale.LocalizedError {
 		return locale.NewLocalizedError("error.invalid_feed_proxy_url")
 	}
 
+	if s.BlockFilterEntryRules != "" {
+		if _, err := filter.New(s.BlockFilterEntryRules); err != nil {
+			return locale.NewLocalizedError(
+				"The block list rule is invalid: " + err.Error())
+		}
+	}
+
+	if s.KeepFilterEntryRules != "" {
+		if _, err := filter.New(s.KeepFilterEntryRules); err != nil {
+			return locale.NewLocalizedError(
+				"The keep list rule is invalid: " + err.Error())
+		}
+	}
 	return nil
 }
 
@@ -82,8 +86,6 @@ func NewSubscriptionForm(r *http.Request) *SubscriptionForm {
 		ScraperRules:                r.FormValue("scraper_rules"),
 		RewriteRules:                r.FormValue("rewrite_rules"),
 		UrlRewriteRules:             r.FormValue("urlrewrite_rules"),
-		BlocklistRules:              r.FormValue("blocklist_rules"),
-		KeeplistRules:               r.FormValue("keeplist_rules"),
 		KeepFilterEntryRules:        r.FormValue("keep_filter_entry_rules"),
 		BlockFilterEntryRules:       r.FormValue("block_filter_entry_rules"),
 		DisableHTTP2:                r.FormValue("disable_http2") == "1",

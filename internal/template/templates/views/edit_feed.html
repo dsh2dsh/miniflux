@@ -160,28 +160,6 @@
             <input type="text" name="urlrewrite_rules" id="form-urlrewrite-rules" value="{{ .form.UrlRewriteRules }}" spellcheck="false">
 
             <div class="form-label-row">
-                <label for="form-blocklist-rules">
-                    {{ t "form.feed.label.blocklist_rules" }}
-                </label>
-                &nbsp;
-                <a href="https://miniflux.app/docs/rules.html#feed-filtering-rules" {{ $.user.TargetBlank }}>
-                    {{ icon "external-link" }}
-                </a>
-            </div>
-            <input type="text" name="blocklist_rules" id="form-blocklist-rules" value="{{ .form.BlocklistRules }}" spellcheck="false">
-
-            <div class="form-label-row">
-                <label for="form-keeplist-rules">
-                    {{ t "form.feed.label.keeplist_rules" }}
-                </label>
-                &nbsp;
-                <a href="https://miniflux.app/docs/rules.html#feed-filtering-rules" {{ $.user.TargetBlank }}>
-                    {{ icon "external-link" }}
-                </a>
-            </div>
-            <input type="text" name="keeplist_rules" id="form-keeplist-rules" value="{{ .form.KeeplistRules }}" spellcheck="false">
-
-            <div class="form-label-row">
                 <label for="form-block-filter-rules">
                     {{ t "form.feed.label.block_filter_entry_rules" }}
                 </label>

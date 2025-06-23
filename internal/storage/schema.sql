@@ -3,7 +3,7 @@
 CREATE TABLE schema_version (
     version text NOT NULL
 );
-INSERT INTO schema_version (version) VALUES('117');
+INSERT INTO schema_version (version) VALUES('118');
 
 CREATE TABLE acme_cache (
     key character varying(400) NOT NULL PRIMARY KEY,
@@ -106,8 +106,6 @@ CREATE TABLE feeds (
     next_check_at timestamp with time zone DEFAULT now(),
     ignore_http_cache boolean DEFAULT false,
     fetch_via_proxy boolean DEFAULT false,
-    blocklist_rules text DEFAULT '' NOT NULL,
-    keeplist_rules text DEFAULT '' NOT NULL,
     allow_self_signed_certificates boolean DEFAULT false NOT NULL,
     cookie text DEFAULT '',
     hide_globally boolean DEFAULT false NOT NULL,

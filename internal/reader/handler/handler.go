@@ -130,8 +130,6 @@ func createFeed(ctx context.Context, store *storage.Storage, userID int64,
 	feed.ScraperRules = r.ScraperRules
 	feed.RewriteRules = r.RewriteRules
 	feed.UrlRewriteRules = r.UrlRewriteRules
-	feed.BlocklistRules = r.BlocklistRules
-	feed.KeeplistRules = r.KeeplistRules
 	feed.Extra.BlockFilterEntryRules = r.BlockFilterEntryRules
 	feed.Extra.KeepFilterEntryRules = r.KeepFilterEntryRules
 	feed.HideGlobally = r.HideGlobally

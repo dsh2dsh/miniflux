@@ -7,16 +7,12 @@ import (
 	json_parser "encoding/json"
 	"errors"
 	"net/http"
-	"regexp"
-	"strings"
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/validator"
 )
-
-var cleanEnd = regexp.MustCompile(`(?m)\r\n\s*$`)
 
 func (h *handler) currentUser(w http.ResponseWriter, r *http.Request) {
 	json.OK(w, r, request.User(r))
@@ -79,22 +75,6 @@ func (h *handler) updateUser(w http.ResponseWriter, r *http.Request) {
 				"only administrators can change permissions of standard users"))
 			return
 		}
-	}
-
-	if m.BlockFilterEntryRules != nil {
-		*m.BlockFilterEntryRules = cleanEnd.ReplaceAllLiteralString(
-			*m.BlockFilterEntryRules, "")
-		// Clean carriage returns for Windows environments
-		*m.BlockFilterEntryRules = strings.ReplaceAll(*m.BlockFilterEntryRules,
-			"\r\n", "\n")
-	}
-
-	if m.KeepFilterEntryRules != nil {
-		*m.KeepFilterEntryRules = cleanEnd.ReplaceAllLiteralString(
-			*m.KeepFilterEntryRules, "")
-		// Clean carriage returns for Windows environments
-		*m.KeepFilterEntryRules = strings.ReplaceAll(*m.KeepFilterEntryRules,
-			"\r\n", "\n")
 	}
 
 	lerr := validator.ValidateUserModification(ctx, h.store, user.ID, &m)

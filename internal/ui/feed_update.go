@@ -19,16 +19,16 @@ import (
 func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
 	f := form.NewFeedForm(r)
 	modify := model.FeedModificationRequest{
-		FeedURL:             model.OptionalString(f.FeedURL),
-		SiteURL:             model.OptionalString(f.SiteURL),
-		Title:               model.OptionalString(f.Title),
-		CommentsURLTemplate: model.OptionalString(f.CommentsURLTemplate),
-		Description:         model.OptionalString(f.Description),
-		CategoryID:          model.OptionalNumber(f.CategoryID),
-		BlocklistRules:      model.OptionalString(f.BlocklistRules),
-		KeeplistRules:       model.OptionalString(f.KeeplistRules),
-		UrlRewriteRules:     model.OptionalString(f.UrlRewriteRules),
-		ProxyURL:            model.OptionalString(f.ProxyURL),
+		FeedURL:               model.OptionalString(f.FeedURL),
+		SiteURL:               model.OptionalString(f.SiteURL),
+		Title:                 model.OptionalString(f.Title),
+		Description:           model.OptionalString(f.Description),
+		CategoryID:            model.OptionalNumber(f.CategoryID),
+		UrlRewriteRules:       model.OptionalString(f.UrlRewriteRules),
+		BlockFilterEntryRules: model.OptionalString(f.BlockFilterEntryRules),
+		KeepFilterEntryRules:  model.OptionalString(f.KeepFilterEntryRules),
+		ProxyURL:              model.OptionalString(f.ProxyURL),
+		CommentsURLTemplate:   model.OptionalString(f.CommentsURLTemplate),
 	}
 
 	ctx := r.Context()

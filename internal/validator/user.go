@@ -5,148 +5,149 @@ package validator // import "miniflux.app/v2/internal/validator"
 
 import (
 	"context"
-	"slices"
 	"strings"
 	"unicode"
 
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
+	"miniflux.app/v2/internal/reader/filter"
 	"miniflux.app/v2/internal/storage"
 )
 
 // ValidateUserCreationWithPassword validates user creation with a password.
 func ValidateUserCreationWithPassword(ctx context.Context,
-	store *storage.Storage, request *model.UserCreationRequest,
+	store *storage.Storage, r *model.UserCreationRequest,
 ) *locale.LocalizedError {
-	if request.Username == "" {
+	if r.Username == "" {
 		return locale.NewLocalizedError("error.user_mandatory_fields")
 	}
 
-	if store.UserExists(ctx, request.Username) {
+	if store.UserExists(ctx, r.Username) {
 		return locale.NewLocalizedError("error.user_already_exists")
 	}
 
-	if err := validateUsername(request.Username); err != nil {
+	if err := validateUsername(r.Username); err != nil {
 		return err
 	}
 
-	if err := validatePassword(request.Password); err != nil {
+	if err := validatePassword(r.Password); err != nil {
 		return err
 	}
-
 	return nil
 }
 
 // ValidateUserModification validates user modifications.
 func ValidateUserModification(ctx context.Context, store *storage.Storage,
-	userID int64, changes *model.UserModificationRequest,
+	userID int64, r *model.UserModificationRequest,
 ) *locale.LocalizedError {
-	if changes.Username != nil {
-		if *changes.Username == "" {
+	if r.Username != nil {
+		if *r.Username == "" {
 			return locale.NewLocalizedError("error.user_mandatory_fields")
-		} else if store.AnotherUserExists(ctx, userID, *changes.Username) {
+		} else if store.AnotherUserExists(ctx, userID, *r.Username) {
 			return locale.NewLocalizedError("error.user_already_exists")
 		}
 	}
 
-	if changes.Password != nil {
-		if err := validatePassword(*changes.Password); err != nil {
+	if r.Password != nil {
+		if err := validatePassword(*r.Password); err != nil {
 			return err
 		}
 	}
 
-	if changes.Theme != nil {
-		if err := validateTheme(*changes.Theme); err != nil {
+	if r.Theme != nil {
+		if err := validateTheme(*r.Theme); err != nil {
 			return err
 		}
 	}
 
-	if changes.Language != nil {
-		if err := validateLanguage(*changes.Language); err != nil {
+	if r.Language != nil {
+		if err := validateLanguage(*r.Language); err != nil {
 			return err
 		}
 	}
 
-	if changes.Timezone != nil {
-		if err := validateTimezone(ctx, store, *changes.Timezone); err != nil {
+	if r.Timezone != nil {
+		if err := validateTimezone(ctx, store, *r.Timezone); err != nil {
 			return err
 		}
 	}
 
-	if changes.EntryDirection != nil {
-		if err := validateEntryDirection(*changes.EntryDirection); err != nil {
+	if r.EntryDirection != nil {
+		if err := validateEntryDirection(*r.EntryDirection); err != nil {
 			return err
 		}
 	}
 
-	if changes.EntryOrder != nil {
-		if err := ValidateEntryOrder(*changes.EntryOrder); err != nil {
+	if r.EntryOrder != nil {
+		if err := ValidateEntryOrder(*r.EntryOrder); err != nil {
 			return locale.NewLocalizedError("error.invalid_entry_order")
 		}
 	}
 
-	if changes.EntriesPerPage != nil {
-		if err := validateEntriesPerPage(*changes.EntriesPerPage); err != nil {
+	if r.EntriesPerPage != nil {
+		if err := validateEntriesPerPage(*r.EntriesPerPage); err != nil {
 			return err
 		}
 	}
 
-	if changes.CategoriesSortingOrder != nil {
-		if err := validateCategoriesSortingOrder(*changes.CategoriesSortingOrder); err != nil {
+	if r.CategoriesSortingOrder != nil {
+		if err := validateCategoriesSortingOrder(*r.CategoriesSortingOrder); err != nil {
 			return err
 		}
 	}
 
-	if changes.DisplayMode != nil {
-		if err := validateDisplayMode(*changes.DisplayMode); err != nil {
+	if r.DisplayMode != nil {
+		if err := validateDisplayMode(*r.DisplayMode); err != nil {
 			return err
 		}
 	}
 
-	if changes.GestureNav != nil {
-		if err := validateGestureNav(*changes.GestureNav); err != nil {
+	if r.GestureNav != nil {
+		if err := validateGestureNav(*r.GestureNav); err != nil {
 			return err
 		}
 	}
 
-	if changes.DefaultReadingSpeed != nil {
-		if err := validateReadingSpeed(*changes.DefaultReadingSpeed); err != nil {
+	if r.DefaultReadingSpeed != nil {
+		if err := validateReadingSpeed(*r.DefaultReadingSpeed); err != nil {
 			return err
 		}
 	}
 
-	if changes.CJKReadingSpeed != nil {
-		if err := validateReadingSpeed(*changes.CJKReadingSpeed); err != nil {
+	if r.CJKReadingSpeed != nil {
+		if err := validateReadingSpeed(*r.CJKReadingSpeed); err != nil {
 			return err
 		}
 	}
 
-	if changes.DefaultHomePage != nil {
-		if err := validateDefaultHomePage(*changes.DefaultHomePage); err != nil {
+	if r.DefaultHomePage != nil {
+		if err := validateDefaultHomePage(*r.DefaultHomePage); err != nil {
 			return err
 		}
 	}
 
-	if changes.MediaPlaybackRate != nil {
-		if err := validateMediaPlaybackRate(*changes.MediaPlaybackRate); err != nil {
+	if r.MediaPlaybackRate != nil {
+		if err := validateMediaPlaybackRate(*r.MediaPlaybackRate); err != nil {
 			return err
 		}
 	}
 
-	if changes.BlockFilterEntryRules != nil {
-		if err := isValidFilterRules(*changes.BlockFilterEntryRules, "block"); err != nil {
-			return err
+	if s := model.OptionalValue(r.BlockFilterEntryRules); s != "" {
+		if _, err := filter.New(s); err != nil {
+			return locale.NewLocalizedError(
+				"The block list rule is invalid: " + err.Error())
 		}
 	}
 
-	if changes.KeepFilterEntryRules != nil {
-		if err := isValidFilterRules(*changes.KeepFilterEntryRules, "keep"); err != nil {
-			return err
+	if s := model.OptionalValue(r.KeepFilterEntryRules); s != "" {
+		if _, err := filter.New(s); err != nil {
+			return locale.NewLocalizedError(
+				"The keep list rule is invalid: " + err.Error())
 		}
 	}
 
-	if changes.ExternalFontHosts != nil {
-		if !IsValidDomainList(*changes.ExternalFontHosts) {
+	if r.ExternalFontHosts != nil {
+		if !IsValidDomainList(*r.ExternalFontHosts) {
 			return locale.NewLocalizedError("error.settings_invalid_domain_list")
 		}
 	}
@@ -265,38 +266,6 @@ func validateDefaultHomePage(defaultHomePage string) *locale.LocalizedError {
 func validateMediaPlaybackRate(mediaPlaybackRate float64) *locale.LocalizedError {
 	if mediaPlaybackRate < 0.25 || mediaPlaybackRate > 4 {
 		return locale.NewLocalizedError("error.settings_media_playback_rate_range")
-	}
-	return nil
-}
-
-func isValidFilterRules(filterEntryRules string, filterType string) *locale.LocalizedError {
-	// Valid Format: FieldName=RegEx\nFieldName=RegEx...
-	fieldNames := []string{"EntryTitle", "EntryURL", "EntryCommentsURL", "EntryContent", "EntryAuthor", "EntryTag", "EntryDate"}
-
-	rules := strings.Split(filterEntryRules, "\n")
-	for i, rule := range rules {
-		// Check if rule starts with a valid fieldName
-		idx := slices.IndexFunc(fieldNames, func(fieldName string) bool { return strings.HasPrefix(rule, fieldName) })
-		if idx == -1 {
-			return locale.NewLocalizedError("error.settings_"+filterType+"_rule_fieldname_invalid", i+1, "'"+strings.Join(fieldNames, "', '")+"'")
-		}
-		fieldName := fieldNames[idx]
-		fieldRegEx, _ := strings.CutPrefix(rule, fieldName)
-
-		// Check if regex begins with a =
-		if !strings.HasPrefix(fieldRegEx, "=") {
-			return locale.NewLocalizedError("error.settings_"+filterType+"_rule_separator_required", i+1)
-		}
-		fieldRegEx = strings.TrimPrefix(fieldRegEx, "=")
-
-		if fieldRegEx == "" {
-			return locale.NewLocalizedError("error.settings_"+filterType+"_rule_regex_required", i+1)
-		}
-
-		// Check if provided pattern is a valid RegEx
-		if !IsValidRegex(fieldRegEx) {
-			return locale.NewLocalizedError("error.settings_"+filterType+"_rule_invalid_regex", i+1)
-		}
 	}
 	return nil
 }

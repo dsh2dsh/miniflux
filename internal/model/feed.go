@@ -41,8 +41,6 @@ type Feed struct {
 	ScraperRules                string      `json:"scraper_rules" db:"scraper_rules"`
 	RewriteRules                string      `json:"rewrite_rules" db:"rewrite_rules"`
 	Crawler                     bool        `json:"crawler" db:"crawler"`
-	BlocklistRules              string      `json:"blocklist_rules" db:"blocklist_rules"`
-	KeeplistRules               string      `json:"keeplist_rules" db:"keeplist_rules"`
 	UrlRewriteRules             string      `json:"urlrewrite_rules" db:"urlrewrite_rules"`
 	UserAgent                   string      `json:"user_agent" db:"user_agent"`
 	Cookie                      string      `json:"cookie" db:"cookie"`
@@ -177,6 +175,14 @@ var commentsURLTemplateFuncMap = template.FuncMap{
 	},
 }
 
+func (f *Feed) BlockFilterEntryRules() string {
+	return f.Extra.BlockFilterEntryRules
+}
+
+func (f *Feed) KeepFilterEntryRules() string {
+	return f.Extra.KeepFilterEntryRules
+}
+
 // FeedCreationRequest represents the request to create a feed.
 type FeedCreationRequest struct {
 	FeedURL                     string `json:"feed_url"`
@@ -193,8 +199,6 @@ type FeedCreationRequest struct {
 	FetchViaProxy               bool   `json:"fetch_via_proxy"`
 	ScraperRules                string `json:"scraper_rules"`
 	RewriteRules                string `json:"rewrite_rules"`
-	BlocklistRules              string `json:"blocklist_rules"`
-	KeeplistRules               string `json:"keeplist_rules"`
 	BlockFilterEntryRules       string `json:"block_filter_entry_rules"`
 	KeepFilterEntryRules        string `json:"keep_filter_entry_rules"`
 	HideGlobally                bool   `json:"hide_globally"`
@@ -219,9 +223,7 @@ type FeedModificationRequest struct {
 	Description                 *string `json:"description"`
 	ScraperRules                *string `json:"scraper_rules"`
 	RewriteRules                *string `json:"rewrite_rules"`
-	BlocklistRules              *string `json:"blocklist_rules"`
 	UrlRewriteRules             *string `json:"urlrewrite_rules"`
-	KeeplistRules               *string `json:"keeplist_rules"`
 	BlockFilterEntryRules       *string `json:"block_filter_entry_rules"`
 	KeepFilterEntryRules        *string `json:"keep_filter_entry_rules"`
 	Crawler                     *bool   `json:"crawler"`
@@ -269,14 +271,6 @@ func (f *FeedModificationRequest) Patch(feed *Feed) {
 
 	if f.UrlRewriteRules != nil {
 		feed.UrlRewriteRules = *f.UrlRewriteRules
-	}
-
-	if f.KeeplistRules != nil {
-		feed.KeeplistRules = *f.KeeplistRules
-	}
-
-	if f.BlocklistRules != nil {
-		feed.BlocklistRules = *f.BlocklistRules
 	}
 
 	if f.BlockFilterEntryRules != nil {

@@ -8,114 +8,120 @@ import (
 
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
+	"miniflux.app/v2/internal/reader/filter"
 	"miniflux.app/v2/internal/storage"
 )
 
 // ValidateFeedCreation validates feed creation.
 func ValidateFeedCreation(ctx context.Context, store *storage.Storage,
-	userID int64, request *model.FeedCreationRequest,
+	userID int64, r *model.FeedCreationRequest,
 ) *locale.LocalizedError {
-	if request.FeedURL == "" || request.CategoryID <= 0 {
+	if r.FeedURL == "" || r.CategoryID <= 0 {
 		return locale.NewLocalizedError("error.feed_mandatory_fields")
 	}
 
-	if !IsValidURL(request.FeedURL) {
+	if !IsValidURL(r.FeedURL) {
 		return locale.NewLocalizedError("error.invalid_feed_url")
 	}
 
-	if store.FeedURLExists(ctx, userID, request.FeedURL) {
+	if store.FeedURLExists(ctx, userID, r.FeedURL) {
 		return locale.NewLocalizedError("error.feed_already_exists")
 	}
 
-	if !store.CategoryIDExists(ctx, userID, request.CategoryID) {
+	if !store.CategoryIDExists(ctx, userID, r.CategoryID) {
 		return locale.NewLocalizedError("error.feed_category_not_found")
 	}
 
-	if !IsValidRegex(request.BlocklistRules) {
-		return locale.NewLocalizedError("error.feed_invalid_blocklist_rule")
-	}
-
-	if !IsValidRegex(request.KeeplistRules) {
-		return locale.NewLocalizedError("error.feed_invalid_keeplist_rule")
-	}
-
-	if request.ProxyURL != "" && !IsValidURL(request.ProxyURL) {
+	if r.ProxyURL != "" && !IsValidURL(r.ProxyURL) {
 		return locale.NewLocalizedError("error.invalid_feed_proxy_url")
 	}
 
+	if r.BlockFilterEntryRules != "" {
+		if _, err := filter.New(r.BlockFilterEntryRules); err != nil {
+			return locale.NewLocalizedError(
+				"The block list rule is invalid: " + err.Error())
+		}
+	}
+
+	if r.KeepFilterEntryRules != "" {
+		if _, err := filter.New(r.KeepFilterEntryRules); err != nil {
+			return locale.NewLocalizedError(
+				"The keep list rule is invalid: " + err.Error())
+		}
+	}
 	return nil
 }
 
 // ValidateFeedModification validates feed modification.
 func ValidateFeedModification(ctx context.Context, store *storage.Storage,
-	userID, feedID int64, request *model.FeedModificationRequest,
+	userID, feedID int64, r *model.FeedModificationRequest,
 ) *locale.LocalizedError {
-	if request.FeedURL != nil {
-		if *request.FeedURL == "" {
+	if r.FeedURL != nil {
+		if *r.FeedURL == "" {
 			return locale.NewLocalizedError("error.feed_url_not_empty")
 		}
 
-		if !IsValidURL(*request.FeedURL) {
+		if !IsValidURL(*r.FeedURL) {
 			return locale.NewLocalizedError("error.invalid_feed_url")
 		}
 
-		if store.AnotherFeedURLExists(ctx, userID, feedID, *request.FeedURL) {
+		if store.AnotherFeedURLExists(ctx, userID, feedID, *r.FeedURL) {
 			return locale.NewLocalizedError("error.feed_already_exists")
 		}
 	}
 
-	if request.SiteURL != nil {
-		if *request.SiteURL == "" {
+	if r.SiteURL != nil {
+		if *r.SiteURL == "" {
 			return locale.NewLocalizedError("error.site_url_not_empty")
 		}
 
-		if !IsValidURL(*request.SiteURL) {
+		if !IsValidURL(*r.SiteURL) {
 			return locale.NewLocalizedError("error.invalid_site_url")
 		}
 	}
 
-	if request.Title != nil {
-		if *request.Title == "" {
+	if r.Title != nil {
+		if *r.Title == "" {
 			return locale.NewLocalizedError("error.feed_title_not_empty")
 		}
 	}
 
-	if request.CategoryID != nil {
-		if !store.CategoryIDExists(ctx, userID, *request.CategoryID) {
+	if r.CategoryID != nil {
+		if !store.CategoryIDExists(ctx, userID, *r.CategoryID) {
 			return locale.NewLocalizedError("error.feed_category_not_found")
 		}
 	}
 
-	if request.BlocklistRules != nil {
-		if !IsValidRegex(*request.BlocklistRules) {
-			return locale.NewLocalizedError("error.feed_invalid_blocklist_rule")
-		}
-	}
-
-	if request.KeeplistRules != nil {
-		if !IsValidRegex(*request.KeeplistRules) {
-			return locale.NewLocalizedError("error.feed_invalid_keeplist_rule")
-		}
-	}
-
-	if request.ProxyURL != nil {
-		if *request.ProxyURL == "" {
+	if r.ProxyURL != nil {
+		if *r.ProxyURL == "" {
 			return locale.NewLocalizedError("error.proxy_url_not_empty")
 		}
 
-		if !IsValidURL(*request.ProxyURL) {
+		if !IsValidURL(*r.ProxyURL) {
 			return locale.NewLocalizedError("error.invalid_feed_proxy_url")
 		}
 	}
 
-	if request.CommentsURLTemplate != nil {
-		if s := *request.CommentsURLTemplate; s != "" {
-			f := model.Feed{Extra: model.FeedExtra{CommentsURLTemplate: s}}
-			_, err := f.CommentsURLTemplate()
-			if err != nil {
-				return locale.NewLocalizedError(
-					"Invalid Comments URL template: " + err.Error())
-			}
+	if s := model.OptionalValue(r.CommentsURLTemplate); s != "" {
+		f := model.Feed{Extra: model.FeedExtra{CommentsURLTemplate: s}}
+		_, err := f.CommentsURLTemplate()
+		if err != nil {
+			return locale.NewLocalizedError(
+				"Invalid Comments URL template: " + err.Error())
+		}
+	}
+
+	if s := model.OptionalValue(r.BlockFilterEntryRules); s != "" {
+		if _, err := filter.New(s); err != nil {
+			return locale.NewLocalizedError(
+				"The block list rule is invalid: " + err.Error())
+		}
+	}
+
+	if s := model.OptionalValue(r.KeepFilterEntryRules); s != "" {
+		if _, err := filter.New(s); err != nil {
+			return locale.NewLocalizedError(
+				"The keep list rule is invalid: " + err.Error())
 		}
 	}
 	return nil

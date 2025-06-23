@@ -27,7 +27,7 @@ import (
 	"miniflux.app/v2/internal/storage"
 )
 
-var ErrScrape = errors.New("internal/reader/processor: unable scrape entry")
+var ErrBadFeed = errors.New("reader/processor: bad feed")
 
 // ProcessFeedEntries downloads original web page for entries and apply filters.
 func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
@@ -37,11 +37,16 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 	user, err := store.UserByID(ctx, userID)
 	if err != nil {
 		log.Error(err.Error(), slog.Int64("user_id", userID))
-		return fmt.Errorf("internal/reader/processor: fetch user id=%v: %w",
+		return fmt.Errorf("reader/processor: fetch user id=%v: %w",
 			userID, err)
 	}
 
-	deleteBadEntries(user, feed)
+	if err := filter.DeleteEntries(ctx, user, feed); err != nil {
+		return fmt.Errorf("%w: delete filtered entries: %w", ErrBadFeed, err)
+	}
+	// process older entries first
+	slices.Reverse(feed.Entries)
+
 	if feed.Crawler && !force {
 		if err := markStoredEntries(ctx, store, feed); err != nil {
 			log.Error(err.Error(), slog.Int("entries", len(feed.Entries)))
@@ -78,7 +83,7 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 			scrapedURL, _, err := scrape(ctx, feed, entry)
 			if err != nil {
 				log.Warn("Unable scrape entry", slog.Any("error", err))
-				return fmt.Errorf("%w: %w", ErrScrape, err)
+				return fmt.Errorf("%w: scrape entry: %w", ErrBadFeed, err)
 			} else if scrapedURL != "" {
 				pageBaseURL = scrapedURL
 			}
@@ -102,16 +107,6 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 		fetchYouTubeWatchTimeInBulk(feed.Entries)
 	}
 	return nil
-}
-
-func deleteBadEntries(user *model.User, feed *model.Feed) {
-	entries := slices.DeleteFunc(feed.Entries, func(entry *model.Entry) bool {
-		return filter.IsBlockedEntry(feed, entry, user) ||
-			!filter.IsAllowedEntry(feed, entry, user)
-	})
-	// process older entries first
-	slices.Reverse(entries)
-	feed.Entries = entries
 }
 
 func markStoredEntries(ctx context.Context, store *storage.Storage,

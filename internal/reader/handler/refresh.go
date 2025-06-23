@@ -281,7 +281,7 @@ func (self *Refresh) refreshFeed(ctx context.Context,
 	err = processor.ProcessFeedEntries(ctx, self.store, self.feed, self.userID,
 		self.force)
 	if err != nil {
-		if errors.Is(err, processor.ErrScrape) {
+		if errors.Is(err, processor.ErrBadFeed) {
 			return refreshed, locale.NewLocalizedErrorWrapper(err,
 				"error.unable_to_parse_feed", err)
 		}

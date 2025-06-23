@@ -4,33 +4,70 @@
 package filter // import "miniflux.app/v2/internal/reader/filter"
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 )
 
-type filterActionType string
+func DeleteEntries(ctx context.Context, user *model.User, feed *model.Feed,
+) error {
+	block, err := joinRules(user.BlockFilterEntryRules,
+		feed.BlockFilterEntryRules())
+	if err != nil {
+		return fmt.Errorf("reader/filter: building block filter: %w", err)
+	}
 
-const (
-	filterActionBlock filterActionType = "block"
-	filterActionAllow filterActionType = "allow"
-)
+	keep, err := joinRules(user.KeepFilterEntryRules,
+		feed.KeepFilterEntryRules())
+	if err != nil {
+		return fmt.Errorf("reader/filter: building keep filter: %w", err)
+	}
 
-func blockedGlobally(entry *model.Entry) bool {
-	if config.Opts == nil || config.Opts.FilterEntryMaxAgeDays() == 0 {
+	log := logging.FromContext(ctx).With(
+		slog.Int64("feed_id", feed.ID),
+		slog.String("feed_url", feed.FeedURL))
+	block = block.WithLogger(log.With(slog.String("filter_action", "block")))
+	keep = keep.WithLogger(log.With(slog.String("filter_action", "allow")))
+
+	maxAge := time.Duration(config.Opts.FilterEntryMaxAgeDays()) * 24 * time.Hour
+	feed.Entries = slices.DeleteFunc(feed.Entries,
+		func(entry *model.Entry) bool {
+			return blockedGlobally(ctx, entry, maxAge) || block.Match(entry) ||
+				!keep.Allow(entry)
+		})
+	return nil
+}
+
+func joinRules(userRules string, feedRules string) (*Filter, error) {
+	userFilter, err := New(userRules)
+	if err != nil {
+		return nil, fmt.Errorf("bad user rules: %w", err)
+	}
+
+	feedFilter, err := New(feedRules)
+	if err != nil {
+		return nil, fmt.Errorf("bad feed rules: %w", err)
+	}
+	return userFilter.Concat(feedFilter), nil
+}
+
+func blockedGlobally(ctx context.Context, entry *model.Entry,
+	maxAge time.Duration,
+) bool {
+	if maxAge == 0 {
 		return false
 	}
 
-	maxAge := time.Duration(config.Opts.FilterEntryMaxAgeDays()) * 24 * time.Hour
-	if entry.Date.Before(time.Now().Add(-maxAge)) {
-		slog.Debug("Entry is blocked globally due to max age",
+	if entry.Date.Add(maxAge).Before(time.Now()) {
+		logging.FromContext(ctx).Debug("Entry is blocked globally due to max age",
 			slog.String("entry_url", entry.URL),
 			slog.Time("entry_date", entry.Date),
 			slog.Duration("max_age", maxAge))
@@ -39,144 +76,17 @@ func blockedGlobally(entry *model.Entry) bool {
 	return false
 }
 
-func IsBlockedEntry(feed *model.Feed, entry *model.Entry, user *model.User) bool {
-	if blockedGlobally(entry) {
-		return true
-	}
-
-	combinedRules := combineFilterRules(user.BlockFilterEntryRules,
-		feed.Extra.BlockFilterEntryRules)
-	if combinedRules != "" {
-		if matchesEntryFilterRules(combinedRules, entry, feed, filterActionBlock) {
-			return true
-		}
-	}
-
-	if feed.BlocklistRules == "" {
-		return false
-	}
-
-	return matchesEntryRegexRules(feed.BlocklistRules, entry, feed, filterActionBlock)
-}
-
-func IsAllowedEntry(feed *model.Feed, entry *model.Entry, user *model.User) bool {
-	combinedRules := combineFilterRules(user.KeepFilterEntryRules,
-		feed.Extra.KeepFilterEntryRules)
-	if combinedRules != "" {
-		return matchesEntryFilterRules(combinedRules, entry, feed, filterActionAllow)
-	}
-
-	if feed.KeeplistRules == "" {
-		return true
-	}
-
-	return matchesEntryRegexRules(feed.KeeplistRules, entry, feed, filterActionAllow)
-}
-
-func combineFilterRules(userRules, feedRules string) string {
-	userRules = strings.TrimSpace(userRules)
-	feedRules = strings.TrimSpace(feedRules)
-
-	if feedRules != "" {
-		if userRules != "" {
-			return userRules + "\n" + feedRules
-		}
-		return feedRules
-	}
-	return userRules
-}
-
-func matchesEntryFilterRules(rules string, entry *model.Entry, feed *model.Feed, filterAction filterActionType) bool {
-	for rule := range strings.SplitSeq(rules, "\n") {
-		if matchesRule(rule, entry) {
-			logFilterAction(entry, feed, rule, filterAction)
-			return true
-		}
-	}
-	return false
-}
-
-func matchesEntryRegexRules(rules string, entry *model.Entry, feed *model.Feed, filterAction filterActionType) bool {
-	compiledRegex, err := regexp.Compile(rules)
-	if err != nil {
-		slog.Warn("Failed on regexp compilation",
-			slog.String("pattern", rules),
-			slog.Any("error", err),
-		)
-		return false
-	}
-
-	containsMatchingTag := slices.ContainsFunc(entry.Tags, func(tag string) bool {
-		return compiledRegex.MatchString(tag)
-	})
-
-	if compiledRegex.MatchString(entry.URL) ||
-		compiledRegex.MatchString(entry.Title) ||
-		compiledRegex.MatchString(entry.Author) ||
-		containsMatchingTag {
-		logFilterAction(entry, feed, rules, filterAction)
-		return true
-	}
-
-	return false
-}
-
-func matchesRule(rule string, entry *model.Entry) bool {
-	parts := strings.SplitN(rule, "=", 2)
-	if len(parts) != 2 {
-		return false
-	}
-
-	ruleType, ruleValue := parts[0], parts[1]
-
-	switch ruleType {
-	case "EntryDate":
-		return isDateMatchingPattern(ruleValue, entry.Date)
-	case "EntryTitle":
-		match, _ := regexp.MatchString(ruleValue, entry.Title)
-		return match
-	case "EntryURL":
-		match, _ := regexp.MatchString(ruleValue, entry.URL)
-		return match
-	case "EntryCommentsURL":
-		match, _ := regexp.MatchString(ruleValue, entry.CommentsURL)
-		return match
-	case "EntryContent":
-		match, _ := regexp.MatchString(ruleValue, entry.Content)
-		return match
-	case "EntryAuthor":
-		match, _ := regexp.MatchString(ruleValue, entry.Author)
-		return match
-	case "EntryTag":
-		return containsRegexPattern(ruleValue, entry.Tags)
-	}
-
-	return false
-}
-
-func logFilterAction(entry *model.Entry, feed *model.Feed, filterRule string, filterAction filterActionType) {
-	slog.Debug("Filtering entry based on rule",
-		slog.Int64("feed_id", feed.ID),
-		slog.String("feed_url", feed.FeedURL),
-		slog.String("entry_url", entry.URL),
-		slog.String("filter_rule", filterRule),
-		slog.Any("filter_action", filterAction),
-	)
-}
-
-func isDateMatchingPattern(pattern string, entryDate time.Time) bool {
+func matchDatePattern(pattern string, entryDate time.Time) bool {
 	if pattern == "future" {
 		return entryDate.After(time.Now())
 	}
 
-	parts := strings.SplitN(pattern, ":", 2)
-	if len(parts) != 2 {
+	ruleType, inputDate, found := strings.Cut(pattern, ":")
+	if !found {
 		return false
 	}
 
-	ruleType, inputDate := parts[0], parts[1]
-
-	switch ruleType {
+	switch strings.ToLower(ruleType) {
 	case "before":
 		targetDate, err := time.Parse("2006-01-02", inputDate)
 		if err != nil {
@@ -190,15 +100,15 @@ func isDateMatchingPattern(pattern string, entryDate time.Time) bool {
 		}
 		return entryDate.After(targetDate)
 	case "between":
-		dates := strings.Split(inputDate, ",")
-		if len(dates) != 2 {
+		d1, d2, found := strings.Cut(inputDate, ",")
+		if !found {
 			return false
 		}
-		startDate, err := time.Parse("2006-01-02", dates[0])
+		startDate, err := time.Parse("2006-01-02", d1)
 		if err != nil {
 			return false
 		}
-		endDate, err := time.Parse("2006-01-02", dates[1])
+		endDate, err := time.Parse("2006-01-02", d2)
 		if err != nil {
 			return false
 		}
@@ -214,33 +124,22 @@ func isDateMatchingPattern(pattern string, entryDate time.Time) bool {
 	return false
 }
 
-func containsRegexPattern(pattern string, entries []string) bool {
-	for _, entry := range entries {
-		if matched, _ := regexp.MatchString(pattern, entry); matched {
-			return true
-		}
-	}
-	return false
-}
-
 func parseDuration(duration string) (time.Duration, error) {
-	// Handle common duration formats like "30d", "7d", "1h", "1m", etc.
-	// Go's time.ParseDuration doesn't support days, so we handle them manually
+	// Handle common duration formats like "30d", "7d", "1h", "1m", etc. Go's
+	// time.ParseDuration doesn't support days, so we handle them manually.
 	if strings.HasSuffix(duration, "d") {
 		daysStr := strings.TrimSuffix(duration, "d")
-		days := 0
-		if daysStr != "" {
-			var err error
-			days, err = strconv.Atoi(daysStr)
-			if err != nil {
-				return 0, fmt.Errorf("reader/filter: parse days %q: %w", daysStr,
-					err)
-			}
+		if daysStr == "" {
+			return 0, nil
+		}
+		days, err := strconv.Atoi(daysStr)
+		if err != nil {
+			return 0, fmt.Errorf("reader/filter: parse days %q: %w", daysStr, err)
 		}
 		return time.Duration(days) * 24 * time.Hour, nil
 	}
 
-	// For other durations (hours, minutes, seconds), use Go's built-in parser
+	// For other durations (hours, minutes, seconds), use Go's built-in parser.
 	d, err := time.ParseDuration(duration)
 	if err != nil {
 		return 0, fmt.Errorf("reader/filter: parse duration %q: %w", duration, err)

@@ -6,8 +6,6 @@ package ui // import "miniflux.app/v2/internal/ui"
 import (
 	"context"
 	"net/http"
-	"regexp"
-	"strings"
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
@@ -19,22 +17,8 @@ import (
 	"miniflux.app/v2/internal/validator"
 )
 
-var cleanEnd = regexp.MustCompile(`(?m)\r\n\s*$`)
-
 func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 	f := form.NewSettingsForm(r)
-
-	// Sanitize the end of the block & Keep rules
-	f.BlockFilterEntryRules = cleanEnd.ReplaceAllLiteralString(
-		f.BlockFilterEntryRules, "")
-	f.KeepFilterEntryRules = cleanEnd.ReplaceAllLiteralString(
-		f.KeepFilterEntryRules, "")
-
-	// Clean carriage returns for Windows environments
-	f.BlockFilterEntryRules = strings.ReplaceAll(f.BlockFilterEntryRules, "\r\n",
-		"\n")
-	f.KeepFilterEntryRules = strings.ReplaceAll(f.KeepFilterEntryRules, "\r\n",
-		"\n")
 
 	modifyRequest := model.UserModificationRequest{
 		Username:               model.OptionalString(f.Username),

@@ -24,3 +24,11 @@ func OptionalString(value string) *string {
 func SetOptionalField[T any](value T) *T {
 	return &value
 }
+
+func OptionalValue[T any](value *T) T {
+	if value != nil {
+		return *value
+	}
+	var zeroValue T
+	return zeroValue
+}
