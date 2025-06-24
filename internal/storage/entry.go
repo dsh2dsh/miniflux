@@ -253,7 +253,7 @@ UPDATE entries
        document_vectors =
          setweight(to_tsvector(left(coalesce($1, ''), 500000)), 'A') ||
          setweight(to_tsvector(left(coalesce($4, ''), 500000)), 'B')
- WHERE user_id=$7 AND feed_id=$8 AND hash=$9
+ WHERE user_id = $7 AND feed_id = $8 AND hash = $9
 RETURNING id, status, changed_at`,
 		e.Title,
 		e.URL,
