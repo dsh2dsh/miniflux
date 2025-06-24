@@ -276,7 +276,7 @@
                 <strong>Size:</strong> {{ formatFileSizeUint .feed.Size }}
             </li>
             <li>
-                <strong>Hash:</strong> {{ printf "%x" .feed.Hash }}
+                <strong>Hash:</strong> {{ .feed.HashString }}
             </li>
         </ul>
     </div>

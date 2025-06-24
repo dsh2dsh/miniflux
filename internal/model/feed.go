@@ -5,6 +5,7 @@ package model // import "miniflux.app/v2/internal/model"
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -75,6 +76,9 @@ type Feed struct {
 	UnreadCount            int    `json:"-" db:"-"`
 	ReadCount              int    `json:"-" db:"-"`
 	NumberOfVisibleEntries int    `json:"-" db:"-"`
+
+	removedByAge     int
+	removedByFilters int
 }
 
 type FeedExtra struct {
@@ -147,7 +151,9 @@ func (f *Feed) ScheduleNextCheck(refreshDelayInMinutes int) int {
 }
 
 func (f *Feed) Size() uint64 { return f.Runtime.Size }
-func (f *Feed) Hash() uint64 { return f.Runtime.Hash }
+func (f *Feed) HashString() string {
+	return strconv.FormatUint(f.Runtime.Hash, 16)
+}
 
 func (f *Feed) ContentChanged(body []byte) bool {
 	oldSize, oldHash := f.Runtime.Size, f.Runtime.Hash
@@ -182,6 +188,12 @@ func (f *Feed) BlockFilterEntryRules() string {
 func (f *Feed) KeepFilterEntryRules() string {
 	return f.Extra.KeepFilterEntryRules
 }
+
+func (f *Feed) IncRemovedByAge()  { f.removedByAge++ }
+func (f *Feed) RemovedByAge() int { return f.removedByAge }
+
+func (f *Feed) IncRemovedByFilters()  { f.removedByFilters++ }
+func (f *Feed) RemovedByFilters() int { return f.removedByFilters }
 
 // FeedCreationRequest represents the request to create a feed.
 type FeedCreationRequest struct {

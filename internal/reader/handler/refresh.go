@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strconv"
 	"time"
 
 	"miniflux.app/v2/internal/config"
@@ -345,8 +344,10 @@ func (self *Refresh) logFeedRefreshed(ctx context.Context,
 		msg = "Feed refreshed"
 		log = log.With(
 			slog.Uint64("size", self.feed.Size()),
-			slog.String("hash", strconv.FormatUint(self.feed.Hash(), 16)),
+			slog.String("hash", self.feed.HashString()),
 			slog.Int("entries", len(self.feed.Entries)),
+			slog.Int("aged", self.feed.RemovedByAge()),
+			slog.Int("filtered", self.feed.RemovedByFilters()),
 			slog.Int("updated", len(refreshed.UpdatedEntires)),
 			slog.Int("created", len(refreshed.CreatedEntries)))
 	case refreshed.NotModified == notModifiedHeaders:
@@ -358,7 +359,7 @@ func (self *Refresh) logFeedRefreshed(ctx context.Context,
 		msg = "Content not modified"
 		log = log.With(
 			slog.Uint64("size", self.feed.Size()),
-			slog.String("hash", strconv.FormatUint(self.feed.Hash(), 16)))
+			slog.String("hash", self.feed.HashString()))
 	default:
 		msg = "Feed not refreshed with unknown reason"
 	}

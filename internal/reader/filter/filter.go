@@ -40,8 +40,14 @@ func DeleteEntries(ctx context.Context, user *model.User, feed *model.Feed,
 	maxAge := time.Duration(config.Opts.FilterEntryMaxAgeDays()) * 24 * time.Hour
 	feed.Entries = slices.DeleteFunc(feed.Entries,
 		func(entry *model.Entry) bool {
-			return blockedGlobally(ctx, entry, maxAge) || block.Match(entry) ||
-				!keep.Allow(entry)
+			if blockedGlobally(ctx, entry, maxAge) {
+				feed.IncRemovedByAge()
+				return true
+			} else if block.Match(entry) || !keep.Allow(entry) {
+				feed.IncRemovedByFilters()
+				return true
+			}
+			return false
 		})
 	return nil
 }
