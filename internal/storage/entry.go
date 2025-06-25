@@ -74,11 +74,10 @@ func (s *Storage) UpdateEntryTitleAndContent(ctx context.Context,
 ) error {
 	_, err := s.db.Exec(ctx, `
 UPDATE entries
-   SET title=$1,
-       content=$2,
-       reading_time=$3,
-	     document_vectors = setweight(to_tsvector(left(coalesce($1, ''), 500000)), 'A') || setweight(to_tsvector(left(coalesce($2, ''), 500000)), 'B')
- WHERE id=$4 AND user_id=$5`,
+   SET title = $1,
+       content = $2,
+       reading_time = $3
+ WHERE id = $4 AND user_id = $5`,
 		entry.Title,
 		entry.Content,
 		entry.ReadingTime,
@@ -249,10 +248,7 @@ UPDATE entries
        tags = $10,
        changed_at = now(),
        published_at = $11,
-       status = $12,
-       document_vectors =
-         setweight(to_tsvector(left(coalesce($1, ''), 500000)), 'A') ||
-         setweight(to_tsvector(left(coalesce($4, ''), 500000)), 'B')
+       status = $12
  WHERE user_id = $7 AND feed_id = $8 AND hash = $9
 RETURNING id, status, changed_at`,
 		e.Title,
@@ -385,7 +381,7 @@ SELECT id, hash, status, created_at, changed_at
 	if err != nil {
 		return err
 	}
-	return s.buildDocVectors(ctx, tx, ids)
+	return nil
 }
 
 // createEntry add a new entry.
@@ -404,11 +400,8 @@ INSERT INTO entries (
   feed_id,
   reading_time,
   tags,
-  changed_at,
-  document_vectors)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now(),
-        setweight(to_tsvector(left(coalesce($1, ''), 500000)), 'A') ||
-        setweight(to_tsvector(left(coalesce($6, ''), 500000)), 'B'))
+  changed_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())
 RETURNING id, status, created_at, changed_at`,
 		e.Title,
 		e.Hash,
@@ -438,20 +431,6 @@ RETURNING id, status, created_at, changed_at`,
 		enc.EntryID, enc.UserID = e.ID, e.UserID
 	}
 	return s.createEnclosures(ctx, tx, e.Enclosures)
-}
-
-func (s *Storage) buildDocVectors(ctx context.Context, tx pgx.Tx, ids []int64,
-) error {
-	_, err := tx.Exec(ctx, `
-UPDATE entries
-   SET document_vectors =
-     setweight(to_tsvector(left(coalesce(title,   ''), 500000)), 'A') ||
-     setweight(to_tsvector(left(coalesce(content, ''), 500000)), 'B')
- WHERE id = ANY($1)`, ids)
-	if err != nil {
-		return fmt.Errorf("storage: build document vectors: %w", err)
-	}
-	return nil
 }
 
 // cleanupEntries deletes from the database entries marked as "removed" and not

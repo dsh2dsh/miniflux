@@ -60,20 +60,18 @@ func (e *EntryQueryBuilder) WithEnclosures() *EntryQueryBuilder {
 
 // WithSearchQuery adds full-text search query to the condition.
 func (e *EntryQueryBuilder) WithSearchQuery(query string) *EntryQueryBuilder {
-	if query != "" {
-		nArgs := len(e.args) + 1
-		e.conditions = append(e.conditions,
-			fmt.Sprintf("e.document_vectors @@ plainto_tsquery($%d)", nArgs))
-		e.args = append(e.args, query)
-
-		// 0.0000001 = 0.1 / (seconds_in_a_day)
-		e.WithSorting(
-			fmt.Sprintf(
-				"ts_rank(document_vectors, plainto_tsquery($%d)) - extract (epoch from now() - published_at)::float * 0.0000001",
-				nArgs),
-			"DESC",
-		)
+	if query == "" {
+		return e
 	}
+
+	n := len(e.args) + 1
+	e.conditions = append(e.conditions, fmt.Sprintf(
+		"e.document_vectors @@ websearch_to_tsquery($%d)", n))
+	e.args = append(e.args, query)
+
+	// 0.0000001 = 0.1 / (seconds_in_a_day)
+	const tsRank = `ts_rank(document_vectors, websearch_to_tsquery($%d)) - extract(epoch from now() - published_at)::float * 0.0000001`
+	e.WithSorting(fmt.Sprintf(tsRank, n), "DESC")
 	return e
 }
 

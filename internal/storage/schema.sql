@@ -3,7 +3,7 @@
 CREATE TABLE schema_version (
     version text NOT NULL
 );
-INSERT INTO schema_version (version) VALUES('118');
+INSERT INTO schema_version (version) VALUES('119');
 
 CREATE TABLE acme_cache (
     key character varying(400) NOT NULL PRIMARY KEY,
@@ -166,7 +166,10 @@ CREATE TABLE entries (
     status entry_status DEFAULT 'unread',
     starred boolean DEFAULT false,
     comments_url text DEFAULT '',
-    document_vectors tsvector,
+    document_vectors tsvector GENERATED ALWAYS AS (
+      setweight(to_tsvector('simple', left(coalesce(title,   ''), 500000)), 'A') ||
+      setweight(to_tsvector('simple', left(coalesce(content, ''), 500000)), 'B')
+    ) STORED,
     changed_at timestamp with time zone NOT NULL,
     share_code text DEFAULT '' NOT NULL,
     reading_time integer DEFAULT 0 NOT NULL,

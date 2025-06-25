@@ -688,8 +688,7 @@ DROP TABLE integrations;`),
 ALTER TABLE feeds ADD COLUMN runtime jsonb NOT NULL DEFAULT '{}'::jsonb;
 UPDATE feeds
    SET runtime = extra - '{comments_url_template}'::text[],
-       extra   = extra - '{hash,size}'::text[];
-`),
+       extra   = extra - '{hash,size}'::text[];`),
 
 	// 118
 	sqlMigration(`
@@ -701,6 +700,14 @@ UPDATE feeds
  WHERE keeplist_rules <> '';
 ALTER TABLE feeds
   DROP COLUMN blocklist_rules,
-  DROP COLUMN keeplist_rules;
-`),
+  DROP COLUMN keeplist_rules;`),
+
+	// 119
+	sqlMigration(`
+ALTER TABLE entries
+  DROP COLUMN document_vectors,
+  ADD  COLUMN document_vectors tsvector GENERATED ALWAYS AS (
+      setweight(to_tsvector('simple', left(coalesce(title,   ''), 500000)), 'A') ||
+      setweight(to_tsvector('simple', left(coalesce(content, ''), 500000)), 'B')
+  ) STORED;`),
 }
