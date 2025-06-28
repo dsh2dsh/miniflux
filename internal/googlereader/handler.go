@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/json"
@@ -30,8 +31,6 @@ import (
 	mfs "miniflux.app/v2/internal/reader/subscription"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/validator"
-
-	"github.com/gorilla/mux"
 )
 
 const (
@@ -41,7 +40,7 @@ const (
 
 type handler struct {
 	store  *storage.Storage
-	router *mux.Router
+	router *mux.ServeMux
 }
 
 var (
@@ -51,30 +50,26 @@ var (
 )
 
 // Serve handles Google Reader API calls.
-func Serve(router *mux.Router, store *storage.Storage) {
-	handler := &handler{store, router}
-	router.HandleFunc(LoginPath, handler.clientLogin).
-		Methods(http.MethodPost).
-		Name("ClientLogin")
+func Serve(m *mux.ServeMux, store *storage.Storage) {
+	h := &handler{store: store, router: m}
+	m.HandleFunc(LoginPath, h.clientLogin)
 
-	sr := router.PathPrefix(PathPrefix).Subrouter()
-	sr.Use(CORS)
-	sr.Use(requestUserSession)
-
-	sr.Methods(http.MethodOptions)
-	sr.HandleFunc("/token", handler.tokenHandler).Methods(http.MethodGet).Name("Token")
-	sr.HandleFunc("/edit-tag", handler.editTagHandler).Methods(http.MethodPost).Name("EditTag")
-	sr.HandleFunc("/rename-tag", handler.renameTagHandler).Methods(http.MethodPost).Name("Rename Tag")
-	sr.HandleFunc("/disable-tag", handler.disableTagHandler).Methods(http.MethodPost).Name("Disable Tag")
-	sr.HandleFunc("/tag/list", handler.tagListHandler).Methods(http.MethodGet).Name("TagList")
-	sr.HandleFunc("/user-info", handler.userInfoHandler).Methods(http.MethodGet).Name("UserInfo")
-	sr.HandleFunc("/subscription/list", handler.subscriptionListHandler).Methods(http.MethodGet).Name("SubscriptonList")
-	sr.HandleFunc("/subscription/edit", handler.editSubscriptionHandler).Methods(http.MethodPost).Name("SubscriptionEdit")
-	sr.HandleFunc("/subscription/quickadd", handler.quickAddHandler).Methods(http.MethodPost).Name("QuickAdd")
-	sr.HandleFunc("/stream/items/ids", handler.streamItemIDsHandler).Methods(http.MethodGet).Name("StreamItemIDs")
-	sr.HandleFunc("/stream/items/contents", handler.streamItemContentsHandler).Methods(http.MethodPost).Name("StreamItemsContents")
-	sr.HandleFunc("/mark-all-as-read", handler.markAllAsReadHandler).Methods(http.MethodPost).Name("MarkAllAsRead")
-	sr.PathPrefix("/").HandlerFunc(handler.serveHandler).Methods(http.MethodPost, http.MethodGet).Name("GoogleReaderApiEndpoint")
+	m = m.PrefixGroup(PathPrefix)
+	m.Use(CORS, requestUserSession).
+		HandleFunc("/", h.serveHandler).
+		HandleFunc("/token", h.tokenHandler).
+		HandleFunc("/edit-tag", h.editTagHandler).
+		HandleFunc("/rename-tag", h.renameTagHandler).
+		HandleFunc("/disable-tag", h.disableTagHandler).
+		HandleFunc("/tag/list", h.tagListHandler).
+		HandleFunc("/user-info", h.userInfoHandler).
+		HandleFunc("/subscription/list", h.subscriptionListHandler).
+		HandleFunc("/subscription/edit", h.editSubscriptionHandler).
+		HandleFunc("/subscription/quickadd", h.quickAddHandler).
+		HandleFunc("/stream/items/ids", h.streamItemIDsHandler).
+		NameHandleFunc("/stream/items/contents", h.streamItemContentsHandler,
+			"StreamItemsContents").
+		HandleFunc("/mark-all-as-read", h.markAllAsReadHandler)
 }
 
 func checkAndSimplifyTags(addTags []Stream, removeTags []Stream) (map[StreamType]bool, error) {

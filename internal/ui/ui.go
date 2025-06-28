@@ -7,17 +7,17 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/gorilla/mux"
-
+	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/securecookie"
+	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/template"
 	"miniflux.app/v2/internal/worker"
 )
 
 type handler struct {
-	router *mux.Router
+	router *mux.ServeMux
 	store  *storage.Storage
 	tpl    *template.Engine
 	pool   *worker.Pool
@@ -26,16 +26,16 @@ type handler struct {
 }
 
 // Serve declares all routes for the user interface.
-func Serve(router *mux.Router, store *storage.Storage, pool *worker.Pool) {
-	middleware := newMiddleware(router, store)
+func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
+	m.HandleFunc("/robots.txt", robotsTXT)
 
-	templateEngine := template.NewEngine(router)
+	templateEngine := template.NewEngine(m)
 	if err := templateEngine.ParseTemplates(); err != nil {
 		panic(err)
 	}
 
 	handler := &handler{
-		router: router,
+		router: m,
 		store:  store,
 		tpl:    templateEngine,
 		pool:   pool,
@@ -43,192 +43,219 @@ func Serve(router *mux.Router, store *storage.Storage, pool *worker.Pool) {
 		secureCookie: securecookie.New(),
 	}
 
-	uiRouter := router.NewRoute().Subrouter()
-	uiRouter.Use(middleware.handleUserSession)
-	uiRouter.Use(middleware.handleAppSession)
-	uiRouter.StrictSlash(true)
-
-	// Static assets.
-	uiRouter.HandleFunc("/stylesheets/{name}.{checksum}.css", handler.showStylesheet).Name("stylesheet").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/js/{name}.{checksum}.js", handler.showJavascript).Name("javascript").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/favicon.ico", handler.showFavicon).Name("favicon").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/icon/{filename}", handler.showAppIcon).Name("appIcon").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/manifest.json", handler.showWebManifest).Name("webManifest").Methods(http.MethodGet)
-
-	// New subscription pages.
-	uiRouter.HandleFunc("/subscribe", handler.showAddSubscriptionPage).Name("addSubscription").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/subscribe", handler.submitSubscription).Name("submitSubscription").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/subscriptions", handler.showChooseSubscriptionPage).Name("chooseSubscription").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/bookmarklet", handler.bookmarklet).Name("bookmarklet").Methods(http.MethodGet)
-
-	// Unread page.
-	uiRouter.HandleFunc("/mark-all-as-read", handler.markAllAsRead).Name("markAllAsRead").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/unread", handler.showUnreadPage).Name("unread").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/unread/entry/{entryID}", handler.showUnreadEntryPage).Name("unreadEntry").Methods(http.MethodGet)
-
-	// History pages.
-	uiRouter.HandleFunc("/history", handler.showHistoryPage).Name("history").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/history/entry/{entryID}", handler.showReadEntryPage).Name("readEntry").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/history/flush", handler.flushHistory).Name("flushHistory").Methods(http.MethodPost)
-
-	// Bookmark pages.
-	uiRouter.HandleFunc("/starred", handler.showStarredPage).Name("starred").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/starred/entry/{entryID}", handler.showStarredEntryPage).Name("starredEntry").Methods(http.MethodGet)
-
-	// Search pages.
-	uiRouter.HandleFunc("/search", handler.showSearchPage).Name("search").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/search/entry/{entryID}", handler.showSearchEntryPage).Name("searchEntry").Methods(http.MethodGet)
-
-	// Feed listing pages.
-	uiRouter.HandleFunc("/feeds", handler.showFeedsPage).Name("feeds").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/feeds/refresh", handler.refreshAllFeeds).Name("refreshAllFeeds").Methods(http.MethodGet)
-
-	// Individual feed pages.
-	uiRouter.HandleFunc("/feed/{feedID}/refresh", handler.refreshFeed).Name("refreshFeed").Methods(http.MethodGet, http.MethodPost)
-	uiRouter.HandleFunc("/feed/{feedID}/refresh", handler.refreshFeed).Queries("forceRefresh", "{forceRefresh:true|false}").Name("refreshFeed").Methods(http.MethodGet, http.MethodPost)
-	uiRouter.HandleFunc("/feed/{feedID}/edit", handler.showEditFeedPage).Name("editFeed").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/feed/{feedID}/remove", handler.removeFeed).Name("removeFeed").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/feed/{feedID}/update", handler.updateFeed).Name("updateFeed").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/feed/{feedID}/entries", handler.showFeedEntriesPage).Name("feedEntries").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/feed/{feedID}/entries/all", handler.showFeedEntriesAllPage).Name("feedEntriesAll").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/feed/{feedID}/entry/{entryID}", handler.showFeedEntryPage).Name("feedEntry").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/unread/feed/{feedID}/entry/{entryID}", handler.showUnreadFeedEntryPage).Name("unreadFeedEntry").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/feed/icon/{externalIconID}", handler.showFeedIcon).Name("feedIcon").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/feed/{feedID}/mark-all-as-read", handler.markFeedAsRead).Name("markFeedAsRead").Methods(http.MethodPost)
-
-	// Category pages.
-	uiRouter.HandleFunc("/category/{categoryID}/entry/{entryID}", handler.showCategoryEntryPage).Name("categoryEntry").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/unread/category/{categoryID}/entry/{entryID}", handler.showUnreadCategoryEntryPage).Name("unreadCategoryEntry").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/categories", handler.showCategoryListPage).Name("categories").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/category/create", handler.showCreateCategoryPage).Name("createCategory").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/category/save", handler.saveCategory).Name("saveCategory").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/category/{categoryID}/feeds", handler.showCategoryFeedsPage).Name("categoryFeeds").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/category/{categoryID}/feed/{feedID}/remove", handler.removeCategoryFeed).Name("removeCategoryFeed").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/category/{categoryID}/feeds/refresh", handler.refreshCategoryFeedsPage).Name("refreshCategoryFeedsPage").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/category/{categoryID}/entries", handler.showCategoryEntriesPage).Name("categoryEntries").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/category/{categoryID}/entries/refresh", handler.refreshCategoryEntriesPage).Name("refreshCategoryEntriesPage").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/category/{categoryID}/entries/all", handler.showCategoryEntriesAllPage).Name("categoryEntriesAll").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/category/{categoryID}/entries/starred", handler.showCategoryEntriesStarredPage).Name("categoryEntriesStarred").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/category/{categoryID}/edit", handler.showEditCategoryPage).Name("editCategory").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/category/{categoryID}/update", handler.updateCategory).Name("updateCategory").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/category/{categoryID}/remove", handler.removeCategory).Name("removeCategory").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/category/{categoryID}/mark-all-as-read", handler.markCategoryAsRead).Name("markCategoryAsRead").Methods(http.MethodPost)
-
-	// Tag pages.
-	uiRouter.HandleFunc("/tags/{tagName}/entries/all", handler.showTagEntriesAllPage).Name("tagEntriesAll").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/tags/{tagName}/entry/{entryID}", handler.showTagEntryPage).Name("tagEntry").Methods(http.MethodGet)
-
-	// Entry pages.
-	uiRouter.HandleFunc("/entry/status", handler.updateEntriesStatus).Name("updateEntriesStatus").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/entry/save/{entryID}", handler.saveEntry).Name("saveEntry").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/entry/enclosure/{enclosureID}/save-progression", handler.saveEnclosureProgression).Name("saveEnclosureProgression").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/entry/download/{entryID}", handler.fetchContent).Name("fetchContent").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", handler.mediaProxy).Name("proxy").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/entry/bookmark/{entryID}", handler.toggleBookmark).Name("toggleBookmark").Methods(http.MethodPost)
-
-	// Share pages.
-	uiRouter.HandleFunc("/entry/share/{entryID}", handler.createSharedEntry).Name("shareEntry").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/entry/unshare/{entryID}", handler.unshareEntry).Name("unshareEntry").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/share/{shareCode}", handler.sharedEntry).Name("sharedEntry").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/shares", handler.sharedEntries).Name("sharedEntries").Methods(http.MethodGet)
-
-	// User pages.
-	uiRouter.HandleFunc("/users", handler.showUsersPage).Name("users").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/user/create", handler.showCreateUserPage).Name("createUser").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/user/save", handler.saveUser).Name("saveUser").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/users/{userID}/edit", handler.showEditUserPage).Name("editUser").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/users/{userID}/update", handler.updateUser).Name("updateUser").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/users/{userID}/remove", handler.removeUser).Name("removeUser").Methods(http.MethodPost)
-
-	// Settings pages.
-	uiRouter.HandleFunc("/settings", handler.showSettingsPage).Name("settings").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/settings", handler.updateSettings).Name("updateSettings").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/integrations", handler.showIntegrationPage).Name("integrations").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/integration", handler.updateIntegration).Name("updateIntegration").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/about", handler.showAboutPage).Name("about").Methods(http.MethodGet)
-
-	// Session pages.
-	uiRouter.HandleFunc("/sessions", handler.showSessionsPage).Name("sessions").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/sessions/{sessionID}/remove", handler.removeSession).Name("removeSession").Methods(http.MethodPost)
-
-	// API Keys pages.
-	uiRouter.HandleFunc("/keys", handler.showAPIKeysPage).Name("apiKeys").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/keys/{keyID}/delete", handler.deleteAPIKey).Name("deleteAPIKey").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/keys/create", handler.showCreateAPIKeyPage).Name("createAPIKey").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/keys/save", handler.saveAPIKey).Name("saveAPIKey").Methods(http.MethodPost)
-
-	// OPML pages.
-	uiRouter.HandleFunc("/export", handler.exportFeeds).Name("export").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/import", handler.showImportPage).Name("import").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/upload", handler.uploadOPML).Name("uploadOPML").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/fetch", handler.fetchOPML).Name("fetchOPML").Methods(http.MethodPost)
-
-	// OAuth2 flow.
-	uiRouter.HandleFunc("/oauth2/unlink/{provider}", handler.oauth2Unlink).
-		Name("oauth2Unlink").
-		Methods(http.MethodGet)
-
-	uiRouter.HandleFunc("/oauth2/redirect/{provider}", handler.oauth2Redirect).
-		Name("oauth2Redirect").
-		Methods(http.MethodGet)
-
-	uiRouter.HandleFunc("/oauth2/callback/{provider}", handler.oauth2Callback).
-		Name("oauth2Callback").
-		Methods(http.MethodGet)
-
-	// Offline page
-	uiRouter.HandleFunc("/offline", handler.showOfflinePage).
-		Name("offline").
-		Methods(http.MethodGet)
+	middleware := newMiddleware(m, store)
+	m = m.Group().Use(middleware.handleUserSession, middleware.handleAppSession)
 
 	// Authentication pages.
-	uiRouter.Handle("/login",
-		middleware.PublicCSRF(http.HandlerFunc(handler.checkLogin))).
-		Name("checkLogin").
-		Methods(http.MethodPost)
+	m.Group().Use(middleware.handleAuthProxy, middleware.PublicCSRF).
+		NameHandleFunc("/", handler.showLoginPage, "login")
+	m.Group().Use(middleware.PublicCSRF).
+		NameHandleFunc("/login", handler.checkLogin, "checkLogin")
+	m.NameHandleFunc("/logout", handler.logout, "logout")
 
-	uiRouter.HandleFunc("/logout", handler.logout).
-		Name("logout").
-		Methods(http.MethodGet)
+	// Static assets.
+	m.NameHandleFunc("/css/{name}", handler.showStylesheet, "stylesheet").
+		NameHandleFunc("/js/{name}", handler.showJavascript, "javascript").
+		HandleFunc("/favicon.ico", handler.showFavicon).
+		NameHandleFunc("/icon/{filename}", handler.showAppIcon, "appIcon").
+		NameHandleFunc("/manifest.json", handler.showWebManifest, "webManifest")
 
-	uiRouter.Handle("/",
-		middleware.handleAuthProxy(middleware.PublicCSRF(
-			http.HandlerFunc(handler.showLoginPage)))).
-		Name("login").
-		Methods(http.MethodGet)
+	// New subscription pages.
+	m.NameHandleFunc("GET /subscribe", handler.showAddSubscriptionPage,
+		"addSubscription").
+		NameHandleFunc("POST /subscribe", handler.submitSubscription,
+			"submitSubscription").
+		NameHandleFunc("/subscriptions", handler.showChooseSubscriptionPage,
+			"chooseSubscription").
+		NameHandleFunc("/bookmarklet", handler.bookmarklet, "bookmarklet")
+
+	// Unread page.
+	m.NameHandleFunc("/mark-all-as-read", handler.markAllAsRead,
+		"markAllAsRead").
+		NameHandleFunc("/unread", handler.showUnreadPage, "unread").
+		NameHandleFunc("/unread/entry/{entryID}", handler.showUnreadEntryPage,
+			"unreadEntry")
+
+	// History pages.
+	m.NameHandleFunc("/history", handler.showHistoryPage, "history").
+		NameHandleFunc("/history/entry/{entryID}", handler.showReadEntryPage,
+			"readEntry").
+		NameHandleFunc("/history/flush", handler.flushHistory, "flushHistory")
+
+	// Bookmark pages.
+	m.NameHandleFunc("/starred", handler.showStarredPage, "starred").
+		NameHandleFunc("/starred/entry/{entryID}", handler.showStarredEntryPage,
+			"starredEntry")
+
+	// Search pages.
+	m.NameHandleFunc("/search", handler.showSearchPage, "search").
+		NameHandleFunc("/search/entry/{entryID}", handler.showSearchEntryPage,
+			"searchEntry")
+
+	// Feed listing pages.
+	m.NameHandleFunc("/feeds", handler.showFeedsPage, "feeds").
+		NameHandleFunc("/feeds/refresh", handler.refreshAllFeeds,
+			"refreshAllFeeds")
+
+	// Individual feed pages.
+	m.NameHandleFunc("/feed/{feedID}/refresh", handler.refreshFeed,
+		"refreshFeed").
+		NameHandleFunc("/feed/{feedID}/edit", handler.showEditFeedPage,
+			"editFeed").
+		NameHandleFunc("/feed/{feedID}/remove", handler.removeFeed, "removeFeed").
+		NameHandleFunc("/feed/{feedID}/update", handler.updateFeed, "updateFeed").
+		NameHandleFunc("/feed/{feedID}/entries", handler.showFeedEntriesPage,
+			"feedEntries").
+		NameHandleFunc("/feed/{feedID}/entries/all",
+			handler.showFeedEntriesAllPage, "feedEntriesAll").
+		NameHandleFunc("/feed/{feedID}/entry/{entryID}", handler.showFeedEntryPage,
+			"feedEntry").
+		NameHandleFunc("/unread/feed/{feedID}/entry/{entryID}",
+			handler.showUnreadFeedEntryPage, "unreadFeedEntry").
+		NameHandleFunc("/feed-icon/{externalIconID}", handler.showFeedIcon,
+			"feedIcon").
+		NameHandleFunc("/feed/{feedID}/mark-all-as-read", handler.markFeedAsRead,
+			"markFeedAsRead")
+
+	// Category pages.
+	m.NameHandleFunc("/category/{categoryID}/entry/{entryID}",
+		handler.showCategoryEntryPage, "categoryEntry").
+		NameHandleFunc("/unread/category/{categoryID}/entry/{entryID}",
+			handler.showUnreadCategoryEntryPage, "unreadCategoryEntry").
+		NameHandleFunc("/categories", handler.showCategoryListPage, "categories").
+		NameHandleFunc("/category/create", handler.showCreateCategoryPage,
+			"createCategory").
+		NameHandleFunc("/category/save", handler.saveCategory, "saveCategory").
+		NameHandleFunc("/category/{categoryID}/feeds",
+			handler.showCategoryFeedsPage, "categoryFeeds").
+		NameHandleFunc("/category/{categoryID}/feed/{feedID}/remove",
+			handler.removeCategoryFeed, "removeCategoryFeed").
+		NameHandleFunc("/category/{categoryID}/feeds/refresh",
+			handler.refreshCategoryFeedsPage, "refreshCategoryFeedsPage").
+		NameHandleFunc("/category/{categoryID}/entries",
+			handler.showCategoryEntriesPage, "categoryEntries").
+		NameHandleFunc("/category/{categoryID}/entries/refresh",
+			handler.refreshCategoryEntriesPage, "refreshCategoryEntriesPage").
+		NameHandleFunc("/category/{categoryID}/entries/all",
+			handler.showCategoryEntriesAllPage, "categoryEntriesAll").
+		NameHandleFunc("/category/{categoryID}/entries/starred",
+			handler.showCategoryEntriesStarredPage, "categoryEntriesStarred").
+		NameHandleFunc("/category/{categoryID}/edit", handler.showEditCategoryPage,
+			"editCategory").
+		NameHandleFunc("/category/{categoryID}/update", handler.updateCategory,
+			"updateCategory").
+		NameHandleFunc("/category/{categoryID}/remove", handler.removeCategory,
+			"removeCategory").
+		NameHandleFunc("/category/{categoryID}/mark-all-as-read",
+			handler.markCategoryAsRead, "markCategoryAsRead")
+
+	// Tag pages.
+	m.NameHandleFunc("/tags/{tagName}/entries/all",
+		handler.showTagEntriesAllPage, "tagEntriesAll").
+		NameHandleFunc("/tags/{tagName}/entry/{entryID}", handler.showTagEntryPage,
+			"tagEntry")
+
+	// Entry pages.
+	m.NameHandleFunc("/entry/status", handler.updateEntriesStatus,
+		"updateEntriesStatus").
+		NameHandleFunc("/entry/save/{entryID}", handler.saveEntry, "saveEntry").
+		NameHandleFunc("/entry/enclosure/{enclosureID}/save-progression",
+			handler.saveEnclosureProgression, "saveEnclosureProgression").
+		NameHandleFunc("/entry/download/{entryID}",
+			handler.fetchContent, "fetchContent").
+		NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", handler.mediaProxy,
+			"proxy").
+		NameHandleFunc("/entry/bookmark/{entryID}", handler.toggleBookmark,
+			"toggleBookmark")
+
+	// Share pages.
+	m.NameHandleFunc("/entry/share/{entryID}", handler.createSharedEntry,
+		"shareEntry").
+		NameHandleFunc("/entry/unshare/{entryID}", handler.unshareEntry,
+			"unshareEntry").
+		NameHandleFunc("/share/{shareCode}", handler.sharedEntry, "sharedEntry").
+		NameHandleFunc("/shares", handler.sharedEntries, "sharedEntries")
+
+	// User pages.
+	m.NameHandleFunc("/users", handler.showUsersPage, "users").
+		NameHandleFunc("/user/create", handler.showCreateUserPage, "createUser").
+		NameHandleFunc("/user/save", handler.saveUser, "saveUser").
+		NameHandleFunc("/users/{userID}/edit", handler.showEditUserPage,
+			"editUser").
+		NameHandleFunc("/users/{userID}/update", handler.updateUser, "updateUser").
+		NameHandleFunc("/users/{userID}/remove", handler.removeUser, "removeUser")
+
+	// Settings pages.
+	m.NameHandleFunc("GET /settings", handler.showSettingsPage, "settings").
+		NameHandleFunc("POST /settings", handler.updateSettings, "updateSettings").
+		NameHandleFunc("GET /integrations", handler.showIntegrationPage,
+			"integrations").
+		NameHandleFunc("POST /integration", handler.updateIntegration,
+			"updateIntegration").
+		NameHandleFunc("/about", handler.showAboutPage, "about")
+
+	// Session pages.
+	m.NameHandleFunc("/sessions", handler.showSessionsPage, "sessions").
+		NameHandleFunc("/sessions/{sessionID}/remove", handler.removeSession,
+			"removeSession")
+
+	// API Keys pages.
+	m.NameHandleFunc("/keys", handler.showAPIKeysPage, "apiKeys").
+		NameHandleFunc("/keys/{keyID}/delete", handler.deleteAPIKey,
+			"deleteAPIKey").
+		NameHandleFunc("/keys/create", handler.showCreateAPIKeyPage,
+			"createAPIKey").
+		NameHandleFunc("/keys/save", handler.saveAPIKey, "saveAPIKey")
+
+	// OPML pages.
+	m.NameHandleFunc("/export", handler.exportFeeds, "export").
+		NameHandleFunc("/import", handler.showImportPage, "import").
+		NameHandleFunc("/upload", handler.uploadOPML, "uploadOPML").
+		NameHandleFunc("/fetch", handler.fetchOPML, "fetchOPML")
+
+	// OAuth2 flow.
+	m.NameHandleFunc("/oauth2/unlink/{provider}", handler.oauth2Unlink,
+		"oauth2Unlink").
+		NameHandleFunc("/oauth2/redirect/{provider}", handler.oauth2Redirect,
+			"oauth2Redirect").
+		NameHandleFunc("/oauth2/callback/{provider}", handler.oauth2Callback,
+			"oauth2Callback")
+
+	// Offline page
+	m.NameHandleFunc("/offline", handler.showOfflinePage, "offline")
 
 	// WebAuthn flow
-	uiRouter.HandleFunc("/webauthn/register/begin", handler.beginRegistration).Name("webauthnRegisterBegin").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/webauthn/register/finish", handler.finishRegistration).Name("webauthnRegisterFinish").Methods(http.MethodPost)
+	m.NameHandleFunc("/webauthn/register/begin", handler.beginRegistration,
+		"webauthnRegisterBegin").
+		NameHandleFunc("/webauthn/register/finish", handler.finishRegistration,
+			"webauthnRegisterFinish").
+		NameHandleFunc("/webauthn/login/begin", handler.beginLogin,
+			"webauthnLoginBegin").
+		NameHandleFunc("/webauthn/login/finish", handler.finishLogin,
+			"webauthnLoginFinish").
+		NameHandleFunc("/webauthn/deleteall", handler.deleteAllCredentials,
+			"webauthnDeleteAll").
+		NameHandleFunc("/webauthn/{credentialHandle}/delete",
+			handler.deleteCredential, "webauthnDelete").
+		NameHandleFunc("/webauthn/{credentialHandle}/rename",
+			handler.renameCredential, "webauthnRename").
+		NameHandleFunc("/webauthn/{credentialHandle}/save", handler.saveCredential,
+			"webauthnSave")
+}
 
-	uiRouter.HandleFunc("/webauthn/login/begin", handler.beginLogin).
-		Name("webauthnLoginBegin").
-		Methods(http.MethodGet)
-
-	uiRouter.HandleFunc("/webauthn/login/finish", handler.finishLogin).
-		Name("webauthnLoginFinish").
-		Methods(http.MethodPost)
-
-	uiRouter.HandleFunc("/webauthn/deleteall", handler.deleteAllCredentials).Name("webauthnDeleteAll").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/webauthn/{credentialHandle}/delete", handler.deleteCredential).Name("webauthnDelete").Methods(http.MethodPost)
-	uiRouter.HandleFunc("/webauthn/{credentialHandle}/rename", handler.renameCredential).Name("webauthnRename").Methods(http.MethodGet)
-	uiRouter.HandleFunc("/webauthn/{credentialHandle}/save", handler.saveCredential).Name("webauthnSave").Methods(http.MethodPost)
-
-	router.HandleFunc("/robots.txt",
-		func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "text/plain")
-			if _, err := w.Write([]byte("User-agent: *\nDisallow: /")); err != nil {
-				slog.Error(http.StatusText(http.StatusInternalServerError),
-					slog.Any("error", err),
-					slog.String("client_ip", request.ClientIP(r)),
-					slog.Group("request",
-						slog.String("method", r.Method),
-						slog.String("uri", r.RequestURI),
-						slog.String("user_agent", r.UserAgent()),
-					),
-					slog.Group("response",
-						slog.Int("status_code", http.StatusInternalServerError)),
-				)
-			}
-		}).Name("robots")
+func robotsTXT(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	_, err := w.Write([]byte("User-agent: *\nDisallow: /"))
+	if err != nil {
+		logging.FromContext(r.Context()).
+			Error(http.StatusText(http.StatusInternalServerError),
+				slog.Any("error", err),
+				slog.String("client_ip", request.ClientIP(r)),
+				slog.Group("request",
+					slog.String("method", r.Method),
+					slog.String("uri", r.RequestURI),
+					slog.String("user_agent", r.UserAgent())),
+				slog.Group("response",
+					slog.Int("status_code", http.StatusInternalServerError)))
+	}
 }

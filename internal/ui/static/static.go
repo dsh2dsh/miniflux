@@ -16,14 +16,19 @@ import (
 	"miniflux.app/v2/internal/crypto"
 )
 
-const binDir = "bin"
+const (
+	binDir = "bin"
+	cssExt = ".css"
+	jsExt  = ".js"
+)
 
 // Static assets.
 var (
-	StylesheetBundleChecksums map[string]string
-	StylesheetBundles         map[string][]byte
-	JavascriptBundleChecksums map[string]string
-	JavascriptBundles         map[string][]byte
+	stylesheetBundles map[string][]byte
+	stylesheetHashes  map[string]string
+
+	javascriptBundles map[string][]byte
+	javascriptHashes  map[string]string
 
 	hashedNames   = make(map[string]string)
 	unhashedNames = make(map[string]string)
@@ -122,8 +127,8 @@ func GenerateStylesheetsBundles(ctx context.Context) error {
 		return fmt.Errorf("ui/static: unmarshal css.json: %w", err)
 	}
 
-	StylesheetBundles = make(map[string][]byte, len(bundles))
-	StylesheetBundleChecksums = make(map[string]string, len(bundles))
+	stylesheetBundles = make(map[string][]byte, len(bundles))
+	stylesheetHashes = make(map[string]string, len(bundles))
 
 	for bundle, srcFiles := range bundles {
 		var buffer bytes.Buffer
@@ -140,10 +145,28 @@ func GenerateStylesheetsBundles(ctx context.Context) error {
 			buffer.Write(fileData)
 		}
 
-		StylesheetBundles[bundle] = buffer.Bytes()
-		StylesheetBundleChecksums[bundle] = crypto.HashFromBytes(buffer.Bytes())
+		hash := crypto.HashFromBytes(buffer.Bytes())
+		filename := bundle + "." + hash + cssExt
+
+		stylesheetBundles[filename] = buffer.Bytes()
+		stylesheetHashes[bundle] = filename
 	}
 	return nil
+}
+
+func StylesheetBundle(filename, hashExt string) []byte {
+	b, ok := stylesheetBundles[filename]
+	if !ok {
+		return nil
+	}
+	return b
+}
+
+func StylesheetNameExt(name string) string {
+	if filename, ok := stylesheetHashes[name]; ok {
+		return filename
+	}
+	return name + cssExt
 }
 
 // GenerateJavascriptBundles creates JS bundles.
@@ -157,8 +180,8 @@ func GenerateJavascriptBundles(ctx context.Context) error {
 	prefixes := map[string]string{"app": "(function(){'use strict';"}
 	suffixes := map[string]string{"app": "})();"}
 
-	JavascriptBundles = make(map[string][]byte, len(bundles))
-	JavascriptBundleChecksums = make(map[string]string, len(bundles))
+	javascriptBundles = make(map[string][]byte, len(bundles))
+	javascriptHashes = make(map[string]string, len(bundles))
 
 	for bundle, srcFiles := range bundles {
 		var buffer bytes.Buffer
@@ -183,8 +206,26 @@ func GenerateJavascriptBundles(ctx context.Context) error {
 			buffer.WriteString(suffix)
 		}
 
-		JavascriptBundles[bundle] = buffer.Bytes()
-		JavascriptBundleChecksums[bundle] = crypto.HashFromBytes(buffer.Bytes())
+		hash := crypto.HashFromBytes(buffer.Bytes())
+		filename := bundle + "." + hash + jsExt
+
+		javascriptBundles[filename] = buffer.Bytes()
+		javascriptHashes[bundle] = filename
 	}
 	return nil
+}
+
+func JavascriptBundle(filename string) []byte {
+	b, ok := javascriptBundles[filename]
+	if !ok {
+		return nil
+	}
+	return b
+}
+
+func JavascriptNameExt(name string) string {
+	if filename, ok := javascriptHashes[name]; ok {
+		return filename
+	}
+	return name + jsExt
 }

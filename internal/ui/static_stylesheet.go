@@ -14,8 +14,9 @@ import (
 
 func (h *handler) showStylesheet(w http.ResponseWriter, r *http.Request) {
 	filename := request.RouteStringParam(r, "name")
-	b, found := static.StylesheetBundles[filename]
-	if !found {
+	hash := request.RouteStringParam(r, "hash")
+	b := static.StylesheetBundle(filename, hash)
+	if b == nil {
 		html.NotFound(w, r)
 		return
 	}

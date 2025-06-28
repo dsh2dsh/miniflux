@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/integration"
@@ -19,24 +20,21 @@ import (
 	"miniflux.app/v2/internal/mediaproxy"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/storage"
-
-	"github.com/gorilla/mux"
 )
 
 const PathPrefix = "/fever"
 
 // Serve handles Fever API calls.
-func Serve(router *mux.Router, store *storage.Storage) {
-	handler := &handler{store, router}
-
-	sr := router.PathPrefix(PathPrefix).Subrouter()
-	sr.Use(requestUser)
-	sr.HandleFunc("/", handler.serve).Name("feverEndpoint")
+func Serve(router *mux.ServeMux, store *storage.Storage) {
+	h := &handler{store: store, router: router}
+	router.PrefixGroup(PathPrefix).
+		Use(requestUser).
+		NameHandleFunc("/", h.serve, "feverEndpoint")
 }
 
 type handler struct {
 	store  *storage.Storage
-	router *mux.Router
+	router *mux.ServeMux
 }
 
 func (h *handler) serve(w http.ResponseWriter, r *http.Request) {

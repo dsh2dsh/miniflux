@@ -10,7 +10,6 @@ import (
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/template"
 	"miniflux.app/v2/internal/ui/session"
-	"miniflux.app/v2/internal/ui/static"
 )
 
 // View wraps template argument building.
@@ -43,15 +42,11 @@ func New(tpl *template.Engine, r *http.Request, sess *session.Session) *View {
 		tpl: tpl,
 		r:   r,
 		params: map[string]any{
-			"menu":                 "",
-			"csrf":                 request.CSRF(r),
-			"theme":                theme,
-			"language":             request.UserLanguage(r),
-			"theme_checksum":       static.StylesheetBundleChecksums[theme],
-			"app_js_checksum":      static.JavascriptBundleChecksums["app"],
-			"sw_js_checksum":       static.JavascriptBundleChecksums["service-worker"],
-			"webauthn_js_checksum": static.JavascriptBundleChecksums["webauthn"],
-			"webAuthnEnabled":      config.Opts.WebAuthn(),
+			"menu":            "",
+			"csrf":            request.CSRF(r),
+			"theme":           theme,
+			"language":        request.UserLanguage(r),
+			"webAuthnEnabled": config.Opts.WebAuthn(),
 		},
 	}
 

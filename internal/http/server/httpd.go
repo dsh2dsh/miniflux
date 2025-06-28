@@ -14,8 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/klauspost/compress/gzhttp"
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/sync/errgroup"
@@ -25,6 +23,7 @@ import (
 	"miniflux.app/v2/internal/fever"
 	"miniflux.app/v2/internal/googlereader"
 	"miniflux.app/v2/internal/http/middleware"
+	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/metric"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/ui"
@@ -249,50 +248,45 @@ func startHTTPServer(server *http.Server, g *errgroup.Group) {
 	})
 }
 
-func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
-	router := mux.NewRouter()
+func setupHandler(store *storage.Storage, pool *worker.Pool) http.Handler {
+	serveMux := mux.New()
 
 	// These routes do not take the base path into consideration and are always
 	// available at the root of the server.
 	readinessProbe := makeReadinessProbe(store, pool)
-	router.HandleFunc("/liveness", livenessProbe).Name("liveness")
-	router.HandleFunc("/healthz", livenessProbe).Name("healthz")
-	router.HandleFunc("/readiness", readinessProbe).Name("readiness")
-	router.HandleFunc("/readyz", readinessProbe).Name("readyz")
+	serveMux.HandleFunc("/liveness", livenessProbe).
+		HandleFunc("/healthz", livenessProbe).
+		HandleFunc("/readiness", readinessProbe).
+		HandleFunc("/readyz", readinessProbe)
 
-	var subrouter *mux.Router
+	m := serveMux
 	if config.Opts.BasePath() != "" {
-		subrouter = router.PathPrefix(config.Opts.BasePath()).Subrouter()
-		subrouter.Use(func(next http.Handler) http.Handler {
-			return http.StripPrefix(config.Opts.BasePath(), next)
-		})
-	} else {
-		subrouter = router.NewRoute().Subrouter()
+		m = serveMux.PrefixGroup(config.Opts.BasePath())
+	}
+
+	m.HandleFunc("/healthcheck", readinessProbe).
+		HandleFunc("/version", handleVersion)
+
+	m.Use(middleware.Gzip, middleware.RequestId, middleware.ClientIP)
+	if config.Opts.HasMetricsCollector() {
+		m.Handle("/metrics", metric.Handler(store))
 	}
 
 	if config.Opts.HasMaintenanceMode() {
-		subrouter.Use(func(next http.Handler) http.Handler {
+		m.Use(func(http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				_, _ = w.Write([]byte(config.Opts.MaintenanceMessage()))
 			})
 		})
 	}
 
-	subrouter.Use(func(next http.Handler) http.Handler {
-		return gzhttp.GzipHandler(next)
-	})
-	subrouter.Use(middleware.RequestId)
-	subrouter.Use(middleware.ClientIP)
-
 	publicRoutes := middleware.WithPublicRoutes(
 		"/favicon.ico",
 		"/feed/icon/",
-		"/healthcheck",
 		"/icon/",
 		"/js/",
 		"/login",
 		"/manifest.json",
-		"/metrics",
 		"/oauth2/callback/",
 		"/oauth2/redirect/",
 		"/offline",
@@ -300,43 +294,28 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) *mux.Router {
 		"/robots.txt",
 		"/share/",
 		"/stylesheets/",
-		"/version",
 		"/webauthn/login/begin",
 		"/webauthn/login/finish")
-	subrouter.Use(mux.MiddlewareFunc(publicRoutes))
+	m.Use(publicRoutes)
 
 	authHandlers := middleware.NewPathPrefix().
 		WithPrefix(api.PathPrefix,
-			api.WithKeyAuth(store),
-			api.WithBasicAuth(store)).
+			api.WithKeyAuth(store), api.WithBasicAuth(store)).
 		WithPrefix(googlereader.PathPrefix, googlereader.WithKeyAuth(store)).
 		WithPrefix(fever.PathPrefix, fever.WithKeyAuth(store)).
 		WithDefault(middleware.WithUserSession(store,
 			"/oauth2/callback/",
 			"/oauth2/redirect/"))
-	subrouter.Use(authHandlers.Middleware)
+	m.Use(authHandlers.Middleware)
 
-	accessLog := middleware.WithAccessLog(
-		"/healthcheck",
-		"/metrics",
-		"/version")
-	subrouter.Use(mux.MiddlewareFunc(accessLog))
-	subrouter.Use(middleware.WithPanic)
+	m.Use(middleware.WithAccessLog(), middleware.WithPanic)
+	fever.Serve(m, store)
+	googlereader.Serve(m, store)
+	api.Serve(m, store, pool)
+	ui.Serve(m, store, pool)
+	return serveMux
+}
 
-	fever.Serve(subrouter, store)
-	googlereader.Serve(subrouter, store)
-	api.Serve(subrouter, store, pool)
-	ui.Serve(subrouter, store, pool)
-
-	subrouter.HandleFunc("/healthcheck", readinessProbe).Name("healthcheck")
-
-	subrouter.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request,
-	) {
-		_, _ = w.Write([]byte(version.Version))
-	}).Name("version")
-
-	if config.Opts.HasMetricsCollector() {
-		subrouter.Handle("/metrics", metric.Handler(store)).Name("metrics")
-	}
-	return router
+func handleVersion(w http.ResponseWriter, r *http.Request) {
+	_, _ = w.Write([]byte(version.Version))
 }

@@ -7,6 +7,7 @@ import (
 	json_parser "encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/json"
@@ -139,7 +140,18 @@ func (h *handler) userByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := request.RouteInt64Param(r, "userID")
+	username := request.RouteStringParam(r, "userID")
+	if username == "" {
+		json.NotFound(w, r)
+		return
+	}
+
+	userID, err := strconv.ParseInt(username, 10, 64)
+	if err != nil {
+		h.userByUsername(w, r, username)
+		return
+	}
+
 	user, err := h.store.UserByID(r.Context(), userID)
 	if err != nil {
 		json.BadRequest(w, r, errors.New(
@@ -154,13 +166,9 @@ func (h *handler) userByID(w http.ResponseWriter, r *http.Request) {
 	json.OK(w, r, user)
 }
 
-func (h *handler) userByUsername(w http.ResponseWriter, r *http.Request) {
-	if !request.IsAdminUser(r) {
-		json.Forbidden(w, r)
-		return
-	}
-
-	username := request.RouteStringParam(r, "username")
+func (h *handler) userByUsername(w http.ResponseWriter, r *http.Request,
+	username string,
+) {
 	user, err := h.store.UserByUsername(r.Context(), username)
 	if err != nil {
 		json.BadRequest(w, r, errors.New(
@@ -170,6 +178,8 @@ func (h *handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 		json.NotFound(w, r)
 		return
 	}
+
+	user.UseTimezone(request.UserTimezone(r))
 	json.OK(w, r, user)
 }
 

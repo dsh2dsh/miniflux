@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/gorilla/mux"
+	"miniflux.app/v2/internal/http/mux"
 )
 
 func TestFormInt64Value(t *testing.T) {
@@ -42,22 +42,23 @@ func TestFormInt64Value(t *testing.T) {
 }
 
 func TestRouteStringParam(t *testing.T) {
-	router := mux.NewRouter()
-	router.HandleFunc("/route/{variable}/index", func(w http.ResponseWriter, r *http.Request) {
-		result := RouteStringParam(r, "variable")
-		expected := "value"
+	router := mux.New()
+	router.HandleFunc("/route/{variable}/index",
+		func(w http.ResponseWriter, r *http.Request) {
+			result := RouteStringParam(r, "variable")
+			expected := "value"
 
-		if result != expected {
-			t.Errorf(`Unexpected result, got %q instead of %q`, result, expected)
-		}
+			if result != expected {
+				t.Errorf(`Unexpected result, got %q instead of %q`, result, expected)
+			}
 
-		result = RouteStringParam(r, "missing variable")
-		expected = ""
+			result = RouteStringParam(r, "missing variable")
+			expected = ""
 
-		if result != expected {
-			t.Errorf(`Unexpected result, got %q instead of %q`, result, expected)
-		}
-	})
+			if result != expected {
+				t.Errorf(`Unexpected result, got %q instead of %q`, result, expected)
+			}
+		})
 
 	r, err := http.NewRequest(http.MethodGet, "/route/value/index", nil)
 	if err != nil {
@@ -69,7 +70,7 @@ func TestRouteStringParam(t *testing.T) {
 }
 
 func TestRouteInt64Param(t *testing.T) {
-	router := mux.NewRouter()
+	router := mux.New()
 	router.HandleFunc("/a/{variable1}/b/{variable2}/c/{variable3}", func(w http.ResponseWriter, r *http.Request) {
 		result := RouteInt64Param(r, "variable1")
 		expected := int64(42)

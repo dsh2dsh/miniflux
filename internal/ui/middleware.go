@@ -10,11 +10,10 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/gorilla/mux"
-
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/http/cookie"
+	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
@@ -36,11 +35,11 @@ var publicSession = model.Session{
 }
 
 type middleware struct {
-	router *mux.Router
+	router *mux.ServeMux
 	store  *storage.Storage
 }
 
-func newMiddleware(router *mux.Router, store *storage.Storage) *middleware {
+func newMiddleware(router *mux.ServeMux, store *storage.Storage) *middleware {
 	return &middleware{router, store}
 }
 

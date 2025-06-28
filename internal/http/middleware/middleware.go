@@ -9,13 +9,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/klauspost/compress/gzhttp"
+
 	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/storage"
 )
 
-type MiddlewareFunc func(next http.Handler) http.Handler
+type MiddlewareFunc = mux.MiddlewareFunc
 
 func ClientIP(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -91,4 +94,8 @@ func (self *AccessLog) level(r *http.Request) slog.Level {
 		}
 	}
 	return slog.LevelInfo
+}
+
+func Gzip(next http.Handler) http.Handler {
+	return gzhttp.GzipHandler(next)
 }

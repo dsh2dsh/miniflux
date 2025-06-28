@@ -16,6 +16,7 @@ import (
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/crypto"
+	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/mediaproxy"
@@ -23,17 +24,15 @@ import (
 	"miniflux.app/v2/internal/timezone"
 	"miniflux.app/v2/internal/ui/static"
 	"miniflux.app/v2/internal/urllib"
-
-	"github.com/gorilla/mux"
 )
 
 type funcMap struct {
-	router *mux.Router
+	router *mux.ServeMux
 }
 
 // Map returns a map of template functions that are compiled during template
 // parsing.
-func (f *funcMap) Map() template.FuncMap {
+func (self *funcMap) Map() template.FuncMap {
 	return template.FuncMap{
 		"baseURL":            config.Opts.BaseURL,
 		"contains":           strings.Contains,
@@ -45,11 +44,13 @@ func (f *funcMap) Map() template.FuncMap {
 		"formatFileSizeUint": formatFileSize[uint64],
 		"hasKey":             hasKey,
 		"hasPrefix":          strings.HasPrefix,
-		"icon":               f.icon,
+		"icon":               self.icon,
 		"isEmail":            isEmail,
+		"javascript":         self.javascript,
 		"oidcProviderName":   config.Opts.OIDCProviderName,
 		"rootURL":            config.Opts.RootURL,
-		"routeAppIcon":       f.routeAppIcon,
+		"routeAppIcon":       self.routeAppIcon,
+		"stylesheet":         self.stylesheet,
 		"theme_color":        model.ThemeColor,
 		"truncate":           truncate,
 		"urlEncode":          url.PathEscape,
@@ -63,7 +64,7 @@ func (f *funcMap) Map() template.FuncMap {
 		},
 
 		"route": func(name string, args ...any) string {
-			return route.Path(f.router, name, args...)
+			return route.Path(self.router, name, args...)
 		},
 
 		"safeURL": func(url string) template.URL {
@@ -83,14 +84,14 @@ func (f *funcMap) Map() template.FuncMap {
 		},
 
 		"proxyFilter": func(data string) string {
-			return mediaproxy.RewriteDocumentWithRelativeProxyURL(f.router, data)
+			return mediaproxy.RewriteDocumentWithRelativeProxyURL(self.router, data)
 		},
 
 		"proxyURL": func(link string) string {
 			mediaProxyMode := config.Opts.MediaProxyMode()
 
 			if mediaProxyMode == "all" || (mediaProxyMode != "none" && !urllib.IsHTTPS(link)) {
-				return mediaproxy.ProxifyRelativeURL(f.router, link)
+				return mediaproxy.ProxifyRelativeURL(self.router, link)
 			}
 
 			return link
@@ -139,9 +140,19 @@ func (self *funcMap) icon(iconName string) template.HTML {
 	))
 }
 
+func (self *funcMap) javascript(name string) string {
+	return route.Path(self.router, "javascript", "name",
+		static.JavascriptNameExt(name))
+}
+
 func (self *funcMap) routeAppIcon(filename string) string {
 	return route.Path(self.router, "appIcon", "filename",
 		static.BinaryFileName(filename))
+}
+
+func (self *funcMap) stylesheet(name string) string {
+	return route.Path(self.router, "stylesheet", "name",
+		static.StylesheetNameExt(name))
 }
 
 func dict(values ...any) (map[string]any, error) {

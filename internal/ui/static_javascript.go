@@ -21,8 +21,8 @@ const (
 
 func (h *handler) showJavascript(w http.ResponseWriter, r *http.Request) {
 	filename := request.RouteStringParam(r, "name")
-	b, found := static.JavascriptBundles[filename]
-	if !found {
+	b := static.JavascriptBundle(filename)
+	if b == nil {
 		html.NotFound(w, r)
 		return
 	}

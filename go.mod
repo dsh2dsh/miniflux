@@ -11,7 +11,6 @@ require (
 	github.com/dsh2dsh/expx-dotenv v1.4.0
 	github.com/go-playground/validator/v10 v10.26.0
 	github.com/go-webauthn/webauthn v0.13.0
-	github.com/gorilla/mux v1.8.1
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/joho/godotenv v1.5.1
 	github.com/klauspost/compress v1.18.0

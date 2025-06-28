@@ -10,13 +10,12 @@ import (
 	"log/slog"
 	"net/url"
 
-	"github.com/gorilla/mux"
-
 	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/route"
 )
 
-func ProxifyRelativeURL(router *mux.Router, mediaURL string) string {
+func ProxifyRelativeURL(router *mux.ServeMux, mediaURL string) string {
 	if mediaURL == "" {
 		return ""
 	}
@@ -31,7 +30,7 @@ func ProxifyRelativeURL(router *mux.Router, mediaURL string) string {
 	return route.Path(router, "proxy", "encodedDigest", base64.URLEncoding.EncodeToString(digest), "encodedURL", base64.URLEncoding.EncodeToString([]byte(mediaURL)))
 }
 
-func ProxifyAbsoluteURL(router *mux.Router, mediaURL string) string {
+func ProxifyAbsoluteURL(router *mux.ServeMux, mediaURL string) string {
 	if mediaURL == "" {
 		return ""
 	}

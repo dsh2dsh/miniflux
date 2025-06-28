@@ -8,10 +8,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 
 	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/http/mux"
 )
 
 func TestProxyFilterWithHttpDefault(t *testing.T) {
@@ -27,8 +27,8 @@ func TestProxyFilterWithHttpDefault(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<p><img src="http://website/folder/image.png" alt="Test"/></p>`
 	output := RewriteDocumentWithRelativeProxyURL(r, input)
@@ -51,8 +51,8 @@ func TestProxyFilterWithHttpsDefault(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<p><img src="https://website/folder/image.png" alt="Test"/></p>`
 	output := RewriteDocumentWithRelativeProxyURL(r, input)
@@ -74,8 +74,8 @@ func TestProxyFilterWithHttpNever(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<p><img src="http://website/folder/image.png" alt="Test"/></p>`
 	output := RewriteDocumentWithRelativeProxyURL(r, input)
@@ -97,8 +97,8 @@ func TestProxyFilterWithHttpsNever(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<p><img src="https://website/folder/image.png" alt="Test"/></p>`
 	output := RewriteDocumentWithRelativeProxyURL(r, input)
@@ -122,8 +122,8 @@ func TestProxyFilterWithHttpAlways(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<p><img src="http://website/folder/image.png" alt="Test"/></p>`
 	output := RewriteDocumentWithRelativeProxyURL(r, input)
@@ -147,8 +147,8 @@ func TestProxyFilterWithHttpsAlways(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<p><img src="https://website/folder/image.png" alt="Test"/></p>`
 	output := RewriteDocumentWithRelativeProxyURL(r, input)
@@ -172,8 +172,8 @@ func TestAbsoluteProxyFilterWithHttpsAlways(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<p><img src="https://website/folder/image.png" alt="Test"/></p>`
 	output := RewriteDocumentWithAbsoluteProxyURL(r, input)
@@ -204,13 +204,12 @@ func TestAbsoluteProxyFilterWithCustomPortAndSubfolderInBaseURL(t *testing.T) {
 		t.Fatalf(`Unexpected root URL, got "%s"`, config.Opts.RootURL())
 	}
 
-	router := mux.NewRouter()
-
+	router := mux.New()
 	if config.Opts.BasePath() != "" {
-		router = router.PathPrefix(config.Opts.BasePath()).Subrouter()
+		router = router.PrefixGroup(config.Opts.BasePath())
 	}
 
-	router.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	router.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<p><img src="http://website/folder/image.png" alt="Test"/></p>`
 	output := RewriteDocumentWithAbsoluteProxyURL(router, input)
@@ -234,8 +233,8 @@ func TestAbsoluteProxyFilterWithHttpsAlwaysAndAudioTag(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<audio src="https://website/folder/audio.mp3"></audio>`
 	output := RewriteDocumentWithAbsoluteProxyURL(r, input)
@@ -259,8 +258,8 @@ func TestProxyFilterWithHttpsAlwaysAndCustomProxyServer(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<p><img src="https://website/folder/image.png" alt="Test"/></p>`
 	output := RewriteDocumentWithRelativeProxyURL(r, input)
@@ -296,8 +295,8 @@ func TestAbsoluteProxyFilterWithHttpsAlwaysAndCustomProxyServer(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<p><img src="https://website/folder/image.png" alt="Test"/></p>`
 	output := RewriteDocumentWithAbsoluteProxyURL(r, input)
@@ -320,8 +319,8 @@ func TestProxyFilterWithHttpInvalid(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<p><img src="http://website/folder/image.png" alt="Test"/></p>`
 	output := RewriteDocumentWithRelativeProxyURL(r, input)
@@ -344,8 +343,8 @@ func TestProxyFilterWithHttpsInvalid(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<p><img src="https://website/folder/image.png" alt="Test"/></p>`
 	output := RewriteDocumentWithRelativeProxyURL(r, input)
@@ -369,8 +368,8 @@ func TestProxyFilterWithSrcset(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<p><img src="http://website/folder/image.png" srcset="http://website/folder/image2.png 656w, http://website/folder/image3.png 360w" alt="test"></p>`
 	expected := `<p><img src="/proxy/okK5PsdNY8F082UMQEAbLPeUFfbe2WnNfInNmR9T4WA=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlLnBuZw==" srcset="/proxy/aY5Hb4urDnUCly2vTJ7ExQeeaVS-52O7kjUr2v9VrAs=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlMi5wbmc= 656w, /proxy/QgAmrJWiAud_nNAsz3F8OTxaIofwAiO36EDzH_YfMzo=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlMy5wbmc= 360w" alt="test"/></p>`
@@ -394,8 +393,8 @@ func TestProxyFilterWithEmptySrcset(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<p><img src="http://website/folder/image.png" srcset="" alt="test"></p>`
 	expected := `<p><img src="/proxy/okK5PsdNY8F082UMQEAbLPeUFfbe2WnNfInNmR9T4WA=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlLnBuZw==" srcset="" alt="test"/></p>`
@@ -419,8 +418,8 @@ func TestProxyFilterWithPictureSource(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<picture><source srcset="http://website/folder/image2.png 656w,   http://website/folder/image3.png 360w, https://website/some,image.png 2x"></picture>`
 	expected := `<picture><source srcset="/proxy/aY5Hb4urDnUCly2vTJ7ExQeeaVS-52O7kjUr2v9VrAs=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlMi5wbmc= 656w, /proxy/QgAmrJWiAud_nNAsz3F8OTxaIofwAiO36EDzH_YfMzo=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlMy5wbmc= 360w, /proxy/ZIw0hv8WhSTls5aSqhnFaCXlUrKIqTnBRaY0-NaLnds=/aHR0cHM6Ly93ZWJzaXRlL3NvbWUsaW1hZ2UucG5n 2x"/></picture>`
@@ -444,8 +443,8 @@ func TestProxyFilterOnlyNonHTTPWithPictureSource(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<picture><source srcset="http://website/folder/image2.png 656w, https://website/some,image.png 2x"></picture>`
 	expected := `<picture><source srcset="/proxy/aY5Hb4urDnUCly2vTJ7ExQeeaVS-52O7kjUr2v9VrAs=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlMi5wbmc= 656w, https://website/some,image.png 2x"/></picture>`
@@ -468,8 +467,8 @@ func TestProxyWithImageDataURL(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<img src="data:image/gif;base64,test">`
 	expected := `<img src="data:image/gif;base64,test"/>`
@@ -492,8 +491,8 @@ func TestProxyWithImageSourceDataURL(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<picture><source srcset="data:image/gif;base64,test"/></picture>`
 	expected := `<picture><source srcset="data:image/gif;base64,test"/></picture>`
@@ -517,8 +516,8 @@ func TestProxyFilterWithVideo(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<video poster="https://example.com/img.png" src="https://example.com/video.mp4"></video>`
 	expected := `<video poster="/proxy/aDFfroYL57q5XsojIzATT6OYUCkuVSPXYJQAVrotnLw=/aHR0cHM6Ly9leGFtcGxlLmNvbS9pbWcucG5n" src="/proxy/0y3LR8zlx8S8qJkj1qWFOO6x3a-5yf2gLWjGIJV5yyc=/aHR0cHM6Ly9leGFtcGxlLmNvbS92aWRlby5tcDQ="></video>`
@@ -542,8 +541,8 @@ func TestProxyFilterVideoPoster(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<video poster="https://example.com/img.png" src="https://example.com/video.mp4"></video>`
 	expected := `<video poster="/proxy/aDFfroYL57q5XsojIzATT6OYUCkuVSPXYJQAVrotnLw=/aHR0cHM6Ly9leGFtcGxlLmNvbS9pbWcucG5n" src="https://example.com/video.mp4"></video>`
@@ -567,8 +566,8 @@ func TestProxyFilterVideoPosterOnce(t *testing.T) {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}).Name("proxy")
+	r := mux.New()
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<video poster="https://example.com/img.png" src="https://example.com/video.mp4"></video>`
 	expected := `<video poster="/proxy/aDFfroYL57q5XsojIzATT6OYUCkuVSPXYJQAVrotnLw=/aHR0cHM6Ly9leGFtcGxlLmNvbS9pbWcucG5n" src="/proxy/0y3LR8zlx8S8qJkj1qWFOO6x3a-5yf2gLWjGIJV5yyc=/aHR0cHM6Ly9leGFtcGxlLmNvbS92aWRlby5tcDQ="></video>`

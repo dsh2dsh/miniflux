@@ -7,25 +7,25 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/PuerkitoBio/goquery"
+
 	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/reader/sanitizer"
 	"miniflux.app/v2/internal/urllib"
-
-	"github.com/PuerkitoBio/goquery"
-	"github.com/gorilla/mux"
 )
 
-type urlProxyRewriter func(router *mux.Router, url string) string
+type urlProxyRewriter func(router *mux.ServeMux, url string) string
 
-func RewriteDocumentWithRelativeProxyURL(router *mux.Router, htmlDocument string) string {
+func RewriteDocumentWithRelativeProxyURL(router *mux.ServeMux, htmlDocument string) string {
 	return genericProxyRewriter(router, ProxifyRelativeURL, htmlDocument)
 }
 
-func RewriteDocumentWithAbsoluteProxyURL(router *mux.Router, htmlDocument string) string {
+func RewriteDocumentWithAbsoluteProxyURL(router *mux.ServeMux, htmlDocument string) string {
 	return genericProxyRewriter(router, ProxifyAbsoluteURL, htmlDocument)
 }
 
-func genericProxyRewriter(router *mux.Router, proxifyFunction urlProxyRewriter, htmlDocument string) string {
+func genericProxyRewriter(router *mux.ServeMux, proxifyFunction urlProxyRewriter, htmlDocument string) string {
 	proxyOption := config.Opts.MediaProxyMode()
 	if proxyOption == "none" {
 		return htmlDocument
@@ -95,7 +95,7 @@ func genericProxyRewriter(router *mux.Router, proxifyFunction urlProxyRewriter, 
 	return output
 }
 
-func proxifySourceSet(element *goquery.Selection, router *mux.Router, proxifyFunction urlProxyRewriter, proxyOption, srcsetAttrValue string) {
+func proxifySourceSet(element *goquery.Selection, router *mux.ServeMux, proxifyFunction urlProxyRewriter, proxyOption, srcsetAttrValue string) {
 	imageCandidates := sanitizer.ParseSrcSetAttribute(srcsetAttrValue)
 
 	for _, imageCandidate := range imageCandidates {

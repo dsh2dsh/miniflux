@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/gorilla/mux"
 )
 
 // FormInt64Value returns a form value as integer.
@@ -24,8 +22,7 @@ func FormInt64Value(r *http.Request, param string) int64 {
 
 // RouteInt64Param returns an URL route parameter as int64.
 func RouteInt64Param(r *http.Request, param string) int64 {
-	vars := mux.Vars(r)
-	value, err := strconv.ParseInt(vars[param], 10, 64)
+	value, err := strconv.ParseInt(r.PathValue(param), 10, 64)
 	if err != nil {
 		return 0
 	}
@@ -39,8 +36,7 @@ func RouteInt64Param(r *http.Request, param string) int64 {
 
 // RouteStringParam returns a URL route parameter as string.
 func RouteStringParam(r *http.Request, param string) string {
-	vars := mux.Vars(r)
-	return vars[param]
+	return r.PathValue(param)
 }
 
 // QueryStringParam returns a query string parameter as string.
