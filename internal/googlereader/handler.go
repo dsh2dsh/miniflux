@@ -581,7 +581,7 @@ func move(ctx context.Context, feedStream Stream, labelStream Stream,
 
 func (h *handler) feedIconURL(f *model.Feed) string {
 	if f.Icon == nil || f.Icon.ExternalIconID == "" {
-		return config.Opts.RootURL() + "/favicon.ico"
+		return ""
 	}
 	return config.Opts.RootURL() + route.Path(
 		h.router, "feedIcon", "externalIconID", f.Icon.ExternalIconID)
