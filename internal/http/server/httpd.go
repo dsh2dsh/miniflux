@@ -281,8 +281,9 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) http.Handler {
 	}
 
 	publicRoutes := middleware.WithPublicRoutes(
+		"/css/",
 		"/favicon.ico",
-		"/feed/icon/",
+		"/feed-icon/",
 		"/icon/",
 		"/js/",
 		"/login",
@@ -293,7 +294,6 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) http.Handler {
 		"/proxy/",
 		"/robots.txt",
 		"/share/",
-		"/stylesheets/",
 		"/webauthn/login/begin",
 		"/webauthn/login/finish")
 	m.Use(publicRoutes)
