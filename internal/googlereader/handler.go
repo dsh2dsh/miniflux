@@ -1083,7 +1083,7 @@ func (h *handler) handleReadingListStreamHandler(w http.ResponseWriter,
 			builder.WithStatus(model.EntryStatusUnread)
 		default:
 			log.Warn("[GoogleReader] Unknown ExcludeTargets filter type",
-				slog.Any("filter_type", s.Type))
+				slog.Int("filter_type", int(s.Type)))
 		}
 	}
 
