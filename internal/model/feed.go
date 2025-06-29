@@ -220,11 +220,11 @@ type FeedCreationRequest struct {
 }
 
 type FeedCreationRequestFromSubscriptionDiscovery struct {
+	FeedCreationRequest
+
 	Content      []byte
 	ETag         string
 	LastModified string
-
-	FeedCreationRequest
 }
 
 // FeedModificationRequest represents the request to update a feed.

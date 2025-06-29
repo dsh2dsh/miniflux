@@ -23,6 +23,7 @@ linters:
     - "bidichk"
     - "bodyclose"
     - "copyloopvar"
+    - "embeddedstructfieldcheck"
     - "errorlint"
     - "gocritic"
     - "makezero"
@@ -62,6 +63,10 @@ linters:
         - "(*os.File).Close"
         - "golang.org/x/term.Restore"
         - "(*github.com/andybalholm/brotli/matchfinder.Writer).Close"
+
+      # Display function signature instead of selector.
+      # Default: false
+      verbose: true
 
     errorlint:
       allowed-errors:

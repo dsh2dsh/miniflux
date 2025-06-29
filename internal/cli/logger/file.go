@@ -16,6 +16,7 @@ func NewLogFile(filename string) (f *LogFile, err error) {
 
 type LogFile struct {
 	*os.File
+
 	filename string
 }
 

@@ -155,6 +155,7 @@ type BaseResponse struct {
 
 type UserResponse struct {
 	BaseResponse
+
 	Result User `json:"result"`
 }
 
@@ -170,5 +171,6 @@ type MessageRequest struct {
 
 type MessageResponse struct {
 	BaseResponse
+
 	Result Message `json:"result"`
 }

@@ -85,6 +85,8 @@ type Atom10Feed struct {
 }
 
 type Atom10Entry struct {
+	media.MediaItemElement
+
 	// The "atom:id" element conveys a permanent, universally unique
 	// identifier for an entry or feed.
 	//
@@ -150,8 +152,6 @@ type Atom10Entry struct {
 	// atom:entry elements MAY contain any number of atom:category
 	// elements.
 	Categories AtomCategories `xml:"http://www.w3.org/2005/Atom category"`
-
-	media.MediaItemElement
 }
 
 // A Text construct contains human-readable text, usually in small

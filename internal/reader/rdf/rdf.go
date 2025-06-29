@@ -17,15 +17,17 @@ type RDF struct {
 }
 
 type RDFChannel struct {
+	dublincore.DublinCoreChannelElement
+
 	Title       string `xml:"title"`
 	Link        string `xml:"link"`
 	Description string `xml:"description"`
-	dublincore.DublinCoreChannelElement
 }
 
 type RDFItem struct {
+	dublincore.DublinCoreItemElement
+
 	Title       string `xml:"http://purl.org/rss/1.0/ title"`
 	Link        string `xml:"link"`
 	Description string `xml:"description"`
-	dublincore.DublinCoreItemElement
 }

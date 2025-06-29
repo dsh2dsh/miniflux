@@ -25,6 +25,10 @@ type RSS struct {
 }
 
 type RSSChannel struct {
+	AtomLinks
+	itunes.ItunesChannelElement
+	googleplay.GooglePlayChannelElement
+
 	// Title is the name of the channel.
 	Title string `xml:"rss title"`
 
@@ -85,10 +89,6 @@ type RSSChannel struct {
 
 	// Items is a collection of items.
 	Items []RSSItem `xml:"rss item"`
-
-	AtomLinks
-	itunes.ItunesChannelElement
-	googleplay.GooglePlayChannelElement
 }
 
 type RSSCloud struct {
@@ -111,6 +111,14 @@ type RSSImage struct {
 }
 
 type RSSItem struct {
+	dublincore.DublinCoreItemElement
+	FeedBurnerItemElement
+	media.MediaItemElement
+	AtomAuthor
+	AtomLinks
+	itunes.ItunesItemElement
+	googleplay.GooglePlayItemElement
+
 	// Title is the title of the item.
 	Title InnerContent `xml:"rss title"`
 
@@ -160,14 +168,6 @@ type RSSItem struct {
 	// Its value is the name of the RSS channel that the item came from, derived from its <title>.
 	// It has one required attribute, url, which contains the URL of the RSS channel.
 	Source RSSSource `xml:"rss source"`
-
-	dublincore.DublinCoreItemElement
-	FeedBurnerItemElement
-	media.MediaItemElement
-	AtomAuthor
-	AtomLinks
-	itunes.ItunesItemElement
-	googleplay.GooglePlayItemElement
 }
 
 type RSSAuthor struct {

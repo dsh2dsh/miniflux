@@ -46,6 +46,7 @@ func (o opmlOutline) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 
 	err := e.EncodeElement(struct {
 		opmlOutlineXml
+
 		Type string `xml:"type,attr,omitempty"`
 	}{
 		opmlOutlineXml: opmlOutlineXml(o),

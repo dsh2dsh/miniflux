@@ -49,34 +49,40 @@ func newAuthFailureResponse() baseResponse {
 
 type groupsResponse struct {
 	baseResponse
+
 	Groups      []group       `json:"groups"`
 	FeedsGroups []feedsGroups `json:"feeds_groups"`
 }
 
 type feedsResponse struct {
 	baseResponse
+
 	Feeds       []feed        `json:"feeds"`
 	FeedsGroups []feedsGroups `json:"feeds_groups"`
 }
 
 type faviconsResponse struct {
 	baseResponse
+
 	Favicons []favicon `json:"favicons"`
 }
 
 type itemsResponse struct {
 	baseResponse
+
 	Items []item `json:"items"`
 	Total int    `json:"total_items"`
 }
 
 type unreadResponse struct {
 	baseResponse
+
 	ItemIDs string `json:"unread_item_ids"`
 }
 
 type savedResponse struct {
 	baseResponse
+
 	ItemIDs string `json:"saved_item_ids"`
 }
 
