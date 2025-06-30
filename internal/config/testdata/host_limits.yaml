@@ -1,0 +1,10 @@
+host_limits:
+  "localhost":
+    connections: 3
+    rate: 100
+  "a.example.com":
+    rate: 15
+  "b.example.com":
+    connections: 5
+  "example.com":
+    rate: 1

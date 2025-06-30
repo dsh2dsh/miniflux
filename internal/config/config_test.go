@@ -680,7 +680,7 @@ LOG_LEVEL = debug
 
 	os.Clearenv()
 	parser := NewParser()
-	opts, err := parser.ParseFile(tmpfile.Name())
+	opts, err := parser.ParseEnvFile(tmpfile.Name())
 	require.NoError(t, err)
 	require.NotNil(t, opts)
 
@@ -704,7 +704,7 @@ Invalid text
 
 	os.Clearenv()
 	parser := NewParser()
-	_, err = parser.ParseFile(tmpfile.Name())
+	_, err = parser.ParseEnvFile(tmpfile.Name())
 	t.Log(err)
 	require.ErrorContains(t, err, "Invalid text")
 }
@@ -802,7 +802,7 @@ func TestParseConfigDumpOutput(t *testing.T) {
 	require.NoError(t, tmpfile.Close())
 
 	os.Clearenv()
-	parsedOpts, err := NewParser().ParseFile(tmpfile.Name())
+	parsedOpts, err := NewParser().ParseEnvFile(tmpfile.Name())
 	require.NoError(t, err)
 	require.NotNil(t, parsedOpts)
 	assert.Equal(t, wantOpts.AdminUsername(), parsedOpts.AdminUsername())
@@ -913,4 +913,64 @@ func TestTrustedProxies(t *testing.T) {
 	opts = parseEnvironmentVariables(t)
 	assert.True(t, opts.TrustedProxy("127.0.0.1"))
 	assert.True(t, opts.TrustedProxy("127.0.0.2"))
+}
+
+func TestLoadYAML(t *testing.T) {
+	require.Error(t, LoadYAML("testdata/notfound.yaml", ""))
+	require.Error(t, LoadYAML("", "testdata/notfound.env"))
+
+	os.Clearenv()
+	require.NoError(t, LoadYAML("", ""))
+	require.NoError(t, LoadYAML("testdata/host_limits.yaml", ""))
+
+	require.NoError(t, LoadYAML("testdata/host_limits.yaml",
+		"testdata/host_limits.env"))
+	assert.Equal(t, int64(4), Opts.ConnectionsPerServer())
+	//nolint:testifylint // const 1 is always 1.0
+	assert.Equal(t, float64(1), Opts.RateLimitPerServer())
+
+	require.NoError(t, LoadYAML("", "testdata/host_limits.env"))
+	assert.Equal(t, int64(4), Opts.ConnectionsPerServer())
+	//nolint:testifylint // const 1 is always 1.0
+	assert.Equal(t, float64(1), Opts.RateLimitPerServer())
+}
+
+func TestLoadYAML_findHostLimits(t *testing.T) {
+	os.Clearenv()
+	require.NoError(t, LoadYAML("testdata/host_limits.yaml", ""))
+
+	tests := []struct {
+		name string
+		want HostLimits
+	}{
+		{
+			name: "default",
+			want: HostLimits{
+				Connections: Opts.ConnectionsPerServer(),
+				Rate:        Opts.RateLimitPerServer(),
+			},
+		},
+		{
+			name: "localhost",
+			want: HostLimits{Connections: 3, Rate: 100},
+		},
+		{
+			name: "a.example.com",
+			want: HostLimits{Connections: Opts.ConnectionsPerServer(), Rate: 15},
+		},
+		{
+			name: "b.example.com",
+			want: HostLimits{Connections: 5, Rate: Opts.RateLimitPerServer()},
+		},
+		{
+			name: "c.example.com",
+			want: HostLimits{Connections: Opts.ConnectionsPerServer(), Rate: 1},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, Opts.FindHostLimits(tt.name))
+		})
+	}
 }

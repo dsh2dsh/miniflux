@@ -21,6 +21,7 @@ import (
 
 var (
 	flagConfigFile string
+	flagConfigYAML string
 	flagDebugMode  bool
 
 	logCloser io.Closer
@@ -96,7 +97,9 @@ var resetFeedNextCmd = cobra.Command{
 
 func init() {
 	Cmd.PersistentFlags().StringVarP(&flagConfigFile, "config-file", "c", "",
-		"Path to configuration file")
+		"Path to .env configuration file")
+	Cmd.PersistentFlags().StringVarP(&flagConfigYAML, "config-yaml", "", "",
+		"Path to YAML configuration file")
 	Cmd.PersistentFlags().BoolVarP(&flagDebugMode, "debug", "d", false,
 		"Show debug logs")
 
@@ -119,7 +122,7 @@ func persistentPreRunE(cmd *cobra.Command, args []string) error {
 	// https://github.com/spf13/cobra/issues/340#issuecomment-378726225
 	cmd.SilenceUsage = true
 
-	if err := config.Load(flagConfigFile); err != nil {
+	if err := config.LoadYAML(flagConfigYAML, flagConfigFile); err != nil {
 		return err
 	} else if flagDebugMode {
 		config.Opts.SetLogLevel("debug")

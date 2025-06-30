@@ -34,9 +34,9 @@ func (p *Parser) ParseEnvironmentVariables() (*Options, error) {
 
 func (p *Parser) env() *EnvOptions { return &p.opts.env }
 
-// ParseFile loads configuration values from a local file and from environment
-// variables after that.
-func (p *Parser) ParseFile(filename string) (*Options, error) {
+// ParseEnvFile loads configuration values from a local file and from
+// environment variables after that.
+func (p *Parser) ParseEnvFile(filename string) (*Options, error) {
 	envMap, err := godotenv.Read(filename)
 	if err != nil {
 		return nil, fmt.Errorf("config: failed parse %q: %w", filename, err)

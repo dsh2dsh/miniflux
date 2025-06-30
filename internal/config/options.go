@@ -37,12 +37,31 @@ type Option struct {
 
 // Options contains configuration options.
 type Options struct {
+	HostLimits map[string]HostLimits `yaml:"host_limits" validate:"dive,keys,required,endkeys,required"`
+
 	env EnvOptions
 
 	rootURL              string
 	basePath             string
 	mediaProxyPrivateKey []byte
 	trustedProxies       map[string]struct{}
+}
+
+type HostLimits struct {
+	Connections int64   `yaml:"connections" validate:"omitempty,min=0"`
+	Rate        float64 `yaml:"rate" validate:"omitempty,min=0"`
+}
+
+func (self *HostLimits) withDefaults(connections int64, rate float64,
+) HostLimits {
+	limits := *self
+	if limits.Connections == 0 {
+		limits.Connections = connections
+	}
+	if limits.Rate == 0 {
+		limits.Rate = rate
+	}
+	return limits
 }
 
 type EnvOptions struct {
@@ -128,8 +147,8 @@ type EnvOptions struct {
 	MediaProxyPrivateKey           string   `env:"MEDIA_PROXY_PRIVATE_KEY"`
 	WebAuthn                       bool     `env:"WEBAUTHN"`
 	PreferSiteIcon                 bool     `env:"PREFER_SITE_ICON"`
-	ConnectionsPerSever            int64    `env:"CONNECTIONS_PER_SERVER" validate:"min=1"`
-	RateLimitPerServer             float64  `env:"RATE_LIMIT_PER_SERVER" validate:"gt=0"`
+	ConnectionsPerSever            int64    `env:"CONNECTIONS_PER_SERVER" validate:"min=0"`
+	RateLimitPerServer             float64  `env:"RATE_LIMIT_PER_SERVER" validate:"min=0"`
 	TrustedProxies                 []string `env:"TRUSTED_PROXIES" validate:"dive,required,ip"`
 }
 
@@ -145,6 +164,8 @@ func NewOptions() *Options {
 	maxConns := max(4, runtime.GOMAXPROCS(0))
 
 	return &Options{
+		HostLimits: map[string]HostLimits{},
+
 		env: EnvOptions{
 			LogFile:                        "stderr",
 			LogFormat:                      "text",
@@ -316,8 +337,18 @@ func Validator() *validator.Validate {
 	if validate == nil {
 		validate = validator.New(validator.WithRequiredStructEnabled())
 		validate.RegisterTagNameFunc(func(fld reflect.StructField) string {
-			before, _, _ := strings.Cut(fld.Tag.Get("env"), ",")
-			return before
+			if s := fld.Tag.Get("env"); s != "" {
+				name, _, _ := strings.Cut(fld.Tag.Get("env"), ",")
+				if name == "-" {
+					return ""
+				}
+				return name
+			}
+			name, _, _ := strings.Cut(fld.Tag.Get("yaml"), ",")
+			if name == "-" {
+				return ""
+			}
+			return name
 		})
 	}
 	return validate
@@ -675,6 +706,17 @@ func (o *Options) Logging() []Log {
 		}}
 	}
 	return slices.Clone(o.env.Logging)
+}
+
+func (o *Options) FindHostLimits(hostname string) (found HostLimits) {
+	for hostname != "" {
+		if limits, ok := o.HostLimits[hostname]; ok {
+			found = limits
+			break
+		}
+		_, hostname, _ = strings.Cut(hostname, ".")
+	}
+	return found.withDefaults(o.ConnectionsPerServer(), o.RateLimitPerServer())
 }
 
 // SortedOptions returns options as a list of key value pairs, sorted by keys.

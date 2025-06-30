@@ -97,6 +97,7 @@ This project is an opinionated fork of Miniflux.
 
   Flags:
     -c, --config-file string   Path to configuration file
+        --config-yaml string   Path to YAML configuration file
     -d, --debug                Show debug logs
     -h, --help                 help for miniflux
     -v, --version              version for miniflux
@@ -130,7 +131,7 @@ This project is an opinionated fork of Miniflux.
   New option `PREFER_SITE_ICON=true` configures `miniflux` always use
   auto-detected site icon, instead of icon found in feed description.
 
-* Limit max number of connections per server.
+* Limit max number of connections per server and rate of connections.
 
   By default the maximum is 8 connections per server. This limit can be changed
   by adding `CONNECTIONS_PER_SERVER` to the config, like
@@ -140,6 +141,43 @@ This project is an opinionated fork of Miniflux.
   ```
 
   which increases the limit to 10 connections per server.
+
+  By default the maximum allowed rate is 10 requests per second per server. This
+  limit can be changed by adding `RATE_LIMIT_PER_SERVER` to the config, which
+  defines requests per second, like
+
+  ```
+  RATE_LIMIT_PER_SERVER=100
+  ```
+
+  which increases the limit to 100 requests per second or
+
+  ```
+  RATE_LIMIT_PER_SERVER=0.5
+  ```
+
+  which decreases the limit to 1 request per 2 seconds.
+
+  Connection limits also can be configured per host using YAML config like:
+
+  ```yaml
+  host_limits:
+    "localhost":
+      connections: 3
+      rate: 100
+    "a.example.com":
+      rate: 15
+    "b.example.com":
+      connections: 5
+    "example.com":
+      rate: 1
+  ```
+
+  Any of `connections` or `rate` is optional, but not both of them. If any of
+  them is not specified, value from `CONNECTIONS_PER_SERVER` or
+  `RATE_LIMIT_PER_SERVER` is using.
+
+  To use this config, `miniflux` has new CLI flag `--config-yaml`.
 
 * Changed a little how article items looks like.
 
@@ -172,24 +210,6 @@ This project is an opinionated fork of Miniflux.
 * Click on comments URL mark this entry as read.
 
   If mark entries as read when viewed enabled in user settings.
-
-* Rate limit connections per server.
-
-  By default the maximum allowed rate is 10 requests per second per server. This
-  limit can be changed by adding `RATE_LIMIT_PER_SERVER` to the config, which
-  defines requests per second, like
-
-  ```
-  RATE_LIMIT_PER_SERVER=100
-  ```
-
-  which increases the limit to 100 requests per second or
-
-  ```
-  RATE_LIMIT_PER_SERVER=0.5
-  ```
-
-  which decreases the limit to 1 request per 2 seconds.
 
 * Mark entries as read when scrolled.
 
