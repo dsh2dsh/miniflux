@@ -23,8 +23,9 @@ const (
 var (
 	divToPElementsRegexp = regexp.MustCompile(`(?i)<(?:a|blockquote|dl|div|img|ol|p|pre|table|ul)[ />]`)
 
-	okMaybeItsACandidateRegexp = regexp.MustCompile(`and|article|body|column|main|shadow`)
-	unlikelyCandidatesRegexp   = regexp.MustCompile(`banner|breadcrumbs|combx|comment|community|cover-wrap|disqus|extra|foot|header|legends|menu|modal|related|remark|replies|rss|shoutbox|sidebar|skyscraper|social|sponsor|supplemental|ad-break|agegate|pagination|pager|popup|yom-remote`)
+	strongCandidates  = [...]string{"popupbody", "-ad", "g-plus"}
+	maybeCandidate    = [...]string{"and", "article", "body", "column", "main", "shadow"}
+	unlikelyCandidate = [...]string{"banner", "breadcrumbs", "combx", "comment", "community", "cover-wrap", "disqus", "extra", "foot", "header", "legends", "menu", "modal", "related", "remark", "replies", "rss", "shoutbox", "sidebar", "skyscraper", "social", "sponsor", "supplemental", "ad-break", "agegate", "pagination", "pager", "popup", "yom-remote"}
 
 	negativeRegexp = regexp.MustCompile(`hid|banner|combx|comment|com-|contact|foot|masthead|media|meta|modal|outbrain|promo|related|scroll|share|shoutbox|sidebar|skyscraper|sponsor|shopping|tags|tool|widget|byline|author|dateline|writtenby`)
 	positiveRegexp = regexp.MustCompile(`article|body|content|entry|hentry|h-entry|main|page|pagination|post|text|blog|story`)
@@ -102,19 +103,19 @@ func ExtractContent(page io.Reader) (baseURL string, extractedContent string, er
 func getArticle(topCandidate *candidate, candidates candidateList) string {
 	var output strings.Builder
 	output.WriteString("<div>")
-	siblingScoreThreshold := max(10, topCandidate.score*.2)
+	siblingScoreThreshold := max(10, topCandidate.score/5)
 
 	topCandidate.selection.Siblings().Union(topCandidate.selection).Each(func(i int, s *goquery.Selection) {
 		var needAppend bool
+		tag := "div"
 		node := s.Get(0)
 
 		if node == topCandidate.Node() {
 			needAppend = true
 		} else if c, ok := candidates[node]; ok && c.score >= siblingScoreThreshold {
 			needAppend = true
-		}
-
-		if s.Is("p") {
+		} else if s.Is("p") {
+			tag = node.Data
 			linkDensity := getLinkDensity(s)
 			content := s.Text()
 			contentLength := len(content)
@@ -124,17 +125,15 @@ func getArticle(topCandidate *candidate, candidates candidateList) string {
 					needAppend = true
 				}
 			} else {
-				if linkDensity == 0 && containsSentence(content) {
-					needAppend = true
+				if linkDensity == 0 {
+					if containsSentence(content) {
+						needAppend = true
+					}
 				}
 			}
 		}
 
 		if needAppend {
-			tag := "div"
-			if s.Is("p") {
-				tag = node.Data
-			}
 			html, _ := s.Html()
 			output.WriteString("<" + tag + ">" + html + "</" + tag + ">")
 		}
@@ -144,17 +143,33 @@ func getArticle(topCandidate *candidate, candidates candidateList) string {
 	return output.String()
 }
 
-func removeUnlikelyCandidates(document *goquery.Document) {
-	shouldRemove := func(str string) bool {
-		str = strings.ToLower(str)
-		if strings.Contains(str, "popupbody") || strings.Contains(str, "-ad") || strings.Contains(str, "g-plus") {
-			return true
-		} else if unlikelyCandidatesRegexp.MatchString(str) && !okMaybeItsACandidateRegexp.MatchString(str) {
+func shouldRemoveCandidate(str string) bool {
+	str = strings.ToLower(str)
+
+	// Those candidates have no false-positives, no need to check against `maybeCandidate`
+	for _, strong := range strongCandidates {
+		if strings.Contains(str, strong) {
 			return true
 		}
-		return false
 	}
 
+	for _, unlikely := range unlikelyCandidate {
+		if strings.Contains(str, unlikely) {
+			// Do we have a false positive?
+			for _, maybe := range maybeCandidate {
+				if strings.Contains(str, maybe) {
+					return false
+				}
+			}
+
+			// Nope, it's a true positive!
+			return true
+		}
+	}
+	return false
+}
+
+func removeUnlikelyCandidates(document *goquery.Document) {
 	document.Find("*").Each(func(i int, s *goquery.Selection) {
 		if s.Length() == 0 || s.Get(0).Data == "html" || s.Get(0).Data == "body" {
 			return
@@ -165,14 +180,10 @@ func removeUnlikelyCandidates(document *goquery.Document) {
 			return
 		}
 
-		if class, ok := s.Attr("class"); ok {
-			if shouldRemove(class) {
-				s.Remove()
-			}
-		} else if id, ok := s.Attr("id"); ok {
-			if shouldRemove(id) {
-				s.Remove()
-			}
+		if class, ok := s.Attr("class"); ok && shouldRemoveCandidate(class) {
+			s.Remove()
+		} else if id, ok := s.Attr("id"); ok && shouldRemoveCandidate(id) {
+			s.Remove()
 		}
 	})
 }

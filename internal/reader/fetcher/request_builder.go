@@ -29,8 +29,8 @@ type RequestBuilder struct {
 	ctx              context.Context
 	headers          http.Header
 	clientProxyURL   *url.URL
-	useClientProxy   bool
 	clientTimeout    int
+	useClientProxy   bool
 	withoutRedirects bool
 	ignoreTLSErrors  bool
 	disableHTTP2     bool
