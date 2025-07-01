@@ -25,8 +25,8 @@ const (
 	defaultDatabaseURL = "user=postgres password=postgres dbname=miniflux2 sslmode=disable"
 )
 
-var defaultHTTPClientUserAgent = "Mozilla/5.0 (compatible; Miniflux-dsh2dsh/" +
-	version.Version + "; +https://github.com/dsh2dsh/miniflux)"
+var defaultUA = "Miniflux/dsh2dsh-" + version.Version +
+	" (https://github.com/dsh2dsh/miniflux)"
 
 // Option contains a key to value map of a single option. It may be used to
 // output debug strings.
@@ -196,7 +196,7 @@ func NewOptions() *Options {
 			HttpClientTimeout:              20,
 			HttpClientMaxBodySize:          15,
 			HttpClientProxies:              []string{},
-			HttpClientUserAgent:            defaultHTTPClientUserAgent,
+			HttpClientUserAgent:            defaultUA,
 			HttpServerTimeout:              300,
 			MaintenanceMessage:             "Miniflux is currently under maintenance",
 			MetricsRefreshInterval:         60,
