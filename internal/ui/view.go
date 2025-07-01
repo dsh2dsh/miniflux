@@ -35,17 +35,30 @@ type View struct {
 	ctx context.Context
 
 	countUnread     int
+	countStarred    int
 	countErrorFeeds int
 	hasSaveEntry    bool
 }
 
 func (self *View) init() *View {
-	self.Go(func(ctx context.Context) (err error) {
-		self.countUnread, err = self.store.NewEntryQueryBuilder(self.UserID()).
-			WithStatus(model.EntryStatusUnread).
+	self.Go(func(ctx context.Context) error {
+		entryCountSeq, err := self.store.NewEntryQueryBuilder(self.UserID()).
+			WithoutStatus(model.EntryStatusRemoved).
 			WithGloballyVisible().
-			CountEntries(ctx)
-		return
+			CountStatusStarred(ctx)
+		if err != nil {
+			return err
+		}
+
+		for entry, count := range entryCountSeq {
+			if entry.Status == model.EntryStatusUnread {
+				self.countUnread += count
+			}
+			if entry.Starred {
+				self.countStarred += count
+			}
+		}
+		return nil
 	})
 
 	self.Go(func(ctx context.Context) error {
@@ -79,6 +92,7 @@ func (self *View) Wait() error {
 
 	self.Set("user", self.user).
 		Set("countUnread", self.countUnread).
+		Set("countStarred", self.countStarred).
 		Set("countErrorFeeds", self.countErrorFeeds).
 		Set("hasSaveEntry", self.hasSaveEntry)
 	return nil

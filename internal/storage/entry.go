@@ -37,8 +37,8 @@ func (s *Storage) CountAllEntries(ctx context.Context) (map[string]int64,
 	}
 
 	type statusCount struct {
-		status string
-		count  int64
+		Status string
+		Count  int64
 	}
 
 	counts, err := pgx.CollectRows(rows, pgx.RowToStructByName[statusCount])
@@ -47,8 +47,8 @@ func (s *Storage) CountAllEntries(ctx context.Context) (map[string]int64,
 	}
 
 	for _, s := range counts {
-		results[s.status] = s.count
-		results[total] = s.count
+		results[s.Status] = s.Count
+		results[total] += s.Count
 	}
 	return results, nil
 }

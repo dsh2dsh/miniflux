@@ -6,6 +6,7 @@ package storage // import "miniflux.app/v2/internal/storage"
 import (
 	"context"
 	"fmt"
+	"iter"
 	"strconv"
 	"strings"
 	"time"
@@ -513,4 +514,36 @@ func (e *EntryQueryBuilder) buildSorting() string {
 		parts += " OFFSET " + strconv.FormatInt(int64(e.offset), 10)
 	}
 	return parts
+}
+
+func (e *EntryQueryBuilder) CountStatusStarred(ctx context.Context,
+) (iter.Seq2[*model.Entry, int], error) {
+	rows, _ := e.db.Query(ctx, `
+SELECT e.status, e.starred, count(*) AS count
+  FROM entries e, feeds f, categories c
+ WHERE f.id = e.feed_id AND c.id = f.category_id AND
+       `+e.buildCondition()+`
+GROUP BY e.status, e.starred`, e.args...)
+
+	type groupCount struct {
+		Status  string
+		Starred bool
+		Count   int
+	}
+
+	counts, err := pgx.CollectRows(rows, pgx.RowToStructByName[groupCount])
+	if err != nil {
+		return nil, fmt.Errorf("storage: count entries GROUP BY: %w", err)
+	}
+
+	seqFunc := func(yield func(*model.Entry, int) bool) {
+		var entry model.Entry
+		for _, item := range counts {
+			entry.Status, entry.Starred = item.Status, item.Starred
+			if !yield(&entry, item.Count) {
+				return
+			}
+		}
+	}
+	return seqFunc, nil
 }
