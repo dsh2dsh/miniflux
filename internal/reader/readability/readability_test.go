@@ -5,6 +5,7 @@ package readability // import "miniflux.app/v2/internal/reader/readability"
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -1274,7 +1275,7 @@ func TestGetLinkDensity(t *testing.T) {
 			// Use a small epsilon for float comparison
 			epsilon := float32(0.001)
 			if result < tc.expected-epsilon || result > tc.expected+epsilon {
-				t.Errorf("Expected link density %f, got %f", tc.expected, result)
+				t.Errorf("Expected link density %f, got %f for %s", tc.expected, result, tc.name)
 			}
 		})
 	}
@@ -2478,4 +2479,17 @@ func TestCandidateStringEdgeCases(t *testing.T) {
 			t.Errorf("Expected: %s, Got: %s", expected, result)
 		}
 	})
+}
+
+func TestExtractContentWithBrokenReader(t *testing.T) {
+	if _, _, err := ExtractContent(&brokenReader{}); err == nil {
+		t.Error("Expected ExtractContent to return an error with broken reader")
+	}
+}
+
+// brokenReader implements io.Reader but always returns an error
+type brokenReader struct{}
+
+func (br *brokenReader) Read(p []byte) (n int, err error) {
+	return 0, errors.New("simulated read error")
 }

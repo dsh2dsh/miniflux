@@ -106,6 +106,28 @@ func ExtractContent(page io.Reader) (baseURL string, extractedContent string, er
 	return baseURL, extractedContent, nil
 }
 
+func getSelectionLength(s *goquery.Selection) int {
+	var getLengthOfTextContent func(*html.Node) int
+	getLengthOfTextContent = func(n *html.Node) int {
+		total := 0
+		if n.Type == html.TextNode {
+			total += len(n.Data)
+		}
+		if n.FirstChild != nil {
+			for c := n.FirstChild; c != nil; c = c.NextSibling {
+				total += getLengthOfTextContent(c)
+			}
+		}
+		return total
+	}
+
+	sum := 0
+	for _, n := range s.Nodes {
+		sum += getLengthOfTextContent(n)
+	}
+	return sum
+}
+
 // Now that we have the top candidate, look through its siblings for content that might also be related.
 // Things like preambles, content split by ads that we removed, etc.
 func getArticle(topCandidate *candidate, candidates candidateList) string {
@@ -126,8 +148,7 @@ func getArticle(topCandidate *candidate, candidates candidateList) string {
 		} else if s.Is("p") {
 			tag = node.Data
 			linkDensity := getLinkDensity(s)
-			content := s.Text()
-			contentLength := len(content)
+			contentLength := getSelectionLength(s)
 
 			if contentLength >= 80 {
 				if linkDensity < .25 {
@@ -135,6 +156,8 @@ func getArticle(topCandidate *candidate, candidates candidateList) string {
 				}
 			} else {
 				if linkDensity == 0 {
+					// It's a small selection, so .Text doesn't impact performances too much.
+					content := s.Text()
 					if containsSentence(content) {
 						needAppend = true
 					}
@@ -223,10 +246,10 @@ func getCandidates(document *goquery.Document) candidateList {
 	candidates := make(candidateList)
 
 	document.Find(defaultTagsToScore).Each(func(i int, s *goquery.Selection) {
-		text := s.Text()
+		textLen := getSelectionLength(s)
 
 		// If this paragraph is less than 25 characters, don't even count it.
-		if len(text) < 25 {
+		if textLen < 25 {
 			return
 		}
 
@@ -253,10 +276,11 @@ func getCandidates(document *goquery.Document) candidateList {
 		contentScore := float32(1.0)
 
 		// Add points for any commas within this paragraph.
+		text := s.Text()
 		contentScore += float32(strings.Count(text, ",") + 1)
 
 		// For every 100 characters in this paragraph, add another point. Up to 3 points.
-		contentScore += float32(min(len(text)/100.0, 3))
+		contentScore += float32(min(textLen/100.0, 3))
 
 		candidates[parentNode].score += contentScore
 		if grandParentNode != nil {
@@ -300,15 +324,33 @@ func scoreNode(s *goquery.Selection) *candidate {
 // Get the density of links as a percentage of the content
 // This is the amount of text that is inside a link divided by the total text in the node.
 func getLinkDensity(s *goquery.Selection) float32 {
-	textLength := len(s.Text())
+	var getLengthOfTextContent func(*html.Node) int
+	getLengthOfTextContent = func(n *html.Node) int {
+		total := 0
+		if n.Type == html.TextNode {
+			total += len(n.Data)
+		}
+		if n.FirstChild != nil {
+			for c := n.FirstChild; c != nil; c = c.NextSibling {
+				total += getLengthOfTextContent(c)
+			}
+		}
+		return total
+	}
 
-	if textLength == 0 {
+	sum := 0
+	for _, n := range s.Nodes {
+		sum += getLengthOfTextContent(n)
+	}
+
+	if sum == 0 {
 		return 0
 	}
 
+	// TODO: use something better than materializing the HTML.
 	linkLength := len(s.Find("a").Text())
 
-	return float32(linkLength) / float32(textLength)
+	return float32(linkLength) / float32(sum)
 }
 
 // Get an elements class/id weight. Uses regular expressions to tell if this
@@ -343,10 +385,24 @@ func getWeight(s string) int {
 
 func transformMisusedDivsIntoParagraphs(document *goquery.Document) {
 	document.Find("div").Each(func(i int, s *goquery.Selection) {
-		html, _ := s.Html()
-		if !divToPElementsRegexp.MatchString(html) {
+		nodes := s.Children().Nodes
+
+		if len(nodes) == 0 {
 			node := s.Get(0)
 			node.Data = "p"
+			return
+		}
+
+		for _, node := range nodes {
+			switch node.Data {
+			case "a", "blockquote", "div", "dl",
+				"img", "ol", "p", "pre",
+				"table", "ul":
+				return
+			default:
+				currentNode := s.Get(0)
+				currentNode.Data = "p"
+			}
 		}
 	})
 }

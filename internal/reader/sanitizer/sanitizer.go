@@ -303,29 +303,26 @@ func SanitizeHTML(baseURL, rawHTML string, sanitizerOptions *SanitizerOptions) s
 
 func sanitizeAttributes(parsedBaseUrl *url.URL, baseURL, tagName string, attributes []html.Attribute, sanitizerOptions *SanitizerOptions) ([]string, string) {
 	var err error
-	var isImageLargerThanLayout bool
 	var isAnchorLink bool
-
-	if tagName == "img" {
-		imgWidth := getIntegerAttributeValue("width", attributes)
-		isImageLargerThanLayout = imgWidth > 750
-	}
 
 	htmlAttrs := make([]string, 0, len(attributes))
 	attrNames := make([]string, 0, len(attributes))
 
 	for _, attribute := range attributes {
-		value := attribute.Val
-
 		if !isValidAttribute(tagName, attribute.Key) {
 			continue
 		}
 
-		if tagName == "math" && attribute.Key == "xmlns" && value != "http://www.w3.org/1998/Math/MathML" {
-			value = "http://www.w3.org/1998/Math/MathML"
-		}
+		value := attribute.Val
 
-		if tagName == "img" {
+		switch tagName {
+		case "math":
+			if attribute.Key == "xmlns" {
+				if value != "http://www.w3.org/1998/Math/MathML" {
+					value = "http://www.w3.org/1998/Math/MathML"
+				}
+			}
+		case "img":
 			switch attribute.Key {
 			case "fetchpriority":
 				if !isValidFetchPriorityValue(value) {
@@ -336,14 +333,21 @@ func sanitizeAttributes(parsedBaseUrl *url.URL, baseURL, tagName string, attribu
 					continue
 				}
 			case "width", "height":
-				if isImageLargerThanLayout || !isPositiveInteger(value) {
+				if !isPositiveInteger(value) {
 					continue
 				}
-			}
-		}
 
-		if (tagName == "img" || tagName == "source") && attribute.Key == "srcset" {
-			value = sanitizeSrcsetAttr(baseURL, value)
+				// Discard width and height attributes when width is larger than Miniflux layout (750px)
+				if imgWidth := getIntegerAttributeValue("width", attributes); imgWidth > 750 {
+					continue
+				}
+			case "srcset":
+				value = sanitizeSrcsetAttr(baseURL, value)
+			}
+		case "source":
+			if attribute.Key == "srcset" {
+				value = sanitizeSrcsetAttr(baseURL, value)
+			}
 		}
 
 		if isExternalResourceAttribute(attribute.Key) {
