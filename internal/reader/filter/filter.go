@@ -19,37 +19,50 @@ import (
 
 func DeleteEntries(ctx context.Context, user *model.User, feed *model.Feed,
 ) error {
-	block, err := joinRules(user.BlockFilterEntryRules,
-		feed.BlockFilterEntryRules())
+	block, keep, err := feedRules(user, feed)
 	if err != nil {
-		return fmt.Errorf("reader/filter: building block filter: %w", err)
+		return fmt.Errorf("reader/filter: feed rules: %w", err)
 	}
 
-	keep, err := joinRules(user.KeepFilterEntryRules,
-		feed.KeepFilterEntryRules())
-	if err != nil {
-		return fmt.Errorf("reader/filter: building keep filter: %w", err)
-	}
-
-	log := logging.FromContext(ctx).With(
-		slog.Int64("feed_id", feed.ID),
-		slog.String("feed_url", feed.FeedURL))
+	log := logging.FromContext(ctx).With(slog.Group("feed",
+		slog.Int64("id", feed.ID),
+		slog.String("url", feed.FeedURL)))
 	block = block.WithLogger(log.With(slog.String("filter_action", "block")))
 	keep = keep.WithLogger(log.With(slog.String("filter_action", "allow")))
 
 	maxAge := time.Duration(config.Opts.FilterEntryMaxAgeDays()) * 24 * time.Hour
+	seen := makeUniqEntries(feed)
+
 	feed.Entries = slices.DeleteFunc(feed.Entries,
-		func(entry *model.Entry) bool {
-			if blockedGlobally(ctx, entry, maxAge) {
+		func(e *model.Entry) bool {
+			switch {
+			case blockedGlobally(ctx, e, maxAge):
 				feed.IncRemovedByAge()
 				return true
-			} else if block.Match(entry) || !keep.Allow(entry) {
+			case block.Match(e) || !keep.Allow(e):
 				feed.IncRemovedByFilters()
+				return true
+			case !seen.Add(e, log):
 				return true
 			}
 			return false
 		})
 	return nil
+}
+
+func feedRules(user *model.User, feed *model.Feed) (*Filter, *Filter, error) {
+	block, err := joinRules(user.BlockFilterEntryRules,
+		feed.BlockFilterEntryRules())
+	if err != nil {
+		return nil, nil, fmt.Errorf("building block filter: %w", err)
+	}
+
+	keep, err := joinRules(user.KeepFilterEntryRules,
+		feed.KeepFilterEntryRules())
+	if err != nil {
+		return nil, nil, fmt.Errorf("building keep filter: %w", err)
+	}
+	return block, keep, nil
 }
 
 func joinRules(userRules string, feedRules string) (*Filter, error) {

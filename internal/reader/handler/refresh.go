@@ -348,6 +348,7 @@ func (self *Refresh) logFeedRefreshed(ctx context.Context,
 			slog.Int("entries", len(self.feed.Entries)),
 			slog.Int("aged", self.feed.RemovedByAge()),
 			slog.Int("filtered", self.feed.RemovedByFilters()),
+			slog.Int("broken", self.feed.RemovedBroken()),
 			slog.Int("updated", len(refreshed.UpdatedEntires)),
 			slog.Int("created", len(refreshed.CreatedEntries)))
 	case refreshed.NotModified == notModifiedHeaders:

@@ -192,15 +192,16 @@ func (s *Storage) knownEntries(ctx context.Context, tx pgx.Tx, feedID int64,
 		return nil, entries, nil
 	}
 
+	//nolint:prealloc // don't know how many newEntries
 	var updatedEntries, newEntries []*model.Entry
 	for _, e := range entries {
 		if publishedAt, ok := published[e.Hash]; ok {
 			if publishedAt.Before(e.Date) {
 				updatedEntries = append(updatedEntries, e)
 			}
-		} else {
-			newEntries = append(newEntries, e)
+			continue
 		}
+		newEntries = append(newEntries, e)
 	}
 	return updatedEntries, newEntries, nil
 }
