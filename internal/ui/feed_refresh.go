@@ -18,18 +18,19 @@ import (
 )
 
 func (h *handler) refreshFeed(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	userID := request.UserID(r)
 	feedID := request.RouteInt64Param(r, "feedID")
-	forceRefresh := request.QueryBoolParam(r, "forceRefresh", false)
+	force := request.QueryBoolParam(r, "forceRefresh", false)
 
-	err := feedHandler.RefreshFeed(r.Context(), h.store, userID, feedID,
-		forceRefresh)
+	err := feedHandler.RefreshFeed(ctx, h.store, userID, feedID, force)
 	if err != nil {
 		slog.Warn("Unable to refresh feed",
 			slog.Int64("user_id", request.UserID(r)),
 			slog.Int64("feed_id", feedID),
-			slog.Bool("force_refresh", forceRefresh),
+			slog.Bool("force_refresh", force),
 			slog.Any("error", err))
+		session.New(h.store, r).NewFlashErrorMessage(err.Error()).Commit(ctx)
 	}
 	html.Redirect(w, r, route.Path(h.router, "feedEntries", "feedID", feedID))
 }
