@@ -29,6 +29,11 @@ class RequestBuilder {
     return this;
   }
 
+  withRedirect(redirect) {
+    this.options.redirect = redirect;
+    return this;
+  }
+
   execute() {
     fetch(new Request(this.url, this.options)).then((response) => {
       if (this.callback) {

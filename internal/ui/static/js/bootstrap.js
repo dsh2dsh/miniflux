@@ -88,21 +88,21 @@ document.addEventListener("DOMContentLoaded", () => {
     onClick(":is(a, button)[data-share-status]", handleShare);
     onClick(":is(a, button)[data-action=markPageAsRead]", (event) => handleConfirmationMessage(event.target, markPageAsRead));
     onClick(":is(a, button)[data-toggle-status]", (event) => handleEntryStatus("next", event.target));
-    onClick(":is(a, button)[data-confirm]", (event) => handleConfirmationMessage(event.target, (url, redirectURL) => {
+
+    onClick(":is(a, button)[data-confirm]",
+      (event) => handleConfirmationMessage(event.target, (url, redirectURL) => {
         const request = new RequestBuilder(url);
-
-        request.withCallback((response) => {
-            if (redirectURL) {
-                window.location.href = redirectURL;
-            } else if (response && response.redirected && response.url) {
-                window.location.href = response.url;
-            } else {
-                window.location.reload();
-            }
+        request.withRedirect("manual").withCallback((response) => {
+          if (redirectURL) {
+            window.location.href = redirectURL;
+          } else if (response.type == "opaqueredirect" && response.url) {
+            window.location.href = response.url;
+          } else {
+            window.location.reload();
+          }
         });
-
         request.execute();
-    }));
+      }));
 
     onClick("a[data-original-link='true']", (event) => {
         handleEntryStatus("next", event.target, true);
