@@ -61,6 +61,7 @@ linters:
         - "(net.Conn).Close"
         - "(net.Listener).Close"
         - "(*os.File).Close"
+        - "(io/fs.File).Close"
         - "golang.org/x/term.Restore"
         - "(*github.com/andybalholm/brotli/matchfinder.Writer).Close"
 

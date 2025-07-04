@@ -9,9 +9,14 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/fs"
 	"log/slog"
 	"path"
+	"strconv"
 	"strings"
+
+	"github.com/cespare/xxhash/v2"
 
 	"miniflux.app/v2/internal/crypto"
 )
@@ -60,6 +65,8 @@ func CalculateBinaryFileChecksums(ctx context.Context) error {
 	}
 
 	binaryFileChecksums = make(map[string]string, len(dirEntries))
+	d := xxhash.New()
+
 	for _, dirEntry := range dirEntries {
 		if ctx.Err() != nil {
 			return fmt.Errorf("ui/static: break loop over binary files: %w",
@@ -67,11 +74,19 @@ func CalculateBinaryFileChecksums(ctx context.Context) error {
 		}
 
 		filename := dirEntry.Name()
-		data, err := LoadBinaryFile(filename)
+		f, err := OpenBinaryFile(filename)
 		if err != nil {
 			return err
 		}
-		hashFileName(filename, crypto.HashFromBytes(data))
+		defer f.Close()
+
+		_, err = io.Copy(d, f)
+		if err != nil {
+			return fmt.Errorf("ui/static: copy to digest %q: %w", filename, err)
+		}
+
+		hashFileName(filename, strconv.FormatUint(d.Sum64(), 16))
+		d.Reset()
 	}
 	return nil
 }
@@ -90,18 +105,17 @@ func hashFileName(filename, hash string) string {
 	return hashedName
 }
 
-// LoadBinaryFile loads an embed binary file.
-func LoadBinaryFile(filename string) ([]byte, error) {
+func OpenBinaryFile(filename string) (fs.File, error) {
 	if s, ok := unhashedNames[filename]; ok {
 		filename = s
 	}
 
 	fullName := path.Join(binDir, filename)
-	b, err := binaryFiles.ReadFile(fullName)
+	f, err := binaryFiles.Open(fullName)
 	if err != nil {
-		return nil, fmt.Errorf("ui/static: failed read %q: %w", fullName, err)
+		return nil, fmt.Errorf("ui/static: failed open %q: %w", fullName, err)
 	}
-	return b, nil
+	return f, nil
 }
 
 func BinaryFileName(filename string) string {

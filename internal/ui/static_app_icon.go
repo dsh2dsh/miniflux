@@ -15,13 +15,14 @@ import (
 
 func (h *handler) showBinaryFile(w http.ResponseWriter, r *http.Request) {
 	filename := request.RouteStringParam(r, "filename")
-	blob, err := static.LoadBinaryFile(filename)
+	f, err := static.OpenBinaryFile(filename)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
+	defer f.Close()
 
-	resp := response.New(w, r).WithLongCaching().WithBody(blob)
+	resp := response.New(w, r).WithLongCaching().WithBody(f)
 	switch filepath.Ext(filename) {
 	case ".png":
 		resp.WithoutCompression().

@@ -20,15 +20,16 @@ func (h *handler) showFavicon(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.New(w, r).WithCaching(etag, 48*time.Hour, func(b *response.Builder) {
-		blob, err := static.LoadBinaryFile("favicon.ico")
+		f, err := static.OpenBinaryFile("favicon.ico")
 		if err != nil {
 			html.ServerError(w, r, err)
 			return
 		}
+		defer f.Close()
 
 		b.WithHeader("Content-Type", "image/x-icon")
 		b.WithoutCompression()
-		b.WithBody(blob)
+		b.WithBody(f)
 		b.Write()
 	})
 }
