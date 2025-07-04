@@ -344,13 +344,8 @@ func (self *Refresh) logFeedRefreshed(ctx context.Context,
 		msg = "Feed refreshed"
 		log = log.With(
 			slog.Uint64("size", self.feed.Size()),
-			slog.String("hash", self.feed.HashString()),
-			slog.Int("entries", len(self.feed.Entries)),
-			slog.Int("aged", self.feed.RemovedByAge()),
-			slog.Int("filtered", self.feed.RemovedByFilters()),
-			slog.Int("broken", self.feed.RemovedBroken()),
-			slog.Int("updated", len(refreshed.UpdatedEntires)),
-			slog.Int("created", len(refreshed.CreatedEntries)))
+			slog.String("hash", self.feed.HashString()))
+		log = withEntriesLogAttrs(log, self.feed, refreshed)
 	case refreshed.NotModified == notModifiedHeaders:
 		msg = "Response not modified"
 		log = log.With(
@@ -374,4 +369,37 @@ func (self *Refresh) logFeedRefreshed(ctx context.Context,
 	log.Info(msg,
 		slog.Duration("elapsed", elapsed),
 		slog.String("feed_url", self.feed.FeedURL))
+}
+
+func withEntriesLogAttrs(log *slog.Logger, feed *model.Feed,
+	refreshed *model.FeedRefreshed,
+) *slog.Logger {
+	filteredAttrs := make([]any, 0, 3)
+	if n := feed.RemovedByAge(); n > 0 {
+		filteredAttrs = append(filteredAttrs, slog.Int("age", n))
+	}
+	if n := feed.RemovedByFilters(); n > 0 {
+		filteredAttrs = append(filteredAttrs, slog.Int("rules", n))
+	}
+	if n := feed.RemovedBroken(); n > 0 {
+		filteredAttrs = append(filteredAttrs, slog.Int("seen", n))
+	}
+	if len(filteredAttrs) != 0 {
+		log = log.With(slog.Group("filtered", filteredAttrs...))
+	}
+
+	entriesAttrs := make([]any, 0, 3)
+	if n := len(feed.Entries); n != 0 {
+		entriesAttrs = append(entriesAttrs, slog.Int("all", n))
+	}
+	if n := len(refreshed.UpdatedEntires); n != 0 {
+		entriesAttrs = append(entriesAttrs, slog.Int("update", n))
+	}
+	if n := len(refreshed.CreatedEntries); n != 0 {
+		entriesAttrs = append(entriesAttrs, slog.Int("create", n))
+	}
+	if len(entriesAttrs) != 0 {
+		log = log.With(slog.Group("entries", entriesAttrs...))
+	}
+	return log
 }
