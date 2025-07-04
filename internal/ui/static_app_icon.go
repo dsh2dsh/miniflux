@@ -13,7 +13,7 @@ import (
 	"miniflux.app/v2/internal/ui/static"
 )
 
-func (h *handler) showAppIcon(w http.ResponseWriter, r *http.Request) {
+func (h *handler) showBinaryFile(w http.ResponseWriter, r *http.Request) {
 	filename := request.RouteStringParam(r, "filename")
 	blob, err := static.LoadBinaryFile(filename)
 	if err != nil {

@@ -48,8 +48,8 @@ func (self *funcMap) Map() template.FuncMap {
 		"isEmail":            isEmail,
 		"javascript":         self.javascript,
 		"oidcProviderName":   config.Opts.OIDCProviderName,
+		"routeBinaryFile":    self.routeBinaryFile,
 		"rootURL":            config.Opts.RootURL,
-		"routeAppIcon":       self.routeAppIcon,
 		"stylesheet":         self.stylesheet,
 		"theme_color":        model.ThemeColor,
 		"truncate":           truncate,
@@ -135,7 +135,7 @@ func (self *funcMap) Map() template.FuncMap {
 func (self *funcMap) icon(iconName string) template.HTML {
 	return template.HTML(fmt.Sprintf(
 		`<svg class="icon" aria-hidden="true"><use xlink:href="%s#icon-%s"/></svg>`,
-		self.routeAppIcon("sprite.svg"),
+		self.routeBinaryFile("sprite.svg"),
 		iconName,
 	))
 }
@@ -145,8 +145,8 @@ func (self *funcMap) javascript(name string) string {
 		static.JavascriptNameExt(name))
 }
 
-func (self *funcMap) routeAppIcon(filename string) string {
-	return route.Path(self.router, "appIcon", "filename",
+func (self *funcMap) routeBinaryFile(filename string) string {
+	return route.Path(self.router, "binaryFile", "filename",
 		static.BinaryFileName(filename))
 }
 

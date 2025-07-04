@@ -57,7 +57,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 	m.NameHandleFunc("/css/{name}", handler.showStylesheet, "stylesheet").
 		NameHandleFunc("/js/{name}", handler.showJavascript, "javascript").
 		HandleFunc("/favicon.ico", handler.showFavicon).
-		NameHandleFunc("/icon/{filename}", handler.showAppIcon, "appIcon").
+		NameHandleFunc("/data/{filename}", handler.showBinaryFile, "binaryFile").
 		NameHandleFunc("/manifest.json", handler.showWebManifest, "webManifest")
 
 	// New subscription pages.
