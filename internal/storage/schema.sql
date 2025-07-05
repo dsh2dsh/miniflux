@@ -29,7 +29,7 @@ CREATE TYPE webapp_display_mode AS ENUM (
 );
 
 CREATE TABLE users (
-    id serial NOT NULL PRIMARY KEY,
+    id int GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     username text NOT NULL UNIQUE,
     password text,
     is_admin boolean DEFAULT false,
@@ -67,7 +67,7 @@ CREATE UNIQUE INDEX ON users (openid_connect_id) WHERE (openid_connect_id <> '')
 CREATE INDEX ON users ((extra->'integration'->>'fever_token'));
 
 CREATE TABLE api_keys (
-    id serial NOT NULL PRIMARY KEY,
+    id int GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token text NOT NULL UNIQUE,
     description text NOT NULL,
@@ -77,7 +77,7 @@ CREATE TABLE api_keys (
 );
 
 CREATE TABLE categories (
-    id serial NOT NULL PRIMARY KEY,
+    id int GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title text NOT NULL,
     hide_globally boolean DEFAULT false NOT NULL,
@@ -85,7 +85,7 @@ CREATE TABLE categories (
 );
 
 CREATE TABLE feeds (
-    id bigserial NOT NULL PRIMARY KEY,
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     category_id integer NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
     title text NOT NULL,
@@ -132,7 +132,7 @@ CREATE INDEX ON feeds (next_check_at);
 CREATE INDEX ON feeds (user_id, parsing_error_count);
 
 CREATE TABLE icons (
-    id bigserial NOT NULL PRIMARY KEY,
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     hash text NOT NULL UNIQUE,
     mime_type text NOT NULL,
     content bytea NOT NULL,
@@ -154,7 +154,7 @@ CREATE TYPE entry_status AS ENUM (
 );
 
 CREATE TABLE entries (
-    id bigserial NOT NULL PRIMARY KEY,
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     feed_id bigint NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
     hash text NOT NULL,
