@@ -184,20 +184,20 @@ func TestParsePodcast(t *testing.T) {
 		t.Errorf("Incorrect entry date, got: %v", feed.Entries[0].Date)
 	}
 
-	if len(feed.Entries[0].Enclosures) != 1 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures))
+	if len(feed.Entries[0].Enclosures()) != 1 {
+		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
 	}
 
-	if feed.Entries[0].Enclosures[0].URL != "http://therecord.co/downloads/The-Record-sp1e1-ChrisParrish.m4a" {
-		t.Errorf("Incorrect enclosure URL, got: %s", feed.Entries[0].Enclosures[0].URL)
+	if feed.Entries[0].Enclosures()[0].URL != "http://therecord.co/downloads/The-Record-sp1e1-ChrisParrish.m4a" {
+		t.Errorf("Incorrect enclosure URL, got: %s", feed.Entries[0].Enclosures()[0].URL)
 	}
 
-	if feed.Entries[0].Enclosures[0].MimeType != "audio/x-m4a" {
-		t.Errorf("Incorrect enclosure type, got: %s", feed.Entries[0].Enclosures[0].MimeType)
+	if feed.Entries[0].Enclosures()[0].MimeType != "audio/x-m4a" {
+		t.Errorf("Incorrect enclosure type, got: %s", feed.Entries[0].Enclosures()[0].MimeType)
 	}
 
-	if feed.Entries[0].Enclosures[0].Size != 89970236 {
-		t.Errorf("Incorrect enclosure length, got: %d", feed.Entries[0].Enclosures[0].Size)
+	if feed.Entries[0].Enclosures()[0].Size != 89970236 {
+		t.Errorf("Incorrect enclosure length, got: %d", feed.Entries[0].Enclosures()[0].Size)
 	}
 }
 
@@ -385,8 +385,8 @@ func TestParseItemWithoutAttachmentURL(t *testing.T) {
 		t.Fatalf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
 
-	if len(feed.Entries[0].Enclosures) != 0 {
-		t.Errorf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures))
+	if len(feed.Entries[0].Enclosures()) != 0 {
+		t.Errorf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
 	}
 }
 
@@ -899,12 +899,12 @@ func TestParseFeedWithRelativeAttachmentURL(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(feed.Entries[0].Enclosures) != 1 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures))
+	if len(feed.Entries[0].Enclosures()) != 1 {
+		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
 	}
 
-	if feed.Entries[0].Enclosures[0].URL != "https://example.org/attachment.mp3" {
-		t.Errorf("Incorrect enclosure URL, got: %q", feed.Entries[0].Enclosures[0].URL)
+	if feed.Entries[0].Enclosures()[0].URL != "https://example.org/attachment.mp3" {
+		t.Errorf("Incorrect enclosure URL, got: %q", feed.Entries[0].Enclosures()[0].URL)
 	}
 }
 

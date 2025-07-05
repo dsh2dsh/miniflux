@@ -136,18 +136,23 @@ func (j *JSONAdapter) BuildFeed(baseURL string) *model.Feed {
 		entry.Author = strings.Join(authorNames, ", ")
 
 		// Populate the entry enclosures.
+		enclosures := make(model.EnclosureList, 0, len(item.Attachments))
 		for _, attachment := range item.Attachments {
 			attachmentURL := strings.TrimSpace(attachment.URL)
-			if attachmentURL != "" {
-				if absoluteAttachmentURL, err := urllib.AbsoluteURL(feed.SiteURL, attachmentURL); err == nil {
-					entry.Enclosures = append(entry.Enclosures, &model.Enclosure{
-						URL:      absoluteAttachmentURL,
-						MimeType: attachment.MimeType,
-						Size:     attachment.Size,
-					})
-				}
+			if attachmentURL == "" {
+				continue
+			}
+			absoluteAttachmentURL, err := urllib.AbsoluteURL(feed.SiteURL,
+				attachmentURL)
+			if err == nil {
+				enclosures = append(enclosures, model.Enclosure{
+					URL:      absoluteAttachmentURL,
+					MimeType: attachment.MimeType,
+					Size:     attachment.Size,
+				})
 			}
 		}
+		entry.AppendEnclosures(enclosures)
 
 		// Populate the entry tags.
 		for _, tag := range item.Tags {

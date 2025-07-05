@@ -1216,20 +1216,20 @@ func TestParseEntryWithEnclosures(t *testing.T) {
 		t.Fatalf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
 
-	if len(feed.Entries[0].Enclosures) != 1 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures))
+	if len(feed.Entries[0].Enclosures()) != 1 {
+		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
 	}
 
-	if feed.Entries[0].Enclosures[0].URL != "http://www.example.org/myaudiofile.mp3" {
-		t.Errorf("Incorrect enclosure URL, got: %s", feed.Entries[0].Enclosures[0].URL)
+	if feed.Entries[0].Enclosures()[0].URL != "http://www.example.org/myaudiofile.mp3" {
+		t.Errorf("Incorrect enclosure URL, got: %s", feed.Entries[0].Enclosures()[0].URL)
 	}
 
-	if feed.Entries[0].Enclosures[0].MimeType != "audio/mpeg" {
-		t.Errorf("Incorrect enclosure type, got: %s", feed.Entries[0].Enclosures[0].MimeType)
+	if feed.Entries[0].Enclosures()[0].MimeType != "audio/mpeg" {
+		t.Errorf("Incorrect enclosure type, got: %s", feed.Entries[0].Enclosures()[0].MimeType)
 	}
 
-	if feed.Entries[0].Enclosures[0].Size != 12345 {
-		t.Errorf("Incorrect enclosure length, got: %d", feed.Entries[0].Enclosures[0].Size)
+	if feed.Entries[0].Enclosures()[0].Size != 12345 {
+		t.Errorf("Incorrect enclosure length, got: %d", feed.Entries[0].Enclosures()[0].Size)
 	}
 }
 
@@ -1261,24 +1261,24 @@ func TestParseEntryWithIncorrectEnclosureLength(t *testing.T) {
 		t.Fatalf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
 
-	if len(feed.Entries[0].Enclosures) != 2 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures))
+	if len(feed.Entries[0].Enclosures()) != 2 {
+		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
 	}
 
-	if feed.Entries[0].Enclosures[0].URL != "http://www.example.org/myaudiofile.mp3" {
-		t.Errorf("Incorrect enclosure URL, got: %s", feed.Entries[0].Enclosures[0].URL)
+	if feed.Entries[0].Enclosures()[0].URL != "http://www.example.org/myaudiofile.mp3" {
+		t.Errorf("Incorrect enclosure URL, got: %s", feed.Entries[0].Enclosures()[0].URL)
 	}
 
-	if feed.Entries[0].Enclosures[0].MimeType != "audio/mpeg" {
-		t.Errorf("Incorrect enclosure type, got: %s", feed.Entries[0].Enclosures[0].MimeType)
+	if feed.Entries[0].Enclosures()[0].MimeType != "audio/mpeg" {
+		t.Errorf("Incorrect enclosure type, got: %s", feed.Entries[0].Enclosures()[0].MimeType)
 	}
 
-	if feed.Entries[0].Enclosures[0].Size != 0 {
-		t.Errorf("Incorrect enclosure length, got: %d", feed.Entries[0].Enclosures[0].Size)
+	if feed.Entries[0].Enclosures()[0].Size != 0 {
+		t.Errorf("Incorrect enclosure length, got: %d", feed.Entries[0].Enclosures()[0].Size)
 	}
 
-	if feed.Entries[0].Enclosures[1].Size != 0 {
-		t.Errorf("Incorrect enclosure length, got: %d", feed.Entries[0].Enclosures[0].Size)
+	if feed.Entries[0].Enclosures()[1].Size != 0 {
+		t.Errorf("Incorrect enclosure length, got: %d", feed.Entries[0].Enclosures()[0].Size)
 	}
 }
 
@@ -1306,12 +1306,12 @@ func TestParseEntryWithDuplicatedEnclosureURL(t *testing.T) {
 		t.Fatalf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
 
-	if len(feed.Entries[0].Enclosures) != 1 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures))
+	if len(feed.Entries[0].Enclosures()) != 1 {
+		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
 	}
 
-	if feed.Entries[0].Enclosures[0].URL != "http://www.example.org/myaudiofile.mp3" {
-		t.Errorf("Incorrect enclosure URL, got: %s", feed.Entries[0].Enclosures[0].URL)
+	if feed.Entries[0].Enclosures()[0].URL != "http://www.example.org/myaudiofile.mp3" {
+		t.Errorf("Incorrect enclosure URL, got: %s", feed.Entries[0].Enclosures()[0].URL)
 	}
 }
 
@@ -1342,8 +1342,8 @@ func TestParseEntryWithEmptyEnclosureURL(t *testing.T) {
 		t.Fatalf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
 
-	if len(feed.Entries[0].Enclosures) != 0 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures))
+	if len(feed.Entries[0].Enclosures()) != 0 {
+		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
 	}
 }
 
@@ -1374,12 +1374,12 @@ func TestParseEntryWithRelativeEnclosureURL(t *testing.T) {
 		t.Fatalf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
 
-	if len(feed.Entries[0].Enclosures) != 1 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures))
+	if len(feed.Entries[0].Enclosures()) != 1 {
+		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
 	}
 
-	if feed.Entries[0].Enclosures[0].URL != "http://example.org/files/file.mp3" {
-		t.Errorf("Incorrect enclosure URL, got: %q", feed.Entries[0].Enclosures[0].URL)
+	if feed.Entries[0].Enclosures()[0].URL != "http://example.org/files/file.mp3" {
+		t.Errorf("Incorrect enclosure URL, got: %q", feed.Entries[0].Enclosures()[0].URL)
 	}
 }
 
@@ -1411,20 +1411,20 @@ func TestParseEntryWithFeedBurnerEnclosures(t *testing.T) {
 		t.Fatalf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
 
-	if len(feed.Entries[0].Enclosures) != 1 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures))
+	if len(feed.Entries[0].Enclosures()) != 1 {
+		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
 	}
 
-	if feed.Entries[0].Enclosures[0].URL != "http://example.org/67ca416c-f22a-4228-a681-68fc9998ec10/File.mp3" {
-		t.Errorf("Incorrect enclosure URL, got: %s", feed.Entries[0].Enclosures[0].URL)
+	if feed.Entries[0].Enclosures()[0].URL != "http://example.org/67ca416c-f22a-4228-a681-68fc9998ec10/File.mp3" {
+		t.Errorf("Incorrect enclosure URL, got: %s", feed.Entries[0].Enclosures()[0].URL)
 	}
 
-	if feed.Entries[0].Enclosures[0].MimeType != "audio/mpeg" {
-		t.Errorf("Incorrect enclosure type, got: %s", feed.Entries[0].Enclosures[0].MimeType)
+	if feed.Entries[0].Enclosures()[0].MimeType != "audio/mpeg" {
+		t.Errorf("Incorrect enclosure type, got: %s", feed.Entries[0].Enclosures()[0].MimeType)
 	}
 
-	if feed.Entries[0].Enclosures[0].Size != 76192460 {
-		t.Errorf("Incorrect enclosure length, got: %d", feed.Entries[0].Enclosures[0].Size)
+	if feed.Entries[0].Enclosures()[0].Size != 76192460 {
+		t.Errorf("Incorrect enclosure length, got: %d", feed.Entries[0].Enclosures()[0].Size)
 	}
 }
 
@@ -1455,12 +1455,12 @@ func TestParseEntryWithFeedBurnerEnclosuresAndRelativeURL(t *testing.T) {
 		t.Errorf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
 
-	if len(feed.Entries[0].Enclosures) != 1 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures))
+	if len(feed.Entries[0].Enclosures()) != 1 {
+		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
 	}
 
-	if feed.Entries[0].Enclosures[0].URL != "http://example.org/67ca416c-f22a-4228-a681-68fc9998ec10/File.mp3" {
-		t.Errorf("Incorrect enclosure URL, got: %s", feed.Entries[0].Enclosures[0].URL)
+	if feed.Entries[0].Enclosures()[0].URL != "http://example.org/67ca416c-f22a-4228-a681-68fc9998ec10/File.mp3" {
+		t.Errorf("Incorrect enclosure URL, got: %s", feed.Entries[0].Enclosures()[0].URL)
 	}
 }
 
@@ -1597,8 +1597,8 @@ func TestParseEntryWithMediaGroup(t *testing.T) {
 	if len(feed.Entries) != 1 {
 		t.Errorf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
-	if len(feed.Entries[0].Enclosures) != 6 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures))
+	if len(feed.Entries[0].Enclosures()) != 6 {
+		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
 	}
 
 	expectedResults := []struct {
@@ -1614,7 +1614,7 @@ func TestParseEntryWithMediaGroup(t *testing.T) {
 		{"https://example.org/file5.torrent", "application/x-bittorrent", 42},
 	}
 
-	for index, enclosure := range feed.Entries[0].Enclosures {
+	for index, enclosure := range feed.Entries[0].Enclosures() {
 		if expectedResults[index].url != enclosure.URL {
 			t.Errorf(`Unexpected enclosure URL, got %q instead of %q`, enclosure.URL, expectedResults[index].url)
 		}
@@ -1659,8 +1659,8 @@ func TestParseEntryWithMediaContent(t *testing.T) {
 	if len(feed.Entries) != 1 {
 		t.Fatalf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
-	if len(feed.Entries[0].Enclosures) != 4 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures))
+	if len(feed.Entries[0].Enclosures()) != 4 {
+		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
 	}
 
 	expectedResults := []struct {
@@ -1674,7 +1674,7 @@ func TestParseEntryWithMediaContent(t *testing.T) {
 		{"https://example.org/media2.jpg", "image/*", 0},
 	}
 
-	for index, enclosure := range feed.Entries[0].Enclosures {
+	for index, enclosure := range feed.Entries[0].Enclosures() {
 		if expectedResults[index].url != enclosure.URL {
 			t.Errorf(`Unexpected enclosure URL, got %q instead of %q`, enclosure.URL, expectedResults[index].url)
 		}
@@ -1715,8 +1715,8 @@ func TestParseEntryWithMediaPeerLink(t *testing.T) {
 		t.Fatalf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
 
-	if len(feed.Entries[0].Enclosures) != 2 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures))
+	if len(feed.Entries[0].Enclosures()) != 2 {
+		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
 	}
 
 	expectedResults := []struct {
@@ -1728,7 +1728,7 @@ func TestParseEntryWithMediaPeerLink(t *testing.T) {
 		{"https://website.example.org/file2.torrent", "application/x-bittorrent", 0},
 	}
 
-	for index, enclosure := range feed.Entries[0].Enclosures {
+	for index, enclosure := range feed.Entries[0].Enclosures() {
 		if expectedResults[index].url != enclosure.URL {
 			t.Errorf(`Unexpected enclosure URL, got %q instead of %q`, enclosure.URL, expectedResults[index].url)
 		}

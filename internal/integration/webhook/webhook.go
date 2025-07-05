@@ -52,7 +52,7 @@ func (c *Client) SendSaveEntryWebhookEvent(entry *model.Entry) error {
 			ShareCode:   entry.ShareCode,
 			Starred:     entry.Starred,
 			ReadingTime: entry.ReadingTime,
-			Enclosures:  entry.Enclosures,
+			Enclosures:  entry.Enclosures(),
 			Tags:        entry.Tags,
 			Feed: &WebhookFeed{
 				ID:         entry.Feed.ID,
@@ -92,7 +92,7 @@ func (c *Client) SendNewEntriesWebhookEvent(feed *model.Feed, entries model.Entr
 			ShareCode:   entry.ShareCode,
 			Starred:     entry.Starred,
 			ReadingTime: entry.ReadingTime,
-			Enclosures:  entry.Enclosures,
+			Enclosures:  entry.Enclosures(),
 			Tags:        entry.Tags,
 		}
 	}

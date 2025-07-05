@@ -7,6 +7,7 @@ import (
 	"html"
 	"log/slog"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -73,7 +74,7 @@ func (r *RSSAdapter) BuildFeed(baseURL string) *model.Feed {
 		entry := model.NewEntry()
 		entry.Date = findEntryDate(&item)
 		entry.Content = findEntryContent(&item)
-		entry.Enclosures = findEntryEnclosures(&item, feed.SiteURL)
+		entry.AppendEnclosures(findEntryEnclosures(&item, feed.SiteURL))
 
 		// Populate the entry URL.
 		entryURL := findEntryURL(&item)
@@ -274,7 +275,9 @@ func findEntryEnclosures(rssItem *RSSItem, siteURL string) model.EnclosureList {
 	enclosures := make(model.EnclosureList, 0)
 	duplicates := make(map[string]bool)
 
-	for _, mediaThumbnail := range rssItem.AllMediaThumbnails() {
+	mediaThumbnails := rssItem.AllMediaThumbnails()
+	enclosures = slices.Grow(enclosures, len(mediaThumbnails))
+	for _, mediaThumbnail := range mediaThumbnails {
 		mediaURL := strings.TrimSpace(mediaThumbnail.URL)
 		if mediaURL == "" {
 			continue
@@ -288,7 +291,7 @@ func findEntryEnclosures(rssItem *RSSItem, siteURL string) model.EnclosureList {
 				)
 			} else {
 				duplicates[mediaAbsoluteURL] = true
-				enclosures = append(enclosures, &model.Enclosure{
+				enclosures = append(enclosures, model.Enclosure{
 					URL:      mediaAbsoluteURL,
 					MimeType: mediaThumbnail.MimeType(),
 					Size:     mediaThumbnail.Size(),
@@ -297,6 +300,7 @@ func findEntryEnclosures(rssItem *RSSItem, siteURL string) model.EnclosureList {
 		}
 	}
 
+	enclosures = slices.Grow(enclosures, len(rssItem.Enclosures))
 	for _, enclosure := range rssItem.Enclosures {
 		enclosureURL := enclosure.URL
 
@@ -319,7 +323,7 @@ func findEntryEnclosures(rssItem *RSSItem, siteURL string) model.EnclosureList {
 		if _, found := duplicates[enclosureURL]; !found {
 			duplicates[enclosureURL] = true
 
-			enclosures = append(enclosures, &model.Enclosure{
+			enclosures = append(enclosures, model.Enclosure{
 				URL:      enclosureURL,
 				MimeType: enclosure.Type,
 				Size:     enclosure.Size(),
@@ -327,7 +331,9 @@ func findEntryEnclosures(rssItem *RSSItem, siteURL string) model.EnclosureList {
 		}
 	}
 
-	for _, mediaContent := range rssItem.AllMediaContents() {
+	mediaContents := rssItem.AllMediaContents()
+	enclosures = slices.Grow(enclosures, len(mediaContents))
+	for _, mediaContent := range mediaContents {
 		mediaURL := strings.TrimSpace(mediaContent.URL)
 		if mediaURL == "" {
 			continue
@@ -342,7 +348,7 @@ func findEntryEnclosures(rssItem *RSSItem, siteURL string) model.EnclosureList {
 				)
 			} else {
 				duplicates[mediaAbsoluteURL] = true
-				enclosures = append(enclosures, &model.Enclosure{
+				enclosures = append(enclosures, model.Enclosure{
 					URL:      mediaAbsoluteURL,
 					MimeType: mediaContent.MimeType(),
 					Size:     mediaContent.Size(),
@@ -351,7 +357,9 @@ func findEntryEnclosures(rssItem *RSSItem, siteURL string) model.EnclosureList {
 		}
 	}
 
-	for _, mediaPeerLink := range rssItem.AllMediaPeerLinks() {
+	mediaPeerLinks := rssItem.AllMediaPeerLinks()
+	enclosures = slices.Grow(enclosures, len(mediaPeerLinks))
+	for _, mediaPeerLink := range mediaPeerLinks {
 		mediaURL := strings.TrimSpace(mediaPeerLink.URL)
 		if mediaURL == "" {
 			continue
@@ -366,7 +374,7 @@ func findEntryEnclosures(rssItem *RSSItem, siteURL string) model.EnclosureList {
 				)
 			} else {
 				duplicates[mediaAbsoluteURL] = true
-				enclosures = append(enclosures, &model.Enclosure{
+				enclosures = append(enclosures, model.Enclosure{
 					URL:      mediaAbsoluteURL,
 					MimeType: mediaPeerLink.MimeType(),
 					Size:     mediaPeerLink.Size(),

@@ -159,8 +159,10 @@ func (a *Atom10Adapter) populateEntries(siteURL string) model.Entries {
 
 		// Populate the entry enclosures.
 		uniqueEnclosuresMap := make(map[string]bool)
+		mediaThumbnails := atomEntry.AllMediaThumbnails()
+		enclosures := make(model.EnclosureList, 0, len(mediaThumbnails))
 
-		for _, mediaThumbnail := range atomEntry.AllMediaThumbnails() {
+		for _, mediaThumbnail := range mediaThumbnails {
 			mediaURL := strings.TrimSpace(mediaThumbnail.URL)
 			if mediaURL == "" {
 				continue
@@ -174,7 +176,7 @@ func (a *Atom10Adapter) populateEntries(siteURL string) model.Entries {
 					)
 				} else {
 					uniqueEnclosuresMap[mediaAbsoluteURL] = true
-					entry.Enclosures = append(entry.Enclosures, &model.Enclosure{
+					enclosures = append(enclosures, model.Enclosure{
 						URL:      mediaAbsoluteURL,
 						MimeType: mediaThumbnail.MimeType(),
 						Size:     mediaThumbnail.Size(),
@@ -183,7 +185,9 @@ func (a *Atom10Adapter) populateEntries(siteURL string) model.Entries {
 			}
 		}
 
-		for _, link := range atomEntry.Links.findAllLinksWithRelation("enclosure") {
+		linksWithRelation := atomEntry.Links.findAllLinksWithRelation("enclosure")
+		enclosures = slices.Grow(enclosures, len(linksWithRelation))
+		for _, link := range linksWithRelation {
 			absoluteEnclosureURL, err := urllib.AbsoluteURL(siteURL, link.Href)
 			if err != nil {
 				slog.Debug("Unable to resolve absolute URL for enclosure",
@@ -195,7 +199,7 @@ func (a *Atom10Adapter) populateEntries(siteURL string) model.Entries {
 				if _, found := uniqueEnclosuresMap[absoluteEnclosureURL]; !found {
 					uniqueEnclosuresMap[absoluteEnclosureURL] = true
 					length, _ := strconv.ParseInt(link.Length, 10, 0)
-					entry.Enclosures = append(entry.Enclosures, &model.Enclosure{
+					enclosures = append(enclosures, model.Enclosure{
 						URL:      absoluteEnclosureURL,
 						MimeType: link.Type,
 						Size:     length,
@@ -204,7 +208,9 @@ func (a *Atom10Adapter) populateEntries(siteURL string) model.Entries {
 			}
 		}
 
-		for _, mediaContent := range atomEntry.AllMediaContents() {
+		mediaContents := atomEntry.AllMediaContents()
+		enclosures = slices.Grow(enclosures, len(mediaContents))
+		for _, mediaContent := range mediaContents {
 			mediaURL := strings.TrimSpace(mediaContent.URL)
 			if mediaURL == "" {
 				continue
@@ -218,7 +224,7 @@ func (a *Atom10Adapter) populateEntries(siteURL string) model.Entries {
 			} else {
 				if _, found := uniqueEnclosuresMap[mediaAbsoluteURL]; !found {
 					uniqueEnclosuresMap[mediaAbsoluteURL] = true
-					entry.Enclosures = append(entry.Enclosures, &model.Enclosure{
+					enclosures = append(enclosures, model.Enclosure{
 						URL:      mediaAbsoluteURL,
 						MimeType: mediaContent.MimeType(),
 						Size:     mediaContent.Size(),
@@ -227,7 +233,9 @@ func (a *Atom10Adapter) populateEntries(siteURL string) model.Entries {
 			}
 		}
 
-		for _, mediaPeerLink := range atomEntry.AllMediaPeerLinks() {
+		mediaPeerLinks := atomEntry.AllMediaPeerLinks()
+		enclosures = slices.Grow(enclosures, len(mediaPeerLinks))
+		for _, mediaPeerLink := range mediaPeerLinks {
 			mediaURL := strings.TrimSpace(mediaPeerLink.URL)
 			if mediaURL == "" {
 				continue
@@ -241,7 +249,7 @@ func (a *Atom10Adapter) populateEntries(siteURL string) model.Entries {
 			} else {
 				if _, found := uniqueEnclosuresMap[mediaAbsoluteURL]; !found {
 					uniqueEnclosuresMap[mediaAbsoluteURL] = true
-					entry.Enclosures = append(entry.Enclosures, &model.Enclosure{
+					enclosures = append(enclosures, model.Enclosure{
 						URL:      mediaAbsoluteURL,
 						MimeType: mediaPeerLink.MimeType(),
 						Size:     mediaPeerLink.Size(),
@@ -250,6 +258,7 @@ func (a *Atom10Adapter) populateEntries(siteURL string) model.Entries {
 			}
 		}
 
+		entry.AppendEnclosures(enclosures)
 		entries = append(entries, entry)
 	}
 

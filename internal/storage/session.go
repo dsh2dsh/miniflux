@@ -54,7 +54,7 @@ func (s *Storage) createAppSession(ctx context.Context, sess *model.Session,
 INSERT INTO sessions (id, user_id, data)
               VALUES ($1, $2,      $3)
 RETURNING created_at, updated_at`,
-		sess.ID, sess.UserID, sess.Data).Scan(&sess.CreatedAt, &sess.UpdatedAt)
+		sess.ID, sess.UserID, &sess.Data).Scan(&sess.CreatedAt, &sess.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("storage: create app session: %w", err)
 	}

@@ -88,24 +88,6 @@ UPDATE entries
 	return nil
 }
 
-func (s *Storage) IsNewEntry(ctx context.Context, feedID int64,
-	entryHash string,
-) bool {
-	rows, _ := s.db.Query(ctx,
-		`SELECT EXISTS(SELECT FROM entries WHERE feed_id=$1 AND hash=$2)`,
-		feedID, entryHash)
-
-	result, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[bool])
-	if err != nil {
-		logging.FromContext(ctx).Error("store: unable to check if entry is new",
-			slog.Int64("feed_id", feedID),
-			slog.String("hash", entryHash),
-			slog.Any("error", err))
-		return false
-	}
-	return !result
-}
-
 func (s *Storage) GetReadTime(ctx context.Context, feedID int64,
 	entryHash string,
 ) int {
@@ -249,7 +231,8 @@ UPDATE entries
        tags = $10,
        changed_at = now(),
        published_at = $11,
-       status = $12
+       status = $12,
+       extra = $13
  WHERE user_id = $7 AND feed_id = $8 AND hash = $9
 RETURNING id, status, changed_at`,
 		e.Title,
@@ -262,15 +245,12 @@ RETURNING id, status, changed_at`,
 		removeDuplicates(e.Tags),
 		e.Date,
 		model.EntryStatusUnread,
+		&e.Extra,
 	).Scan(&e.ID, &e.Status, &e.ChangedAt)
 	if err != nil {
 		return fmt.Errorf("storage: update entry %q: %w", e.URL, err)
 	}
-
-	for _, enc := range e.Enclosures {
-		enc.UserID, enc.EntryID = e.UserID, e.ID
-	}
-	return s.updateEnclosures(ctx, tx, e)
+	return nil
 }
 
 func removeDuplicates(items []string) []string {
@@ -324,6 +304,7 @@ func (s *Storage) createEntries(ctx context.Context, tx pgx.Tx,
 			"reading_time",
 			"tags",
 			"changed_at",
+			"extra",
 		},
 		pgx.CopyFromSlice(len(entries), func(i int) ([]any, error) {
 			e := entries[i]
@@ -342,6 +323,7 @@ func (s *Storage) createEntries(ctx context.Context, tx pgx.Tx,
 				e.ReadingTime,
 				removeDuplicates(e.Tags),
 				now,
+				&e.Extra,
 			}, nil
 		}))
 	if err != nil {
@@ -368,19 +350,10 @@ SELECT id, hash, status, created_at, changed_at
 			e.Status = status
 			e.CreatedAt = createdAt
 			e.ChangedAt = changedAt
-			for _, enc := range e.Enclosures {
-				enc.EntryID = e.ID
-				enc.UserID = e.UserID
-			}
 			return nil
 		})
 	if err != nil {
 		return fmt.Errorf("storage: returned entries: %w", err)
-	}
-
-	err = s.createEnclosures(ctx, tx, entries.Enclosures())
-	if err != nil {
-		return err
 	}
 	return nil
 }
@@ -401,8 +374,9 @@ INSERT INTO entries (
   feed_id,
   reading_time,
   tags,
+  extra,
   changed_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now())
 RETURNING id, status, created_at, changed_at`,
 		e.Title,
 		e.Hash,
@@ -414,7 +388,8 @@ RETURNING id, status, created_at, changed_at`,
 		e.UserID,
 		e.FeedID,
 		e.ReadingTime,
-		removeDuplicates(e.Tags))
+		removeDuplicates(e.Tags),
+		&e.Extra)
 
 	created, err := pgx.CollectExactlyOneRow(rows,
 		pgx.RowToStructByNameLax[model.Entry])
@@ -427,11 +402,7 @@ RETURNING id, status, created_at, changed_at`,
 	e.Status = created.Status
 	e.CreatedAt = created.CreatedAt
 	e.ChangedAt = created.ChangedAt
-
-	for _, enc := range e.Enclosures {
-		enc.EntryID, enc.UserID = e.ID, e.UserID
-	}
-	return s.createEnclosures(ctx, tx, e.Enclosures)
+	return nil
 }
 
 // cleanupEntries deletes from the database entries marked as "removed" and not

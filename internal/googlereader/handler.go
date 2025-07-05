@@ -717,7 +717,6 @@ func (h *handler) streamItemContentsHandler(w http.ResponseWriter,
 
 	entries, err := h.store.NewEntryQueryBuilder(user.ID).
 		WithContent().
-		WithEnclosures().
 		WithEntryIDs(itemIDs).
 		WithoutStatus(model.EntryStatusRemoved).
 		WithSorting(model.DefaultSortingOrder, modifiers.SortDirection).
@@ -745,8 +744,8 @@ func (h *handler) streamItemContentsHandler(w http.ResponseWriter,
 
 	items := make([]contentItem, len(entries))
 	for i, entry := range entries {
-		enclosures := make([]contentItemEnclosure, len(entry.Enclosures))
-		for j, enclosure := range entry.Enclosures {
+		enclosures := make([]contentItemEnclosure, len(entry.Enclosures()))
+		for j, enclosure := range entry.Enclosures() {
 			enclosures[j] = contentItemEnclosure{
 				URL:  enclosure.URL,
 				Type: enclosure.MimeType,
@@ -768,7 +767,7 @@ func (h *handler) streamItemContentsHandler(w http.ResponseWriter,
 
 		entry.Content = mediaproxy.RewriteDocumentWithAbsoluteProxyURL(
 			h.router, entry.Content)
-		entry.Enclosures.ProxifyEnclosureURL(h.router)
+		entry.Enclosures().ProxifyEnclosureURL(h.router)
 
 		items[i] = contentItem{
 			ID:            convertEntryIDToLongFormItemID(entry.ID),

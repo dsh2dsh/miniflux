@@ -206,13 +206,13 @@
             {{ with $mediaPlayerEnclosure }}
                 {{ if .IsAudio }}
                     <div class="enclosure-audio" >
-                        <audio controls preload="metadata"
-                            {{ if $.user }}data-last-position="{{ .MediaProgression }}"{{ end }}
-                            {{ if $.user.MediaPlaybackRate }}data-playback-rate="{{ $.user.MediaPlaybackRate }}"{{ end }}
-                            {{ if $.user.MarkReadOnMediaPlayerCompletion }}data-mark-read-on-completion="0.9"{{ end }}
-                            {{ if $.user }}data-save-url="{{ route "saveEnclosureProgression" "enclosureID" .ID }}"{{ end }}
-                            data-enclosure-id="{{ .ID }}"
-                            >
+                        <audio
+                          controls preload="metadata"
+                          {{ if $.user }}data-last-position="{{ .MediaProgression }}"{{ end }}
+                          {{ if $.user.MediaPlaybackRate }}data-playback-rate="{{ $.user.MediaPlaybackRate }}"{{ end }}
+                          {{ if $.user.MarkReadOnMediaPlayerCompletion }}data-mark-read-on-completion="0.9"{{ end }}
+                          {{ if $.user }}data-save-url="{{ route "saveEnclosureProgression" "entryID" .entry.ID "at" .ID }}"{{ end }}
+                          data-enclosure-id="{{ .entry.ID }}-{{ .ID }}">
                             {{ if (and $.user (mustBeProxyfied "audio")) }}
                             <source src="{{ proxyURL .URL }}" type="{{ .Html5MimeType }}">
                             {{ else }}
@@ -223,13 +223,13 @@
                     </div>
                 {{ else if .IsVideo }}
                     <div class="enclosure-video">
-                        <video controls preload="metadata"
-                            {{ if $.user }}data-last-position="{{ .MediaProgression }}"{{ end }}
-                            {{ if $.user.MediaPlaybackRate }}data-playback-rate="{{ $.user.MediaPlaybackRate }}"{{ end }}
-                            {{ if $.user.MarkReadOnMediaPlayerCompletion }}data-mark-read-on-completion="0.9"{{ end }}
-                            {{ if $.user }}data-save-url="{{ route "saveEnclosureProgression" "enclosureID" .ID }}"{{ end }}
-                            data-enclosure-id="{{ .ID }}"
-                            >
+                        <video
+                          controls preload="metadata"
+                          {{ if $.user }}data-last-position="{{ .MediaProgression }}"{{ end }}
+                          {{ if $.user.MediaPlaybackRate }}data-playback-rate="{{ $.user.MediaPlaybackRate }}"{{ end }}
+                          {{ if $.user.MarkReadOnMediaPlayerCompletion }}data-mark-read-on-completion="0.9"{{ end }}
+                          {{ if $.user }}data-save-url="{{ route "saveEnclosureProgression" "entryID" .entry.ID "at" .ID }}"{{ end }}
+                          data-enclosure-id="{{ .entry.ID }}-{{ .ID }}">
                             {{ if (and $.user (mustBeProxyfied "video")) }}
                             <source src="{{ proxyURL .URL }}" type="{{ .Html5MimeType }}">
                             {{ else }}

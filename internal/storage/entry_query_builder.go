@@ -45,17 +45,10 @@ type EntryQueryBuilder struct {
 	limit           int
 	offset          int
 	fetchContent    bool
-	fetchEnclosures bool
 }
 
 func (e *EntryQueryBuilder) WithContent() *EntryQueryBuilder {
 	e.fetchContent = true
-	return e
-}
-
-// WithEnclosures fetches enclosures for each entry.
-func (e *EntryQueryBuilder) WithEnclosures() *EntryQueryBuilder {
-	e.fetchEnclosures = true
 	return e
 }
 
@@ -293,13 +286,7 @@ func (e *EntryQueryBuilder) GetEntry(ctx context.Context,
 	} else if len(entries) != 1 {
 		return nil, nil
 	}
-
-	entry := entries[0]
-	entry.Enclosures, err = e.store.GetEnclosures(ctx, entry.ID)
-	if err != nil {
-		return nil, err
-	}
-	return entry, nil
+	return entries[0], nil
 }
 
 // GetEntries returns a list of entries that match the condition.
@@ -330,6 +317,7 @@ SELECT
   e.created_at,
   e.changed_at,
   e.tags,
+  e.extra,
   f.title as feed_title,
   f.feed_url,
   f.site_url,
@@ -363,9 +351,8 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 	}
 	defer rows.Close()
 
-	var dest []any
+	dest := make([]any, 0, 37)
 	var entries model.Entries
-	var entryIDs []int64
 	var hasCommentsURLTemplate bool
 	entryMap := make(map[int64]*model.Entry)
 
@@ -392,6 +379,7 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 			&entry.CreatedAt,
 			&entry.ChangedAt,
 			&entry.Tags,
+			&entry.Extra,
 			&entry.Feed.Title,
 			&entry.Feed.FeedURL,
 			&entry.Feed.SiteURL,
@@ -446,39 +434,12 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 
 		entries = append(entries, entry)
 		entryMap[entry.ID] = entry
-		entryIDs = append(entryIDs, entry.ID)
-	}
-
-	if e.fetchEnclosures {
-		if err := e.fillEnclosures(ctx, entryIDs, entryMap); err != nil {
-			return nil, err
-		}
 	}
 
 	if hasCommentsURLTemplate {
 		entries.MakeCommentURLs(ctx)
 	}
 	return entries, nil
-}
-
-func (e *EntryQueryBuilder) fillEnclosures(ctx context.Context,
-	entryIDs []int64, entryMap map[int64]*model.Entry,
-) error {
-	if len(entryIDs) == 0 {
-		return nil
-	}
-
-	enclosures, err := e.store.GetEnclosuresForEntries(ctx, entryIDs)
-	if err != nil {
-		return err
-	}
-
-	for entryID, entryEnclosures := range enclosures {
-		if entry, exists := entryMap[entryID]; exists {
-			entry.Enclosures = entryEnclosures
-		}
-	}
-	return nil
 }
 
 // GetEntryIDs returns a list of entry IDs that match the condition.

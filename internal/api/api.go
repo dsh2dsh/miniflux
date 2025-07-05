@@ -67,10 +67,10 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 		HandleFunc("/entries/{entryID}/bookmark", handler.toggleBookmark).
 		HandleFunc("/entries/{entryID}/save", handler.saveEntry).
 		HandleFunc("/entries/{entryID}/fetch-content", handler.fetchContent).
+		HandleFunc("PUT /entries/{entryID}/enclosure/{at}",
+			handler.updateEnclosureAt).
 		HandleFunc("/flush-history", handler.flushHistory).
 		HandleFunc("/icons/{iconID}", handler.getIconByIconID).
-		HandleFunc("GET /enclosures/{enclosureID}", handler.getEnclosureByID).
-		HandleFunc("PUT /enclosures/{enclosureID}", handler.updateEnclosureByID).
 		HandleFunc("/integrations/status", handler.getIntegrationsStatus).
 		HandleFunc("/version", handler.versionHandler).
 		HandleFunc("POST /api-keys", handler.createAPIKey).

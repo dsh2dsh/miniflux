@@ -1072,24 +1072,34 @@ func (self *EndpointTestSuite) TestUpdateEnclosureEndpoint() {
 	self.Require().NoError(err, "Failed to get entries")
 	self.Require().NotNil(result)
 
+	var entry *model.Entry
 	var enclosure *model.Enclosure
-	for _, entry := range result.Entries {
-		if len(entry.Enclosures) > 0 {
-			enclosure = entry.Enclosures[0]
+	at := 1
+	for _, entry = range result.Entries {
+		if len(entry.Enclosures()) > at {
+			enclosure = &entry.Enclosures()[at]
 			break
 		}
 	}
-	self.Require().NotNil(enclosure, "missing enclosure in feed")
+	self.Require().NotNil(entry, "missing enclosure in feed")
 
-	err = self.client.UpdateEnclosure(enclosure.ID,
-		&model.EnclosureUpdateRequest{MediaProgression: 20})
+	enclosure.MediaProgression = 20
+	update := model.EnclosureUpdateRequest{
+		MediaProgression: enclosure.MediaProgression,
+	}
+	err = self.client.UpdateEnclosure(entry.ID, int64(at), &update)
 	self.Require().NoError(err)
 
-	updatedEnclosure, err := self.client.Enclosure(enclosure.ID)
+	entry2, err := self.client.Entry(entry.ID)
 	self.Require().NoError(err)
-	self.Require().NotNil(updatedEnclosure)
-	self.Equal(int64(20), updatedEnclosure.MediaProgression,
+	self.Require().NotNil(entry2)
+	self.Equal(entry.Enclosures(), entry2.Enclosures(),
 		"Failed to update media_progression")
+
+	err = self.client.UpdateEnclosure(entry.ID, int64(len(entry.Enclosures())),
+		&update)
+	self.T().Log(err)
+	self.Require().Error(err)
 }
 
 func (self *EndpointTestSuite) TestGetEnclosureEndpoint() {
@@ -1098,24 +1108,21 @@ func (self *EndpointTestSuite) TestGetEnclosureEndpoint() {
 	self.Require().NoError(err, "Failed to get entries")
 	self.Require().NotNil(result)
 
+	var entry *model.Entry
 	var expectedEnclosure *model.Enclosure
-	for _, entry := range result.Entries {
-		if len(entry.Enclosures) > 0 {
-			expectedEnclosure = entry.Enclosures[0]
+	for _, entry = range result.Entries {
+		if len(entry.Enclosures()) != 0 {
+			expectedEnclosure = &entry.Enclosures()[0]
 			break
 		}
 	}
-	self.Require().NotNil(expectedEnclosure, "missing enclosure in feed")
+	self.Require().NotNil(entry, "missing enclosure in feed")
 
-	enclosure, err := self.client.Enclosure(expectedEnclosure.ID)
+	entry2, err := self.client.Entry(entry.ID)
 	self.Require().NoError(err)
-	self.Require().NotNil(enclosure)
-	self.Equal(expectedEnclosure.ID, enclosure.ID, "Invalid enclosureID")
-
-	_, err = self.client.Enclosure(99999)
-	self.T().Log(err)
-	self.Require().Error(err,
-		"Fetching an inexisting enclosure should raise an error")
+	self.Require().NotNil(entry2)
+	self.Require().NotEmpty(entry2.Enclosures())
+	self.Equal(expectedEnclosure, &entry2.Enclosures()[0])
 }
 
 func (self *EndpointTestSuite) TestGetEntryEndpoints() {

@@ -221,7 +221,7 @@ WHERE id = $29`,
 			user.MediaPlaybackRate,
 			user.BlockFilterEntryRules,
 			user.KeepFilterEntryRules,
-			user.Extra,
+			&user.Extra,
 			user.ID)
 		if err != nil {
 			return fmt.Errorf(`update user: %w`, err)

@@ -14,17 +14,14 @@ import (
 
 // Enclosure represents an attachment.
 type Enclosure struct {
-	ID               int64  `json:"id" db:"id"`
-	UserID           int64  `json:"user_id" db:"user_id"`
-	EntryID          int64  `json:"entry_id" db:"entry_id"`
-	URL              string `json:"url" db:"url"`
-	MimeType         string `json:"mime_type" db:"mime_type"`
-	Size             int64  `json:"size" db:"size"`
-	MediaProgression int64  `json:"media_progression" db:"media_progression"`
+	URL              string `json:"url,omitempty"`
+	MimeType         string `json:"mime_type,omitempty"`
+	Size             int64  `json:"size,omitempty"`
+	MediaProgression int64  `json:"media_progression,omitempty"`
 }
 
 type EnclosureUpdateRequest struct {
-	MediaProgression int64 `json:"media_progression"`
+	MediaProgression int64 `json:"media_progression,omitempty"`
 }
 
 // Html5MimeType will modify the actual MimeType to allow direct playback from HTML5 player for some kind of MimeType
@@ -49,19 +46,21 @@ func (e *Enclosure) IsImage() bool {
 	return strings.HasPrefix(mimeType, "image/") || strings.HasSuffix(mediaURL, ".jpg") || strings.HasSuffix(mediaURL, ".jpeg") || strings.HasSuffix(mediaURL, ".png") || strings.HasSuffix(mediaURL, ".gif")
 }
 
-// EnclosureList represents a list of attachments.
-type EnclosureList []*Enclosure
+func (e *Enclosure) ProxifyEnclosureURL(router *mux.ServeMux) {
+	proxyOption := config.Opts.MediaProxyMode()
 
-// FindMediaPlayerEnclosure returns the first enclosure that can be played by a media player.
-func (el EnclosureList) FindMediaPlayerEnclosure() *Enclosure {
-	for _, enclosure := range el {
-		if enclosure.URL != "" && strings.Contains(enclosure.MimeType, "audio/") || strings.Contains(enclosure.MimeType, "video/") {
-			return enclosure
+	if proxyOption == "all" || proxyOption != "none" && !urllib.IsHTTPS(e.URL) {
+		for _, mediaType := range config.Opts.MediaProxyResourceTypes() {
+			if strings.HasPrefix(e.MimeType, mediaType+"/") {
+				e.URL = mediaproxy.ProxifyAbsoluteURL(router, e.URL)
+				break
+			}
 		}
 	}
-
-	return nil
 }
+
+// EnclosureList represents a list of attachments.
+type EnclosureList []Enclosure
 
 func (el EnclosureList) ContainsAudioOrVideo() bool {
 	for _, enclosure := range el {
@@ -84,48 +83,6 @@ func (el EnclosureList) ProxifyEnclosureURL(router *mux.ServeMux) {
 						break
 					}
 				}
-			}
-		}
-	}
-}
-
-func (el EnclosureList) Uniq() (EnclosureList, map[int64]map[string]*Enclosure) {
-	encList := make([]*Enclosure, 0, len(el))
-	mapped := make(map[int64]map[string]*Enclosure)
-
-	for _, enc := range el {
-		if enc.URL = strings.TrimSpace(enc.URL); enc.URL == "" {
-			continue
-		}
-		if byURL, ok := mapped[enc.EntryID]; ok {
-			if _, seen := byURL[enc.URL]; seen {
-				continue
-			}
-			byURL[enc.URL] = enc
-		} else {
-			mapped[enc.EntryID] = map[string]*Enclosure{enc.URL: enc}
-		}
-		encList = append(encList, enc)
-	}
-	return encList, mapped
-}
-
-func (el EnclosureList) URLs() []string {
-	urls := make([]string, len(el))
-	for i, e := range el {
-		urls[i] = e.URL
-	}
-	return urls
-}
-
-func (e *Enclosure) ProxifyEnclosureURL(router *mux.ServeMux) {
-	proxyOption := config.Opts.MediaProxyMode()
-
-	if proxyOption == "all" || proxyOption != "none" && !urllib.IsHTTPS(e.URL) {
-		for _, mediaType := range config.Opts.MediaProxyResourceTypes() {
-			if strings.HasPrefix(e.MimeType, mediaType+"/") {
-				e.URL = mediaproxy.ProxifyAbsoluteURL(router, e.URL)
-				break
 			}
 		}
 	}

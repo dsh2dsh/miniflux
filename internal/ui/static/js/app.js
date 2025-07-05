@@ -733,7 +733,7 @@ function handlePlayerProgressionSaveAndMarkAsReadOnCompletion(playerElement) {
     ) {
         playerElement.dataset.lastPosition = currentPositionInSeconds.toString();
         const request = new RequestBuilder(playerElement.dataset.saveUrl);
-        request.withBody({ progression: currentPositionInSeconds });
+        request.withBody({ media_progression: currentPositionInSeconds });
         request.execute();
         // Handle the mark as read on completion
         if (markAsReadOnCompletion >= 0 && playerElement.duration > 0) {

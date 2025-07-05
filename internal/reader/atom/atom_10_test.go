@@ -1147,8 +1147,8 @@ func TestParseEntryWithEnclosures(t *testing.T) {
 		t.Errorf("Incorrect entry URL, got: %s", feed.Entries[0].URL)
 	}
 
-	if len(feed.Entries[0].Enclosures) != 2 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures))
+	if len(feed.Entries[0].Enclosures()) != 2 {
+		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
 	}
 
 	expectedResults := []struct {
@@ -1160,7 +1160,7 @@ func TestParseEntryWithEnclosures(t *testing.T) {
 		{"http://www.example.org/myaudiofile.torrent", "application/x-bittorrent", 4567},
 	}
 
-	for index, enclosure := range feed.Entries[0].Enclosures {
+	for index, enclosure := range feed.Entries[0].Enclosures() {
 		if expectedResults[index].url != enclosure.URL {
 			t.Errorf(`Unexpected enclosure URL, got %q instead of %q`, enclosure.URL, expectedResults[index].url)
 		}
@@ -1205,12 +1205,12 @@ func TestParseEntryWithRelativeEnclosureURL(t *testing.T) {
 		t.Fatalf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
 
-	if len(feed.Entries[0].Enclosures) != 1 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures))
+	if len(feed.Entries[0].Enclosures()) != 1 {
+		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
 	}
 
-	if feed.Entries[0].Enclosures[0].URL != "https://example.org/myaudiofile.mp3" {
-		t.Errorf("Incorrect enclosure URL, got: %q", feed.Entries[0].Enclosures[0].URL)
+	if feed.Entries[0].Enclosures()[0].URL != "https://example.org/myaudiofile.mp3" {
+		t.Errorf("Incorrect enclosure URL, got: %q", feed.Entries[0].Enclosures()[0].URL)
 	}
 }
 
@@ -1249,12 +1249,12 @@ func TestParseEntryWithDuplicateEnclosureURL(t *testing.T) {
 		t.Fatalf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
 
-	if len(feed.Entries[0].Enclosures) != 1 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures))
+	if len(feed.Entries[0].Enclosures()) != 1 {
+		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
 	}
 
-	if feed.Entries[0].Enclosures[0].URL != "http://www.example.org/myaudiofile.mp3" {
-		t.Errorf("Incorrect enclosure URL, got: %q", feed.Entries[0].Enclosures[0].URL)
+	if feed.Entries[0].Enclosures()[0].URL != "http://www.example.org/myaudiofile.mp3" {
+		t.Errorf("Incorrect enclosure URL, got: %q", feed.Entries[0].Enclosures()[0].URL)
 	}
 }
 
@@ -1290,8 +1290,8 @@ func TestParseEntryWithoutEnclosureURL(t *testing.T) {
 		t.Errorf("Incorrect entry URL, got: %s", feed.Entries[0].URL)
 	}
 
-	if len(feed.Entries[0].Enclosures) != 0 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures))
+	if len(feed.Entries[0].Enclosures()) != 0 {
+		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
 	}
 }
 
@@ -1486,8 +1486,8 @@ A website: http://example.org/</media:description>
 		t.Fatalf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
 
-	if len(feed.Entries[0].Enclosures) != 4 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures))
+	if len(feed.Entries[0].Enclosures()) != 4 {
+		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
 	}
 
 	expectedResults := []struct {
@@ -1501,7 +1501,7 @@ A website: http://example.org/</media:description>
 		{"https://example.org/v/efg", "application/x-shockwave-flash", 0},
 	}
 
-	for index, enclosure := range feed.Entries[0].Enclosures {
+	for index, enclosure := range feed.Entries[0].Enclosures() {
 		if expectedResults[index].url != enclosure.URL {
 			t.Errorf(`Unexpected enclosure URL, got %q instead of %q`, enclosure.URL, expectedResults[index].url)
 		}
@@ -1553,8 +1553,8 @@ A website: http://example.org/</media:description>
 		t.Fatalf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
 
-	if len(feed.Entries[0].Enclosures) != 5 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures))
+	if len(feed.Entries[0].Enclosures()) != 5 {
+		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
 	}
 
 	expectedResults := []struct {
@@ -1569,7 +1569,7 @@ A website: http://example.org/</media:description>
 		{"https://example.org/sampleFile2.torrent", "application/x-bittorrent", 0},
 	}
 
-	for index, enclosure := range feed.Entries[0].Enclosures {
+	for index, enclosure := range feed.Entries[0].Enclosures() {
 		if expectedResults[index].url != enclosure.URL {
 			t.Errorf(`Unexpected enclosure URL, got %q instead of %q`, enclosure.URL, expectedResults[index].url)
 		}

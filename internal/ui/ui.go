@@ -159,7 +159,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 	m.NameHandleFunc("/entry/status", handler.updateEntriesStatus,
 		"updateEntriesStatus").
 		NameHandleFunc("/entry/save/{entryID}", handler.saveEntry, "saveEntry").
-		NameHandleFunc("/entry/enclosure/{enclosureID}/save-progression",
+		NameHandleFunc("/entry/save-progression/{entryID}/{at}",
 			handler.saveEnclosureProgression, "saveEnclosureProgression").
 		NameHandleFunc("/entry/download/{entryID}",
 			handler.fetchContent, "fetchContent").

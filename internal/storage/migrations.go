@@ -710,4 +710,17 @@ ALTER TABLE entries
       setweight(to_tsvector('simple', left(coalesce(title,   ''), 500000)), 'A') ||
       setweight(to_tsvector('simple', left(coalesce(content, ''), 500000)), 'B')
   ) STORED;`),
+
+	// 120
+	sqlMigration(`
+ALTER TABLE entries ADD COLUMN extra jsonb NOT NULL DEFAULT '{}'::jsonb;
+WITH t AS (
+  SELECT entry_id,
+         jsonb_build_object('enclosures',
+           jsonb_agg(to_jsonb(t) - '{id,user_id,entry_id}'::text[])) AS extra
+   FROM enclosures t
+  GROUP BY t.entry_id
+)
+UPDATE entries e SET extra = t.extra FROM t WHERE t.entry_id = e.id;
+DROP TABLE enclosures;`),
 }

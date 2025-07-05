@@ -38,7 +38,7 @@ func (h *handler) getEntryFromBuilder(w http.ResponseWriter, r *http.Request,
 
 	entry.Content = mediaproxy.RewriteDocumentWithAbsoluteProxyURL(h.router,
 		entry.Content)
-	entry.Enclosures.ProxifyEnclosureURL(h.router)
+	entry.Enclosures().ProxifyEnclosureURL(h.router)
 	json.OK(w, r, entry)
 }
 
@@ -142,8 +142,7 @@ func (h *handler) findEntries(w http.ResponseWriter, r *http.Request, feedID,
 		WithOffset(offset).
 		WithLimit(limit).
 		WithTags(tags).
-		WithContent().
-		WithEnclosures()
+		WithContent()
 
 	if request.HasQueryParam(r, "globally_visible") {
 		globallyVisible := request.QueryBoolParam(r, "globally_visible", true)

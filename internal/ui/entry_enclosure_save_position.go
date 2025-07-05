@@ -4,39 +4,40 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
-	json_parser "encoding/json"
+	stdjson "encoding/json"
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/json"
+	"miniflux.app/v2/internal/model"
+	"miniflux.app/v2/internal/validator"
 )
 
 func (h *handler) saveEnclosureProgression(w http.ResponseWriter,
 	r *http.Request,
 ) {
-	id := request.RouteInt64Param(r, "enclosureID")
-	enclosure, err := h.store.GetEnclosure(r.Context(), id)
+	var data model.EnclosureUpdateRequest
+	if err := stdjson.NewDecoder(r.Body).Decode(&data); err != nil {
+		json.ServerError(w, r, err)
+		return
+	}
+
+	if err := validator.ValidateEnclosureUpdateRequest(&data); err != nil {
+		json.BadRequest(w, r, err)
+		return
+	}
+
+	enclosure := model.Enclosure{MediaProgression: data.MediaProgression}
+	entryID := request.RouteInt64Param(r, "entryID")
+	at := request.RouteInt64Param(r, "at")
+
+	ok, err := h.store.UpdateEnclosureAt(r.Context(), request.UserID(r), entryID,
+		&enclosure, int(at))
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
-	} else if enclosure == nil {
+	} else if !ok {
 		json.NotFound(w, r)
-		return
-	}
-
-	type enclosurePositionSaveRequest struct {
-		Progression int64 `json:"progression"`
-	}
-
-	var postData enclosurePositionSaveRequest
-	if err := json_parser.NewDecoder(r.Body).Decode(&postData); err != nil {
-		json.ServerError(w, r, err)
-		return
-	}
-	enclosure.MediaProgression = postData.Progression
-
-	if err := h.store.UpdateEnclosure(r.Context(), enclosure); err != nil {
-		json.ServerError(w, r, err)
 		return
 	}
 	json.Created(w, r, map[string]string{"message": "saved"})

@@ -3,7 +3,7 @@
 CREATE TABLE schema_version (
     version text NOT NULL
 );
-INSERT INTO schema_version (version) VALUES('119');
+INSERT INTO schema_version (version) VALUES('120');
 
 CREATE TABLE acme_cache (
     key character varying(400) NOT NULL PRIMARY KEY,
@@ -175,6 +175,7 @@ CREATE TABLE entries (
     reading_time integer DEFAULT 0 NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     tags text[] DEFAULT '{}',
+    extra jsonb NOT NULL DEFAULT '{}'::jsonb,
     UNIQUE (feed_id, hash)
 );
 
@@ -191,19 +192,6 @@ CREATE INDEX ON entries (user_id, status, created_at);
 CREATE INDEX ON entries (user_id, status, feed_id);
 CREATE INDEX ON entries (user_id, status);
 CREATE INDEX ON entries (user_id, status, published_at);
-
-CREATE TABLE enclosures (
-    id bigserial NOT NULL PRIMARY KEY,
-    user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    entry_id bigint NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
-    url text NOT NULL,
-    size bigint DEFAULT 0,
-    mime_type text DEFAULT '',
-    media_progression integer DEFAULT 0
-);
-
-CREATE INDEX ON enclosures (entry_id);
-CREATE UNIQUE INDEX ON enclosures (user_id, entry_id, md5(url));
 
 CREATE TABLE sessions (
     id text NOT NULL PRIMARY KEY,

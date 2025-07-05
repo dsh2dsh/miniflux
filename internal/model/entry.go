@@ -28,46 +28,49 @@ const (
 
 // Entry represents a feed item in the system.
 type Entry struct {
-	ID          int64         `json:"id" db:"id"`
-	UserID      int64         `json:"user_id" db:"user_id"`
-	FeedID      int64         `json:"feed_id" db:"feed_id"`
-	Status      string        `json:"status" db:"status"`
-	Hash        string        `json:"hash" db:"hash"`
-	Title       string        `json:"title" db:"title"`
-	URL         string        `json:"url" db:"url"`
-	CommentsURL string        `json:"comments_url" db:"comments_url"`
-	Date        time.Time     `json:"published_at" db:"published_at"`
-	CreatedAt   time.Time     `json:"created_at" db:"created_at"`
-	ChangedAt   time.Time     `json:"changed_at" db:"changed_at"`
-	Content     string        `json:"content" db:"content"`
-	Author      string        `json:"author" db:"author"`
-	ShareCode   string        `json:"share_code" db:"share_code"`
-	Starred     bool          `json:"starred" db:"starred"`
-	ReadingTime int           `json:"reading_time" db:"reading_time"`
-	Enclosures  EnclosureList `json:"enclosures"`
-	Feed        *Feed         `json:"feed,omitempty" db:"feed"`
-	Tags        []string      `json:"tags" db:"tags"`
+	ID          int64      `json:"id" db:"id"`
+	UserID      int64      `json:"user_id" db:"user_id"`
+	FeedID      int64      `json:"feed_id" db:"feed_id"`
+	Status      string     `json:"status" db:"status"`
+	Hash        string     `json:"hash" db:"hash"`
+	Title       string     `json:"title" db:"title"`
+	URL         string     `json:"url" db:"url"`
+	CommentsURL string     `json:"comments_url" db:"comments_url"`
+	Date        time.Time  `json:"published_at" db:"published_at"`
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
+	ChangedAt   time.Time  `json:"changed_at" db:"changed_at"`
+	Content     string     `json:"content" db:"content"`
+	Author      string     `json:"author" db:"author"`
+	ShareCode   string     `json:"share_code" db:"share_code"`
+	Starred     bool       `json:"starred" db:"starred"`
+	ReadingTime int        `json:"reading_time" db:"reading_time"`
+	Feed        *Feed      `json:"feed,omitempty" db:"feed"`
+	Tags        []string   `json:"tags" db:"tags"`
+	Extra       EntryExtra `json:"extra,omitzero" db:"extra"`
 
 	markStored bool
 }
 
-func NewEntry() *Entry {
-	return &Entry{
-		Enclosures: EnclosureList{},
-		Tags:       []string{},
-		Feed:       NewFeed(),
-	}
+type EntryExtra struct {
+	Enclosures EnclosureList `json:"enclosures,omitempty"`
 }
 
-// ShouldMarkAsReadOnView Return whether the entry should be marked as viewed considering all user settings and entry state.
+func NewEntry() *Entry {
+	return &Entry{Tags: []string{}, Feed: NewFeed()}
+}
+
+// ShouldMarkAsReadOnView Return whether the entry should be marked as viewed
+// considering all user settings and entry state.
 func (e *Entry) ShouldMarkAsReadOnView(user *User) bool {
-	// Already read, no need to mark as read again. Removed entries are not marked as read
+	// Already read, no need to mark as read again. Removed entries are not marked
+	// as read
 	if e.Status != EntryStatusUnread {
 		return false
 	}
 
-	// There is an enclosure, markAsRead will happen at enclosure completion time, no need to mark as read on view
-	if user.MarkReadOnMediaPlayerCompletion && e.Enclosures.ContainsAudioOrVideo() {
+	// There is an enclosure, markAsRead will happen at enclosure completion time,
+	// no need to mark as read on view
+	if user.MarkReadOnMediaPlayerCompletion && e.Enclosures().ContainsAudioOrVideo() {
 		return false
 	}
 
@@ -108,19 +111,32 @@ func (e *Entry) SetCommentsURL(rawURL string) (err error) {
 func (e *Entry) MarkStored()  { e.markStored = true }
 func (e *Entry) Stored() bool { return e.markStored }
 
+func (e *Entry) Enclosures() EnclosureList { return e.Extra.Enclosures }
+
+func (e *Entry) AppendEnclosures(encList EnclosureList) {
+	if len(encList) == 0 {
+		return
+	}
+	if e.Extra.Enclosures == nil {
+		e.Extra.Enclosures = encList
+		return
+	}
+	e.Extra.Enclosures = append(e.Extra.Enclosures, encList...)
+}
+
 // Entries represents a list of entries.
 type Entries []*Entry
 
-func (self Entries) Enclosures() []*Enclosure {
+func (self Entries) Enclosures() []Enclosure {
 	size := 0
 	for _, e := range self {
-		size += len(e.Enclosures)
+		size += len(e.Enclosures())
 	}
 
-	encList := make([]*Enclosure, 0, size)
+	encList := make([]Enclosure, 0, size)
 	for _, e := range self {
-		if len(e.Enclosures) > 0 {
-			encList = append(encList, e.Enclosures...)
+		if len(e.Enclosures()) > 0 {
+			encList = append(encList, e.Enclosures()...)
 		}
 	}
 	return encList
