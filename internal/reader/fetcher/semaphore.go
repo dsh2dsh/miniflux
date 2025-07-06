@@ -31,10 +31,10 @@ func NewResponseSemaphore(ctx context.Context, r *RequestBuilder, rawURL string,
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, r.Timeout())
+	reqCtx, cancel := context.WithTimeout(ctx, r.Timeout())
 
 	//nolint:bodyclose // ResponseSemaphore.Close() it
-	resp, err := r.WithContext(ctx).ExecuteRequest(rawURL)
+	resp, err := r.WithContext(reqCtx).ExecuteRequest(rawURL)
 	return &ResponseSemaphore{
 		ResponseHandler: NewResponseHandler(resp, err),
 		release: func() {

@@ -55,18 +55,16 @@ type queueItem struct {
 	*model.Job
 
 	index int
-	begin func()
 	end   func()
 
 	err       error
 	traceStat *storage.TraceStat
 }
 
-func NewItem(job *model.Job, index int, begin, end func()) queueItem {
+func NewItem(job *model.Job, index int, end func()) queueItem {
 	return queueItem{
 		Job:   job,
 		index: index,
-		begin: begin,
 		end:   end,
 	}
 }
@@ -98,16 +96,18 @@ func (self *Pool) Push(ctx context.Context, jobs []model.Job) {
 	log.Info("worker: created a batch of feeds")
 
 	var wg sync.WaitGroup
-	beginJob := func() { wg.Add(1) }
-	items := makeItems(jobs, beginJob, wg.Done)
+	items := makeItems(jobs, wg.Done)
 	startTime := time.Now()
 
 jobsLoop:
 	for i := range items {
+		wg.Add(1)
 		select {
 		case <-self.ctx.Done():
+			wg.Done()
 			break jobsLoop
 		case <-ctx.Done():
+			wg.Done()
 			break jobsLoop
 		case self.queue <- &items[i]:
 		}
@@ -136,10 +136,10 @@ jobsLoop:
 	log.Info("worker: refreshed a batch of feeds")
 }
 
-func makeItems(jobs []model.Job, begin, end func()) []queueItem {
+func makeItems(jobs []model.Job, end func()) []queueItem {
 	items := make([]queueItem, 0, len(jobs))
 	for job := range distributeJobs(jobs) {
-		items = append(items, NewItem(job, len(items), begin, end))
+		items = append(items, NewItem(job, len(items), end))
 	}
 	return items
 }
@@ -194,7 +194,6 @@ forLoop:
 			break forLoop
 		case job := <-self.queue:
 			self.g.Go(func() error {
-				job.begin()
 				self.refreshFeed(job)
 				job.end()
 				return nil
