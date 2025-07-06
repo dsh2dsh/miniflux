@@ -17,6 +17,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 
+	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/version"
 )
 
@@ -150,6 +151,7 @@ type EnvOptions struct {
 	ConnectionsPerSever            int64    `env:"CONNECTIONS_PER_SERVER" validate:"min=0"`
 	RateLimitPerServer             float64  `env:"RATE_LIMIT_PER_SERVER" validate:"min=0"`
 	TrustedProxies                 []string `env:"TRUSTED_PROXIES" validate:"dive,required,ip"`
+	Testing                        bool     `env:"TESTING"`
 }
 
 type Log struct {
@@ -223,6 +225,10 @@ func (o *Options) init() (err error) {
 
 	o.env.HttpClientMaxBodySize *= 1024 * 1024
 	o.env.MediaProxyResourceTypes = uniqStringList(o.env.MediaProxyResourceTypes)
+
+	if o.env.Testing {
+		crypto.CompatHashBefore = time.Unix(0, 0).UTC()
+	}
 
 	o.applyFileStrings()
 	if err = o.applyPrivateKeys(); err != nil {

@@ -152,7 +152,7 @@ func (a *Atom10Adapter) populateEntries(siteURL string) model.Entries {
 		// Generate the entry hash.
 		for _, value := range []string{atomEntry.ID, atomEntry.Links.OriginalLink()} {
 			if value != "" {
-				entry.Hash = crypto.SHA256(value)
+				entry.Hash = crypto.HashFromStringCompat(value, entry.Date)
 				break
 			}
 		}

@@ -74,14 +74,6 @@ func (r *RDFAdapter) BuildFeed(baseURL string) *model.Feed {
 			entry.Content = item.Description
 		}
 
-		// Generate the entry hash.
-		hashValue := itemLink
-		if hashValue == "" {
-			hashValue = item.Title + item.Description // Fallback to the title and description if the link is empty.
-		}
-
-		entry.Hash = crypto.SHA256(hashValue)
-
 		// Populate the entry date.
 		entry.Date = time.Now()
 		if item.DublinCoreDate != "" {
@@ -95,6 +87,14 @@ func (r *RDFAdapter) BuildFeed(baseURL string) *model.Feed {
 				entry.Date = itemDate
 			}
 		}
+
+		// Generate the entry hash.
+		hashValue := itemLink
+		if hashValue == "" {
+			// Fallback to the title and description if the link is empty.
+			hashValue = item.Title + item.Description
+		}
+		entry.Hash = crypto.HashFromStringCompat(hashValue, entry.Date)
 
 		// Populate the entry author.
 		switch {
