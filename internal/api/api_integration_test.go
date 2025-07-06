@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"slices"
 	"strings"
 	"testing"
@@ -651,6 +652,42 @@ func (self *EndpointTestSuite) TestCreateFeedEndpoint() {
 	self.createFeedWith(model.FeedCreationRequest{
 		CategoryID: category.ID,
 	})
+}
+
+func (self *EndpointTestSuite) TestCreateFeedEndpoint_2entries() {
+	feedURL, err := url.Parse(self.cfg.FeedURL)
+	self.Require().NoError(err)
+
+	ref, err := url.Parse("/2entries.xml")
+	self.Require().NoError(err)
+	feedURL = feedURL.ResolveReference(ref)
+
+	self.T().Log(feedURL)
+	feedID := self.createFeedWith(
+		model.FeedCreationRequest{FeedURL: feedURL.String()})
+
+	result, err := self.client.FeedEntries(feedID, nil)
+	self.Require().NoError(err)
+	self.Require().NotNil(result)
+	self.Len(result.Entries, 2)
+}
+
+func (self *EndpointTestSuite) TestCreateFeedEndpoint_2hash() {
+	feedURL, err := url.Parse(self.cfg.FeedURL)
+	self.Require().NoError(err)
+
+	ref, err := url.Parse("/2hash.xml")
+	self.Require().NoError(err)
+	feedURL = feedURL.ResolveReference(ref)
+
+	self.T().Log(feedURL)
+	feedID := self.createFeedWith(
+		model.FeedCreationRequest{FeedURL: feedURL.String()})
+
+	result, err := self.client.FeedEntries(feedID, nil)
+	self.Require().NoError(err)
+	self.Require().NotNil(result)
+	self.Len(result.Entries, 1)
 }
 
 func (self *EndpointTestSuite) TestCannotCreateDuplicatedFeed() {

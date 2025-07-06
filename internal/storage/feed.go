@@ -235,9 +235,9 @@ func (s *Storage) CreateFeed(ctx context.Context, feed *model.Feed) error {
 		return nil
 	}
 
-	for _, entry := range feed.Entries {
-		entry.FeedID = feed.ID
-		entry.UserID = feed.UserID
+	for _, e := range feed.Entries {
+		e.UserID, e.FeedID = feed.UserID, feed.ID
+		e.Status = model.EntryStatusUnread
 	}
 
 	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {

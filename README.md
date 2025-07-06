@@ -235,6 +235,8 @@ This project is an opinionated fork of Miniflux.
 
   This this configuration inactive sessions will be removed after 30 days.
 
+* Naive deduplication of feed entries.
+
 Features
 --------
 

@@ -106,7 +106,7 @@ func (self *Refresh) Refresh(ctx context.Context) error {
 		return err
 	}
 
-	var refreshed model.FeedRefreshed
+	var refreshed *model.FeedRefreshed
 	if self.refreshAnyway(resp) {
 		r, err := self.refreshFeed(logging.WithLogger(ctx, log), resp)
 		if err != nil {
@@ -115,7 +115,7 @@ func (self *Refresh) Refresh(ctx context.Context) error {
 		refreshed = r
 	} else {
 		log.Debug("Feed not modified")
-		refreshed.NotModified = notModifiedHeaders
+		refreshed = &model.FeedRefreshed{NotModified: notModifiedHeaders}
 	}
 
 	if !refreshed.Refreshed {
@@ -131,7 +131,7 @@ func (self *Refresh) Refresh(ctx context.Context) error {
 		return err
 	}
 
-	self.logFeedRefreshed(logging.WithLogger(ctx, log), &refreshed,
+	self.logFeedRefreshed(logging.WithLogger(ctx, log), refreshed,
 		time.Since(startTime))
 	return nil
 }
@@ -219,7 +219,7 @@ func (self *Refresh) respError(ctx context.Context,
 
 func (self *Refresh) refreshFeed(ctx context.Context,
 	resp *fetcher.ResponseSemaphore,
-) (refreshed model.FeedRefreshed, _ error) {
+) (*model.FeedRefreshed, error) {
 	log := logging.FromContext(ctx)
 	log.Debug("Feed modified",
 		slog.String("etag_header", self.feed.EtagHeader),
@@ -230,13 +230,12 @@ func (self *Refresh) refreshFeed(ctx context.Context,
 		log.Warn("Unable to fetch feed body",
 			slog.String("feed_url", self.feed.FeedURL),
 			slog.Any("error", lerr))
-		return refreshed, lerr
+		return nil, lerr
 	}
 	resp.Close()
 
 	if !self.feed.ContentChanged(body) && !self.force {
-		refreshed.NotModified = notModifiedContent
-		return refreshed, nil
+		return &model.FeedRefreshed{NotModified: notModifiedContent}, nil
 	}
 
 	remoteFeed, err := parser.ParseFeed(resp.EffectiveURL(),
@@ -253,7 +252,7 @@ func (self *Refresh) refreshFeed(ctx context.Context,
 		log.Warn("Unable to parse feed body",
 			slog.String("feed_url", self.feed.FeedURL),
 			slog.Any("error", lerr))
-		return refreshed, lerr
+		return nil, lerr
 	}
 
 	// Use the RSS TTL value, or the Cache-Control or Expires HTTP headers if
@@ -281,19 +280,19 @@ func (self *Refresh) refreshFeed(ctx context.Context,
 		self.force)
 	if err != nil {
 		if errors.Is(err, processor.ErrBadFeed) {
-			return refreshed, locale.NewLocalizedErrorWrapper(err,
+			return nil, locale.NewLocalizedErrorWrapper(err,
 				"error.unable_to_parse_feed", err)
 		}
-		return refreshed, err
+		return nil, err
 	}
 
 	// We don't update existing entries when the crawler is enabled (we crawl
 	// only inexisting entries). Unless it is forced to refresh.
 	update := self.force || !self.feed.Crawler
-	refreshed, err = self.store.RefreshFeedEntries(ctx, self.userID, self.feedID,
+	refreshed, err := self.store.RefreshFeedEntries(ctx, self.userID, self.feedID,
 		self.feed.Entries, update)
 	if err != nil {
-		return refreshed, fmt.Errorf("reader/handler: store feed entries: %w", err)
+		return nil, fmt.Errorf("reader/handler: store feed entries: %w", err)
 	}
 
 	self.pushIntegrations(logging.WithLogger(ctx, log), refreshed.CreatedEntries)
@@ -381,14 +380,14 @@ func withEntriesLogAttrs(log *slog.Logger, feed *model.Feed,
 	if n := feed.RemovedByFilters(); n > 0 {
 		filteredAttrs = append(filteredAttrs, slog.Int("rules", n))
 	}
-	if n := feed.RemovedBroken(); n > 0 {
-		filteredAttrs = append(filteredAttrs, slog.Int("seen", n))
+	if n := feed.RemovedByHash(); n > 0 {
+		filteredAttrs = append(filteredAttrs, slog.Int("hash", n))
 	}
 	if len(filteredAttrs) != 0 {
 		log = log.With(slog.Group("filtered", filteredAttrs...))
 	}
 
-	entriesAttrs := make([]any, 0, 3)
+	entriesAttrs := make([]any, 0, 4)
 	if n := len(feed.Entries); n != 0 {
 		entriesAttrs = append(entriesAttrs, slog.Int("all", n))
 	}
@@ -397,6 +396,9 @@ func withEntriesLogAttrs(log *slog.Logger, feed *model.Feed,
 	}
 	if n := len(refreshed.CreatedEntries); n != 0 {
 		entriesAttrs = append(entriesAttrs, slog.Int("create", n))
+	}
+	if n := refreshed.Dedups; n > 0 {
+		entriesAttrs = append(entriesAttrs, slog.Int("dedup", n))
 	}
 	if len(entriesAttrs) != 0 {
 		log = log.With(slog.Group("entries", entriesAttrs...))

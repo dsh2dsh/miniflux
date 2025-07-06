@@ -25,7 +25,7 @@ func (self *uniqEntries) Add(e *model.Entry, log *slog.Logger) bool {
 		return true
 	}
 
-	self.feed.IncRemovedBroken()
+	self.feed.IncRemovedByHash()
 	log.Info(
 		"reader/filter: Block broken entry with the same hash",
 		slog.Group("entry",

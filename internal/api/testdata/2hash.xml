@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/" xml:lang="en-US">
+  <id>tag:github.com,2008:https://github.com/miniflux/v2/releases</id>
+  <link type="text/html" rel="alternate" href="http://127.0.0.1:8000"/>
+  <link type="application/atom+xml" rel="self" href="http://127.0.0.1:8000/releases.atom"/>
+  <title>Release notes from v2</title>
+  <updated>2025-04-23T04:01:50Z</updated>
+  <entry>
+    <id>tag:github.com,2008:Repository/111364256/2.2.8</id>
+    <updated>2025-04-23T04:36:49Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/miniflux/v2/releases/tag/2.2.8"/>
+    <title>Miniflux 2.2.8</title>
+    <content type="html">&lt;ul&gt;
+&lt;li&gt;refactor(js): replace &lt;code&gt;DomHelper&lt;/code&gt; methods with standalone functions&lt;/li&gt;
+&lt;li&gt;refactor: avoid logging twice the feed errors in the background worker&lt;/li&gt;
+&lt;li&gt;fix(api): &lt;code&gt;hide_globally&lt;/code&gt; categories field should be a boolean&lt;/li&gt;
+&lt;li&gt;fix(ui): add missing &lt;code&gt;await&lt;/code&gt; when calling &lt;code&gt;navigator.share()&lt;/code&gt; method&lt;/li&gt;
+&lt;li&gt;fix(ui): replace share link with a form button for better accessibility&lt;/li&gt;
+&lt;li&gt;feat(telegrambot): replace &quot;Go to website&quot; button with &quot;Go to Miniflux&quot;&lt;/li&gt;
+&lt;li&gt;feat(locale): update Polish translation&lt;/li&gt;
+&lt;li&gt;feat(locale): update German translation&lt;/li&gt;
+&lt;li&gt;feat(locale): update Chinese translation&lt;/li&gt;
+&lt;li&gt;feat(config): add &lt;code&gt;SCHEDULER_ROUND_ROBIN_MAX_INTERVAL&lt;/code&gt; option&lt;/li&gt;
+&lt;li&gt;feat(cli): add &lt;code&gt;-reset-feed-next-check-at&lt;/code&gt; argument&lt;/li&gt;
+&lt;li&gt;feat(api): add &lt;code&gt;update_content&lt;/code&gt; query parameter to &lt;code&gt;/entries/{entryID}/fetch-content&lt;/code&gt; endpoint&lt;/li&gt;
+&lt;li&gt;feat: use &lt;code&gt;Cache-Control&lt;/code&gt; max-age and &lt;code&gt;Expires&lt;/code&gt; headers to calculate next check&lt;/li&gt;
+&lt;li&gt;feat: implement proxy URL per feed&lt;/li&gt;
+&lt;li&gt;feat: add proxy rotation functionality&lt;/li&gt;
+&lt;li&gt;ci(linter): replace commitlint with a Python script&lt;/li&gt;
+&lt;li&gt;ci: add documentation issue template&lt;/li&gt;
+&lt;li&gt;build(deps): bump &lt;code&gt;golang.org/x/oauth2&lt;/code&gt; from &lt;code&gt;0.28.0&lt;/code&gt; to &lt;code&gt;0.29.0&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;build(deps): bump &lt;code&gt;golang.org/x/net&lt;/code&gt; from &lt;code&gt;0.38.0&lt;/code&gt; to &lt;code&gt;0.39.0&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;build(deps): bump &lt;code&gt;golang.org/x/image&lt;/code&gt; from &lt;code&gt;0.25.0&lt;/code&gt; to &lt;code&gt;0.26.0&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;build(deps): bump &lt;code&gt;github.com/tdewolff/minify/v2&lt;/code&gt; from &lt;code&gt;2.22.4&lt;/code&gt; to &lt;code&gt;2.23.1&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;build(deps): bump &lt;code&gt;github.com/PuerkitoBio/goquery&lt;/code&gt; from &lt;code&gt;1.10.2&lt;/code&gt; to &lt;code&gt;1.10.3&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;build(deps): bump &lt;code&gt;github.com/prometheus/client_golang&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;build(deps): bump &lt;code&gt;github.com/mattn/go-sqlite3&lt;/code&gt; from &lt;code&gt;1.14.24&lt;/code&gt; to &lt;code&gt;1.14.28&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;build(deps): bump &lt;code&gt;github.com/go-webauthn/webauthn&lt;/code&gt; from &lt;code&gt;0.12.2&lt;/code&gt; to &lt;code&gt;0.12.3&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;build(deps): bump &lt;code&gt;github.com/coreos/go-oidc/v3&lt;/code&gt; from &lt;code&gt;3.13.0&lt;/code&gt; to &lt;code&gt;3.14.1&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;</content>
+    <author>
+      <name>fguillot</name>
+    </author>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/323546?s=60&amp;v=4"/>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Repository/111364256/2.2.8</id>
+    <updated>2025-04-23T04:34:09Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/miniflux/v2/releases/tag/v2.2.8"/>
+    <title>v2.2.8: Miniflux 2.2.8</title>
+    <content type="html">&lt;ul&gt;
+&lt;li&gt;refactor(js): replace &lt;code&gt;DomHelper&lt;/code&gt; methods with standalone functions&lt;/li&gt;
+&lt;li&gt;refactor: avoid logging twice the feed errors in the background worker&lt;/li&gt;
+&lt;li&gt;fix(api): &lt;code&gt;hide_globally&lt;/code&gt; categories field should be a boolean&lt;/li&gt;
+&lt;li&gt;fix(ui): add missing &lt;code&gt;await&lt;/code&gt; when calling &lt;code&gt;navigator.share()&lt;/code&gt; method&lt;/li&gt;
+&lt;li&gt;fix(ui): replace share link with a form button for better accessibility&lt;/li&gt;
+&lt;li&gt;feat(telegrambot): replace &quot;Go to website&quot; button with &quot;Go to Miniflux&quot;&lt;/li&gt;
+&lt;li&gt;feat(locale): update Polish translation&lt;/li&gt;
+&lt;li&gt;feat(locale): update German translation&lt;/li&gt;
+&lt;li&gt;feat(locale): update Chinese translation&lt;/li&gt;
+&lt;li&gt;feat(config): add &lt;code&gt;SCHEDULER_ROUND_ROBIN_MAX_INTERVAL&lt;/code&gt; option&lt;/li&gt;
+&lt;li&gt;feat(cli): add &lt;code&gt;-reset-feed-next-check-at&lt;/code&gt; argument&lt;/li&gt;
+&lt;li&gt;feat(api): add &lt;code&gt;update_content&lt;/code&gt; query parameter to &lt;code&gt;/entries/{entryID}/fetch-content&lt;/code&gt; endpoint&lt;/li&gt;
+&lt;li&gt;feat: use &lt;code&gt;Cache-Control&lt;/code&gt; max-age and &lt;code&gt;Expires&lt;/code&gt; headers to calculate next check&lt;/li&gt;
+&lt;li&gt;feat: implement proxy URL per feed&lt;/li&gt;
+&lt;li&gt;feat: add proxy rotation functionality&lt;/li&gt;
+&lt;li&gt;ci(linter): replace commitlint with a Python script&lt;/li&gt;
+&lt;li&gt;ci: add documentation issue template&lt;/li&gt;
+&lt;li&gt;build(deps): bump &lt;code&gt;golang.org/x/oauth2&lt;/code&gt; from &lt;code&gt;0.28.0&lt;/code&gt; to &lt;code&gt;0.29.0&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;build(deps): bump &lt;code&gt;golang.org/x/net&lt;/code&gt; from &lt;code&gt;0.38.0&lt;/code&gt; to &lt;code&gt;0.39.0&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;build(deps): bump &lt;code&gt;golang.org/x/image&lt;/code&gt; from &lt;code&gt;0.25.0&lt;/code&gt; to &lt;code&gt;0.26.0&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;build(deps): bump &lt;code&gt;github.com/tdewolff/minify/v2&lt;/code&gt; from &lt;code&gt;2.22.4&lt;/code&gt; to &lt;code&gt;2.23.1&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;build(deps): bump &lt;code&gt;github.com/PuerkitoBio/goquery&lt;/code&gt; from &lt;code&gt;1.10.2&lt;/code&gt; to &lt;code&gt;1.10.3&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;build(deps): bump &lt;code&gt;github.com/prometheus/client_golang&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;build(deps): bump &lt;code&gt;github.com/mattn/go-sqlite3&lt;/code&gt; from &lt;code&gt;1.14.24&lt;/code&gt; to &lt;code&gt;1.14.28&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;build(deps): bump &lt;code&gt;github.com/go-webauthn/webauthn&lt;/code&gt; from &lt;code&gt;0.12.2&lt;/code&gt; to &lt;code&gt;0.12.3&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;build(deps): bump &lt;code&gt;github.com/coreos/go-oidc/v3&lt;/code&gt; from &lt;code&gt;3.13.0&lt;/code&gt; to &lt;code&gt;3.14.1&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;</content>
+    <author>
+      <name>fguillot</name>
+    </author>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/323546?s=60&amp;v=4"/>
+  </entry>
+</feed>

@@ -79,7 +79,7 @@ type Feed struct {
 
 	removedByAge     int
 	removedByFilters int
-	removedBroken    int
+	removedByHash    int
 }
 
 type FeedExtra struct {
@@ -196,8 +196,8 @@ func (f *Feed) RemovedByAge() int { return f.removedByAge }
 func (f *Feed) IncRemovedByFilters()  { f.removedByFilters++ }
 func (f *Feed) RemovedByFilters() int { return f.removedByFilters }
 
-func (f *Feed) IncRemovedBroken()  { f.removedBroken++ }
-func (f *Feed) RemovedBroken() int { return f.removedBroken }
+func (f *Feed) IncRemovedByHash()  { f.removedByHash++ }
+func (f *Feed) RemovedByHash() int { return f.removedByHash }
 
 // FeedCreationRequest represents the request to create a feed.
 type FeedCreationRequest struct {
@@ -364,6 +364,7 @@ type Feeds []*Feed
 type FeedRefreshed struct {
 	CreatedEntries Entries
 	UpdatedEntires Entries
+	Dedups         int
 
 	Refreshed   bool
 	NotModified int
