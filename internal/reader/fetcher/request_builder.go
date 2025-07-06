@@ -45,6 +45,10 @@ func NewRequestBuilder() *RequestBuilder {
 	}
 }
 
+func (r *RequestBuilder) Timeout() time.Duration {
+	return time.Duration(r.clientTimeout) * time.Second
+}
+
 func (r *RequestBuilder) WithContext(ctx context.Context) *RequestBuilder {
 	r.ctx = ctx
 	return r
@@ -196,9 +200,7 @@ func (r *RequestBuilder) ExecuteRequest(requestURL string) (*http.Response, erro
 		clientProxyURLRedacted = clientProxyURL.Redacted()
 	}
 
-	client := &http.Client{
-		Timeout: time.Duration(r.clientTimeout) * time.Second,
-	}
+	client := &http.Client{Timeout: r.Timeout()}
 
 	if r.withoutRedirects {
 		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
