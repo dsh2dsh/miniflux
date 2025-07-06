@@ -216,7 +216,7 @@ func (s *Storage) publishedEntryHashes(ctx context.Context, tx pgx.Tx,
 	rows, _ := tx.Query(ctx, `
 SELECT feed_id, status, hash, published_at
   FROM entries
- WHERE hash = ANY($2)`, hashes)
+ WHERE hash = ANY($1)`, hashes)
 
 	entries, err := pgx.CollectRows(rows, pgx.RowToStructByName[publishedEntry])
 	if errors.Is(err, pgx.ErrNoRows) {
