@@ -521,7 +521,7 @@ func TestParseEntryWithoutLink(t *testing.T) {
 		t.Errorf("Incorrect entry link, got: %s", feed.Entries[0].URL)
 	}
 
-	if feed.Entries[0].Hash != "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4" {
+	if feed.Entries[0].Hash != "d8316e61d84f6ba4" {
 		t.Errorf("Incorrect entry hash, got: %s", feed.Entries[0].Hash)
 	}
 }
@@ -550,7 +550,7 @@ func TestParseEntryWithoutLinkAndWithoutGUID(t *testing.T) {
 		t.Errorf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
 
-	if feed.Entries[0].Hash != "c5ddfeffb275254140796b8c080f372d65ebb1b0590e238b191f595d5fcd32ca" {
+	if feed.Entries[0].Hash != "9368225b3177b0d5" {
 		t.Errorf("Incorrect entry hash, got: %s", feed.Entries[0].Hash)
 	}
 

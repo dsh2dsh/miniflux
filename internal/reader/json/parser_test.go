@@ -61,7 +61,7 @@ func TestParseJsonFeedVersion1(t *testing.T) {
 		t.Errorf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
 
-	if feed.Entries[0].Hash != "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35" {
+	if feed.Entries[0].Hash != "6021b5621680598b" {
 		t.Errorf("Incorrect entry hash, got: %s", feed.Entries[0].Hash)
 	}
 
@@ -77,7 +77,7 @@ func TestParseJsonFeedVersion1(t *testing.T) {
 		t.Errorf("Incorrect entry content, got: %s", feed.Entries[0].Content)
 	}
 
-	if feed.Entries[1].Hash != "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b" {
+	if feed.Entries[1].Hash != "b7b41276360564d4" {
 		t.Errorf("Incorrect entry hash, got: %s", feed.Entries[1].Hash)
 	}
 
@@ -764,7 +764,7 @@ func TestParseItemWithoutID(t *testing.T) {
 		t.Errorf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
 
-	if feed.Entries[0].Hash != "13b4c5aecd1b6d749afcee968fbf9c80f1ed1bbdbe1aaf25cb34ebd01144bbe9" {
+	if feed.Entries[0].Hash != "67395394917896a4" {
 		t.Errorf("Incorrect entry hash, got: %s", feed.Entries[0].Hash)
 	}
 }

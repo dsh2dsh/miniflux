@@ -99,8 +99,8 @@ func TestParseRDFSample(t *testing.T) {
 		t.Errorf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
 
-	if feed.Entries[1].Hash != "8aaeee5d3ab50351422fbded41078ee88c73bf1441085b16a8c09fd90a7db321" {
-		t.Errorf("Incorrect entry hash, got: %s", feed.Entries[0].Hash)
+	if feed.Entries[1].Hash != "cfbec46c9bda7485" {
+		t.Errorf("Incorrect entry hash, got: %s", feed.Entries[1].Hash)
 	}
 
 	if feed.Entries[1].URL != "http://xml.com/pub/2000/08/09/rdfdb/index.html" {
@@ -210,7 +210,7 @@ func TestParseRDFSampleWithDublinCore(t *testing.T) {
 		t.Errorf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
 
-	if feed.Entries[0].Hash != "fa4ef7c300b175ca66f92f226b5dba5caa2a9619f031101bf56e5b884b02cd97" {
+	if feed.Entries[0].Hash != "9118fadd3c4c9bf0" {
 		t.Errorf("Incorrect entry hash, got: %s", feed.Entries[0].Hash)
 	}
 
@@ -369,7 +369,7 @@ func TestParseItemWithoutLink(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if feed.Entries[0].Hash != "37f5223ebd58639aa62a49afbb61df960efb7dc5db5181dfb3cedd9a49ad34c6" {
+	if feed.Entries[0].Hash != "fec5e5a89e4823f5" {
 		t.Errorf("Incorrect entry hash, got: %s", feed.Entries[0].Hash)
 	}
 
