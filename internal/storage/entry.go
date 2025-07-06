@@ -120,7 +120,8 @@ func (s *Storage) RefreshFeedEntries(ctx context.Context, userID, feedID int64,
 	var refreshed *model.FeedRefreshed
 	if len(entries) > 0 {
 		err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-			r, err := s.refreshEntries(ctx, tx, hashes, entries, updateExisting)
+			r, err := s.refreshEntries(ctx, tx, feedID, hashes, entries,
+				updateExisting)
 			if err != nil {
 				return err
 			}
@@ -139,10 +140,10 @@ func (s *Storage) RefreshFeedEntries(ctx context.Context, userID, feedID int64,
 	return refreshed, nil
 }
 
-func (s *Storage) refreshEntries(ctx context.Context, tx pgx.Tx,
+func (s *Storage) refreshEntries(ctx context.Context, tx pgx.Tx, feedID int64,
 	hashes []string, entries model.Entries, update bool,
 ) (*model.FeedRefreshed, error) {
-	refreshed, err := s.knownEntries(ctx, tx, hashes, entries)
+	refreshed, err := s.knownEntries(ctx, tx, feedID, hashes, entries)
 	if err != nil {
 		return nil, err
 	}
@@ -161,8 +162,8 @@ func (s *Storage) refreshEntries(ctx context.Context, tx pgx.Tx,
 	return refreshed, s.createEntries(ctx, tx, refreshed.CreatedEntries)
 }
 
-func (s *Storage) knownEntries(ctx context.Context, tx pgx.Tx, hashes []string,
-	entries []*model.Entry,
+func (s *Storage) knownEntries(ctx context.Context, tx pgx.Tx, feedID int64,
+	hashes []string, entries []*model.Entry,
 ) (*model.FeedRefreshed, error) {
 	published, err := s.publishedEntryHashes(ctx, tx, hashes)
 	if err != nil {
@@ -174,7 +175,9 @@ func (s *Storage) knownEntries(ctx context.Context, tx pgx.Tx, hashes []string,
 	byHash := make(map[string]*publishedEntry, len(published))
 	for i := range published {
 		e := &published[i]
-		byHash[e.Hash] = e
+		if _, ok := byHash[e.Hash]; !ok || e.FeedID == feedID {
+			byHash[e.Hash] = e
+		}
 	}
 
 	refreshed := &model.FeedRefreshed{}
@@ -186,13 +189,17 @@ func (s *Storage) knownEntries(ctx context.Context, tx pgx.Tx, hashes []string,
 		case !ok:
 			e.Status = model.EntryStatusUnread
 			newEntries = append(newEntries, e)
+		case e.FeedID != stored.FeedID:
+			if e.Date.After(stored.Date) {
+				e.Status = model.EntryStatusUnread
+			} else {
+				e.Status = model.EntryStatusRead
+				refreshed.Dedups++
+			}
+			newEntries = append(newEntries, e)
 		case e.Date.After(stored.Date):
 			e.Status = model.EntryStatusUnread
 			updatedEntries = append(updatedEntries, e)
-		case e.FeedID != stored.FeedID:
-			e.Status = model.EntryStatusRead
-			newEntries = append(newEntries, e)
-			refreshed.Dedups++
 		default:
 			e.Status = stored.Status
 		}

@@ -112,6 +112,8 @@ jobsLoop:
 		case self.queue <- &items[i]:
 		}
 	}
+
+	log.Info("worker: waiting for batch completion")
 	wg.Wait()
 
 	traceStat := sumTraceStats(items)
