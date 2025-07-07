@@ -120,12 +120,11 @@ jobsLoop:
 		return
 	case ctx.Err() != nil:
 		log.Info("worker:  batch canceled by request",
-			slog.Any("reason", context.Cause(self.ctx)))
+			slog.Any("reason", context.Cause(ctx)))
 		return
 	}
 
-	log.Info("worker: waiting for batch completion",
-		slog.Int("items", len(items)))
+	log.Info("worker: waiting for batch completion")
 	wg.Wait()
 
 	traceStat := sumTraceStats(items)
@@ -242,7 +241,7 @@ func (self *Pool) refreshFeed(job *queueItem) error {
 	log = log.With(
 		slog.Int64("user_id", job.UserID),
 		slog.Int64("feed_id", job.FeedID))
-	log.Info("worker: job received")
+	log.Debug("worker: job received")
 
 	startTime := time.Now()
 	err := handler.RefreshFeed(ctx, self.store, job.UserID, job.FeedID, false)

@@ -116,7 +116,7 @@ func (self *Refresh) Refresh(ctx context.Context) error {
 		log.Debug("Feed not modified")
 		refreshed = &model.FeedRefreshed{NotModified: notModifiedHeaders}
 	}
-	log.Info("Feed refreshed")
+	log.Debug("feed refreshing completed")
 
 	if !refreshed.Refreshed {
 		// Last-Modified may be updated even if ETag is not. In this case, per
@@ -229,15 +229,12 @@ func (self *Refresh) refreshFeed(ctx context.Context,
 			slog.Any("error", lerr))
 		return nil, lerr
 	}
-	log.Info("Read feed body", slog.Int("size", len(body)))
 	resp.Close()
-	log.Info("Feed body closed")
 
 	if !self.feed.ContentChanged(body) && !self.force {
 		return &model.FeedRefreshed{NotModified: notModifiedContent}, nil
 	}
 
-	log.Info("Parse feed")
 	remoteFeed, err := parser.ParseFeed(resp.EffectiveURL(),
 		bytes.NewReader(body))
 	if err != nil {
