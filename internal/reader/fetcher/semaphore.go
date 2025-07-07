@@ -158,38 +158,38 @@ func (self *limitHosts) Acquire(ctx context.Context, hostname string) error {
 		slog.Int64("connections", s.connections),
 		slog.Float64("rate", s.rateLimit))
 
-	connWait := func() error {
-		log.Info("max connections limit reached")
-		if err := s.Acquire(ctx); err != nil {
+	rateWait := func() error {
+		log.Info("max rate limit reached")
+		if err := s.WaitRate(ctx); err != nil {
 			return fmt.Errorf("reader/fetcher: host %q: %w", hostname, err)
 		}
 		log.Info("acquired rate limited connection semaphore")
 		return nil
 	}
 
-	if s.AllowRate() {
-		if s.connections == 0 {
-			if s.rateLimit > 0 {
-				log.Debug("allowed rate limited connection semaphore")
+	if s.TryAcquire() {
+		if s.rateLimit == 0 {
+			if s.connections > 0 {
+				log.Debug("try acquired rate limited connection semaphore")
 			}
 			return nil
 		}
-		if s.TryAcquire() {
-			log.Debug("try acquired rate limited connection semaphore")
+		if s.AllowRate() {
+			log.Debug("allowed rate limited connection semaphore")
 			return nil
 		}
-		return connWait()
+		return rateWait()
 	}
 
-	log.Info("max rate limit reached")
-	if err := s.WaitRate(ctx); err != nil {
+	log.Info("max connections limit reached")
+	if err := s.Acquire(ctx); err != nil {
 		return fmt.Errorf("reader/fetcher: host %q: %w", hostname, err)
 	}
 
-	if s.connections == 0 {
+	if s.rateLimit == 0 {
 		return nil
 	}
-	return connWait()
+	return rateWait()
 }
 
 func (self *limitHosts) Release(hostname string) {
