@@ -46,6 +46,7 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 		log.Debug("all entries deleted, nothing left")
 		return nil
 	}
+	log.Debug("process filtered entries", slog.Int("entries", len(feed.Entries)))
 
 	// process older entries first
 	slices.Reverse(feed.Entries)
