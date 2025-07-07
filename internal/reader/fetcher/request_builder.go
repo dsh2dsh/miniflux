@@ -165,7 +165,8 @@ func (r *RequestBuilder) ExecuteRequest(requestURL string) (*http.Response,
 		proxyURLRedacted = proxyURL.Redacted()
 	}
 
-	logging.FromContext(r.Context()).Info("Making outgoing request",
+	log := logging.FromContext(r.Context())
+	log.Info("Making outgoing request",
 		slog.Bool("customized", r.customizedClient),
 		slog.String("method", req.Method),
 		slog.String("url", req.URL.String()),
@@ -176,10 +177,21 @@ func (r *RequestBuilder) ExecuteRequest(requestURL string) (*http.Response,
 		slog.Bool("ignore_tls_errors", r.ignoreTLSErrors),
 		slog.Bool("disable_http2", r.disableHTTP2))
 
+	start := time.Now()
 	resp, err := r.client(proxyURL).Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("reader/fetcher: do http request: %w", err)
 	}
+
+	log.Info("Got response",
+		slog.Int("status_code", resp.StatusCode),
+		slog.String("status", resp.Status),
+		slog.Int64("content_length", resp.ContentLength),
+		slog.Any("transfer_encoding", resp.TransferEncoding),
+		slog.Bool("close", resp.Close),
+		slog.Bool("uncompressed", resp.Uncompressed),
+		slog.Duration("request_time", time.Since(start)),
+	)
 	return resp, nil
 }
 
