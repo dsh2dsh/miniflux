@@ -718,6 +718,10 @@ func (s *Storage) UnshareEntry(ctx context.Context, userID, entryID int64,
 func (s *Storage) KnownEntryHashes(ctx context.Context, feedID int64,
 	hashes []string,
 ) ([]string, error) {
+	if len(hashes) == 0 {
+		return nil, nil
+	}
+
 	rows, _ := s.db.Query(ctx,
 		`SELECT hash FROM entries WHERE feed_id = $1 AND hash = ANY($2)`,
 		feedID, hashes)

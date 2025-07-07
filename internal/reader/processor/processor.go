@@ -42,7 +42,11 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 
 	if err := filter.DeleteEntries(ctx, user, feed); err != nil {
 		return fmt.Errorf("%w: delete filtered entries: %w", ErrBadFeed, err)
+	} else if len(feed.Entries) == 0 {
+		log.Debug("all entries deleted, nothing left")
+		return nil
 	}
+
 	// process older entries first
 	slices.Reverse(feed.Entries)
 
@@ -111,6 +115,10 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 func markStoredEntries(ctx context.Context, store *storage.Storage,
 	feed *model.Feed,
 ) error {
+	if len(feed.Entries) == 0 {
+		return nil
+	}
+
 	entries := make(map[string]*model.Entry, len(feed.Entries))
 	hashes := make([]string, len(feed.Entries))
 	for i, e := range feed.Entries {
