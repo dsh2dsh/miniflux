@@ -774,15 +774,23 @@ func (self *EndpointTestSuite) TestUpdateFeedEndpoint() {
 
 func (self *EndpointTestSuite) TestCannotHaveDuplicateFeedWhenUpdatingFeed() {
 	self.createFeed()
+
+	feedURL, err := url.Parse(self.cfg.FeedURL)
+	self.Require().NoError(err)
+	ref, err := url.Parse("/2entries.xml")
+	self.Require().NoError(err)
+	feedURL = feedURL.ResolveReference(ref)
+
+	self.T().Log(feedURL)
 	feedID := self.createFeedWith(model.FeedCreationRequest{
-		FeedURL: "https://github.com/miniflux/v2/commits.atom",
+		FeedURL: feedURL.String(),
 	})
 
 	feedModify := model.FeedModificationRequest{
 		FeedURL: model.SetOptionalField(self.cfg.FeedURL),
 	}
 
-	_, err := self.client.UpdateFeed(feedID, &feedModify)
+	_, err = self.client.UpdateFeed(feedID, &feedModify)
 	self.T().Log(err)
 	self.Require().Error(err, "Duplicated feeds should not be allowed")
 }

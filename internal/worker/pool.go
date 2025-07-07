@@ -96,21 +96,30 @@ func (self *Pool) Push(ctx context.Context, jobs []model.Job) {
 	log.Info("worker: created a batch of feeds")
 
 	var wg sync.WaitGroup
+	wg.Add(len(jobs))
 	items := makeItems(jobs, wg.Done)
 	startTime := time.Now()
 
 jobsLoop:
 	for i := range items {
-		wg.Add(1)
 		select {
 		case <-self.ctx.Done():
-			wg.Done()
 			break jobsLoop
 		case <-ctx.Done():
-			wg.Done()
 			break jobsLoop
 		case self.queue <- &items[i]:
 		}
+	}
+
+	switch {
+	case self.ctx.Err() != nil:
+		log.Info("worker: batch cancelled by daemon",
+			slog.Any("reason", context.Cause(self.ctx)))
+		return
+	case ctx.Err() != nil:
+		log.Info("worker:  batch cancelled by request",
+			slog.Any("reason", context.Cause(self.ctx)))
+		return
 	}
 
 	log.Info("worker: waiting for batch completion")
@@ -194,8 +203,14 @@ forLoop:
 			break forLoop
 		case job := <-self.queue:
 			self.g.Go(func() error {
-				self.refreshFeed(job)
+				err := self.refreshFeed(job)
 				job.end()
+				log = log.With(slog.Int("job", job.index))
+				if err != nil {
+					log.Info("worker: job completed with error", slog.Any("error", err))
+				} else {
+					log.Info("worker: job completed")
+				}
 				return nil
 			})
 		}
@@ -212,7 +227,7 @@ forLoop:
 	return nil
 }
 
-func (self *Pool) refreshFeed(job *queueItem) {
+func (self *Pool) refreshFeed(job *queueItem) error {
 	log := logging.FromContext(self.ctx).With(slog.Int("job", job.index))
 	ctx := storage.WithTraceStat(logging.WithLogger(self.ctx, log))
 
@@ -241,6 +256,7 @@ func (self *Pool) refreshFeed(job *queueItem) {
 	if t := storage.TraceStatFrom(ctx); t != nil {
 		job.traceStat = t
 	}
+	return err
 }
 
 func sumTraceStats(items []queueItem) storage.TraceStat {

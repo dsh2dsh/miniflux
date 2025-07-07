@@ -236,6 +236,7 @@ func (r *RequestBuilder) transport(proxyURL *url.URL) http.RoundTripper {
 		Proxy:                 http.ProxyFromEnvironment,
 		DialContext:           dialer.DialContext,
 		TLSClientConfig:       r.tlsConfig(),
+		DisableKeepAlives:     r.customizedClient,
 		IdleConnTimeout:       10 * time.Second,
 		ResponseHeaderTimeout: r.Timeout(),
 
