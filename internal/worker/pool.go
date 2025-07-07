@@ -205,7 +205,7 @@ forLoop:
 			self.g.Go(func() error {
 				err := self.refreshFeed(job)
 				job.end()
-				log = log.With(slog.Int("job", job.index))
+				log := log.With(slog.Int("job", job.index))
 				if err != nil {
 					log.Info("worker: job completed with error", slog.Any("error", err))
 				} else {
@@ -214,6 +214,12 @@ forLoop:
 				return nil
 			})
 		}
+	}
+
+	if self.ctx.Err() != nil {
+		log.Info("worker: pool cancelled",
+			slog.Any("reason", context.Cause(self.ctx)))
+		return nil
 	}
 
 	log.Info("worker: waiting all jobs completed",
