@@ -165,7 +165,8 @@ func (r *RequestBuilder) ExecuteRequest(requestURL string) (*http.Response,
 		proxyURLRedacted = proxyURL.Redacted()
 	}
 
-	logging.FromContext(r.Context()).Debug("Making outgoing request",
+	logging.FromContext(r.Context()).Info("Making outgoing request",
+		slog.Bool("cusomized", r.customizedClient),
 		slog.String("method", req.Method),
 		slog.String("url", req.URL.String()),
 		slog.Any("headers", req.Header),

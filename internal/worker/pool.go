@@ -96,9 +96,9 @@ func (self *Pool) Push(ctx context.Context, jobs []model.Job) {
 	log.Info("worker: created a batch of feeds")
 
 	var wg sync.WaitGroup
-	wg.Add(len(jobs))
 	items := makeItems(jobs, wg.Done)
 	startTime := time.Now()
+	wg.Add(len(items))
 
 jobsLoop:
 	for i := range items {
@@ -113,16 +113,17 @@ jobsLoop:
 
 	switch {
 	case self.ctx.Err() != nil:
-		log.Info("worker: batch cancelled by daemon",
+		log.Info("worker: batch canceled by daemon",
 			slog.Any("reason", context.Cause(self.ctx)))
 		return
 	case ctx.Err() != nil:
-		log.Info("worker:  batch cancelled by request",
+		log.Info("worker:  batch canceled by request",
 			slog.Any("reason", context.Cause(self.ctx)))
 		return
 	}
 
-	log.Info("worker: waiting for batch completion")
+	log.Info("worker: waiting for batch completion",
+		slog.Int("items", len(items)))
 	wg.Wait()
 
 	traceStat := sumTraceStats(items)
@@ -148,7 +149,7 @@ jobsLoop:
 func makeItems(jobs []model.Job, end func()) []queueItem {
 	items := make([]queueItem, 0, len(jobs))
 	for job := range distributeJobs(jobs) {
-		items = append(items, NewItem(job, len(items), end))
+		items = append(items, NewItem(job, len(items)+1, end))
 	}
 	return items
 }
@@ -217,14 +218,13 @@ forLoop:
 	}
 
 	if self.ctx.Err() != nil {
-		log.Info("worker: pool cancelled",
+		log.Info("worker pool canceled",
 			slog.Any("reason", context.Cause(self.ctx)))
 		return nil
 	}
 
 	log.Info("worker: waiting all jobs completed",
 		slog.Any("reason", context.Cause(self.ctx)))
-	self.Wakeup()
 	if err := self.g.Wait(); err != nil {
 		log.Error("worker pool stopped with error", slog.Any("error", err))
 	} else {
@@ -240,7 +240,7 @@ func (self *Pool) refreshFeed(job *queueItem) error {
 	log = log.With(
 		slog.Int64("user_id", job.UserID),
 		slog.Int64("feed_id", job.FeedID))
-	log.Debug("worker: job received")
+	log.Info("worker: job received")
 
 	startTime := time.Now()
 	err := handler.RefreshFeed(ctx, self.store, job.UserID, job.FeedID, false)
