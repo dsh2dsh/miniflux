@@ -41,6 +41,7 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 	}
 
 	if err := filter.DeleteEntries(ctx, user, feed); err != nil {
+		log.Debug("entries filter completed with error", slog.Any("error", err))
 		return fmt.Errorf("%w: delete filtered entries: %w", ErrBadFeed, err)
 	} else if len(feed.Entries) == 0 {
 		log.Debug("all entries deleted, nothing left")
