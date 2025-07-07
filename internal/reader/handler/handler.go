@@ -13,7 +13,6 @@ import (
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
-	"miniflux.app/v2/internal/proxyrotator"
 	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/reader/icon"
 	"miniflux.app/v2/internal/reader/parser"
@@ -70,10 +69,7 @@ func CreateFeed(ctx context.Context, store *storage.Storage, userID int64,
 		WithUsernameAndPassword(r.Username, r.Password).
 		WithUserAgent(r.UserAgent, config.Opts.HTTPClientUserAgent()).
 		WithCookie(r.Cookie).
-		WithTimeout(config.Opts.HTTPClientTimeout()).
-		WithProxyRotator(proxyrotator.ProxyRotatorInstance).
 		WithCustomFeedProxyURL(r.ProxyURL).
-		WithCustomApplicationProxyURL(config.Opts.HTTPClientProxyURL()).
 		UseCustomApplicationProxyURL(r.FetchViaProxy).
 		IgnoreTLSErrors(r.AllowSelfSignedCertificates).
 		DisableHTTP2(r.DisableHTTP2)

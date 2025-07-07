@@ -25,7 +25,6 @@ import (
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/mediaproxy"
 	"miniflux.app/v2/internal/model"
-	"miniflux.app/v2/internal/proxyrotator"
 	"miniflux.app/v2/internal/reader/fetcher"
 	mff "miniflux.app/v2/internal/reader/handler"
 	mfs "miniflux.app/v2/internal/reader/subscription"
@@ -410,10 +409,7 @@ func (h *handler) quickAddHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requestBuilder := fetcher.NewRequestBuilder().
-		WithTimeout(config.Opts.HTTPClientTimeout()).
-		WithProxyRotator(proxyrotator.ProxyRotatorInstance)
-
+	requestBuilder := fetcher.NewRequestBuilder()
 	subscriptions, lerr := mfs.
 		NewSubscriptionFinder(requestBuilder).
 		FindSubscriptions(ctx, feedURL,

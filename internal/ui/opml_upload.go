@@ -12,7 +12,6 @@ import (
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
-	"miniflux.app/v2/internal/proxyrotator"
 	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/reader/opml"
 )
@@ -73,10 +72,7 @@ func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
 		slog.Int64("user_id", v.UserID()),
 		slog.String("opml_file_url", opmlURL))
 
-	requestBuilder := fetcher.NewRequestBuilder().
-		WithTimeout(config.Opts.HTTPClientTimeout()).
-		WithProxyRotator(proxyrotator.ProxyRotatorInstance)
-
+	requestBuilder := fetcher.NewRequestBuilder()
 	//nolint:bodyclose // responseHandler close it
 	responseHandler := fetcher.NewResponseHandler(
 		requestBuilder.ExecuteRequest(opmlURL))

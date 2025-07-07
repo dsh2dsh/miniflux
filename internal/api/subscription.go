@@ -11,7 +11,6 @@ import (
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/model"
-	"miniflux.app/v2/internal/proxyrotator"
 	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/reader/subscription"
 	"miniflux.app/v2/internal/validator"
@@ -32,10 +31,7 @@ func (h *handler) discoverSubscriptions(w http.ResponseWriter, r *http.Request,
 
 	user := request.User(r)
 	requestBuilder := fetcher.NewRequestBuilder().
-		WithTimeout(config.Opts.HTTPClientTimeout()).
-		WithProxyRotator(proxyrotator.ProxyRotatorInstance).
 		WithCustomFeedProxyURL(discovery.ProxyURL).
-		WithCustomApplicationProxyURL(config.Opts.HTTPClientProxyURL()).
 		UseCustomApplicationProxyURL(discovery.FetchViaProxy).
 		WithUserAgent(discovery.UserAgent, config.Opts.HTTPClientUserAgent()).
 		WithCookie(discovery.Cookie).

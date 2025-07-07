@@ -9,7 +9,6 @@ import (
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/model"
-	"miniflux.app/v2/internal/proxyrotator"
 	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/storage"
 )
@@ -30,10 +29,7 @@ func (c *IconChecker) fetchAndStoreIcon(ctx context.Context) {
 	requestBuilder := fetcher.NewRequestBuilder()
 	requestBuilder.WithUserAgent(c.feed.UserAgent, config.Opts.HTTPClientUserAgent())
 	requestBuilder.WithCookie(c.feed.Cookie)
-	requestBuilder.WithTimeout(config.Opts.HTTPClientTimeout())
-	requestBuilder.WithProxyRotator(proxyrotator.ProxyRotatorInstance)
 	requestBuilder.WithCustomFeedProxyURL(c.feed.ProxyURL)
-	requestBuilder.WithCustomApplicationProxyURL(config.Opts.HTTPClientProxyURL())
 	requestBuilder.UseCustomApplicationProxyURL(c.feed.FetchViaProxy)
 	requestBuilder.IgnoreTLSErrors(c.feed.AllowSelfSignedCertificates)
 	requestBuilder.DisableHTTP2(c.feed.DisableHTTP2)

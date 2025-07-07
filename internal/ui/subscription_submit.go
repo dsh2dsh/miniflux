@@ -13,7 +13,6 @@ import (
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
-	"miniflux.app/v2/internal/proxyrotator"
 	"miniflux.app/v2/internal/reader/fetcher"
 	feedHandler "miniflux.app/v2/internal/reader/handler"
 	"miniflux.app/v2/internal/reader/subscription"
@@ -33,10 +32,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 
 	user := request.User(r)
 	requestBuilder := fetcher.NewRequestBuilder().
-		WithTimeout(config.Opts.HTTPClientTimeout()).
-		WithProxyRotator(proxyrotator.ProxyRotatorInstance).
 		WithCustomFeedProxyURL(f.ProxyURL).
-		WithCustomApplicationProxyURL(config.Opts.HTTPClientProxyURL()).
 		UseCustomApplicationProxyURL(f.FetchViaProxy).
 		WithUserAgent(f.UserAgent,
 			config.Opts.HTTPClientUserAgent()).

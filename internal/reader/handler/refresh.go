@@ -13,7 +13,6 @@ import (
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
-	"miniflux.app/v2/internal/proxyrotator"
 	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/reader/icon"
 	"miniflux.app/v2/internal/reader/parser"
@@ -162,10 +161,7 @@ func (self *Refresh) response(ctx context.Context) (*fetcher.ResponseSemaphore,
 		WithUsernameAndPassword(f.Username, f.Password).
 		WithUserAgent(f.UserAgent, config.Opts.HTTPClientUserAgent()).
 		WithCookie(f.Cookie).
-		WithTimeout(config.Opts.HTTPClientTimeout()).
-		WithProxyRotator(proxyrotator.ProxyRotatorInstance).
 		WithCustomFeedProxyURL(f.ProxyURL).
-		WithCustomApplicationProxyURL(config.Opts.HTTPClientProxyURL()).
 		UseCustomApplicationProxyURL(f.FetchViaProxy).
 		IgnoreTLSErrors(f.AllowSelfSignedCertificates).
 		DisableHTTP2(f.DisableHTTP2)

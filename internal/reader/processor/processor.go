@@ -16,7 +16,6 @@ import (
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/metric"
 	"miniflux.app/v2/internal/model"
-	"miniflux.app/v2/internal/proxyrotator"
 	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/reader/filter"
 	"miniflux.app/v2/internal/reader/readingtime"
@@ -146,10 +145,7 @@ func scrape(ctx context.Context, feed *model.Feed, entry *model.Entry,
 		WithContext(ctx).
 		WithUserAgent(feed.UserAgent, config.Opts.HTTPClientUserAgent()).
 		WithCookie(feed.Cookie).
-		WithTimeout(config.Opts.HTTPClientTimeout()).
-		WithProxyRotator(proxyrotator.ProxyRotatorInstance).
 		WithCustomFeedProxyURL(feed.ProxyURL).
-		WithCustomApplicationProxyURL(config.Opts.HTTPClientProxyURL()).
 		UseCustomApplicationProxyURL(feed.FetchViaProxy).
 		IgnoreTLSErrors(feed.AllowSelfSignedCertificates).
 		DisableHTTP2(feed.DisableHTTP2)

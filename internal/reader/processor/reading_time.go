@@ -14,7 +14,6 @@ import (
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/model"
-	"miniflux.app/v2/internal/proxyrotator"
 	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/reader/readingtime"
 	"miniflux.app/v2/internal/storage"
@@ -22,9 +21,6 @@ import (
 
 func fetchWatchTime(websiteURL, query string, isoDate bool) (int, error) {
 	requestBuilder := fetcher.NewRequestBuilder()
-	requestBuilder.WithTimeout(config.Opts.HTTPClientTimeout())
-	requestBuilder.WithProxyRotator(proxyrotator.ProxyRotatorInstance)
-
 	responseHandler := fetcher.NewResponseHandler(requestBuilder.ExecuteRequest(websiteURL))
 	defer responseHandler.Close()
 
