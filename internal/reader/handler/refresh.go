@@ -230,6 +230,7 @@ func (self *Refresh) refreshFeed(ctx context.Context,
 	}
 	log.Info("Read feed body", slog.Int("size", len(body)))
 	resp.Close()
+	log.Info("Feed body closed")
 
 	if !self.feed.ContentChanged(body) && !self.force {
 		return &model.FeedRefreshed{NotModified: notModifiedContent}, nil

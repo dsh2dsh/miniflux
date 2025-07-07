@@ -31,16 +31,11 @@ func NewResponseSemaphore(ctx context.Context, r *RequestBuilder, rawURL string,
 		return nil, err
 	}
 
-	reqCtx, cancel := context.WithTimeout(ctx, r.Timeout())
-
 	//nolint:bodyclose // ResponseSemaphore.Close() it
-	resp, err := r.WithContext(reqCtx).ExecuteRequest(rawURL)
+	resp, err := r.WithContext(ctx).ExecuteRequest(rawURL)
 	return &ResponseSemaphore{
 		ResponseHandler: NewResponseHandler(resp, err),
-		release: func() {
-			limitConnections.Release(hostname)
-			cancel()
-		},
+		release:         func() { limitConnections.Release(hostname) },
 	}, nil
 }
 

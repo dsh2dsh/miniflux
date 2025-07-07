@@ -4,6 +4,7 @@
 package fetcher // import "miniflux.app/v2/internal/reader/fetcher"
 
 import (
+	"bytes"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -169,11 +170,14 @@ func (r *ResponseHandler) Body(maxBodySize int64) io.ReadCloser {
 	return r.getReader(maxBodySize)
 }
 
-func (r *ResponseHandler) ReadBody(maxBodySize int64) ([]byte, *locale.LocalizedErrorWrapper) {
+func (r *ResponseHandler) ReadBody(maxBodySize int64) ([]byte,
+	*locale.LocalizedErrorWrapper,
+) {
 	limitedReader := r.getReader(maxBodySize)
 
-	buffer, err := io.ReadAll(limitedReader)
-	if err != nil && err != io.EOF {
+	var buffer bytes.Buffer
+	_, err := io.Copy(&buffer, limitedReader)
+	if err != nil && !errors.Is(err, io.EOF) {
 		var maxBytesErr *http.MaxBytesError
 		if errors.As(err, &maxBytesErr) {
 			return nil, locale.NewLocalizedErrorWrapper(
@@ -181,17 +185,17 @@ func (r *ResponseHandler) ReadBody(maxBodySize int64) ([]byte, *locale.Localized
 					maxBytesErr.Limit),
 				"error.http_response_too_large")
 		}
-
-		return nil, locale.NewLocalizedErrorWrapper(fmt.Errorf("fetcher: unable to read response body: %w", err), "error.http_body_read", err)
+		return nil, locale.NewLocalizedErrorWrapper(
+			fmt.Errorf("fetcher: unable to read response body: %w", err),
+			"error.http_body_read", err)
 	}
 
-	if len(buffer) == 0 {
+	if buffer.Len() == 0 {
 		return nil, locale.NewLocalizedErrorWrapper(
 			errors.New("fetcher: empty response body"),
 			"error.http_empty_response_body")
 	}
-
-	return buffer, nil
+	return buffer.Bytes(), nil
 }
 
 func (r *ResponseHandler) LocalizedError() *locale.LocalizedErrorWrapper {
