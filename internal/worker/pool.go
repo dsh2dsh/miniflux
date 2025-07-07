@@ -69,6 +69,8 @@ func NewItem(job *model.Job, index int, end func()) queueItem {
 	}
 }
 
+func (self *queueItem) Id() int { return self.index + 1 }
+
 func (self *Pool) Wakeup() {
 	select {
 	case self.wakeupCh <- struct{}{}:
@@ -149,7 +151,7 @@ jobsLoop:
 func makeItems(jobs []model.Job, end func()) []queueItem {
 	items := make([]queueItem, 0, len(jobs))
 	for job := range distributeJobs(jobs) {
-		items = append(items, NewItem(job, len(items)+1, end))
+		items = append(items, NewItem(job, len(items), end))
 	}
 	return items
 }
@@ -206,7 +208,7 @@ forLoop:
 			self.g.Go(func() error {
 				err := self.refreshFeed(job)
 				job.end()
-				log := log.With(slog.Int("job", job.index))
+				log := log.With(slog.Int("job", job.Id()))
 				if err != nil {
 					log.Info("worker: job completed with error", slog.Any("error", err))
 				} else {
@@ -234,7 +236,7 @@ forLoop:
 }
 
 func (self *Pool) refreshFeed(job *queueItem) error {
-	log := logging.FromContext(self.ctx).With(slog.Int("job", job.index))
+	log := logging.FromContext(self.ctx).With(slog.Int("job", job.Id()))
 	ctx := storage.WithTraceStat(logging.WithLogger(self.ctx, log))
 
 	log = log.With(

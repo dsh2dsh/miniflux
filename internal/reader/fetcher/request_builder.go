@@ -166,7 +166,7 @@ func (r *RequestBuilder) ExecuteRequest(requestURL string) (*http.Response,
 	}
 
 	logging.FromContext(r.Context()).Info("Making outgoing request",
-		slog.Bool("cusomized", r.customizedClient),
+		slog.Bool("customized", r.customizedClient),
 		slog.String("method", req.Method),
 		slog.String("url", req.URL.String()),
 		slog.Any("headers", req.Header),
@@ -237,6 +237,7 @@ func (r *RequestBuilder) transport(proxyURL *url.URL) http.RoundTripper {
 		Proxy:                 http.ProxyFromEnvironment,
 		DialContext:           dialer.DialContext,
 		TLSClientConfig:       r.tlsConfig(),
+		TLSHandshakeTimeout:   r.Timeout(),
 		DisableKeepAlives:     r.customizedClient,
 		IdleConnTimeout:       10 * time.Second,
 		ResponseHeaderTimeout: r.Timeout(),
