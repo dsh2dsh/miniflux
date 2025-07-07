@@ -217,7 +217,7 @@ func (self *Refresh) refreshFeed(ctx context.Context,
 	resp *fetcher.ResponseSemaphore,
 ) (*model.FeedRefreshed, error) {
 	log := logging.FromContext(ctx)
-	log.Debug("Feed modified",
+	log.Info("Feed modified",
 		slog.String("etag_header", self.feed.EtagHeader),
 		slog.String("last_modified_header", self.feed.LastModifiedHeader))
 
@@ -228,6 +228,7 @@ func (self *Refresh) refreshFeed(ctx context.Context,
 			slog.Any("error", lerr))
 		return nil, lerr
 	}
+	log.Info("Read feed body", slog.Int("size", len(body)))
 	resp.Close()
 
 	if !self.feed.ContentChanged(body) && !self.force {
