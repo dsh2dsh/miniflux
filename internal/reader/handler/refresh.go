@@ -294,6 +294,7 @@ func (self *Refresh) refreshFeed(ctx context.Context,
 	if err != nil {
 		return nil, fmt.Errorf("reader/handler: store feed entries: %w", err)
 	}
+	log.Debug("feed entries refreshed in storage")
 
 	self.pushIntegrations(logging.WithLogger(ctx, log), refreshed.CreatedEntries)
 

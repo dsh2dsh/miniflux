@@ -132,6 +132,8 @@ func (s *Storage) RefreshFeedEntries(ctx context.Context, userID, feedID int64,
 			return refreshed, fmt.Errorf("unable refresh feed(#%d) entries: %w",
 				feedID, err)
 		}
+	} else {
+		refreshed = &model.FeedRefreshed{}
 	}
 
 	if err := s.cleanupEntries(ctx, feedID, hashes); err != nil {
@@ -434,9 +436,17 @@ RETURNING id, created_at, changed_at`,
 func (s *Storage) cleanupEntries(ctx context.Context, feedID int64,
 	hashes []string,
 ) error {
-	_, err := s.db.Exec(ctx, `
-DELETE FROM entries WHERE feed_id=$1 AND status=$2 AND NOT (hash=ANY($3))`,
-		feedID, model.EntryStatusRemoved, hashes)
+	var err error
+	if len(hashes) == 0 {
+		_, err = s.db.Exec(ctx,
+			`DELETE FROM entries WHERE feed_id = $1 AND status = $2`,
+			feedID, model.EntryStatusRemoved)
+	} else {
+		_, err = s.db.Exec(ctx, `
+DELETE FROM entries
+ WHERE feed_id = $1 AND status = $2 AND NOT (hash = ANY($3))`,
+			feedID, model.EntryStatusRemoved, hashes)
+	}
 	if err != nil {
 		return fmt.Errorf(`store: unable to cleanup entries: %w`, err)
 	}
