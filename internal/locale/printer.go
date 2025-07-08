@@ -22,7 +22,7 @@ func (p *Printer) Print(key string) string {
 }
 
 // Printf is like fmt.Printf, but using language-specific formatting.
-func (p *Printer) Printf(key string, args ...interface{}) string {
+func (p *Printer) Printf(key string, args ...any) string {
 	translation := key
 
 	if dict, err := GetTranslationDict(p.language); err == nil {
@@ -40,7 +40,7 @@ func (p *Printer) Printf(key string, args ...interface{}) string {
 }
 
 // Plural returns the translation of the given key by using the language plural form.
-func (p *Printer) Plural(key string, n int, args ...interface{}) string {
+func (p *Printer) Plural(key string, n int, args ...any) string {
 	dict, err := GetTranslationDict(p.language)
 	if err != nil {
 		return key
@@ -50,7 +50,7 @@ func (p *Printer) Plural(key string, n int, args ...interface{}) string {
 		var plurals []string
 
 		switch v := choices.(type) {
-		case []interface{}:
+		case []any:
 			for _, v := range v {
 				plurals = append(plurals, fmt.Sprint(v))
 			}
