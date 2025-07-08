@@ -8,9 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -265,7 +263,7 @@ RETURNING id, status, changed_at`,
 		e.Author,
 		e.ReadingTime,
 		e.UserID, e.FeedID, e.Hash,
-		removeDuplicates(e.Tags),
+		e.Tags,
 		e.Date,
 		model.EntryStatusUnread,
 		&e.Extra,
@@ -274,24 +272,6 @@ RETURNING id, status, changed_at`,
 		return fmt.Errorf("storage: update entry %q: %w", e.URL, err)
 	}
 	return nil
-}
-
-func removeDuplicates(items []string) []string {
-	seen := make(map[string]struct{}, len(items))
-	for i, s := range items {
-		if s = strings.TrimSpace(s); s != "" {
-			if _, found := seen[s]; !found {
-				seen[s] = struct{}{}
-			} else {
-				s = ""
-			}
-		}
-		items[i] = s
-	}
-	if len(seen) < len(items) {
-		items = slices.DeleteFunc(items, func(s string) bool { return s == "" })
-	}
-	return items
 }
 
 func (s *Storage) createEntries(ctx context.Context, tx pgx.Tx,
@@ -341,7 +321,7 @@ func (s *Storage) createEntries(ctx context.Context, tx pgx.Tx,
 				e.UserID,
 				e.FeedID,
 				e.ReadingTime,
-				removeDuplicates(e.Tags),
+				e.Tags,
 				now,
 				&e.Extra,
 			}, nil
@@ -419,7 +399,7 @@ RETURNING id, created_at, changed_at`,
 		e.UserID,
 		e.FeedID,
 		e.ReadingTime,
-		removeDuplicates(e.Tags),
+		e.Tags,
 		&e.Extra,
 	).QueryRow(func(row pgx.Row) error {
 		err := row.Scan(&e.ID, &e.CreatedAt, &e.ChangedAt)
