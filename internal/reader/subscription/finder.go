@@ -9,7 +9,6 @@ import (
 	"io"
 	"log/slog"
 	"net/url"
-	"regexp"
 	"strings"
 
 	"miniflux.app/v2/internal/config"
@@ -23,8 +22,6 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 )
-
-var youtubeChannelRegex = regexp.MustCompile(`channel/(.*)$`)
 
 type SubscriptionFinder struct {
 	requestBuilder   *fetcher.RequestBuilder
@@ -309,8 +306,8 @@ func (f *SubscriptionFinder) FindSubscriptionsFromYouTubeChannelPage(websiteURL 
 		return nil, nil
 	}
 
-	if matches := youtubeChannelRegex.FindStringSubmatch(decodedUrl.Path); len(matches) == 2 {
-		feedURL := `https://www.youtube.com/feeds/videos.xml?channel_id=` + matches[1]
+	if _, after, found := strings.Cut(decodedUrl.Path, "channel/"); found {
+		feedURL := "https://www.youtube.com/feeds/videos.xml?channel_id=" + after
 		return Subscriptions{NewSubscription(websiteURL, feedURL, parser.FormatAtom)}, nil
 	}
 
