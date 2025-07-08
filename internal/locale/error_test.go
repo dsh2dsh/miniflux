@@ -15,7 +15,7 @@ func TestNewLocalizedErrorWrapper(t *testing.T) {
 
 	wrapper := NewLocalizedErrorWrapper(originalErr, translationKey, args...)
 
-	if wrapper.originalErr != originalErr {
+	if errors.Is(wrapper.originalErr, originalErr) {
 		t.Errorf("Expected original error to be %v, got %v", originalErr, wrapper.originalErr)
 	}
 
@@ -37,7 +37,7 @@ func TestLocalizedErrorWrapper_Error(t *testing.T) {
 	wrapper := NewLocalizedErrorWrapper(originalErr, "error.test_key")
 
 	result := wrapper.Error()
-	if result != originalErr {
+	if result != originalErr.Error() {
 		t.Errorf("Expected Error() to return original error %v, got %v", originalErr, result)
 	}
 }
@@ -257,7 +257,7 @@ func TestLocalizedErrorWrapper_WithNilError(t *testing.T) {
 	wrapper := NewLocalizedErrorWrapper(nil, "error.test")
 
 	// Error() should return nil
-	result := wrapper.Error()
+	result := wrapper.Unwrap()
 	if result != nil {
 		t.Errorf("Expected Error() to return nil, got %v", result)
 	}

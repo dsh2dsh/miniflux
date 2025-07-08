@@ -42,19 +42,29 @@ func (e *Enclosure) IsVideo() bool {
 
 func (e *Enclosure) IsImage() bool {
 	mimeType := strings.ToLower(e.MimeType)
+	if strings.HasPrefix(mimeType, "image/") {
+		return true
+	}
 	mediaURL := strings.ToLower(e.URL)
-	return strings.HasPrefix(mimeType, "image/") || strings.HasSuffix(mediaURL, ".jpg") || strings.HasSuffix(mediaURL, ".jpeg") || strings.HasSuffix(mediaURL, ".png") || strings.HasSuffix(mediaURL, ".gif")
+	return strings.HasSuffix(mediaURL, ".jpg") ||
+		strings.HasSuffix(mediaURL, ".jpeg") ||
+		strings.HasSuffix(mediaURL, ".png") ||
+		strings.HasSuffix(mediaURL, ".gif")
 }
 
 func (e *Enclosure) ProxifyEnclosureURL(router *mux.ServeMux) {
 	proxyOption := config.Opts.MediaProxyMode()
 
 	if proxyOption == "all" || proxyOption != "none" && !urllib.IsHTTPS(e.URL) {
-		for _, mediaType := range config.Opts.MediaProxyResourceTypes() {
-			if strings.HasPrefix(e.MimeType, mediaType+"/") {
-				e.URL = mediaproxy.ProxifyAbsoluteURL(router, e.URL)
-				break
-			}
+		proxifyAbsoluteURLIfMimeType(e, router)
+	}
+}
+
+func proxifyAbsoluteURLIfMimeType(e *Enclosure, router *mux.ServeMux) {
+	for _, mediaType := range config.Opts.MediaProxyResourceTypes() {
+		if strings.HasPrefix(e.MimeType, mediaType+"/") {
+			e.URL = mediaproxy.ProxifyAbsoluteURL(router, e.URL)
+			break
 		}
 	}
 }
@@ -63,8 +73,9 @@ func (e *Enclosure) ProxifyEnclosureURL(router *mux.ServeMux) {
 type EnclosureList []Enclosure
 
 func (el EnclosureList) ContainsAudioOrVideo() bool {
-	for _, enclosure := range el {
-		if strings.Contains(enclosure.MimeType, "audio/") || strings.Contains(enclosure.MimeType, "video/") {
+	for i := range el {
+		enclosure := &el[i]
+		if enclosure.IsAudio() || enclosure.IsVideo() {
 			return true
 		}
 	}
@@ -77,13 +88,21 @@ func (el EnclosureList) ProxifyEnclosureURL(router *mux.ServeMux) {
 	if proxyOption != "none" {
 		for i := range el {
 			if urllib.IsHTTPS(el[i].URL) {
-				for _, mediaType := range config.Opts.MediaProxyResourceTypes() {
-					if strings.HasPrefix(el[i].MimeType, mediaType+"/") {
-						el[i].URL = mediaproxy.ProxifyAbsoluteURL(router, el[i].URL)
-						break
-					}
-				}
+				proxifyAbsoluteURLIfMimeType(&el[i], router)
 			}
 		}
 	}
+}
+
+// FindMediaPlayerEnclosure returns the first enclosure that can be played by a media player.
+func (el EnclosureList) FindMediaPlayerEnclosure() *Enclosure {
+	for i := range el {
+		enclosure := &el[i]
+		if enclosure.URL != "" {
+			if enclosure.IsAudio() || enclosure.IsVideo() {
+				return enclosure
+			}
+		}
+	}
+	return nil
 }
