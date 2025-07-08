@@ -6,10 +6,8 @@ package model // import "miniflux.app/v2/internal/model"
 import (
 	"strings"
 
-	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/mediaproxy"
-	"miniflux.app/v2/internal/urllib"
 )
 
 // Enclosure represents an attachment.
@@ -52,47 +50,15 @@ func (e *Enclosure) IsImage() bool {
 		strings.HasSuffix(mediaURL, ".gif")
 }
 
-func (e *Enclosure) ProxifyEnclosureURL(router *mux.ServeMux) {
-	proxyOption := config.Opts.MediaProxyMode()
-
-	if proxyOption == "all" || proxyOption != "none" && !urllib.IsHTTPS(e.URL) {
-		proxifyAbsoluteURLIfMimeType(e, router)
-	}
-}
-
-func proxifyAbsoluteURLIfMimeType(e *Enclosure, router *mux.ServeMux) {
-	for _, mediaType := range config.Opts.MediaProxyResourceTypes() {
-		if strings.HasPrefix(e.MimeType, mediaType+"/") {
-			e.URL = mediaproxy.ProxifyAbsoluteURL(router, e.URL)
-			break
-		}
+// ProxifyEnclosureURL modifies the enclosure URL to use the media proxy if necessary.
+func (e *Enclosure) ProxifyEnclosureURL(router *mux.ServeMux, mediaProxyOption string, mediaProxyResourceTypes []string) {
+	if mediaproxy.ShouldProxifyURLWithMimeType(e.URL, e.MimeType, mediaProxyOption, mediaProxyResourceTypes) {
+		e.URL = mediaproxy.ProxifyAbsoluteURL(router, e.URL)
 	}
 }
 
 // EnclosureList represents a list of attachments.
 type EnclosureList []Enclosure
-
-func (el EnclosureList) ContainsAudioOrVideo() bool {
-	for i := range el {
-		enclosure := &el[i]
-		if enclosure.IsAudio() || enclosure.IsVideo() {
-			return true
-		}
-	}
-	return false
-}
-
-func (el EnclosureList) ProxifyEnclosureURL(router *mux.ServeMux) {
-	proxyOption := config.Opts.MediaProxyMode()
-
-	if proxyOption != "none" {
-		for i := range el {
-			if urllib.IsHTTPS(el[i].URL) {
-				proxifyAbsoluteURLIfMimeType(&el[i], router)
-			}
-		}
-	}
-}
 
 // FindMediaPlayerEnclosure returns the first enclosure that can be played by a media player.
 func (el EnclosureList) FindMediaPlayerEnclosure() *Enclosure {
@@ -105,4 +71,21 @@ func (el EnclosureList) FindMediaPlayerEnclosure() *Enclosure {
 		}
 	}
 	return nil
+}
+
+func (el EnclosureList) ContainsAudioOrVideo() bool {
+	for i := range el {
+		enclosure := &el[i]
+		if enclosure.IsAudio() || enclosure.IsVideo() {
+			return true
+		}
+	}
+	return false
+}
+
+func (el EnclosureList) ProxifyEnclosureURL(router *mux.ServeMux, mediaProxyOption string, mediaProxyResourceTypes []string) {
+	for i := range el {
+		enclosure := &el[i]
+		enclosure.ProxifyEnclosureURL(router, mediaProxyOption, mediaProxyResourceTypes)
+	}
 }

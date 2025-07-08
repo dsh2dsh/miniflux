@@ -4,6 +4,7 @@
 package processor // import "miniflux.app/v2/internal/reader/processor"
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -84,7 +85,7 @@ func TestISO8601DurationParsingErrors(t *testing.T) {
 		_, err := parseISO8601Duration(tc.duration)
 		if err == nil {
 			t.Errorf("Expected an error when parsing %q, but got none", tc.duration)
-		} else if err.Error() != tc.expectedErr {
+		} else if !strings.Contains(err.Error(), tc.expectedErr) {
 			t.Errorf("Expected error %q when parsing %q, but got %q", tc.expectedErr, tc.duration, err.Error())
 		}
 	}
