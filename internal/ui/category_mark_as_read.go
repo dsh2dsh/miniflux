@@ -16,13 +16,10 @@ func (h *handler) markCategoryAsRead(w http.ResponseWriter, r *http.Request) {
 	userID := request.UserID(r)
 	id := request.RouteInt64Param(r, "categoryID")
 
-	affected, err := h.store.MarkCategoryAsRead(r.Context(), userID, id,
+	_, err := h.store.MarkCategoryAsRead(r.Context(), userID, id,
 		time.Now())
 	if err != nil {
 		html.ServerError(w, r, err)
-		return
-	} else if !affected {
-		html.NotFound(w, r)
 		return
 	}
 	html.Redirect(w, r, route.Path(h.router, "categories"))

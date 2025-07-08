@@ -16,12 +16,9 @@ func (h *handler) markFeedAsRead(w http.ResponseWriter, r *http.Request) {
 	id := request.RouteInt64Param(r, "feedID")
 	userID := request.UserID(r)
 
-	affected, err := h.store.MarkFeedAsRead(r.Context(), userID, id, time.Now())
+	_, err := h.store.MarkFeedAsRead(r.Context(), userID, id, time.Now())
 	if err != nil {
 		html.ServerError(w, r, err)
-		return
-	} else if !affected {
-		html.NotFound(w, r)
 		return
 	}
 	html.Redirect(w, r, route.Path(h.router, "feeds"))
