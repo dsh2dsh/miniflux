@@ -47,12 +47,12 @@ func (p *Printer) Plural(key string, n int, args ...any) string {
 		var plurals []string
 
 		switch v := choices.(type) {
+		case []string:
+			plurals = v
 		case []any:
 			for _, v := range v {
 				plurals = append(plurals, fmt.Sprint(v))
 			}
-		case []string:
-			plurals = v
 		default:
 			return key
 		}
