@@ -62,5 +62,4 @@ func (self *DedupEntries) Filter(userID int64, refreshed *model.FeedRefreshed) {
 		self.hashes[userID] = hashes
 	}
 	self.dedups += refreshed.Dedups
-	return
 }
