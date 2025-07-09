@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"iter"
 	"log/slog"
 	"net/url"
 	"path"
@@ -184,6 +185,18 @@ func (self Entries) MakeCommentURLs(ctx context.Context) {
 				slog.Int64("entry_id", e.ID),
 				slog.Any("error", err))
 			feedTemplates[e.FeedID] = nil
+		}
+	}
+}
+
+func (self Entries) Unread() iter.Seq2[int, *Entry] {
+	return func(yield func(int, *Entry) bool) {
+		for i, e := range self {
+			if e.Status == EntryStatusUnread {
+				if !yield(i, e) {
+					return
+				}
+			}
 		}
 	}
 }

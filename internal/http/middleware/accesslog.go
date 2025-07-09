@@ -30,7 +30,7 @@ type AccessLog struct {
 }
 
 func (self *AccessLog) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := storage.WithTraceStat(r.Context())
+	ctx, traceStat := storage.WithTraceStat(r.Context())
 	sw := newStatusResponseWriter(w)
 	startTime := time.Now()
 	self.next.ServeHTTP(sw, r.WithContext(ctx))
@@ -45,10 +45,10 @@ func (self *AccessLog) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			slog.String("name", u.Username)))
 	}
 
-	if t := storage.TraceStatFrom(ctx); t != nil && t.Queries > 0 {
+	if traceStat.Queries > 0 {
 		log = log.With(slog.Group("storage",
-			slog.Int64("queries", t.Queries),
-			slog.Duration("elapsed", t.Elapsed)))
+			slog.Int64("queries", traceStat.Queries),
+			slog.Duration("elapsed", traceStat.Elapsed)))
 	}
 
 	methodURL := r.Method + " " + r.URL.Path

@@ -17,6 +17,18 @@ type TraceStat struct {
 	Queries int64
 }
 
+func WithTraceStat(ctx context.Context) (context.Context, *TraceStat) {
+	t := new(TraceStat)
+	return context.WithValue(ctx, TraceStatKey, t), t
+}
+
+func TraceStatFrom(ctx context.Context) *TraceStat {
+	if s, ok := ctx.Value(TraceStatKey).(*TraceStat); ok {
+		return s
+	}
+	return nil
+}
+
 func (self *TraceStat) incQuery(d time.Duration) {
 	atomic.AddInt64(&self.Queries, 1)
 	if d != 0 {
@@ -32,17 +44,6 @@ func (self *TraceStat) elapsedSince(t time.Time) {
 func (self *TraceStat) Add(t *TraceStat) {
 	self.Queries += t.Queries
 	self.Elapsed += t.Elapsed
-}
-
-func WithTraceStat(ctx context.Context) context.Context {
-	return context.WithValue(ctx, TraceStatKey, &TraceStat{})
-}
-
-func TraceStatFrom(ctx context.Context) *TraceStat {
-	if s, ok := ctx.Value(TraceStatKey).(*TraceStat); ok {
-		return s
-	}
-	return nil
 }
 
 type ctxTraceQueryData struct{}

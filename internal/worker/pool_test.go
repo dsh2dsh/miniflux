@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,8 +29,8 @@ func Test_makeItems(t *testing.T) {
 			},
 			want: []queueItem{
 				{Job: &model.Job{FeedURL: "https://a.com"}},
-				{Job: &model.Job{FeedURL: "https://b.com"}, index: 1},
-				{Job: &model.Job{FeedURL: "https://a.com"}, index: 2},
+				{Job: &model.Job{FeedURL: "https://b.com"}},
+				{Job: &model.Job{FeedURL: "https://a.com"}},
 			},
 		},
 		{
@@ -42,9 +43,9 @@ func Test_makeItems(t *testing.T) {
 			},
 			want: []queueItem{
 				{Job: &model.Job{FeedURL: "https://b.com"}},
-				{Job: &model.Job{FeedURL: "https://a.com"}, index: 1},
-				{Job: &model.Job{FeedURL: "https://b.com"}, index: 2},
-				{Job: &model.Job{FeedURL: "https://b.com"}, index: 3},
+				{Job: &model.Job{FeedURL: "https://a.com"}},
+				{Job: &model.Job{FeedURL: "https://b.com"}},
+				{Job: &model.Job{FeedURL: "https://b.com"}},
 			},
 		},
 		{
@@ -59,19 +60,19 @@ func Test_makeItems(t *testing.T) {
 			},
 			want: []queueItem{
 				{Job: &model.Job{FeedURL: "https://b.com"}},
-				{Job: &model.Job{FeedURL: "https://a.com"}, index: 1},
-				{Job: &model.Job{FeedURL: "https://c.com"}, index: 2},
-				{Job: &model.Job{FeedURL: "https://b.com"}, index: 3},
-				{Job: &model.Job{FeedURL: "https://a.com"}, index: 4},
-				{Job: &model.Job{FeedURL: "https://b.com"}, index: 5},
+				{Job: &model.Job{FeedURL: "https://a.com"}},
+				{Job: &model.Job{FeedURL: "https://c.com"}},
+				{Job: &model.Job{FeedURL: "https://b.com"}},
+				{Job: &model.Job{FeedURL: "https://a.com"}},
+				{Job: &model.Job{FeedURL: "https://b.com"}},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := makeItems(tt.jobs, nil)
-			assert.Equal(t, tt.want, got)
+			got := makeItems(context.Background(), tt.jobs, nil)
+			assert.EqualExportedValues(t, tt.want, got)
 		})
 	}
 }

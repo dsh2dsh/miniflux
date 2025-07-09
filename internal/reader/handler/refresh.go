@@ -140,7 +140,8 @@ func withTraceStat(ctx context.Context) context.Context {
 	if t := storage.TraceStatFrom(ctx); t != nil {
 		return ctx
 	}
-	return storage.WithTraceStat(ctx)
+	ctx, _ = storage.WithTraceStat(ctx)
+	return ctx
 }
 
 func (self *Refresh) initFeed(ctx context.Context) error {

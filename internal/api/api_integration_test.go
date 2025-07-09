@@ -911,6 +911,46 @@ func (self *EndpointTestSuite) TestRefreshFeedEndpoint_markedRead() {
 	self.Require().NoError(self.client.RefreshFeed(feedID))
 }
 
+func (self *EndpointTestSuite) TestRefreshFeedEndpoint_dedup() {
+	self.createFeed()
+
+	feedURL, err := url.Parse(self.cfg.FeedURL)
+	self.Require().NoError(err)
+	ref, err := url.Parse("/empty.xml")
+	self.Require().NoError(err)
+	feedURL = feedURL.ResolveReference(ref)
+
+	self.T().Log(feedURL.String())
+	feedID := self.createFeedWith(model.FeedCreationRequest{
+		FeedURL:         feedURL.String(),
+		IgnoreHTTPCache: true,
+	})
+
+	ref, err = url.Parse("/dups.xml")
+	self.Require().NoError(err)
+	feedURL = feedURL.ResolveReference(ref)
+
+	self.T().Log(feedURL.String())
+	feedModify := model.FeedModificationRequest{
+		FeedURL: model.SetOptionalField(feedURL.String()),
+	}
+	updatedFeed, err := self.client.UpdateFeed(feedID, &feedModify)
+	self.Require().NoError(err)
+	self.Require().NotNil(updatedFeed)
+	self.Equal(feedURL.String(), updatedFeed.FeedURL)
+
+	self.Require().NoError(self.client.RefreshFeed(feedID))
+
+	result, err := self.client.FeedEntries(feedID, nil)
+	self.Require().NoError(err)
+	self.Require().NotNil(result)
+	self.Require().NotEmpty(result.Entries)
+
+	entry := result.Entries[0]
+	self.Require().NotNil(entry)
+	self.Equal(model.EntryStatusRead, entry.Status)
+}
+
 func (self *EndpointTestSuite) TestGetFeedEndpoint() {
 	feedID := self.createFeed()
 	feed, err := self.client.Feed(feedID)

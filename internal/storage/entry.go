@@ -165,61 +165,29 @@ func (s *Storage) refreshEntries(ctx context.Context, tx pgx.Tx, userID,
 func (s *Storage) knownEntries(ctx context.Context, tx pgx.Tx, userID,
 	feedID int64, hashes []string, entries []*model.Entry,
 ) (*model.FeedRefreshed, error) {
-	published, err := s.publishedEntryHashes(ctx, tx, userID, hashes)
+	published, err := s.publishedEntries(ctx, tx, userID, hashes)
 	if err != nil {
 		return nil, err
-	} else if len(published) == 0 {
-		return &model.FeedRefreshed{CreatedEntries: entries}, nil
 	}
 
-	byHash := make(map[string]*publishedEntry, len(published))
+	byHash := make(map[string]*model.Entry, len(published))
 	for i := range published {
 		e := &published[i]
 		if _, ok := byHash[e.Hash]; !ok || e.FeedID == feedID {
 			byHash[e.Hash] = e
 		}
 	}
+	refreshed := model.NewFeedRefreshed().Append(entries, byHash)
 
-	refreshed := &model.FeedRefreshed{}
-	var updatedEntries, newEntries []*model.Entry
-
-	for _, e := range entries {
-		stored, ok := byHash[e.Hash]
-		switch {
-		case !ok:
-			e.Status = model.EntryStatusUnread
-			newEntries = append(newEntries, e)
-		case e.FeedID != stored.FeedID:
-			if e.Date.After(stored.Date) {
-				e.Status = model.EntryStatusUnread
-			} else {
-				e.Status = model.EntryStatusRead
-				refreshed.Dedups++
-			}
-			newEntries = append(newEntries, e)
-		case e.Date.After(stored.Date):
-			e.Status = model.EntryStatusUnread
-			updatedEntries = append(updatedEntries, e)
-		default:
-			e.Status = stored.Status
-		}
+	if dd := DedupEntriesFrom(ctx); dd != nil {
+		refreshed.Dedups += dd.Filter(userID, refreshed.CreatedEntries)
 	}
-
-	refreshed.CreatedEntries = newEntries
-	refreshed.UpdatedEntires = updatedEntries
 	return refreshed, nil
 }
 
-type publishedEntry struct {
-	FeedID int64     `db:"feed_id"`
-	Status string    `db:"status"`
-	Hash   string    `db:"hash"`
-	Date   time.Time `db:"published_at"`
-}
-
-func (s *Storage) publishedEntryHashes(ctx context.Context, tx pgx.Tx,
+func (s *Storage) publishedEntries(ctx context.Context, tx pgx.Tx,
 	userID int64, hashes []string,
-) ([]publishedEntry, error) {
+) ([]model.Entry, error) {
 	if len(hashes) == 0 {
 		return nil, nil
 	}
@@ -229,7 +197,7 @@ SELECT feed_id, status, hash, published_at
   FROM entries
  WHERE user_id = $1 AND hash = ANY($2)`, userID, hashes)
 
-	entries, err := pgx.CollectRows(rows, pgx.RowToStructByName[publishedEntry])
+	entries, err := pgx.CollectRows(rows, pgx.RowToStructByNameLax[model.Entry])
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	} else if err != nil {

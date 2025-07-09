@@ -369,3 +369,36 @@ type FeedRefreshed struct {
 	Refreshed   bool
 	NotModified int
 }
+
+func NewFeedRefreshed() *FeedRefreshed { return new(FeedRefreshed) }
+
+func (self *FeedRefreshed) Append(entries []*Entry, published map[string]*Entry,
+) *FeedRefreshed {
+	if len(published) == 0 {
+		self.CreatedEntries = entries
+		return self
+	}
+
+	for _, e := range entries {
+		stored, ok := published[e.Hash]
+		switch {
+		case !ok:
+			e.Status = EntryStatusUnread
+			self.CreatedEntries = append(self.CreatedEntries, e)
+		case e.FeedID != stored.FeedID:
+			if e.Date.After(stored.Date) {
+				e.Status = EntryStatusUnread
+			} else {
+				e.Status = EntryStatusRead
+				self.Dedups++
+			}
+			self.CreatedEntries = append(self.CreatedEntries, e)
+		case e.Date.After(stored.Date):
+			e.Status = EntryStatusUnread
+			self.UpdatedEntires = append(self.UpdatedEntires, e)
+		default:
+			e.Status = stored.Status
+		}
+	}
+	return self
+}

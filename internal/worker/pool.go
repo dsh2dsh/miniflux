@@ -54,6 +54,7 @@ type Pool struct {
 type queueItem struct {
 	*model.Job
 
+	ctx   context.Context
 	index int
 	end   func()
 
@@ -61,9 +62,11 @@ type queueItem struct {
 	traceStat *storage.TraceStat
 }
 
-func NewItem(job *model.Job, index int, end func()) queueItem {
+func NewItem(ctx context.Context, job *model.Job, index int, end func(),
+) queueItem {
 	return queueItem{
 		Job:   job,
+		ctx:   ctx,
 		index: index,
 		end:   end,
 	}
@@ -96,9 +99,10 @@ func (self *Pool) setErr(err error) {
 func (self *Pool) Push(ctx context.Context, jobs []model.Job) {
 	log := logging.FromContext(ctx).With(slog.Int("jobs", len(jobs)))
 	log.Info("worker: created a batch of feeds")
+	ctx, dd := storage.WithDedupEntries(ctx)
 
 	var wg sync.WaitGroup
-	items := makeItems(jobs, wg.Done)
+	items := makeItems(ctx, jobs, wg.Done)
 	startTime := time.Now()
 	wg.Add(len(items))
 
@@ -119,7 +123,7 @@ jobsLoop:
 			slog.Any("reason", context.Cause(self.ctx)))
 		return
 	case ctx.Err() != nil:
-		log.Info("worker:  batch canceled by request",
+		log.Info("worker: batch canceled by request",
 			slog.Any("reason", context.Cause(ctx)))
 		return
 	}
@@ -129,6 +133,7 @@ jobsLoop:
 
 	traceStat := sumTraceStats(items)
 	log = log.With(
+		slog.Int("dedups", dd.Dedups()),
 		slog.Group("storage",
 			slog.Int64("queries", traceStat.Queries),
 			slog.Duration("elapsed", traceStat.Elapsed)),
@@ -147,10 +152,10 @@ jobsLoop:
 	log.Info("worker: refreshed a batch of feeds")
 }
 
-func makeItems(jobs []model.Job, end func()) []queueItem {
+func makeItems(ctx context.Context, jobs []model.Job, end func()) []queueItem {
 	items := make([]queueItem, 0, len(jobs))
 	for job := range distributeJobs(jobs) {
-		items = append(items, NewItem(job, len(items), end))
+		items = append(items, NewItem(ctx, job, len(items), end))
 	}
 	return items
 }
@@ -235,8 +240,9 @@ forLoop:
 }
 
 func (self *Pool) refreshFeed(job *queueItem) error {
-	log := logging.FromContext(self.ctx).With(slog.Int("job", job.Id()))
-	ctx := storage.WithTraceStat(logging.WithLogger(self.ctx, log))
+	ctx := job.ctx
+	log := logging.FromContext(ctx).With(slog.Int("job", job.Id()))
+	ctx, job.traceStat = storage.WithTraceStat(logging.WithLogger(ctx, log))
 
 	log = log.With(
 		slog.Int64("user_id", job.UserID),
@@ -258,10 +264,6 @@ func (self *Pool) refreshFeed(job *queueItem) error {
 		metric.BackgroundFeedRefreshDuration.
 			WithLabelValues(status).
 			Observe(time.Since(startTime).Seconds())
-	}
-
-	if t := storage.TraceStatFrom(ctx); t != nil {
-		job.traceStat = t
 	}
 	return err
 }
