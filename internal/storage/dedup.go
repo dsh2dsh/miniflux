@@ -10,7 +10,9 @@ import (
 type DedupEntries struct {
 	mu     sync.Mutex
 	hashes map[int64]map[string]int64
-	dedups int
+
+	created int
+	dedups  int
 }
 
 type ctxDedupEntries struct{}
@@ -33,7 +35,8 @@ func DedupEntriesFrom(ctx context.Context) *DedupEntries {
 	return nil
 }
 
-func (self *DedupEntries) Dedups() int { return self.dedups }
+func (self *DedupEntries) Created() int { return self.created }
+func (self *DedupEntries) Dedups() int  { return self.dedups }
 
 func (self *DedupEntries) Filter(userID int64, refreshed *model.FeedRefreshed) {
 	entries := refreshed.CreatedEntries
@@ -55,6 +58,7 @@ func (self *DedupEntries) Filter(userID int64, refreshed *model.FeedRefreshed) {
 			refreshed.Dedups++
 		} else if !ok {
 			hashes[e.Hash] = e.FeedID
+			self.created++
 		}
 	}
 

@@ -131,11 +131,7 @@ jobsLoop:
 	log.Info("worker: waiting for batch completion")
 	wg.Wait()
 
-	if dd.Dedups() != 0 {
-		log = log.With(slog.Int("dedups", dd.Dedups()))
-	}
-	log = log.With(
-		logTraceStats(items),
+	log = log.With(logDedups(dd), logTraceStats(items),
 		slog.Duration("elapsed", time.Since(startTime)))
 
 	for i := range items {
@@ -265,6 +261,17 @@ func (self *Pool) refreshFeed(job *queueItem) error {
 			Observe(time.Since(startTime).Seconds())
 	}
 	return err
+}
+
+func logDedups(dd *storage.DedupEntries) slog.Attr {
+	attrs := make([]any, 0, 2)
+	if n := dd.Created(); n != 0 {
+		attrs = append(attrs, slog.Int("created", n))
+	}
+	if n := dd.Dedups(); n != 0 {
+		attrs = append(attrs, slog.Int("dedups", n))
+	}
+	return slog.Group("entries", attrs...)
 }
 
 func logTraceStats(items []queueItem) slog.Attr {
