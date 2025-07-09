@@ -35,10 +35,12 @@ func DedupEntriesFrom(ctx context.Context) *DedupEntries {
 
 func (self *DedupEntries) Dedups() int { return self.dedups }
 
-func (self *DedupEntries) Filter(userID int64, entries model.Entries) int {
+func (self *DedupEntries) Filter(userID int64, refreshed *model.FeedRefreshed) {
+	entries := refreshed.CreatedEntries
 	if len(entries) == 0 {
-		return 0
+		return
 	}
+
 	self.mu.Lock()
 	defer self.mu.Unlock()
 
@@ -47,11 +49,10 @@ func (self *DedupEntries) Filter(userID int64, entries model.Entries) int {
 		hashes = make(map[string]int64)
 	}
 
-	var dedups int
 	for _, e := range entries.Unread() {
 		if feedID, ok := hashes[e.Hash]; ok && e.FeedID != feedID {
 			e.Status = model.EntryStatusRead
-			dedups++
+			refreshed.Dedups++
 		} else if !ok {
 			hashes[e.Hash] = e.FeedID
 		}
@@ -60,6 +61,6 @@ func (self *DedupEntries) Filter(userID int64, entries model.Entries) int {
 	if !found && len(hashes) != 0 {
 		self.hashes[userID] = hashes
 	}
-	self.dedups += dedups
-	return dedups
+	self.dedups += refreshed.Dedups
+	return
 }
