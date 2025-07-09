@@ -723,4 +723,7 @@ WITH t AS (
 )
 UPDATE entries e SET extra = t.extra FROM t WHERE t.entry_id = e.id;
 DROP TABLE enclosures;`),
+
+	// 121
+	sqlMigration(`CREATE INDEX ON entries (user_id, hash)`),
 }

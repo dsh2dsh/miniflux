@@ -3,7 +3,7 @@
 CREATE TABLE schema_version (
     version text NOT NULL
 );
-INSERT INTO schema_version (version) VALUES('120');
+INSERT INTO schema_version (version) VALUES('121');
 
 CREATE TABLE acme_cache (
     key character varying(400) NOT NULL PRIMARY KEY,
@@ -185,6 +185,7 @@ CREATE INDEX ON entries (feed_id);
 CREATE INDEX ON entries (id, user_id, status);
 CREATE UNIQUE INDEX ON entries (share_code) WHERE (share_code <> '');
 CREATE INDEX ON entries (user_id, feed_id);
+CREATE INDEX ON entries (user_id, hash);
 CREATE INDEX ON entries (user_id, status, starred);
 CREATE INDEX ON entries (user_id, status, changed_at);
 CREATE INDEX ON entries (user_id, status, changed_at, published_at);
