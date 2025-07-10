@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/url"
 	"reflect"
 	"runtime"
@@ -837,14 +838,9 @@ func (o *Options) SortedOptions(redactSecret bool) []Option {
 		"TRUSTED_PROXIES":                    strings.Join(o.env.TrustedProxies, ","),
 	}
 
-	keys := make([]string, 0, len(keyValues))
-	for key := range keyValues {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-
-	sortedOptions := make([]Option, len(keys))
-	for i, key := range keys {
+	sortedKeys := slices.Sorted(maps.Keys(keyValues))
+	sortedOptions := make([]Option, len(sortedKeys))
+	for i, key := range sortedKeys {
 		sortedOptions[i] = Option{Key: key, Value: keyValues[key]}
 	}
 	return sortedOptions
