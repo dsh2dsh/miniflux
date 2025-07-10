@@ -59,6 +59,7 @@ type queueItem struct {
 	end   func()
 
 	err       error
+	refreshed *model.FeedRefreshed
 	traceStat *storage.TraceStat
 }
 
@@ -131,7 +132,9 @@ jobsLoop:
 	log.Info("worker: waiting for batch completion")
 	wg.Wait()
 
-	log = log.With(logDedups(dd), logTraceStats(items),
+	log = log.With(
+		entriesLogGroup(items, dd),
+		traceLogGroup(items),
 		slog.Duration("elapsed", time.Since(startTime)))
 
 	for i := range items {
@@ -205,12 +208,13 @@ forLoop:
 			break forLoop
 		case job := <-self.queue:
 			self.g.Go(func() error {
-				err := self.refreshFeed(job)
+				refreshed, err := self.refreshFeed(job)
 				job.end()
 				log := log.With(slog.Int("job", job.Id()))
 				if err != nil {
 					log.Info("worker: job completed with error", slog.Any("error", err))
 				} else {
+					job.refreshed = refreshed
 					log.Info("worker: job completed")
 				}
 				return nil
@@ -234,7 +238,7 @@ forLoop:
 	return nil
 }
 
-func (self *Pool) refreshFeed(job *queueItem) error {
+func (self *Pool) refreshFeed(job *queueItem) (*model.FeedRefreshed, error) {
 	ctx := job.ctx
 	log := logging.FromContext(ctx).With(slog.Int("job", job.Id()))
 	ctx, job.traceStat = storage.WithTraceStat(logging.WithLogger(ctx, log))
@@ -245,7 +249,8 @@ func (self *Pool) refreshFeed(job *queueItem) error {
 	log.Debug("worker: job received")
 
 	startTime := time.Now()
-	err := handler.RefreshFeed(ctx, self.store, job.UserID, job.FeedID, false)
+	refreshed, err := handler.RefreshFeed(ctx, self.store, job.UserID, job.FeedID,
+		false)
 	if err != nil && !errors.Is(err, handler.ErrBadFeed) {
 		job.err = err
 		log.Error("worker: error refreshing feed", slog.Any("error", err))
@@ -260,21 +265,37 @@ func (self *Pool) refreshFeed(job *queueItem) error {
 			WithLabelValues(status).
 			Observe(time.Since(startTime).Seconds())
 	}
-	return err
+	return refreshed, err
 }
 
-func logDedups(dd *storage.DedupEntries) slog.Attr {
-	attrs := make([]any, 0, 2)
+func entriesLogGroup(items []queueItem, dd *storage.DedupEntries) slog.Attr {
+	var deleted, updated, dedups uint64
+	for i := range items {
+		item := &items[i]
+		if r := item.refreshed; r != nil {
+			deleted += r.Deleted
+			updated += uint64(r.Updated())
+			dedups += r.Dedups
+		}
+	}
+
+	attrs := make([]any, 0, 4)
 	if n := dd.Created(); n != 0 {
 		attrs = append(attrs, slog.Uint64("created", n))
 	}
-	if n := dd.Dedups(); n != 0 {
-		attrs = append(attrs, slog.Uint64("dedups", n))
+	if dedups != 0 {
+		attrs = append(attrs, slog.Uint64("dedups", dedups))
+	}
+	if updated != 0 {
+		attrs = append(attrs, slog.Uint64("updated", updated))
+	}
+	if deleted != 0 {
+		attrs = append(attrs, slog.Uint64("deleted", deleted))
 	}
 	return slog.Group("entries", attrs...)
 }
 
-func logTraceStats(items []queueItem) slog.Attr {
+func traceLogGroup(items []queueItem) slog.Attr {
 	var traceStat storage.TraceStat
 	for i := range items {
 		item := &items[i]

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/logging"
@@ -134,9 +135,11 @@ func (s *Storage) RefreshFeedEntries(ctx context.Context, userID, feedID int64,
 		refreshed = &model.FeedRefreshed{}
 	}
 
-	if err := s.cleanupEntries(ctx, feedID, hashes); err != nil {
+	deleted, err := s.cleanupEntries(ctx, feedID, hashes)
+	if err != nil {
 		return nil, err
 	}
+	refreshed.Deleted = uint64(deleted)
 	return refreshed, nil
 }
 
@@ -387,22 +390,23 @@ RETURNING id, created_at, changed_at`,
 // visible anymore in the feed.
 func (s *Storage) cleanupEntries(ctx context.Context, feedID int64,
 	hashes []string,
-) error {
+) (int64, error) {
+	var result pgconn.CommandTag
 	var err error
 	if len(hashes) == 0 {
-		_, err = s.db.Exec(ctx,
+		result, err = s.db.Exec(ctx,
 			`DELETE FROM entries WHERE feed_id = $1 AND status = $2`,
 			feedID, model.EntryStatusRemoved)
 	} else {
-		_, err = s.db.Exec(ctx, `
+		result, err = s.db.Exec(ctx, `
 DELETE FROM entries
  WHERE feed_id = $1 AND status = $2 AND NOT (hash = ANY($3))`,
 			feedID, model.EntryStatusRemoved, hashes)
 	}
 	if err != nil {
-		return fmt.Errorf(`store: unable to cleanup entries: %w`, err)
+		return 0, fmt.Errorf(`store: unable to cleanup entries: %w`, err)
 	}
-	return nil
+	return result.RowsAffected(), nil
 }
 
 // ArchiveEntries changes the status of entries to "removed" after the given

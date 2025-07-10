@@ -29,7 +29,7 @@ var ErrBadFeed = errors.New("reader/handler: bad feed")
 
 func RefreshFeed(ctx context.Context, store *storage.Storage, userID,
 	feedID int64, forceRefresh bool,
-) error {
+) (*model.FeedRefreshed, error) {
 	r := Refresh{
 		store:  store,
 		userID: userID,
@@ -37,17 +37,18 @@ func RefreshFeed(ctx context.Context, store *storage.Storage, userID,
 		force:  forceRefresh,
 	}
 
-	if err := r.Refresh(ctx); err != nil {
+	refreshed, err := r.Refresh(ctx)
+	if err != nil {
 		var lerr *locale.LocalizedErrorWrapper
 		if errors.As(err, &lerr) {
 			if err := r.incFeedError(ctx, lerr); err != nil {
-				return err
+				return nil, err
 			}
-			return fmt.Errorf("%w: %w", ErrBadFeed, err)
+			return nil, fmt.Errorf("%w: %w", ErrBadFeed, err)
 		}
-		return err
+		return nil, err
 	}
-	return nil
+	return refreshed, nil
 }
 
 type Refresh struct {
@@ -74,7 +75,7 @@ func (self *Refresh) incFeedError(ctx context.Context,
 }
 
 // Refresh refreshes a feed.
-func (self *Refresh) Refresh(ctx context.Context) error {
+func (self *Refresh) Refresh(ctx context.Context) (*model.FeedRefreshed, error) {
 	log := logging.FromContext(ctx).With(
 		slog.Int64("user_id", self.userID),
 		slog.Int64("feed_id", self.feedID))
@@ -84,7 +85,7 @@ func (self *Refresh) Refresh(ctx context.Context) error {
 	ctx = withTraceStat(ctx)
 	startTime := time.Now()
 	if err := self.initFeed(ctx); err != nil {
-		return err
+		return nil, err
 	}
 
 	self.feed.CheckedNow()
@@ -92,7 +93,7 @@ func (self *Refresh) Refresh(ctx context.Context) error {
 
 	resp, err := self.response(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Close()
 
@@ -102,14 +103,14 @@ func (self *Refresh) Refresh(ctx context.Context) error {
 
 	err = self.respError(logging.WithLogger(ctx, log), resp)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var refreshed *model.FeedRefreshed
 	if self.refreshAnyway(resp) {
 		r, err := self.refreshFeed(logging.WithLogger(ctx, log), resp)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		refreshed = r
 	} else {
@@ -128,12 +129,12 @@ func (self *Refresh) Refresh(ctx context.Context) error {
 
 	self.feed.ResetErrorCounter()
 	if err := self.updateFeed(ctx); err != nil {
-		return err
+		return nil, err
 	}
 
 	self.logFeedRefreshed(logging.WithLogger(ctx, log), refreshed,
 		time.Since(startTime))
-	return nil
+	return refreshed, nil
 }
 
 func withTraceStat(ctx context.Context) context.Context {
@@ -342,8 +343,9 @@ func (self *Refresh) logFeedRefreshed(ctx context.Context,
 		msg = "Feed refreshed"
 		log = log.With(
 			slog.Uint64("size", self.feed.Size()),
-			slog.String("hash", self.feed.HashString()))
-		log = withEntriesLogAttrs(log, self.feed, refreshed)
+			slog.String("hash", self.feed.HashString()),
+			self.filteredLogGroup(),
+			self.entriesLogGroup(refreshed))
 	case refreshed.NotModified == notModifiedHeaders:
 		msg = "Response not modified"
 		log = log.With(
@@ -369,38 +371,36 @@ func (self *Refresh) logFeedRefreshed(ctx context.Context,
 		slog.String("feed_url", self.feed.FeedURL))
 }
 
-func withEntriesLogAttrs(log *slog.Logger, feed *model.Feed,
-	refreshed *model.FeedRefreshed,
-) *slog.Logger {
-	filteredAttrs := make([]any, 0, 3)
-	if n := feed.RemovedByAge(); n > 0 {
-		filteredAttrs = append(filteredAttrs, slog.Int("age", n))
+func (self *Refresh) filteredLogGroup() slog.Attr {
+	attrs := make([]any, 0, 3)
+	if n := self.feed.RemovedByAge(); n > 0 {
+		attrs = append(attrs, slog.Int("age", n))
 	}
-	if n := feed.RemovedByFilters(); n > 0 {
-		filteredAttrs = append(filteredAttrs, slog.Int("rules", n))
+	if n := self.feed.RemovedByFilters(); n > 0 {
+		attrs = append(attrs, slog.Int("rules", n))
 	}
-	if n := feed.RemovedByHash(); n > 0 {
-		filteredAttrs = append(filteredAttrs, slog.Int("hash", n))
+	if n := self.feed.RemovedByHash(); n > 0 {
+		attrs = append(attrs, slog.Int("hash", n))
 	}
-	if len(filteredAttrs) != 0 {
-		log = log.With(slog.Group("filtered", filteredAttrs...))
-	}
+	return slog.Group("filtered", attrs...)
+}
 
-	entriesAttrs := make([]any, 0, 4)
-	if n := len(feed.Entries); n != 0 {
-		entriesAttrs = append(entriesAttrs, slog.Int("all", n))
+func (self *Refresh) entriesLogGroup(refreshed *model.FeedRefreshed) slog.Attr {
+	attrs := make([]any, 0, 5)
+	if n := len(self.feed.Entries); n != 0 {
+		attrs = append(attrs, slog.Int("all", n))
 	}
-	if n := len(refreshed.UpdatedEntires); n != 0 {
-		entriesAttrs = append(entriesAttrs, slog.Int("update", n))
+	if n := refreshed.Updated(); n != 0 {
+		attrs = append(attrs, slog.Int("update", n))
 	}
-	if n := len(refreshed.CreatedEntries); n != 0 {
-		entriesAttrs = append(entriesAttrs, slog.Int("create", n))
+	if n := refreshed.Created(); n != 0 {
+		attrs = append(attrs, slog.Int("create", n))
 	}
 	if n := refreshed.Dedups; n > 0 {
-		entriesAttrs = append(entriesAttrs, slog.Uint64("dedup", n))
+		attrs = append(attrs, slog.Uint64("dedup", n))
 	}
-	if len(entriesAttrs) != 0 {
-		log = log.With(slog.Group("entries", entriesAttrs...))
+	if n := refreshed.Deleted; n > 0 {
+		attrs = append(attrs, slog.Uint64("deleted", n))
 	}
-	return log
+	return slog.Group("entries", attrs...)
 }

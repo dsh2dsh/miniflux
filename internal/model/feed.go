@@ -364,7 +364,9 @@ type Feeds []*Feed
 type FeedRefreshed struct {
 	CreatedEntries Entries
 	UpdatedEntires Entries
-	Dedups         uint64
+
+	Dedups  uint64
+	Deleted uint64
 
 	Refreshed   bool
 	NotModified int
@@ -402,3 +404,6 @@ func (self *FeedRefreshed) Append(entries []*Entry, published map[string]*Entry,
 	}
 	return self
 }
+
+func (self *FeedRefreshed) Created() int { return len(self.CreatedEntries) }
+func (self *FeedRefreshed) Updated() int { return len(self.UpdatedEntires) }
