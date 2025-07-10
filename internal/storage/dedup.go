@@ -11,8 +11,8 @@ type DedupEntries struct {
 	mu     sync.Mutex
 	hashes map[int64]map[string]int64
 
-	created int
-	dedups  int
+	created uint64
+	dedups  uint64
 }
 
 type ctxDedupEntries struct{}
@@ -35,8 +35,8 @@ func DedupEntriesFrom(ctx context.Context) *DedupEntries {
 	return nil
 }
 
-func (self *DedupEntries) Created() int { return self.created }
-func (self *DedupEntries) Dedups() int  { return self.dedups }
+func (self *DedupEntries) Created() uint64 { return self.created }
+func (self *DedupEntries) Dedups() uint64  { return self.dedups }
 
 func (self *DedupEntries) Filter(userID int64, refreshed *model.FeedRefreshed) {
 	entries := refreshed.CreatedEntries

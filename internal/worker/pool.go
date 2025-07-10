@@ -266,10 +266,10 @@ func (self *Pool) refreshFeed(job *queueItem) error {
 func logDedups(dd *storage.DedupEntries) slog.Attr {
 	attrs := make([]any, 0, 2)
 	if n := dd.Created(); n != 0 {
-		attrs = append(attrs, slog.Int("created", n))
+		attrs = append(attrs, slog.Uint64("created", n))
 	}
 	if n := dd.Dedups(); n != 0 {
-		attrs = append(attrs, slog.Int("dedups", n))
+		attrs = append(attrs, slog.Uint64("dedups", n))
 	}
 	return slog.Group("entries", attrs...)
 }

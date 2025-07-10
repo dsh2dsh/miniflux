@@ -397,7 +397,7 @@ func withEntriesLogAttrs(log *slog.Logger, feed *model.Feed,
 		entriesAttrs = append(entriesAttrs, slog.Int("create", n))
 	}
 	if n := refreshed.Dedups; n > 0 {
-		entriesAttrs = append(entriesAttrs, slog.Int("dedup", n))
+		entriesAttrs = append(entriesAttrs, slog.Uint64("dedup", n))
 	}
 	if len(entriesAttrs) != 0 {
 		log = log.With(slog.Group("entries", entriesAttrs...))

@@ -364,7 +364,7 @@ type Feeds []*Feed
 type FeedRefreshed struct {
 	CreatedEntries Entries
 	UpdatedEntires Entries
-	Dedups         int
+	Dedups         uint64
 
 	Refreshed   bool
 	NotModified int
