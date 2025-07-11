@@ -74,8 +74,8 @@ func (r *ResponseHandler) CacheControlMaxAgeInMinutes() int {
 	if cacheControlHeaderValue != "" {
 		for directive := range strings.SplitSeq(cacheControlHeaderValue, ",") {
 			directive = strings.TrimSpace(directive)
-			if strings.HasPrefix(directive, "max-age=") {
-				maxAge, err := strconv.Atoi(strings.TrimPrefix(directive, "max-age="))
+			if s, ok := strings.CutPrefix(directive, "max-age="); ok {
+				maxAge, err := strconv.Atoi(s)
 				if err == nil {
 					return int(math.Ceil(float64(maxAge) / 60))
 				}

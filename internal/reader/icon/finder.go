@@ -130,8 +130,11 @@ func (f *IconFinder) FetchIconsFromHTMLDocument() (*model.Icon, error) {
 		slog.String("website_url", f.websiteURL))
 
 	rootURL := urllib.RootURL(f.websiteURL)
-	responseHandler := fetcher.NewResponseHandler(
-		f.requestBuilder.ExecuteRequest(rootURL))
+	responseHandler, err := fetcher.NewResponseSemaphore(
+		f.requestBuilder.Context(), f.requestBuilder, rootURL)
+	if err != nil {
+		return nil, fmt.Errorf("reader/icon: download website index page: %w", err)
+	}
 	defer responseHandler.Close()
 
 	localizedError := responseHandler.LocalizedError()
@@ -190,7 +193,11 @@ func (f *IconFinder) DownloadIcon(iconURL string) (*model.Icon, error) {
 		slog.String("icon_url", iconURL),
 	)
 
-	responseHandler := fetcher.NewResponseHandler(f.requestBuilder.ExecuteRequest(iconURL))
+	responseHandler, err := fetcher.NewResponseSemaphore(
+		f.requestBuilder.Context(), f.requestBuilder, iconURL)
+	if err != nil {
+		return nil, fmt.Errorf("reader/icon: download website icon: %w", err)
+	}
 	defer responseHandler.Close()
 
 	if localizedError := responseHandler.LocalizedError(); localizedError != nil {

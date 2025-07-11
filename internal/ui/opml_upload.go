@@ -73,9 +73,12 @@ func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
 		slog.String("opml_file_url", opmlURL))
 
 	requestBuilder := fetcher.NewRequestBuilder()
-	//nolint:bodyclose // responseHandler close it
-	responseHandler := fetcher.NewResponseHandler(
-		requestBuilder.ExecuteRequest(opmlURL))
+	responseHandler, err := fetcher.NewResponseSemaphore(r.Context(),
+		requestBuilder, opmlURL)
+	if err != nil {
+		html.ServerError(w, r, err)
+		return
+	}
 	defer responseHandler.Close()
 
 	v.Set("menu", "feeds")
@@ -89,7 +92,7 @@ func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := opml.NewHandler(h.store).Import(r.Context(), v.UserID(),
+	err = opml.NewHandler(h.store).Import(r.Context(), v.UserID(),
 		responseHandler.Body(config.Opts.HTTPClientMaxBodySize()))
 	if err != nil {
 		v.Set("errorMessage", err)

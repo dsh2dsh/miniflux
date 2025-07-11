@@ -231,7 +231,15 @@ func (f *SubscriptionFinder) FindSubscriptionsFromWellKnownURLs(websiteURL strin
 			// We don't want the user to choose between invalid feed URLs.
 			f.requestBuilder.WithoutRedirects()
 
-			responseHandler := fetcher.NewResponseHandler(f.requestBuilder.ExecuteRequest(fullURL))
+			responseHandler, err := fetcher.NewResponseSemaphore(
+				f.requestBuilder.Context(), f.requestBuilder, fullURL)
+			if err != nil {
+				slog.Debug("Ignore invalid feed URL during feed discovery",
+					slog.String("fullURL", fullURL),
+					slog.Any("error", err),
+				)
+				continue
+			}
 			localizedError := responseHandler.LocalizedError()
 			responseHandler.Close()
 

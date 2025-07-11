@@ -48,7 +48,11 @@ func fetchBilibiliWatchTime(websiteURL string) (int, error) {
 	}
 	bilibiliApiURL := "https://api.bilibili.com/x/web-interface/view?" + idType + "=" + videoID
 
-	responseHandler := fetcher.NewResponseHandler(requestBuilder.ExecuteRequest(bilibiliApiURL))
+	responseHandler, err := fetcher.NewResponseSemaphore(
+		requestBuilder.Context(), requestBuilder, bilibiliApiURL)
+	if err != nil {
+		return 0, fmt.Errorf("reader/processor: fetch Bilibili API: %w", err)
+	}
 	defer responseHandler.Close()
 
 	if localizedError := responseHandler.LocalizedError(); localizedError != nil {

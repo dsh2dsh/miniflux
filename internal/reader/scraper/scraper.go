@@ -19,7 +19,11 @@ import (
 )
 
 func ScrapeWebsite(requestBuilder *fetcher.RequestBuilder, pageURL, rules string) (baseURL string, extractedContent string, err error) {
-	responseHandler := fetcher.NewResponseHandler(requestBuilder.ExecuteRequest(pageURL))
+	responseHandler, err := fetcher.NewResponseSemaphore(
+		requestBuilder.Context(), requestBuilder, pageURL)
+	if err != nil {
+		return "", "", fmt.Errorf("reader/scraper: scrape website: %w", err)
+	}
 	defer responseHandler.Close()
 
 	if localizedError := responseHandler.LocalizedError(); localizedError != nil {
