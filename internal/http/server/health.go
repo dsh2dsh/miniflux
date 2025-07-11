@@ -3,7 +3,9 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"time"
 
+	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/worker"
 )
@@ -20,6 +22,12 @@ func makeReadinessProbe(store *storage.Storage, pool *worker.Pool,
 		if err := pool.Err(); err != nil {
 			http.Error(w,
 				fmt.Sprintf("refresh of feeds completed with error: %s", err),
+				http.StatusServiceUnavailable)
+		}
+
+		schedulerFreq := time.Duration(config.Opts.PollingFrequency()) * time.Minute
+		if d := pool.SinceSchedulerCompleted(); d > schedulerFreq*2 {
+			http.Error(w, fmt.Sprintf("slow scheduler: %s", d),
 				http.StatusServiceUnavailable)
 		}
 		livenessProbe(w, r)

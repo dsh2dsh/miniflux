@@ -52,6 +52,7 @@ forLoop:
 					slog.Info("scheduler: no jobs is a good news")
 					break
 				}
+				self.pool.SchedulerCompleted()
 				slog.Info("scheduler: check for more jobs")
 			}
 		case <-self.pool.WakeupSignal():
@@ -60,6 +61,7 @@ forLoop:
 		}
 		fetcher.ExpireHostLimits(d)
 		timer.Reset(d)
+		self.pool.SchedulerCompleted()
 	}
 	slog.Info("feed scheduler stopped",
 		slog.Any("reason", context.Cause(ctx)))

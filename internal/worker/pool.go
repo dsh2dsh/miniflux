@@ -32,6 +32,8 @@ func NewPool(ctx context.Context, store *storage.Storage, n int) *Pool {
 		queue:    make(chan *queueItem),
 		store:    store,
 		wakeupCh: make(chan struct{}, 1),
+
+		schedulerCompletedAt: time.Now(),
 	}
 	self.g.SetLimit(n)
 	return self
@@ -49,6 +51,8 @@ type Pool struct {
 
 	mu  sync.Mutex
 	err error
+
+	schedulerCompletedAt time.Time
 }
 
 type queueItem struct {
@@ -94,6 +98,18 @@ func (self *Pool) setErr(err error) {
 	self.mu.Lock()
 	self.err = err
 	self.mu.Unlock()
+}
+
+func (self *Pool) SchedulerCompleted() {
+	self.mu.Lock()
+	self.schedulerCompletedAt = time.Now()
+	self.mu.Unlock()
+}
+
+func (self *Pool) SinceSchedulerCompleted() time.Duration {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	return time.Since(self.schedulerCompletedAt)
 }
 
 // Push send a list of jobs to the queue.
