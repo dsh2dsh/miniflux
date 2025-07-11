@@ -13,7 +13,7 @@ import (
 )
 
 var customReplaceRuleRegex = regexp.MustCompile(
-	`rewrite\("([^"]+)"\|"([^"]+)"\)`)
+	`^rewrite\("([^"]+)"\|"([^"]+)"\)$`)
 
 func RewriteEntryURL(ctx context.Context, feed *model.Feed, entry *model.Entry,
 ) {

@@ -269,12 +269,6 @@ func resizeIcon(icon *model.Icon) *model.Icon {
 
 func findIconURLsFromHTMLDocument(body io.Reader, contentType string,
 ) ([]string, error) {
-	queries := []string{
-		"link[rel~='icon' i]",
-		"link[rel='apple-touch-icon' i]",
-		"link[rel='apple-touch-icon-precomposed.png']",
-	}
-
 	htmlDocumentReader, err := encoding.NewCharsetReader(body, contentType)
 	if err != nil {
 		return nil, fmt.Errorf("icon: unable to create charset reader: %w", err)
@@ -285,21 +279,28 @@ func findIconURLsFromHTMLDocument(body io.Reader, contentType string,
 		return nil, fmt.Errorf("icon: unable to read document: %w", err)
 	}
 
+	queries := []string{
+		"link[rel~='icon' i][href]",
+		"link[rel='apple-touch-icon' i][href]",
+		"link[rel='apple-touch-icon-precomposed.png'][href]",
+	}
+
 	iconURLs := []string{}
-	head := doc.Find("head").First()
 	for _, query := range queries {
 		slog.Debug("Searching icon URL in HTML document",
 			slog.String("query", query))
-		head.Find(query).Each(func(i int, s *goquery.Selection) {
-			if href, exists := s.Attr("href"); exists {
-				if iconURL := strings.TrimSpace(href); iconURL != "" {
-					iconURLs = append(iconURLs, iconURL)
-					slog.Debug("Found icon URL in HTML document",
-						slog.String("query", query),
-						slog.String("icon_url", iconURL))
-				}
+		for _, s := range doc.Find("head").First().Find(query).EachIter() {
+			href, exists := s.Attr("href")
+			if !exists {
+				continue
 			}
-		})
+			if iconURL := strings.TrimSpace(href); iconURL != "" {
+				iconURLs = append(iconURLs, iconURL)
+				slog.Debug("Found icon URL in HTML document",
+					slog.String("query", query),
+					slog.String("icon_url", iconURL))
+			}
+		}
 	}
 	return iconURLs, nil
 }
