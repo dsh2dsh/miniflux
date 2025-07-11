@@ -12,7 +12,6 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 
-	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/reader/readingtime"
@@ -33,7 +32,7 @@ func fetchWatchTime(websiteURL, query string, isoDate bool) (int, error) {
 		return 0, localizedError
 	}
 
-	doc, docErr := goquery.NewDocumentFromReader(responseHandler.Body(config.Opts.HTTPClientMaxBodySize()))
+	doc, docErr := goquery.NewDocumentFromReader(responseHandler.Body())
 	if docErr != nil {
 		return 0, fmt.Errorf("reader/processor: %w", docErr)
 	}

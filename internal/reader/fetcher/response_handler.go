@@ -19,17 +19,24 @@ import (
 	"strings"
 	"time"
 
+	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/locale"
 )
 
 type ResponseHandler struct {
 	httpResponse *http.Response
 	clientErr    error
+
+	maxBodySize int64
 }
 
 func NewResponseHandler(httpResponse *http.Response, clientErr error,
 ) *ResponseHandler {
-	return &ResponseHandler{httpResponse: httpResponse, clientErr: clientErr}
+	return &ResponseHandler{
+		httpResponse: httpResponse,
+		clientErr:    clientErr,
+		maxBodySize:  config.Opts.HTTPClientMaxBodySize(),
+	}
 }
 
 func (r *ResponseHandler) Err() error { return r.clientErr }
@@ -166,17 +173,13 @@ func (r *ResponseHandler) getReader(maxBodySize int64) io.ReadCloser {
 	return http.MaxBytesReader(nil, r.httpResponse.Body, maxBodySize)
 }
 
-func (r *ResponseHandler) Body(maxBodySize int64) io.ReadCloser {
-	return r.getReader(maxBodySize)
+func (r *ResponseHandler) Body() io.ReadCloser {
+	return r.getReader(r.maxBodySize)
 }
 
-func (r *ResponseHandler) ReadBody(maxBodySize int64) ([]byte,
-	*locale.LocalizedErrorWrapper,
-) {
-	limitedReader := r.getReader(maxBodySize)
-
+func (r *ResponseHandler) ReadBody() ([]byte, *locale.LocalizedErrorWrapper) {
 	var buffer bytes.Buffer
-	_, err := io.Copy(&buffer, limitedReader)
+	_, err := io.Copy(&buffer, r.Body())
 	if err != nil && !errors.Is(err, io.EOF) {
 		var maxBytesErr *http.MaxBytesError
 		if errors.As(err, &maxBytesErr) {

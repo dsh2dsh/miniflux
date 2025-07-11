@@ -21,7 +21,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/image/draw"
 
-	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/encoding"
@@ -143,8 +142,7 @@ func (f *IconFinder) FetchIconsFromHTMLDocument() (*model.Icon, error) {
 			localizedError)
 	}
 
-	iconURLs, err := findIconURLsFromHTMLDocument(
-		responseHandler.Body(config.Opts.HTTPClientMaxBodySize()),
+	iconURLs, err := findIconURLsFromHTMLDocument(responseHandler.Body(),
 		responseHandler.ContentType())
 	if err != nil {
 		return nil, err
@@ -204,7 +202,7 @@ func (f *IconFinder) DownloadIcon(iconURL string) (*model.Icon, error) {
 		return nil, fmt.Errorf("icon: unable to download website icon: %w", localizedError)
 	}
 
-	responseBody, localizedError := responseHandler.ReadBody(config.Opts.HTTPClientMaxBodySize())
+	responseBody, localizedError := responseHandler.ReadBody()
 	if localizedError != nil {
 		return nil, fmt.Errorf("icon: unable to read response body: %w", localizedError)
 	}

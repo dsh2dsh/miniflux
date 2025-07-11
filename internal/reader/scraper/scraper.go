@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"strings"
 
-	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/reader/encoding"
 	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/reader/readability"
@@ -43,10 +42,8 @@ func ScrapeWebsite(requestBuilder *fetcher.RequestBuilder, pageURL, rules string
 		rules = getPredefinedScraperRules(pageURL)
 	}
 
-	htmlDocumentReader, err := encoding.NewCharsetReader(
-		responseHandler.Body(config.Opts.HTTPClientMaxBodySize()),
-		responseHandler.ContentType(),
-	)
+	htmlDocumentReader, err := encoding.NewCharsetReader(responseHandler.Body(),
+		responseHandler.ContentType())
 	if err != nil {
 		return "", "", fmt.Errorf(
 			"scraper: unable to read HTML document with charset reader: %w", err)

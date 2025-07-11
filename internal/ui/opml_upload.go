@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strings"
 
-	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
@@ -93,7 +92,7 @@ func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = opml.NewHandler(h.store).Import(r.Context(), v.UserID(),
-		responseHandler.Body(config.Opts.HTTPClientMaxBodySize()))
+		responseHandler.Body())
 	if err != nil {
 		v.Set("errorMessage", err)
 		html.OK(w, r, v.Render("import"))

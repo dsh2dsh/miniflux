@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"strings"
 
-	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/integration/rssbridge"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
@@ -59,7 +58,7 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 		return nil, lerr
 	}
 
-	body, lerr := resp.ReadBody(config.Opts.HTTPClientMaxBodySize())
+	body, lerr := resp.ReadBody()
 	if lerr != nil {
 		slog.Warn("Unable to find subscriptions",
 			slog.String("website_url", websiteURL), slog.Any("error", lerr))

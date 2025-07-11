@@ -92,7 +92,7 @@ func CreateFeed(ctx context.Context, store *storage.Storage, userID int64,
 			"error.duplicated_feed")
 	}
 
-	body, lerr := resp.ReadBody(config.Opts.HTTPClientMaxBodySize())
+	body, lerr := resp.ReadBody()
 	if lerr != nil {
 		log.Warn("Unable to fetch feed", slog.Any("error", lerr))
 		return nil, lerr

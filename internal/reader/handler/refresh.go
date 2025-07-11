@@ -224,7 +224,7 @@ func (self *Refresh) refreshFeed(ctx context.Context,
 		slog.String("etag_header", self.feed.EtagHeader),
 		slog.String("last_modified_header", self.feed.LastModifiedHeader))
 
-	body, lerr := resp.ReadBody(config.Opts.HTTPClientMaxBodySize())
+	body, lerr := resp.ReadBody()
 	if lerr != nil {
 		log.Warn("Unable to fetch feed body",
 			slog.String("feed_url", self.feed.FeedURL),
