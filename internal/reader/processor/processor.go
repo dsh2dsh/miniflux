@@ -151,14 +151,7 @@ func removeTracking(feedURL, siteURL *url.URL, entry *model.Entry) {
 func scrape(ctx context.Context, feed *model.Feed, entry *model.Entry,
 ) (string, string, error) {
 	startTime := time.Now()
-	builder := fetcher.NewRequestBuilder().
-		WithContext(ctx).
-		WithUserAgent(feed.UserAgent, config.Opts.HTTPClientUserAgent()).
-		WithCookie(feed.Cookie).
-		WithCustomFeedProxyURL(feed.ProxyURL).
-		UseCustomApplicationProxyURL(feed.FetchViaProxy).
-		IgnoreTLSErrors(feed.AllowSelfSignedCertificates).
-		DisableHTTP2(feed.DisableHTTP2)
+	builder := fetcher.NewRequestFeed(feed).WithContext(ctx)
 
 	baseURL, content, err := scraper.ScrapeWebsite(builder, entry.URL,
 		feed.ScraperRules)

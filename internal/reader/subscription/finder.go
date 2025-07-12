@@ -45,7 +45,7 @@ func (f *SubscriptionFinder) FeedResponseInfo() *model.FeedCreationRequestFromSu
 func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 	websiteURL, rssBridgeURL, rssBridgeToken string,
 ) (Subscriptions, *locale.LocalizedErrorWrapper) {
-	resp, err := fetcher.NewResponseSemaphore(ctx, f.requestBuilder, websiteURL)
+	resp, err := f.requestBuilder.RequestWithContext(ctx, websiteURL)
 	if err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err,
 			"error.http_body_read", err)
@@ -230,8 +230,7 @@ func (f *SubscriptionFinder) FindSubscriptionsFromWellKnownURLs(websiteURL strin
 			// We don't want the user to choose between invalid feed URLs.
 			f.requestBuilder.WithoutRedirects()
 
-			responseHandler, err := fetcher.NewResponseSemaphore(
-				f.requestBuilder.Context(), f.requestBuilder, fullURL)
+			responseHandler, err := f.requestBuilder.Request(fullURL)
 			if err != nil {
 				slog.Debug("Ignore invalid feed URL during feed discovery",
 					slog.String("fullURL", fullURL),

@@ -7,7 +7,6 @@ import (
 	json_parser "encoding/json"
 	"net/http"
 
-	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/model"
@@ -30,14 +29,7 @@ func (h *handler) discoverSubscriptions(w http.ResponseWriter, r *http.Request,
 	}
 
 	user := request.User(r)
-	requestBuilder := fetcher.NewRequestBuilder().
-		WithCustomFeedProxyURL(discovery.ProxyURL).
-		UseCustomApplicationProxyURL(discovery.FetchViaProxy).
-		WithUserAgent(discovery.UserAgent, config.Opts.HTTPClientUserAgent()).
-		WithCookie(discovery.Cookie).
-		WithUsernameAndPassword(discovery.Username, discovery.Password).
-		IgnoreTLSErrors(discovery.AllowSelfSignedCertificates).
-		DisableHTTP2(discovery.DisableHTTP2)
+	requestBuilder := fetcher.NewRequestDiscovery(&discovery)
 
 	s, lerr := subscription.NewSubscriptionFinder(requestBuilder).
 		FindSubscriptions(r.Context(), discovery.URL,

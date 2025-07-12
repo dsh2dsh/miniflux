@@ -26,13 +26,7 @@ func NewIconChecker(store *storage.Storage, feed *model.Feed) *IconChecker {
 }
 
 func (c *IconChecker) fetchAndStoreIcon(ctx context.Context) {
-	requestBuilder := fetcher.NewRequestBuilder()
-	requestBuilder.WithUserAgent(c.feed.UserAgent, config.Opts.HTTPClientUserAgent())
-	requestBuilder.WithCookie(c.feed.Cookie)
-	requestBuilder.WithCustomFeedProxyURL(c.feed.ProxyURL)
-	requestBuilder.UseCustomApplicationProxyURL(c.feed.FetchViaProxy)
-	requestBuilder.IgnoreTLSErrors(c.feed.AllowSelfSignedCertificates)
-	requestBuilder.DisableHTTP2(c.feed.DisableHTTP2)
+	requestBuilder := fetcher.NewRequestFeed(c.feed)
 
 	iconFinder := NewIconFinder(requestBuilder, c.feed.SiteURL, c.feed.IconURL,
 		config.Opts.PreferSiteIcon())

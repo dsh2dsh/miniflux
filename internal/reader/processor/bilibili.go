@@ -40,16 +40,13 @@ func extractBilibiliVideoID(websiteURL string) (string, string, error) {
 }
 
 func fetchBilibiliWatchTime(websiteURL string) (int, error) {
-	requestBuilder := fetcher.NewRequestBuilder()
-
 	idType, videoID, extractErr := extractBilibiliVideoID(websiteURL)
 	if extractErr != nil {
 		return 0, extractErr
 	}
 	bilibiliApiURL := "https://api.bilibili.com/x/web-interface/view?" + idType + "=" + videoID
 
-	responseHandler, err := fetcher.NewResponseSemaphore(
-		requestBuilder.Context(), requestBuilder, bilibiliApiURL)
+	responseHandler, err := fetcher.Request(bilibiliApiURL)
 	if err != nil {
 		return 0, fmt.Errorf("reader/processor: fetch Bilibili API: %w", err)
 	}

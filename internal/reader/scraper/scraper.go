@@ -18,8 +18,7 @@ import (
 )
 
 func ScrapeWebsite(requestBuilder *fetcher.RequestBuilder, pageURL, rules string) (baseURL string, extractedContent string, err error) {
-	responseHandler, err := fetcher.NewResponseSemaphore(
-		requestBuilder.Context(), requestBuilder, pageURL)
+	responseHandler, err := requestBuilder.Request(pageURL)
 	if err != nil {
 		return "", "", fmt.Errorf("reader/scraper: scrape website: %w", err)
 	}

@@ -71,9 +71,7 @@ func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
 		slog.Int64("user_id", v.UserID()),
 		slog.String("opml_file_url", opmlURL))
 
-	requestBuilder := fetcher.NewRequestBuilder()
-	responseHandler, err := fetcher.NewResponseSemaphore(r.Context(),
-		requestBuilder, opmlURL)
+	responseHandler, err := fetcher.Request(opmlURL)
 	if err != nil {
 		html.ServerError(w, r, err)
 		return

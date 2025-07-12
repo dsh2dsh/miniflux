@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"time"
 
-	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/integration"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/logging"
@@ -160,20 +159,13 @@ func (self *Refresh) response(ctx context.Context) (*fetcher.ResponseSemaphore,
 	error,
 ) {
 	f := self.feed
-	r := fetcher.NewRequestBuilder().
-		WithUsernameAndPassword(f.Username, f.Password).
-		WithUserAgent(f.UserAgent, config.Opts.HTTPClientUserAgent()).
-		WithCookie(f.Cookie).
-		WithCustomFeedProxyURL(f.ProxyURL).
-		UseCustomApplicationProxyURL(f.FetchViaProxy).
-		IgnoreTLSErrors(f.AllowSelfSignedCertificates).
-		DisableHTTP2(f.DisableHTTP2)
+	r := fetcher.NewRequestFeed(f)
 
 	if !self.ignoreHTTPCache() {
 		r.WithETag(f.EtagHeader).WithLastModified(f.LastModifiedHeader)
 	}
 
-	resp, err := fetcher.NewResponseSemaphore(ctx, r, f.FeedURL)
+	resp, err := r.RequestWithContext(ctx, f.FeedURL)
 	if err != nil {
 		return nil, fmt.Errorf("reader/handler: fetch feed with semaphore: %w", err)
 	}

@@ -91,9 +91,7 @@ func fetchYouTubeWatchTimeFromApiInBulk(videoIDs []string) (map[string]time.Dura
 		RawQuery: apiQuery.Encode(),
 	}
 
-	requestBuilder := fetcher.NewRequestBuilder()
-	responseHandler, err := fetcher.NewResponseSemaphore(
-		requestBuilder.Context(), requestBuilder, apiURL.String())
+	responseHandler, err := fetcher.Request(apiURL.String())
 	if err != nil {
 		return nil, fmt.Errorf(
 			"reader/processor: fetch contentDetails from YouTube API: %w", err)

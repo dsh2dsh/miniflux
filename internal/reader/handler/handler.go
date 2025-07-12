@@ -9,7 +9,6 @@ import (
 	"errors"
 	"log/slog"
 
-	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
@@ -65,16 +64,7 @@ func CreateFeed(ctx context.Context, store *storage.Storage, userID int64,
 			"error.category_not_found")
 	}
 
-	requestBuilder := fetcher.NewRequestBuilder().
-		WithUsernameAndPassword(r.Username, r.Password).
-		WithUserAgent(r.UserAgent, config.Opts.HTTPClientUserAgent()).
-		WithCookie(r.Cookie).
-		WithCustomFeedProxyURL(r.ProxyURL).
-		UseCustomApplicationProxyURL(r.FetchViaProxy).
-		IgnoreTLSErrors(r.AllowSelfSignedCertificates).
-		DisableHTTP2(r.DisableHTTP2)
-
-	resp, err := fetcher.NewResponseSemaphore(ctx, requestBuilder, r.FeedURL)
+	resp, err := fetcher.RequestFeedCreation(r)
 	if err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err,
 			"error.unable_to_parse_feed",

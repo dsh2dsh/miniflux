@@ -19,7 +19,6 @@ import (
 	"strings"
 	"time"
 
-	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/locale"
 )
 
@@ -28,15 +27,6 @@ type ResponseHandler struct {
 	clientErr    error
 
 	maxBodySize int64
-}
-
-func NewResponseHandler(httpResponse *http.Response, clientErr error,
-) *ResponseHandler {
-	return &ResponseHandler{
-		httpResponse: httpResponse,
-		clientErr:    clientErr,
-		maxBodySize:  config.Opts.HTTPClientMaxBodySize(),
-	}
 }
 
 func (r *ResponseHandler) Err() error { return r.clientErr }

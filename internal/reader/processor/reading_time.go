@@ -19,9 +19,7 @@ import (
 )
 
 func fetchWatchTime(websiteURL, query string, isoDate bool) (int, error) {
-	requestBuilder := fetcher.NewRequestBuilder()
-	responseHandler, err := fetcher.NewResponseSemaphore(
-		requestBuilder.Context(), requestBuilder, websiteURL)
+	responseHandler, err := fetcher.Request(websiteURL)
 	if err != nil {
 		return 0, fmt.Errorf("reader/processor: fetch watch time: %w", err)
 	}

@@ -129,8 +129,7 @@ func (f *IconFinder) FetchIconsFromHTMLDocument() (*model.Icon, error) {
 		slog.String("website_url", f.websiteURL))
 
 	rootURL := urllib.RootURL(f.websiteURL)
-	responseHandler, err := fetcher.NewResponseSemaphore(
-		f.requestBuilder.Context(), f.requestBuilder, rootURL)
+	responseHandler, err := f.requestBuilder.Request(rootURL)
 	if err != nil {
 		return nil, fmt.Errorf("reader/icon: download website index page: %w", err)
 	}
@@ -191,8 +190,7 @@ func (f *IconFinder) DownloadIcon(iconURL string) (*model.Icon, error) {
 		slog.String("icon_url", iconURL),
 	)
 
-	responseHandler, err := fetcher.NewResponseSemaphore(
-		f.requestBuilder.Context(), f.requestBuilder, iconURL)
+	responseHandler, err := f.requestBuilder.Request(iconURL)
 	if err != nil {
 		return nil, fmt.Errorf("reader/icon: download website icon: %w", err)
 	}

@@ -19,7 +19,7 @@ var limitConnections = NewLimitPerServer()
 
 func ExpireHostLimits(d time.Duration) { limitConnections.Expire(d) }
 
-func NewResponseSemaphore(ctx context.Context, r *RequestBuilder, rawURL string,
+func newResponseSemaphore(r *RequestBuilder, rawURL string,
 ) (*ResponseSemaphore, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -27,15 +27,19 @@ func NewResponseSemaphore(ctx context.Context, r *RequestBuilder, rawURL string,
 	}
 	hostname := u.Hostname()
 
-	if err := limitConnections.Acquire(ctx, hostname); err != nil {
+	if err := limitConnections.Acquire(r.Context(), hostname); err != nil {
 		return nil, err
 	}
 
 	//nolint:bodyclose // ResponseSemaphore.Close() it
-	resp, err := r.WithContext(ctx).ExecuteRequest(rawURL)
+	resp, err := r.execute(rawURL)
 	return &ResponseSemaphore{
-		ResponseHandler: NewResponseHandler(resp, err),
-		release:         func() { limitConnections.Release(hostname) },
+		ResponseHandler: &ResponseHandler{
+			httpResponse: resp,
+			clientErr:    err,
+			maxBodySize:  config.Opts.HTTPClientMaxBodySize(),
+		},
+		release: func() { limitConnections.Release(hostname) },
 	}, nil
 }
 

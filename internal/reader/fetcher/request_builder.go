@@ -20,12 +20,54 @@ import (
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/logging"
+	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/proxyrotator"
 )
 
 const (
 	defaultAcceptHeader = "application/xml, application/atom+xml, application/rss+xml, application/rdf+xml, application/feed+json, text/html, */*;q=0.9"
 )
+
+func NewRequestDiscovery(d *model.SubscriptionDiscoveryRequest,
+) *RequestBuilder {
+	return NewRequestBuilder().
+		DisableHTTP2(d.DisableHTTP2).
+		IgnoreTLSErrors(d.AllowSelfSignedCertificates).
+		UseCustomApplicationProxyURL(d.FetchViaProxy).
+		WithCookie(d.Cookie).
+		WithCustomFeedProxyURL(d.ProxyURL).
+		WithUserAgent(d.UserAgent, config.Opts.HTTPClientUserAgent()).
+		WithUsernameAndPassword(d.Username, d.Password)
+}
+
+func NewRequestFeed(f *model.Feed) *RequestBuilder {
+	return NewRequestBuilder().
+		DisableHTTP2(f.DisableHTTP2).
+		IgnoreTLSErrors(f.AllowSelfSignedCertificates).
+		UseCustomApplicationProxyURL(f.FetchViaProxy).
+		WithCookie(f.Cookie).
+		WithCustomFeedProxyURL(f.ProxyURL).
+		WithUserAgent(f.UserAgent, config.Opts.HTTPClientUserAgent()).
+		WithUsernameAndPassword(f.Username, f.Password)
+}
+
+func Request(requestURL string) (*ResponseSemaphore, error) {
+	return NewRequestBuilder().Request(requestURL)
+}
+
+func RequestFeedCreation(r *model.FeedCreationRequest) (*ResponseSemaphore,
+	error,
+) {
+	return NewRequestBuilder().
+		DisableHTTP2(r.DisableHTTP2).
+		IgnoreTLSErrors(r.AllowSelfSignedCertificates).
+		UseCustomApplicationProxyURL(r.FetchViaProxy).
+		WithCookie(r.Cookie).
+		WithCustomFeedProxyURL(r.ProxyURL).
+		WithUserAgent(r.UserAgent, config.Opts.HTTPClientUserAgent()).
+		WithUsernameAndPassword(r.Username, r.Password).
+		Request(r.FeedURL)
+}
 
 type RequestBuilder struct {
 	ctx              context.Context
@@ -147,7 +189,7 @@ func (r *RequestBuilder) IgnoreTLSErrors(value bool) *RequestBuilder {
 	return r
 }
 
-func (r *RequestBuilder) ExecuteRequest(requestURL string) (*http.Response,
+func (r *RequestBuilder) execute(requestURL string) (*http.Response,
 	error,
 ) {
 	proxyURL, err := r.proxyURL()
@@ -301,4 +343,16 @@ func (r *RequestBuilder) req(requestURL string) (*http.Request, error) {
 	req.Header = r.headers.Clone()
 	req.Header.Set("Accept", defaultAcceptHeader)
 	return req, nil
+}
+
+func (r *RequestBuilder) Request(requestURL string) (*ResponseSemaphore,
+	error,
+) {
+	return newResponseSemaphore(r, requestURL)
+}
+
+func (r *RequestBuilder) RequestWithContext(ctx context.Context,
+	requestURL string,
+) (*ResponseSemaphore, error) {
+	return newResponseSemaphore(r.WithContext(ctx), requestURL)
 }
