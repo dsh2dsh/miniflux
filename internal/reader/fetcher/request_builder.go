@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -169,7 +170,6 @@ func (r *RequestBuilder) Timeout() time.Duration {
 
 func (r *RequestBuilder) WithoutRedirects() *RequestBuilder {
 	r.withoutRedirects = true
-	r.customizedClient = true
 	return r
 }
 
@@ -267,18 +267,21 @@ func (r *RequestBuilder) client(proxyURL *url.URL) *http.Client {
 
 func (r *RequestBuilder) makeClient(proxyURL *url.URL) *http.Client {
 	client := &http.Client{
-		Transport: r.transport(proxyURL),
-		Timeout:   r.Timeout(),
-	}
-
-	if r.withoutRedirects {
-		client.CheckRedirect = withoutRedirects
+		Transport:     r.transport(proxyURL),
+		CheckRedirect: r.checkRedirect,
+		Timeout:       r.Timeout(),
 	}
 	return client
 }
 
-func withoutRedirects(*http.Request, []*http.Request) error {
-	return http.ErrUseLastResponse
+func (r *RequestBuilder) checkRedirect(req *http.Request, via []*http.Request,
+) error {
+	if r.withoutRedirects {
+		return http.ErrUseLastResponse
+	} else if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
+	}
+	return nil
 }
 
 func (r *RequestBuilder) transport(proxyURL *url.URL) http.RoundTripper {
