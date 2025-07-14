@@ -57,7 +57,7 @@ func parseItemID(itemIDValue string) (int64, error) {
 }
 
 func parseItemIDsFromRequest(r *http.Request) ([]int64, error) {
-	items := r.Form[ParamItemIDs]
+	items := r.Form[paramItemIDs]
 	if len(items) == 0 {
 		return nil, errors.New("googlereader: no items requested")
 	}

@@ -61,7 +61,7 @@ func parseStreamFilterFromRequest(r *http.Request, u *model.User,
 	userID := u.ID
 	result := RequestModifiers{SortDirection: u.EntryDirection, UserID: userID}
 
-	switch r.URL.Query().Get(ParamStreamOrder) {
+	switch r.URL.Query().Get(paramStreamOrder) {
 	case "d":
 		result.SortDirection = "desc"
 	case "o":
@@ -70,26 +70,26 @@ func parseStreamFilterFromRequest(r *http.Request, u *model.User,
 
 	var err error
 	result.Streams, err = getStreams(
-		request.QueryStringParamList(r, ParamStreamID), userID)
+		request.QueryStringParamList(r, paramStreamID), userID)
 	if err != nil {
 		return RequestModifiers{}, err
 	}
 
 	result.ExcludeTargets, err = getStreams(
-		request.QueryStringParamList(r, ParamStreamExcludes), userID)
+		request.QueryStringParamList(r, paramStreamExcludes), userID)
 	if err != nil {
 		return RequestModifiers{}, err
 	}
 
 	result.FilterTargets, err = getStreams(
-		request.QueryStringParamList(r, ParamStreamFilters), userID)
+		request.QueryStringParamList(r, paramStreamFilters), userID)
 	if err != nil {
 		return RequestModifiers{}, err
 	}
 
-	result.Count = request.QueryIntParam(r, ParamStreamMaxItems, 0)
-	result.Offset = request.QueryIntParam(r, ParamContinuation, 0)
-	result.StartTime = request.QueryInt64Param(r, ParamStreamStartTime, 0)
-	result.StopTime = request.QueryInt64Param(r, ParamStreamStopTime, 0)
+	result.Count = request.QueryIntParam(r, paramStreamMaxItems, 0)
+	result.Offset = request.QueryIntParam(r, paramContinuation, 0)
+	result.StartTime = request.QueryInt64Param(r, paramStreamStartTime, 0)
+	result.StopTime = request.QueryInt64Param(r, paramStreamStopTime, 0)
 	return result, nil
 }

@@ -32,13 +32,13 @@ func Test_getStreamFilterModifiers_SortDirection(t *testing.T) {
 		{
 			name:          "SortDirection with req desc",
 			user:          model.User{EntryDirection: "asc"},
-			req:           "/?" + ParamStreamOrder + "=d",
+			req:           "/?" + paramStreamOrder + "=d",
 			sortDirection: "desc",
 		},
 		{
 			name:          "SortDirection with req asc",
 			user:          model.User{EntryDirection: "desc"},
-			req:           "/?" + ParamStreamOrder + "=o",
+			req:           "/?" + paramStreamOrder + "=o",
 			sortDirection: "asc",
 		},
 	}

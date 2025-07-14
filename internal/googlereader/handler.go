@@ -77,12 +77,12 @@ func checkAndSimplifyTags(addTags []Stream, removeTags []Stream) (map[StreamType
 		switch s.Type {
 		case ReadStream:
 			if _, ok := tags[KeptUnreadStream]; ok {
-				return nil, fmt.Errorf("googlereader: %s and %s should not be supplied simultaneously", KeptUnread, Read)
+				return nil, fmt.Errorf("googlereader: %s and %s should not be supplied simultaneously", keptUnreadStreamSuffix, readStreamSuffix)
 			}
 			tags[ReadStream] = true
 		case KeptUnreadStream:
 			if _, ok := tags[ReadStream]; ok {
-				return nil, fmt.Errorf("googlereader: %s and %s should not be supplied simultaneously", KeptUnread, Read)
+				return nil, fmt.Errorf("googlereader: %s and %s should not be supplied simultaneously", keptUnreadStreamSuffix, readStreamSuffix)
 			}
 			tags[ReadStream] = false
 		case StarredStream:
@@ -97,17 +97,17 @@ func checkAndSimplifyTags(addTags []Stream, removeTags []Stream) (map[StreamType
 		switch s.Type {
 		case ReadStream:
 			if _, ok := tags[ReadStream]; ok {
-				return nil, fmt.Errorf("googlereader: %s and %s should not be supplied simultaneously", KeptUnread, Read)
+				return nil, fmt.Errorf("googlereader: %s and %s should not be supplied simultaneously", keptUnreadStreamSuffix, readStreamSuffix)
 			}
 			tags[ReadStream] = false
 		case KeptUnreadStream:
 			if _, ok := tags[ReadStream]; ok {
-				return nil, fmt.Errorf("googlereader: %s and %s should not be supplied simultaneously", KeptUnread, Read)
+				return nil, fmt.Errorf("googlereader: %s and %s should not be supplied simultaneously", keptUnreadStreamSuffix, readStreamSuffix)
 			}
 			tags[ReadStream] = true
 		case StarredStream:
 			if _, ok := tags[StarredStream]; ok {
-				return nil, fmt.Errorf("googlereader: %s should not be supplied for add and remove simultaneously", Starred)
+				return nil, fmt.Errorf("googlereader: %s should not be supplied for add and remove simultaneously", starredStreamSuffix)
 			}
 			tags[StarredStream] = false
 		case BroadcastStream, LikeStream:
@@ -278,13 +278,13 @@ func (h *handler) editTagHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	addTags, err := getStreams(r.PostForm[ParamTagsAdd], user.ID)
+	addTags, err := getStreams(r.PostForm[paramTagsAdd], user.ID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
 
-	removeTags, err := getStreams(r.PostForm[ParamTagsRemove], user.ID)
+	removeTags, err := getStreams(r.PostForm[paramTagsRemove], user.ID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -403,7 +403,7 @@ func (h *handler) quickAddHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	feedURL := r.Form.Get(ParamQuickAdd)
+	feedURL := r.Form.Get(paramQuickAdd)
 	if !validator.IsValidURL(feedURL) {
 		json.BadRequest(w, r, fmt.Errorf("googlereader: invalid URL: %s", feedURL))
 		return
@@ -439,7 +439,7 @@ func (h *handler) quickAddHandler(w http.ResponseWriter, r *http.Request) {
 	json.OK(w, r, quickAddResponse{
 		NumResults: 1,
 		Query:      feed.FeedURL,
-		StreamID:   FeedPrefix + strconv.FormatInt(feed.ID, 10),
+		StreamID:   feedPrefix + strconv.FormatInt(feed.ID, 10),
 		StreamName: feed.Title,
 	})
 }
@@ -601,20 +601,20 @@ func (h *handler) editSubscriptionHandler(w http.ResponseWriter,
 		return
 	}
 
-	streamIds, err := getStreams(r.Form[ParamStreamID], userID)
+	streamIds, err := getStreams(r.Form[paramStreamID], userID)
 	if err != nil || len(streamIds) == 0 {
 		json.BadRequest(w, r, errors.New("googlereader: no valid stream IDs provided"))
 		return
 	}
 
-	newLabel, err := getStream(r.Form.Get(ParamTagsAdd), userID)
+	newLabel, err := getStream(r.Form.Get(paramTagsAdd), userID)
 	if err != nil {
-		json.BadRequest(w, r, fmt.Errorf("googlereader: invalid data in %s", ParamTagsAdd))
+		json.BadRequest(w, r, fmt.Errorf("googlereader: invalid data in %s", paramTagsAdd))
 		return
 	}
 
-	title := r.Form.Get(ParamTitle)
-	action := r.Form.Get(ParamSubscribeAction)
+	title := r.Form.Get(paramTitle)
+	action := r.Form.Get(paramSubscribeAction)
 
 	switch action {
 	case "subscribe":
@@ -644,7 +644,7 @@ func (h *handler) editSubscriptionHandler(w http.ResponseWriter,
 			}
 		}
 
-		if r.Form.Has(ParamTagsAdd) {
+		if r.Form.Has(paramTagsAdd) {
 			if newLabel.Type != LabelStream {
 				json.BadRequest(w, r, errors.New("destination must be a label"))
 				return
@@ -734,9 +734,9 @@ func (h *handler) streamItemContentsHandler(w http.ResponseWriter,
 		Author: user.Username,
 	}
 
-	userReadingList := fmt.Sprintf(UserStreamPrefix, user.ID) + ReadingList
-	userRead := fmt.Sprintf(UserStreamPrefix, user.ID) + Read
-	userStarred := fmt.Sprintf(UserStreamPrefix, user.ID) + Starred
+	userReadingList := fmt.Sprintf(userStreamPrefix, user.ID) + readingListStreamSuffix
+	userRead := fmt.Sprintf(userStreamPrefix, user.ID) + readStreamSuffix
+	userStarred := fmt.Sprintf(userStreamPrefix, user.ID) + starredStreamSuffix
 
 	items := make([]contentItem, len(entries))
 	for i, entry := range entries {
@@ -752,7 +752,7 @@ func (h *handler) streamItemContentsHandler(w http.ResponseWriter,
 		categories = append(categories, userReadingList)
 		if entry.Feed.Category.Title != "" {
 			categories = append(categories,
-				fmt.Sprintf(UserLabelPrefix, user.ID)+entry.Feed.Category.Title)
+				fmt.Sprintf(userLabelPrefix, user.ID)+entry.Feed.Category.Title)
 		}
 		if entry.Status == model.EntryStatusRead {
 			categories = append(categories, userRead)
@@ -813,10 +813,10 @@ func (h *handler) disableTagHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	streams, err := getStreams(r.Form[ParamStreamID], userID)
+	streams, err := getStreams(r.Form[paramStreamID], userID)
 	if err != nil {
 		json.BadRequest(w, r, fmt.Errorf(
-			"googlereader: invalid data in %s", ParamStreamID))
+			"googlereader: invalid data in %s", paramStreamID))
 		return
 	}
 
@@ -851,17 +851,17 @@ func (h *handler) renameTagHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	source, err := getStream(r.Form.Get(ParamStreamID), userID)
+	source, err := getStream(r.Form.Get(paramStreamID), userID)
 	if err != nil {
 		json.BadRequest(w, r, fmt.Errorf(
-			"googlereader: invalid data in %s", ParamStreamID))
+			"googlereader: invalid data in %s", paramStreamID))
 		return
 	}
 
-	destination, err := getStream(r.Form.Get(ParamDestination), userID)
+	destination, err := getStream(r.Form.Get(paramDestination), userID)
 	if err != nil {
 		json.BadRequest(w, r, fmt.Errorf(
-			"googlereader: invalid data in %s", ParamDestination))
+			"googlereader: invalid data in %s", paramDestination))
 		return
 	}
 
@@ -927,11 +927,11 @@ func (h *handler) tagListHandler(w http.ResponseWriter, r *http.Request) {
 
 	result.Tags = make([]subscriptionCategory, 0, len(categories)+1)
 	result.Tags = append(result.Tags, subscriptionCategory{
-		ID: fmt.Sprintf(UserStreamPrefix, userID) + Starred,
+		ID: fmt.Sprintf(userStreamPrefix, userID) + starredStreamSuffix,
 	})
 	for _, category := range categories {
 		result.Tags = append(result.Tags, subscriptionCategory{
-			ID:    fmt.Sprintf(UserLabelPrefix, userID) + category.Title,
+			ID:    fmt.Sprintf(userLabelPrefix, userID) + category.Title,
 			Label: category.Title,
 			Type:  "folder",
 		})
@@ -966,12 +966,12 @@ func (h *handler) subscriptionListHandler(w http.ResponseWriter,
 	}
 	for i, feed := range feeds {
 		result.Subscriptions[i] = subscription{
-			ID:    FeedPrefix + strconv.FormatInt(feed.ID, 10),
+			ID:    feedPrefix + strconv.FormatInt(feed.ID, 10),
 			Title: feed.Title,
 			URL:   feed.FeedURL,
 			Categories: []subscriptionCategory{
 				{
-					ID:    fmt.Sprintf(UserLabelPrefix, userID) + feed.Category.Title,
+					ID:    fmt.Sprintf(userLabelPrefix, userID) + feed.Category.Title,
 					Label: feed.Category.Title,
 					Type:  "folder",
 				},
@@ -1207,14 +1207,14 @@ func (h *handler) markAllAsReadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := request.UserID(r)
-	stream, err := getStream(r.Form.Get(ParamStreamID), userID)
+	stream, err := getStream(r.Form.Get(paramStreamID), userID)
 	if err != nil {
 		json.BadRequest(w, r, err)
 		return
 	}
 
 	var before time.Time
-	if timestampString := r.Form.Get(ParamTimestamp); timestampString != "" {
+	if timestampString := r.Form.Get(paramTimestamp); timestampString != "" {
 		ts, err := strconv.ParseInt(timestampString, 10, 64)
 		if err != nil {
 			json.BadRequest(w, r, err)
