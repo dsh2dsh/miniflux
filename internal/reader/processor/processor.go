@@ -101,6 +101,7 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 
 		// The sanitizer should always run at the end of the process to make sure
 		// unsafe HTML is filtered out.
+		sanitizeTitle(entry)
 		entry.Content = sanitizer.SanitizeHTML(pageBaseURL, entry.Content,
 			&sanitizer.SanitizerOptions{
 				OpenLinksInNewTab: !user.OpenExternalLinkSameTab(),

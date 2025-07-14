@@ -14,10 +14,10 @@
                rel="noopener noreferrer"
                referrerpolicy="no-referrer"
                data-original-link="{{ .user.MarkReadOnView }}">
-                {{ .entry.Title }}
+                {{ .entry.Title | noescape }}
             </a>
             {{ else }}
-            <a href="{{ .route }}">{{ .entry.Title }}</a>
+            <a href="{{ .route }}">{{ .entry.Title | noescape }}</a>
             {{ end }}
         </h2>
         <span class="category">
