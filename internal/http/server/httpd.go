@@ -281,10 +281,10 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) http.Handler {
 	}
 
 	publicRoutes := middleware.WithPublicRoutes(
+		"/data/",
 		"/css/",
 		"/favicon.ico",
 		"/feed-icon/",
-		"/icon/",
 		"/js/",
 		"/login",
 		"/manifest.json",
