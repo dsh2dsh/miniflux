@@ -47,10 +47,14 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 	m = m.Group().Use(middleware.handleUserSession, middleware.handleAppSession)
 
 	// Authentication pages.
-	m.Group().Use(middleware.handleAuthProxy, middleware.PublicCSRF).
-		NameHandleFunc("/", handler.showLoginPage, "login")
-	m.Group().Use(middleware.PublicCSRF).
-		NameHandleFunc("/login", handler.checkLogin, "checkLogin")
+	m.Group(func(m *mux.ServeMux) {
+		m.Use(middleware.handleAuthProxy, middleware.PublicCSRF)
+		m.NameHandleFunc("/", handler.showLoginPage, "login")
+	})
+	m.Group(func(m *mux.ServeMux) {
+		m.Use(middleware.PublicCSRF)
+		m.NameHandleFunc("/login", handler.checkLogin, "checkLogin")
+	})
 	m.NameHandleFunc("/logout", handler.logout, "logout")
 
 	// Static assets.
