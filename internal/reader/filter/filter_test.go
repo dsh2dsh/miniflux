@@ -342,6 +342,29 @@ func TestBlockingEntries(t *testing.T) {
 			user: model.User{BlockFilterEntryRules: "EntryTitle=(?i)title"},
 			// Both rules would match
 		},
+		// Test multiple rules with \r\n separators
+		{
+			feed: model.Feed{
+				Extra: model.FeedExtra{
+					BlockFilterEntryRules: "EntryURL=(?i)example\r\nEntryTitle=(?i)Test",
+				},
+				Entries: model.Entries{
+					{URL: "https://example.com", Title: "Some Example"},
+				},
+			},
+			user: model.User{BlockFilterEntryRules: "EntryTitle=(?i)title"},
+		},
+		{
+			feed: model.Feed{
+				Extra: model.FeedExtra{
+					BlockFilterEntryRules: "EntryURL=(?i)example\r\nEntryTitle=(?i)Test",
+				},
+				Entries: model.Entries{
+					{URL: "https://example.com", Title: "Some Test"},
+				},
+			},
+			user: model.User{BlockFilterEntryRules: "EntryTitle=(?i)title"},
+		},
 	}
 
 	require.NoError(t, config.Load(""))
@@ -789,6 +812,38 @@ func TestAllowEntries(t *testing.T) {
 			user:     model.User{KeepFilterEntryRules: "EntryTitle=(?i)title"},
 			expected: 1,
 			// Both rules would match
+		},
+		{
+			feed: model.Feed{
+				Extra: model.FeedExtra{
+					KeepFilterEntryRules: "EntryURL=(?i)example\r\nEntryTitle=(?i)Test",
+				},
+				Entries: model.Entries{
+					{URL: "https://example.com", Title: "Some Title"},
+				},
+			},
+			expected: 1,
+		},
+		{
+			feed: model.Feed{
+				Extra: model.FeedExtra{
+					KeepFilterEntryRules: "EntryURL=(?i)example\r\nEntryTitle=(?i)Test",
+				},
+				Entries: model.Entries{
+					{URL: "https://different.com", Title: "Some Test"},
+				},
+			},
+			expected: 1,
+		},
+		{
+			feed: model.Feed{
+				Extra: model.FeedExtra{
+					KeepFilterEntryRules: "EntryURL=(?i)example\r\nEntryTitle=(?i)Test",
+				},
+				Entries: model.Entries{
+					{URL: "https://different.com", Title: "Some Example"},
+				},
+			},
 		},
 	}
 
