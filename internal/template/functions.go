@@ -35,15 +35,12 @@ type funcMap struct {
 func (self *funcMap) Map() template.FuncMap {
 	return template.FuncMap{
 		"baseURL":            config.Opts.BaseURL,
-		"contains":           strings.Contains,
 		"dict":               dict,
 		"disableLocalAuth":   config.Opts.DisableLocalAuth,
 		"domain":             urllib.Domain,
 		"duration":           duration,
 		"formatFileSize":     formatFileSize[int64],
 		"formatFileSizeUint": formatFileSize[uint64],
-		"hasKey":             hasKey,
-		"hasPrefix":          strings.HasPrefix,
 		"icon":               self.icon,
 		"isEmail":            isEmail,
 		"javascript":         self.javascript,
@@ -170,20 +167,9 @@ func dict(values ...any) (map[string]any, error) {
 	return dict, nil
 }
 
-func hasKey(dict map[string]string, key string) bool {
-	if value, found := dict[key]; found {
-		return value != ""
-	}
-	return false
-}
-
 func truncate(str string, maxLen int) string {
-	runes := 0
-	for i := range str {
-		runes++
-		if runes > maxLen {
-			return str[:i] + "…"
-		}
+	if runes := []rune(str); len(runes) > maxLen {
+		return string(runes[:maxLen]) + "…"
 	}
 	return str
 }

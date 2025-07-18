@@ -56,7 +56,6 @@ func (e *Engine) ParseTemplates() error {
 		}
 		commonTemplateContents.Write(fileData)
 	}
-
 	dirEntries, err = viewTemplateFiles.ReadDir("templates/views")
 	if err != nil {
 		return fmt.Errorf("template: failed read templates/views/: %w", err)
@@ -88,16 +87,10 @@ func (e *Engine) ParseTemplates() error {
 
 	for _, dirEntry := range dirEntries {
 		templateName := dirEntry.Name()
-		fullName := "templates/standalone/" + templateName
-		fileData, err := standaloneTemplateFiles.ReadFile(fullName)
-		if err != nil {
-			return fmt.Errorf("template: failed read %q: %w", fullName, err)
-		}
-
 		slog.Debug("Parsing template",
 			slog.String("template_name", templateName),
 		)
-		e.templates[templateName] = template.Must(template.New("base").Funcs(e.funcMap.Map()).Parse(string(fileData)))
+		e.templates[templateName] = template.Must(template.New("base").Funcs(e.funcMap.Map()).ParseFS(standaloneTemplateFiles, "templates/standalone/"+dirEntry.Name()))
 	}
 	return nil
 }
@@ -116,24 +109,12 @@ func (e *Engine) Render(name string, data map[string]any) []byte {
 		"elapsed": func(timezone string, t time.Time) string {
 			return elapsedTime(printer, timezone, t)
 		},
-		"t": func(key any, args ...any) string {
-			switch k := key.(type) {
-			case string:
-				return printer.Printf(k, args...)
-			case error:
-				return k.Error()
-			default:
-				return ""
-			}
-		},
-		"plural": func(key string, n int, args ...any) string {
-			return printer.Plural(key, n, args...)
-		},
+		"t":      printer.Printf,
+		"plural": printer.Plural,
 	})
 
 	var b bytes.Buffer
-	err := tpl.ExecuteTemplate(&b, "base", data)
-	if err != nil {
+	if err := tpl.ExecuteTemplate(&b, "base", data); err != nil {
 		panic(err)
 	}
 
