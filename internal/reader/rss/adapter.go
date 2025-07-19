@@ -80,8 +80,8 @@ func (r *RSSAdapter) BuildFeed(baseURL string) *model.Feed {
 		entryURL := findEntryURL(&item)
 		if entryURL == "" {
 			// Fallback to the first enclosure URL if it exists.
-			if len(entry.Enclosures) > 0 && entry.Enclosures[0].URL != "" {
-				entry.URL = entry.Enclosures[0].URL
+			if len(entry.Enclosures()) > 0 && entry.Enclosures()[0].URL != "" {
+				entry.URL = entry.Enclosures()[0].URL
 			} else {
 				// Fallback to the feed URL if no entry URL is found.
 				entry.URL = feed.SiteURL
