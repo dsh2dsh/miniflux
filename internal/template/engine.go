@@ -88,9 +88,10 @@ func (e *Engine) ParseTemplates() error {
 
 	for _, dirEntry := range dirEntries {
 		templateName := dirEntry.Name()
-		fileData, err := standaloneTemplateFiles.ReadFile("templates/standalone/" + dirEntry.Name())
+		fileData, err := standaloneTemplateFiles.ReadFile(
+			"templates/standalone/" + templateName)
 		if err != nil {
-			return err
+			return fmt.Errorf("template: failed read %q: %w", templateName, err)
 		}
 
 		slog.Debug("Parsing template",
