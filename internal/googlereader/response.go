@@ -121,11 +121,11 @@ func sendUnauthorizedResponse(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.Header().Set("X-Reader-Google-Bad-Token", "true")
 	w.WriteHeader(http.StatusUnauthorized)
-	w.Write([]byte("Unauthorized"))
+	_, _ = w.Write([]byte("Unauthorized"))
 }
 
 func sendOkayResponse(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	_, _ = w.Write([]byte("OK"))
 }

@@ -5,6 +5,8 @@ package parser // import "miniflux.app/v2/internal/reader/parser"
 
 import (
 	"encoding/xml"
+	"errors"
+	"fmt"
 	"io"
 	"unicode"
 
@@ -66,10 +68,10 @@ func detectJSONFormat(r io.ReadSeeker) (bool, error) {
 	for {
 		n, err := r.Read(buffer)
 		if n == 0 {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return false, nil // No non-whitespace content found
 			}
-			return false, err
+			return false, fmt.Errorf("reader/parser: detecting json format: %w", err)
 		}
 
 		// Check each byte in the buffer
