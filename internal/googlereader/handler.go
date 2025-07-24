@@ -217,7 +217,7 @@ func (h *handler) clientLogin(w http.ResponseWriter, r *http.Request) {
 	token := sess.ID
 	log.Debug("[GoogleReader] Created token", slog.String("token", token))
 
-	result := login{SID: token, LSID: token, Auth: token}
+	result := loginResponse{SID: token, LSID: token, Auth: token}
 	if r.Form.Get("output") == "json" {
 		json.OK(w, r, &result)
 		return
@@ -384,7 +384,7 @@ func (h *handler) editTagHandler(w http.ResponseWriter, r *http.Request) {
 	for _, entry := range entries {
 		integration.SendEntry(entry, user)
 	}
-	OK(w, r)
+	sendOkayResponse(w)
 }
 
 func (h *handler) quickAddHandler(w http.ResponseWriter, r *http.Request) {
@@ -668,7 +668,7 @@ func (h *handler) editSubscriptionHandler(w http.ResponseWriter,
 		return
 	}
 
-	OK(w, r)
+	sendOkayResponse(w)
 }
 
 func (h *handler) streamItemContentsHandler(w http.ResponseWriter,
@@ -722,7 +722,7 @@ func (h *handler) streamItemContentsHandler(w http.ResponseWriter,
 		return
 	}
 
-	result := streamContentItems{
+	result := streamContentItemsResponse{
 		Direction: "ltr",
 		ID:        "user/-/state/com.google/reading-list",
 		Title:     "Reading List",
@@ -834,7 +834,7 @@ func (h *handler) disableTagHandler(w http.ResponseWriter, r *http.Request) {
 		json.ServerError(w, r, err)
 		return
 	}
-	OK(w, r)
+	sendOkayResponse(w)
 }
 
 func (h *handler) renameTagHandler(w http.ResponseWriter, r *http.Request) {
@@ -901,7 +901,7 @@ func (h *handler) renameTagHandler(w http.ResponseWriter, r *http.Request) {
 		json.NotFound(w, r)
 		return
 	}
-	OK(w, r)
+	sendOkayResponse(w)
 }
 
 func (h *handler) tagListHandler(w http.ResponseWriter, r *http.Request) {
@@ -925,12 +925,12 @@ func (h *handler) tagListHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result.Tags = make([]subscriptionCategory, 0, len(categories)+1)
-	result.Tags = append(result.Tags, subscriptionCategory{
+	result.Tags = make([]subscriptionCategoryResponse, 0, len(categories)+1)
+	result.Tags = append(result.Tags, subscriptionCategoryResponse{
 		ID: fmt.Sprintf(userStreamPrefix, userID) + starredStreamSuffix,
 	})
 	for _, category := range categories {
-		result.Tags = append(result.Tags, subscriptionCategory{
+		result.Tags = append(result.Tags, subscriptionCategoryResponse{
 			ID:    fmt.Sprintf(userLabelPrefix, userID) + category.Title,
 			Label: category.Title,
 			Type:  "folder",
@@ -962,14 +962,14 @@ func (h *handler) subscriptionListHandler(w http.ResponseWriter,
 	}
 
 	result := subscriptionsResponse{
-		Subscriptions: make([]subscription, len(feeds)),
+		Subscriptions: make([]subscriptionResponse, len(feeds)),
 	}
 	for i, feed := range feeds {
-		result.Subscriptions[i] = subscription{
+		result.Subscriptions[i] = subscriptionResponse{
 			ID:    feedPrefix + strconv.FormatInt(feed.ID, 10),
 			Title: feed.Title,
 			URL:   feed.FeedURL,
-			Categories: []subscriptionCategory{
+			Categories: []subscriptionCategoryResponse{
 				{
 					ID:    fmt.Sprintf(userLabelPrefix, userID) + feed.Category.Title,
 					Label: feed.Category.Title,
@@ -1006,7 +1006,7 @@ func (h *handler) userInfoHandler(w http.ResponseWriter, r *http.Request) {
 
 	user := request.User(r)
 	userId := strconv.FormatInt(user.ID, 10)
-	userInfo := userInfo{
+	userInfo := userInfoResponse{
 		UserID:        userId,
 		UserName:      user.Username,
 		UserProfileID: userId,
@@ -1276,5 +1276,6 @@ func (h *handler) markAllAsReadHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	OK(w, r)
+
+	sendOkayResponse(w)
 }

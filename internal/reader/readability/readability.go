@@ -102,15 +102,27 @@ func ExtractContent(page io.Reader) (baseURL string, extractedContent string, er
 }
 
 func getSelectionLength(s *goquery.Selection) int {
-	var getLengthOfTextContent func(*html.Node) int
-	getLengthOfTextContent = func(n *html.Node) int {
+	return sumMapOnSelection(s, func(s string) int { return len(s) })
+}
+
+func getSelectionCommaCount(s *goquery.Selection) int {
+	return sumMapOnSelection(s, func(s string) int { return strings.Count(s, ",") })
+}
+
+// sumMapOnSelection maps `f` on the selection, and return the sum of the result.
+// This construct is used instead of goquery.Selection's .Text() method,
+// to avoid materializing the text to simply map/sum on it, saving a significant
+// amount of memory of large selections, and reducing the pressure on the garbage-collector.
+func sumMapOnSelection(s *goquery.Selection, f func(str string) int) int {
+	var recursiveFunction func(*html.Node) int
+	recursiveFunction = func(n *html.Node) int {
 		total := 0
 		if n.Type == html.TextNode {
-			total += len(n.Data)
+			total += f(n.Data)
 		}
 		if n.FirstChild != nil {
 			for c := n.FirstChild; c != nil; c = c.NextSibling {
-				total += getLengthOfTextContent(c)
+				total += recursiveFunction(c)
 			}
 		}
 		return total
@@ -118,7 +130,7 @@ func getSelectionLength(s *goquery.Selection) int {
 
 	sum := 0
 	for _, n := range s.Nodes {
-		sum += getLengthOfTextContent(n)
+		sum += recursiveFunction(n)
 	}
 	return sum
 }
@@ -152,8 +164,7 @@ func getArticle(topCandidate *candidate, candidates candidateList) string {
 			} else {
 				if linkDensity == 0 {
 					// It's a small selection, so .Text doesn't impact performances too much.
-					content := s.Text()
-					if containsSentence(content) {
+					if containsSentence(s.Text()) {
 						needAppend = true
 					}
 				}
@@ -197,14 +208,18 @@ func shouldRemoveCandidate(str string) bool {
 }
 
 func removeUnlikelyCandidates(document *goquery.Document) {
-	document.Find("*").Each(func(i int, s *goquery.Selection) {
-		if s.Length() == 0 || s.Get(0).Data == "html" || s.Get(0).Data == "body" {
-			return
+	// Only select tags with either a class or an id attribute,
+	// and never the html nor body tags, as we don't want to ever remove them.
+	selector := "[class]:not(body,html)" + "," + "[id]:not(body,html)"
+
+	for _, s := range document.Find(selector).EachIter() {
+		if s.Length() == 0 {
+			continue
 		}
 
 		// Don't remove elements within code blocks (pre or code tags)
-		if s.Closest("pre, code").Length() > 0 {
-			return
+		if s.Closest("pre,code").Length() > 0 {
+			continue
 		}
 
 		if class, ok := s.Attr("class"); ok && shouldRemoveCandidate(class) {
@@ -212,7 +227,7 @@ func removeUnlikelyCandidates(document *goquery.Document) {
 		} else if id, ok := s.Attr("id"); ok && shouldRemoveCandidate(id) {
 			s.Remove()
 		}
-	})
+	}
 }
 
 func getTopCandidate(document *goquery.Document, candidates candidateList) *candidate {
@@ -247,38 +262,30 @@ func getCandidates(document *goquery.Document) candidateList {
 			return
 		}
 
+		// Add a point for the paragraph itself as a base.
+		contentScore := 1
+
+		// Add points for any commas within this paragraph.
+		contentScore += getSelectionCommaCount(s) + 1
+
+		// For every 100 characters in this paragraph, add another point. Up to 3 points.
+		contentScore += min(textLen/100, 3)
+
 		parent := s.Parent()
 		parentNode := parent.Get(0)
-
-		grandParent := parent.Parent()
-		var grandParentNode *html.Node
-		if grandParent.Length() > 0 {
-			grandParentNode = grandParent.Get(0)
-		}
-
 		if _, found := candidates[parentNode]; !found {
 			candidates[parentNode] = scoreNode(parent)
 		}
+		candidates[parentNode].score += float32(contentScore)
 
-		if grandParentNode != nil {
+		// The score of the current node influences its grandparent's one as well, but scaled to 50%.
+		grandParent := parent.Parent()
+		if grandParent.Length() > 0 {
+			grandParentNode := grandParent.Get(0)
 			if _, found := candidates[grandParentNode]; !found {
 				candidates[grandParentNode] = scoreNode(grandParent)
 			}
-		}
-
-		// Add a point for the paragraph itself as a base.
-		contentScore := float32(1.0)
-
-		// Add points for any commas within this paragraph.
-		text := s.Text()
-		contentScore += float32(strings.Count(text, ",") + 1)
-
-		// For every 100 characters in this paragraph, add another point. Up to 3 points.
-		contentScore += float32(min(textLen/100.0, 3))
-
-		candidates[parentNode].score += contentScore
-		if grandParentNode != nil {
-			candidates[grandParentNode].score += contentScore / 2.0
+			candidates[grandParentNode].score += float32(contentScore) / 2.0
 		}
 	})
 
@@ -300,7 +307,7 @@ func scoreNode(s *goquery.Selection) *candidate {
 		return c
 	}
 
-	switch s.Get(0).DataAtom.String() {
+	switch s.Get(0).Data {
 	case "div":
 		c.score += 5
 	case "pre", "td", "blockquote", "img":
@@ -311,7 +318,13 @@ func scoreNode(s *goquery.Selection) *candidate {
 		c.score -= 5
 	}
 
-	c.score += getClassWeight(s)
+	if class, ok := s.Attr("class"); ok {
+		c.score += getWeight(class)
+	}
+	if id, ok := s.Attr("id"); ok {
+		c.score += getWeight(id)
+	}
+
 	return c
 }
 
@@ -328,22 +341,7 @@ func getLinkDensity(s *goquery.Selection) float32 {
 	return float32(linkLength) / float32(sum)
 }
 
-// Get an elements class/id weight. Uses regular expressions to tell if this
-// element looks good or bad.
-func getClassWeight(s *goquery.Selection) float32 {
-	weight := 0
-
-	if class, ok := s.Attr("class"); ok {
-		weight += getWeight(class)
-	}
-	if id, ok := s.Attr("id"); ok {
-		weight += getWeight(id)
-	}
-
-	return float32(weight)
-}
-
-func getWeight(s string) int {
+func getWeight(s string) float32 {
 	s = strings.ToLower(s)
 	for _, keyword := range negativeKeywords {
 		if strings.Contains(s, keyword) {
@@ -363,8 +361,7 @@ func transformMisusedDivsIntoParagraphs(document *goquery.Document) {
 		nodes := s.Children().Nodes
 
 		if len(nodes) == 0 {
-			node := s.Get(0)
-			node.Data = "p"
+			s.Nodes[0].Data = "p"
 			return
 		}
 
@@ -375,8 +372,7 @@ func transformMisusedDivsIntoParagraphs(document *goquery.Document) {
 				"table", "ul":
 				return
 			default:
-				currentNode := s.Get(0)
-				currentNode.Data = "p"
+				s.Nodes[0].Data = "p"
 			}
 		}
 	})

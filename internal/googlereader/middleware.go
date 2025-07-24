@@ -44,7 +44,7 @@ func requestUserSession(next http.Handler) http.Handler {
 			log.Warn(
 				"[GoogleReader] No user found with the given Google Reader credentials",
 				slog.Bool("authentication_failed", true))
-			Unauthorized(w, r)
+			sendUnauthorizedResponse(w)
 			return
 		}
 
@@ -54,7 +54,7 @@ func requestUserSession(next http.Handler) http.Handler {
 				"[GoogleReader] No session found with the given Google Reader credentials",
 				slog.Bool("authentication_failed", true),
 				slog.String("username", user.Username))
-			Unauthorized(w, r)
+			sendUnauthorizedResponse(w)
 			return
 		}
 
@@ -66,7 +66,7 @@ func requestUserSession(next http.Handler) http.Handler {
 		if err := checkCSRF(r, sess.ID); err != nil {
 			log.Warn("[GoogleReader] invalid or missing CSRF token",
 				slog.Any("error", err))
-			Unauthorized(w, r)
+			sendUnauthorizedResponse(w)
 			return
 		}
 		next.ServeHTTP(w, r.WithContext(contextWithSessionKeys(ctx, user, sess)))
@@ -121,7 +121,7 @@ func (self *keyAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Warn("[GoogleReader] authentication failed",
 			slog.Bool("authentication_failed", true),
 			slog.Any("error", err))
-		Unauthorized(w, r)
+		sendUnauthorizedResponse(w)
 		return
 	} else if token == "" {
 		self.next.ServeHTTP(w, r)
@@ -135,7 +135,7 @@ func (self *keyAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			slog.Bool("authentication_failed", true),
 			slog.Any("error", err),
 		)
-		Unauthorized(w, r)
+		sendUnauthorizedResponse(w)
 		return
 	}
 
@@ -143,7 +143,7 @@ func (self *keyAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Warn(
 			"[GoogleReader] No session found with the given Google Reader credentials",
 			slog.Bool("authentication_failed", true))
-		Unauthorized(w, r)
+		sendUnauthorizedResponse(w)
 		return
 	}
 
@@ -151,7 +151,7 @@ func (self *keyAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Warn(
 			"[GoogleReader] No user found with the given Google Reader credentials",
 			slog.Bool("authentication_failed", true))
-		Unauthorized(w, r)
+		sendUnauthorizedResponse(w)
 		return
 	}
 
