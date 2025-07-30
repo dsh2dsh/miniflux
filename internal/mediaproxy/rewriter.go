@@ -8,10 +8,10 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/dsh2dsh/bluemonday"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/mux"
-	"miniflux.app/v2/internal/reader/sanitizer"
 	"miniflux.app/v2/internal/urllib"
 )
 
@@ -95,16 +95,17 @@ func genericProxyRewriter(router *mux.ServeMux, proxifyFunction urlProxyRewriter
 	return output
 }
 
-func proxifySourceSet(element *goquery.Selection, router *mux.ServeMux, proxifyFunction urlProxyRewriter, proxyOption, srcsetAttrValue string) {
-	imageCandidates := sanitizer.ParseSrcSetAttribute(srcsetAttrValue)
-
-	for _, imageCandidate := range imageCandidates {
-		if shouldProxifyURL(imageCandidate.ImageURL, proxyOption) {
-			imageCandidate.ImageURL = proxifyFunction(router, imageCandidate.ImageURL)
+func proxifySourceSet(element *goquery.Selection, router *mux.ServeMux,
+	proxifyFunction urlProxyRewriter, proxyOption, srcset string,
+) {
+	images := bluemonday.ParseSrcSetAttribute(srcset)
+	for i := range images {
+		image := &images[i]
+		if shouldProxifyURL(image.ImageURL, proxyOption) {
+			image.ImageURL = proxifyFunction(router, image.ImageURL)
 		}
 	}
-
-	element.SetAttr("srcset", imageCandidates.String())
+	element.SetAttr("srcset", images.String())
 }
 
 // shouldProxifyURL checks if the media URL should be proxified based on the media proxy option and URL scheme.

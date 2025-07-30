@@ -558,6 +558,10 @@ func (o *Options) YouTubeEmbedDomain() string {
 	return o.env.YouTubeEmbedUrlOverride.Hostname()
 }
 
+func (o *Options) YouTubeEmbedURL() *url.URL {
+	return o.env.YouTubeEmbedUrlOverride
+}
+
 // FetchNebulaWatchTime returns true if the Nebula video duration should be
 // fetched and used as a reading time.
 func (o *Options) FetchNebulaWatchTime() bool { return o.env.FetchNebulaWatchTime }

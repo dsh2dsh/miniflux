@@ -8,6 +8,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"miniflux.app/v2/internal/config"
@@ -361,23 +362,16 @@ func TestProxyFilterWithSrcset(t *testing.T) {
 	t.Setenv("MEDIA_PROXY_RESOURCE_TYPES", "image")
 	t.Setenv("MEDIA_PROXY_PRIVATE_KEY", "test")
 
-	var err error
-	parser := config.NewParser()
-	config.Opts, err = parser.ParseEnvironmentVariables()
-	if err != nil {
-		t.Fatalf(`Parsing failure: %v`, err)
-	}
+	require.NoError(t, config.Load(""))
 
 	r := mux.New()
-	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}",
+		func(http.ResponseWriter, *http.Request) {}, "proxy")
 
 	input := `<p><img src="http://website/folder/image.png" srcset="http://website/folder/image2.png 656w, http://website/folder/image3.png 360w" alt="test"></p>`
 	expected := `<p><img src="/proxy/okK5PsdNY8F082UMQEAbLPeUFfbe2WnNfInNmR9T4WA=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlLnBuZw==" srcset="/proxy/aY5Hb4urDnUCly2vTJ7ExQeeaVS-52O7kjUr2v9VrAs=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlMi5wbmc= 656w, /proxy/QgAmrJWiAud_nNAsz3F8OTxaIofwAiO36EDzH_YfMzo=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlMy5wbmc= 360w" alt="test"/></p>`
-	output := RewriteDocumentWithRelativeProxyURL(r, input)
 
-	if expected != output {
-		t.Errorf(`Not expected output: got %s`, output)
-	}
+	assert.Equal(t, expected, RewriteDocumentWithRelativeProxyURL(r, input))
 }
 
 func TestProxyFilterWithEmptySrcset(t *testing.T) {

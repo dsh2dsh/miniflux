@@ -22,7 +22,6 @@ import (
 	"miniflux.app/v2/internal/reader/rewrite"
 	"miniflux.app/v2/internal/reader/sanitizer"
 	"miniflux.app/v2/internal/reader/scraper"
-	"miniflux.app/v2/internal/reader/urlcleaner"
 	"miniflux.app/v2/internal/storage"
 )
 
@@ -80,7 +79,7 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 		removeTracking(feedURL, siteURL, entry)
 		rewrite.RewriteEntryURL(ctx, feed, entry)
 
-		var pageBaseURL string
+		var pageURL string
 		if feed.Crawler && (force || !entry.Stored()) {
 			log := log.With(slog.Bool("force_refresh", force))
 			log.Debug("Scraping entry")
@@ -90,22 +89,17 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 				log.Warn("Unable scrape entry", slog.Any("error", err))
 				return fmt.Errorf("%w: scrape entry: %w", ErrBadFeed, err)
 			} else if scrapedURL != "" {
-				pageBaseURL = scrapedURL
+				pageURL = scrapedURL
 			}
 		}
 
 		rewrite.ApplyContentRewriteRules(entry, feed.RewriteRules)
-		if pageBaseURL == "" {
-			pageBaseURL = entry.URL
-		}
-
 		// The sanitizer should always run at the end of the process to make sure
 		// unsafe HTML is filtered out.
-		sanitizeTitle(entry)
-		entry.Content = sanitizer.SanitizeHTML(pageBaseURL, entry.Content,
-			&sanitizer.SanitizerOptions{
-				OpenLinksInNewTab: !user.OpenExternalLinkSameTab(),
-			})
+		entry.Title = sanitizer.StripTags(entry.Title)
+		if err := sanitizeEntry(entry, pageURL); err != nil {
+			return fmt.Errorf("%w: %w", ErrBadFeed, err)
+		}
 		updateEntryReadingTime(ctx, store, feed, entry, !entry.Stored(), user)
 	}
 
@@ -141,12 +135,12 @@ func markStoredEntries(ctx context.Context, store *storage.Storage,
 }
 
 func removeTracking(feedURL, siteURL *url.URL, entry *model.Entry) {
-	entryURL, _ := url.Parse(entry.URL)
-	cleanURL, err := urlcleaner.RemoveTrackingParameters(feedURL, siteURL,
-		entryURL)
-	if err == nil {
-		entry.URL = cleanURL
+	u, err := url.Parse(entry.URL)
+	if err != nil {
+		return
 	}
+	sanitizer.StripTracking(u, feedURL.Hostname(), siteURL.Hostname())
+	entry.URL = u.String()
 }
 
 func scrape(ctx context.Context, feed *model.Feed, entry *model.Entry,
@@ -192,9 +186,23 @@ func ProcessEntryWebPage(ctx context.Context, feed *model.Feed,
 	}
 
 	rewrite.ApplyContentRewriteRules(entry, entry.Feed.RewriteRules)
-	entry.Content = sanitizer.SanitizeHTML(baseURL, entry.Content,
-		&sanitizer.SanitizerOptions{
-			OpenLinksInNewTab: !user.OpenExternalLinkSameTab(),
-		})
+
+	if err := sanitizeEntry(entry, baseURL); err != nil {
+		return err
+	}
+	return nil
+}
+
+func sanitizeEntry(entry *model.Entry, pageURL string) error {
+	if pageURL == "" {
+		pageURL = entry.URL
+	}
+
+	u, err := url.Parse(pageURL)
+	if err != nil {
+		return fmt.Errorf("parse entry URL: %w", err)
+	}
+
+	entry.Content = sanitizer.SanitizeContent(entry.Content, u)
 	return nil
 }

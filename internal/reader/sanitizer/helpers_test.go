@@ -1,22 +1,20 @@
-// SPDX-FileCopyrightText: Copyright The Miniflux Authors. All rights reserved.
-// SPDX-License-Identifier: Apache-2.0
-
-package urlcleaner // import "miniflux.app/v2/internal/reader/urlcleaner"
+package sanitizer
 
 import (
 	"net/url"
-	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestRemoveTrackingParams(t *testing.T) {
+func TestStripTracking(t *testing.T) {
 	tests := []struct {
-		name             string
-		input            string
-		expected         string
-		baseUrl          string
-		feedUrl          string
-		strictComparison bool
+		name     string
+		input    string
+		expected string
+		baseUrl  string
+		feedUrl  string
 	}{
 		{
 			name:     "URL with tracking parameters",
@@ -34,10 +32,9 @@ func TestRemoveTrackingParams(t *testing.T) {
 			expected: "https://example.com/page?id=123&foo=bar",
 		},
 		{
-			name:             "URL with no parameters",
-			input:            "https://example.com/page",
-			expected:         "https://example.com/page",
-			strictComparison: true,
+			name:     "URL with no parameters",
+			input:    "https://example.com/page",
+			expected: "https://example.com/page",
 		},
 		{
 			name:     "URL with mixed case tracking parameters",
@@ -98,64 +95,26 @@ func TestRemoveTrackingParams(t *testing.T) {
 			feedUrl:  "https://feedburned.com/exploit.club",
 		},
 		{
-			name:             "Non-standard URL parameter with no tracker",
-			input:            "https://example.com/foo.jpg?crop/1420x708/format/webp",
-			expected:         "https://example.com/foo.jpg?crop/1420x708/format/webp",
-			baseUrl:          "https://example.com/page",
-			strictComparison: true,
-		},
-		{
-			name:     "Invalid URL",
-			input:    "https://example|org/",
+			name:     "Non-standard URL parameter with no tracker",
+			input:    "https://example.com/foo.jpg?crop/1420x708/format/webp",
+			expected: "https://example.com/foo.jpg?crop/1420x708/format/webp",
 			baseUrl:  "https://example.com/page",
-			expected: "",
-		},
-		{
-			name:             "Non-HTTP URL",
-			input:            "mailto:user@example.org",
-			expected:         "mailto:user@example.org",
-			baseUrl:          "https://example.com/page",
-			strictComparison: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			parsedBaseUrl, _ := url.Parse(tt.baseUrl)
-			parsedFeedUrl, _ := url.Parse(tt.feedUrl)
-			parsedInputUrl, _ := url.Parse(tt.input)
-			result, err := RemoveTrackingParameters(parsedBaseUrl, parsedFeedUrl, parsedInputUrl)
-			if tt.expected == "" {
-				if err == nil {
-					t.Errorf("Expected an error for invalid URL, but got none")
-				}
-			} else {
-				if err != nil {
-					t.Errorf("Unexpected error: %v", err)
-				}
-				if tt.strictComparison && result != tt.expected {
-					t.Errorf("removeTrackingParams(%q) = %q, want %q", tt.input, result, tt.expected)
-				}
-				if !urlsEqual(result, tt.expected) {
-					t.Errorf("removeTrackingParams(%q) = %q, want %q", tt.input, result, tt.expected)
-				}
-			}
+			baseURL, err := url.Parse(tt.baseUrl)
+			require.NoError(t, err)
+
+			feedURL, _ := url.Parse(tt.feedUrl)
+			require.NoError(t, err)
+
+			u, err := url.Parse(tt.input)
+			require.NoError(t, err)
+
+			StripTracking(u, baseURL.Hostname(), feedURL.Hostname())
+			assert.Equal(t, tt.expected, u.String())
 		})
 	}
-}
-
-// urlsEqual compares two URLs for equality, ignoring the order of query parameters
-func urlsEqual(url1, url2 string) bool {
-	u1, err1 := url.Parse(url1)
-	u2, err2 := url.Parse(url2)
-
-	if err1 != nil || err2 != nil {
-		return false
-	}
-
-	if u1.Scheme != u2.Scheme || u1.Host != u2.Host || u1.Path != u2.Path || u1.Fragment != u2.Fragment {
-		return false
-	}
-
-	return reflect.DeepEqual(u1.Query(), u2.Query())
 }

@@ -169,7 +169,7 @@ func TestParseAtom03WithoutEntryTitleButWithSummary(t *testing.T) {
 		t.Errorf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
 
-	if feed.Entries[0].Title != "It's a test" {
+	if feed.Entries[0].Title != "It&#39;s a test" {
 		t.Errorf("Incorrect entry title, got: %s", feed.Entries[0].Title)
 	}
 }

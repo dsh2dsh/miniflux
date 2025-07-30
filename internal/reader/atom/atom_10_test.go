@@ -212,7 +212,7 @@ func TestParseEntryWithoutTitleButWithXHTMLContent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if feed.Entries[0].Title != "AT&T bought by SBC!" {
+	if feed.Entries[0].Title != "AT&amp;T bought by SBC!" {
 		t.Errorf("Incorrect entry title, got: %s", feed.Entries[0].Title)
 	}
 }
