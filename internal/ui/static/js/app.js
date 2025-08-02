@@ -439,15 +439,7 @@ function openCommentLink(openLinkInCurrentTab) {
     } else {
         const currentItemCommentsLink = document.querySelector(".current-item :is(a, button)[data-comments-link]");
         if (currentItemCommentsLink !== null) {
-          openNewTab(currentItemCommentsLink.getAttribute("href"));
-
-          const currentItem = document.querySelector(".current-item");
-          // If we are not on the list of starred items, move to the next item
-          if (document.location.href !== document.querySelector(':is(a, button)[data-page=starred]').href) {
-            goToListItem(1);
-          }
-          markEntryAsRead(currentItem);
-        }
+            openNewTab(currentItemCommentsLink.getAttribute("href"));
     }
 }
 
@@ -844,4 +836,44 @@ function handleMediaControl(button) {
             break;
         }
     });
+}
+
+function initDataConfirm() {
+  document.body.addEventListener("click", (event) => {
+    if (!event.target.matches(":is(a, button)[data-confirm]")) return;
+    handleConfirmationMessage(event.target, (url, redirectURL) => {
+      const request = new RequestBuilder(url);
+      request.withRedirect("manual").withCallback((response) => {
+        if (redirectURL) {
+          window.location.href = redirectURL;
+        } else if (response.type == "opaqueredirect" && response.url) {
+          window.location.href = response.url;
+        } else {
+          window.location.reload();
+        }
+      });
+      request.execute();
+    });
+  });
+}
+
+function initServiceWorker() {
+  if ("serviceWorker" in navigator === false) return;
+
+  const scriptElement = document.getElementById("service-worker-script");
+  if (!scriptElement) return;
+
+	navigator.serviceWorker.
+    register(ttpolicy.createScriptURL(scriptElement.src)).
+    catch((error) => {
+      console.warn(`Service worker registration failed: ${error}`);
+    });
+}
+
+function initCommentLinks() {
+  document.body.addEventListener("click", (event) => {
+    if (event.target.matches("a[data-comments-link=true]")) {
+      handleEntryStatus("next", event.target, true);
+    }
+  });
 }

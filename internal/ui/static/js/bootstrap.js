@@ -89,34 +89,10 @@ document.addEventListener("DOMContentLoaded", () => {
     onClick(":is(a, button)[data-action=markPageAsRead]", (event) => handleConfirmationMessage(event.target, markPageAsRead));
     onClick(":is(a, button)[data-toggle-status]", (event) => handleEntryStatus("next", event.target));
 
-    onClick(":is(a, button)[data-confirm]",
-      (event) => handleConfirmationMessage(event.target, (url, redirectURL) => {
-        const request = new RequestBuilder(url);
-        request.withRedirect("manual").withCallback((response) => {
-          if (redirectURL) {
-            window.location.href = redirectURL;
-          } else if (response.type == "opaqueredirect" && response.url) {
-            window.location.href = response.url;
-          } else {
-            window.location.reload();
-          }
-        });
-        request.execute();
-      }));
-
     onClick("a[data-original-link='true']", (event) => {
         handleEntryStatus("next", event.target, true);
     }, true);
     onAuxClick("a[data-original-link='true']", (event) => {
-        if (event.button === 1) {
-            handleEntryStatus("next", event.target, true);
-        }
-    }, true);
-
-    onClick("a[data-comments-link='true']", (event) => {
-        handleEntryStatus("next", event.target, true);
-    }, true);
-    onAuxClick("a[data-comments-link='true']", (event) => {
         if (event.button === 1) {
             handleEntryStatus("next", event.target, true);
         }
@@ -134,17 +110,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     onClick(".header nav li", (event) => onClickMainMenuListItem(event));
-
-    if ("serviceWorker" in navigator) {
-        const scriptElement = document.getElementById("service-worker-script");
-        if (scriptElement) {
-	        navigator.serviceWorker.
-            register(ttpolicy.createScriptURL(scriptElement.src)).
-            catch((error) => {
-              console.warn(`Service worker registration failed: ${error}`);
-            });
-        }
-    }
 
     window.addEventListener('beforeinstallprompt', (e) => {
         let deferredPrompt = e;
@@ -197,5 +162,9 @@ document.addEventListener("DOMContentLoaded", () => {
         element.addEventListener("click", () => handleMediaControl(element));
     });
 
-    markReadOnScroll();
+
+  initDataConfirm();
+  initServiceWorker();
+  initCommentLinks();
+  markReadOnScroll();
 });
