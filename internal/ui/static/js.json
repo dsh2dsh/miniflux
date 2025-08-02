@@ -9,7 +9,7 @@
 		"js/webauthn_handler.js",
     "js/mark_read_on_scroll.js",
 
-		"js/app.js",
+		"js/app.js"
 	],
 
 	"service-worker": [
