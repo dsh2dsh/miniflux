@@ -959,11 +959,11 @@ function initDataConfirm() {
 function initServiceWorker() {
   if ("serviceWorker" in navigator === false) return;
 
-  const scriptElement = document.getElementById("service-worker-script");
-  if (!scriptElement) return;
+  const serviceWorkerURL = document.body.dataset.serviceWorkerUrl;
+  if (!serviceWorkerURL) return;
 
 	navigator.serviceWorker.
-    register(ttpolicy.createScriptURL(scriptElement.src)).
+    register(ttpolicy.createScriptURL(serviceWorkerURL), {type: "module"}).
     catch((error) => {
       console.warn(`Service worker registration failed: ${error}`);
     });
