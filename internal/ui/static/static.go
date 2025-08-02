@@ -191,18 +191,11 @@ func GenerateJavascriptBundles(ctx context.Context) error {
 		return fmt.Errorf("ui/static: unmarshal js.json: %w", err)
 	}
 
-	prefixes := map[string]string{"app": "(function(){'use strict';"}
-	suffixes := map[string]string{"app": "})();"}
-
 	javascriptBundles = make(map[string][]byte, len(bundles))
 	javascriptHashes = make(map[string]string, len(bundles))
 
 	for bundle, srcFiles := range bundles {
 		var buffer bytes.Buffer
-		if prefix, ok := prefixes[bundle]; ok {
-			buffer.WriteString(prefix)
-		}
-
 		for _, srcFile := range srcFiles {
 			if ctx.Err() != nil {
 				return fmt.Errorf(
@@ -214,10 +207,6 @@ func GenerateJavascriptBundles(ctx context.Context) error {
 				return fmt.Errorf("ui/static: failed read %q: %w", srcFile, err)
 			}
 			buffer.Write(fileData)
-		}
-
-		if suffix, ok := suffixes[bundle]; ok {
-			buffer.WriteString(suffix)
 		}
 
 		hash := crypto.HashFromBytes(buffer.Bytes())

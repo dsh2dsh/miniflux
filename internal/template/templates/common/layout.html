@@ -48,7 +48,7 @@
         <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data:; media-src *; frame-src *; require-trusted-types-for 'script'; trusted-types ttpolicy;">
     {{ end }}
 
-    <script src="{{ javascript "app" }}" defer></script>
+    <script type="module" src="{{ javascript "app" }}"></script>
     <script src="{{ javascript "service-worker" }}" defer id="service-worker-script"></script>
 </head>
 <body
