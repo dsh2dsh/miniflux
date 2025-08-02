@@ -1,4 +1,5 @@
-disableSubmitButtonsOnFormSubmit();
+initializeMainMenuHandlers();
+initializeFormHandlers();
 initializeMediaPlayerHandlers();
 
 // Initialize the keyboard shortcuts if enabled.
@@ -69,19 +70,6 @@ onAuxClick("a[data-original-link='true']", (event) => {
         handleEntryStatus("next", event.target, true);
     }
 }, true);
-
-checkMenuToggleModeByLayout();
-window.addEventListener("resize", checkMenuToggleModeByLayout, { passive: true });
-
-fixVoiceOverDetailsSummaryBug();
-
-const logoElement = document.querySelector(".logo");
-if (logoElement) {
-    logoElement.addEventListener("click", toggleMainMenu);
-    logoElement.addEventListener("keydown", toggleMainMenu);
-}
-
-onClick(".header nav li", (event) => onClickMainMenuListItem(event));
 
 // PWA install prompt handling.
 window.addEventListener('beforeinstallprompt', (e) => {
