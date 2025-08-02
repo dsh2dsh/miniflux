@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/model"
 )
