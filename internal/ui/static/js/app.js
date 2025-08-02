@@ -716,7 +716,7 @@ function openCommentLink(openLinkInCurrentTab) {
         }
     } else {
         const currentItemCommentsLink = document.querySelector(".current-item :is(a, button)[data-comments-link]");
-        if (currentItemCommentsLink !== null) {
+        if (currentItemCommentsLink !== null)
             openNewTab(currentItemCommentsLink.getAttribute("href"));
     }
 }
