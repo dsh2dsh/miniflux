@@ -336,14 +336,18 @@ func addInvidiousVideo(entryURL, entryContent string) string {
 		return entryContent
 	}
 
-	src := "https://" + u.Hostname() + `/embed/` + v
-	for key, val := range u.Query() {
-		if key == "v" || len(val) != 1 {
-			continue
+	query := u.Query()
+	query.Del("v")
+	for key, val := range query {
+		if len(val) != 1 {
+			query.Del(key)
 		}
-		src += "&" + key + "=" + val[0]
 	}
 
+	src := "https://" + u.Hostname() + `/embed/` + v
+	if len(query) != 0 {
+		src += "?" + query.Encode()
+	}
 	return addVideoPlayerIframe(src, entryContent)
 }
 
