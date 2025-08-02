@@ -1,5 +1,7 @@
 disableSubmitButtonsOnFormSubmit();
+initializeMediaPlayerHandlers();
 
+// Initialize the keyboard shortcuts if enabled.
 if (!document.querySelector("body[data-disable-keyboard-shortcuts=true]")) {
     const keyboardHandler = new KeyboardHandler();
     keyboardHandler.on("g u", () => goToPage("unread"));
@@ -47,9 +49,62 @@ if (!document.querySelector("body[data-disable-keyboard-shortcuts=true]")) {
     keyboardHandler.listen();
 }
 
+// Initialize the touch handler for mobile devices.
 const touchHandler = new TouchHandler();
 touchHandler.listen();
 
+// Initialize click handlers.
+onClick(":is(a, button)[data-save-entry]", (event) => handleSaveEntry(event.target));
+onClick(":is(a, button)[data-toggle-bookmark]", (event) => handleBookmark(event.target));
+onClick(":is(a, button)[data-fetch-content-entry]", handleFetchOriginalContent);
+onClick(":is(a, button)[data-share-status]", handleShare);
+onClick(":is(a, button)[data-action=markPageAsRead]", (event) => handleConfirmationMessage(event.target, markPageAsRead));
+onClick(":is(a, button)[data-toggle-status]", (event) => handleEntryStatus("next", event.target));
+
+onClick("a[data-original-link='true']", (event) => {
+    handleEntryStatus("next", event.target, true);
+}, true);
+onAuxClick("a[data-original-link='true']", (event) => {
+    if (event.button === 1) {
+        handleEntryStatus("next", event.target, true);
+    }
+}, true);
+
+checkMenuToggleModeByLayout();
+window.addEventListener("resize", checkMenuToggleModeByLayout, { passive: true });
+
+fixVoiceOverDetailsSummaryBug();
+
+const logoElement = document.querySelector(".logo");
+if (logoElement) {
+    logoElement.addEventListener("click", toggleMainMenu);
+    logoElement.addEventListener("keydown", toggleMainMenu);
+}
+
+onClick(".header nav li", (event) => onClickMainMenuListItem(event));
+
+// PWA install prompt handling.
+window.addEventListener('beforeinstallprompt', (e) => {
+    let deferredPrompt = e;
+    const promptHomeScreen = document.getElementById('prompt-home-screen');
+    if (promptHomeScreen) {
+        promptHomeScreen.style.display = "block";
+
+        const btnAddToHomeScreen = document.getElementById('btn-add-to-home-screen');
+        if (btnAddToHomeScreen) {
+            btnAddToHomeScreen.addEventListener('click', (e) => {
+                e.preventDefault();
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(() => {
+                    deferredPrompt = null;
+                    promptHomeScreen.style.display = "none";
+                });
+            });
+        }
+    }
+});
+
+// PassKey handling.
 if (WebAuthnHandler.isWebAuthnSupported()) {
     const webauthnHandler = new WebAuthnHandler();
 
@@ -80,86 +135,6 @@ if (WebAuthnHandler.isWebAuthnSupported()) {
         webauthnHandler.conditionalLogin(abortController).catch(err => WebAuthnHandler.showErrorMessage(err));
     }
 }
-
-onClick(":is(a, button)[data-save-entry]", (event) => handleSaveEntry(event.target));
-onClick(":is(a, button)[data-toggle-bookmark]", (event) => handleBookmark(event.target));
-onClick(":is(a, button)[data-fetch-content-entry]", handleFetchOriginalContent);
-onClick(":is(a, button)[data-share-status]", handleShare);
-onClick(":is(a, button)[data-action=markPageAsRead]", (event) => handleConfirmationMessage(event.target, markPageAsRead));
-onClick(":is(a, button)[data-toggle-status]", (event) => handleEntryStatus("next", event.target));
-
-onClick("a[data-original-link='true']", (event) => {
-    handleEntryStatus("next", event.target, true);
-}, true);
-onAuxClick("a[data-original-link='true']", (event) => {
-    if (event.button === 1) {
-        handleEntryStatus("next", event.target, true);
-    }
-}, true);
-
-checkMenuToggleModeByLayout();
-window.addEventListener("resize", checkMenuToggleModeByLayout, { passive: true });
-
-fixVoiceOverDetailsSummaryBug();
-
-const logoElement = document.querySelector(".logo");
-if (logoElement) {
-    logoElement.addEventListener("click", toggleMainMenu);
-    logoElement.addEventListener("keydown", toggleMainMenu);
-}
-
-onClick(".header nav li", (event) => onClickMainMenuListItem(event));
-
-window.addEventListener('beforeinstallprompt', (e) => {
-    let deferredPrompt = e;
-    const promptHomeScreen = document.getElementById('prompt-home-screen');
-    if (promptHomeScreen) {
-        promptHomeScreen.style.display = "block";
-
-        const btnAddToHomeScreen = document.getElementById('btn-add-to-home-screen');
-        if (btnAddToHomeScreen) {
-            btnAddToHomeScreen.addEventListener('click', (e) => {
-                e.preventDefault();
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then(() => {
-                    deferredPrompt = null;
-                    promptHomeScreen.style.display = "none";
-                });
-            });
-        }
-    }
-});
-
-// Save and resume media position
-const lastPositionElements = document.querySelectorAll("audio[data-last-position],video[data-last-position]");
-lastPositionElements.forEach((element) => {
-    if (element.dataset.lastPosition) {
-        element.currentTime = element.dataset.lastPosition;
-    }
-    element.ontimeupdate = () => handlePlayerProgressionSaveAndMarkAsReadOnCompletion(element);
-});
-
-// Set media playback rate
-const playbackRateElements = document.querySelectorAll("audio[data-playback-rate],video[data-playback-rate]");
-playbackRateElements.forEach((element) => {
-    if (element.dataset.playbackRate) {
-        element.playbackRate = element.dataset.playbackRate;
-        if (element.dataset.enclosureId){
-            // In order to display properly the speed we need to do it on bootstrap.
-            // Could not do it backend side because I didn't know how to do it because of the template inclusion and
-            // the way the initial playback speed is handled. See enclosure_media_controls.html if you want to try to fix this
-            document.querySelectorAll(`span.speed-indicator[data-enclosure-id="${element.dataset.enclosureId}"]`).forEach((speedI)=>{
-                speedI.innerText = `${parseFloat(element.dataset.playbackRate).toFixed(2)}x`;
-            });
-        }
-    }
-});
-
-// Set enclosure media controls handlers
-const mediaControlsElements = document.querySelectorAll("button[data-enclosure-action]");
-mediaControlsElements.forEach((element) => {
-    element.addEventListener("click", () => handleMediaControl(element));
-});
 
 initDataConfirm();
 initServiceWorker();
