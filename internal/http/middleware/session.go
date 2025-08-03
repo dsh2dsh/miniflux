@@ -52,18 +52,19 @@ func (self *UserSession) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx = request.WithUserSession(ctx, user, sess)
-	self.next.ServeHTTP(w, r.WithContext(ctx))
-
 	if d := time.Since(sess.UpdatedAt); d > 5*time.Minute {
-		err := self.store.RefreshAppSession(ctx, sess)
-		if err != nil {
+		if err := self.store.RefreshAppSession(ctx, sess); err == nil {
+			cookie.Refresh(w, cookie.CookieAppSessionID, id)
+		} else {
 			logging.FromContext(ctx).Error("unable update session updated timestamp",
 				slog.String("id", sess.ID),
 				slog.Duration("last_updated_ago", d),
 				slog.Any("error", err))
 		}
 	}
+
+	ctx = request.WithUserSession(ctx, user, sess)
+	self.next.ServeHTTP(w, r.WithContext(ctx))
 }
 
 func (self *UserSession) skipPublic(r *http.Request) bool {

@@ -137,15 +137,27 @@ func (s *Storage) FlushAllSessions(ctx context.Context) error {
 	return nil
 }
 
-// CleanOldSessions removes sessions older than specified days.
+// CleanOldSessions removes sessions older than specified days or inactiveDays.
 func (s *Storage) CleanOldSessions(ctx context.Context, days, inactiveDays int,
 ) int64 {
-	result, err := s.db.Exec(ctx, `
+	var sql string
+	var args []any
+
+	if days > 0 {
+		sql = `
 DELETE FROM sessions
  WHERE created_at < now() - $1::interval OR
-       updated_at < now() - $2::interval`,
-		strconv.FormatInt(int64(days), 10)+" days",
-		strconv.FormatInt(int64(inactiveDays), 10)+" days")
+       updated_at < now() - $2::interval`
+		args = []any{
+			strconv.FormatInt(int64(days), 10) + " days",
+			strconv.FormatInt(int64(inactiveDays), 10) + " days",
+		}
+	} else {
+		sql = "DELETE FROM sessions WHERE updated_at < now() - $1::interval"
+		args = []any{strconv.FormatInt(int64(inactiveDays), 10) + " days"}
+	}
+
+	result, err := s.db.Exec(ctx, sql, args...)
 	if err != nil {
 		logging.FromContext(ctx).Error(
 			"storage: unable clean old sessions", slog.Any("error", err))

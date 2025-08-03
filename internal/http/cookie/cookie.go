@@ -27,9 +27,15 @@ func NewSessionData(v string) *http.Cookie {
 
 // New creates a new cookie.
 func New(name, value string) *http.Cookie {
-	c := makeSessionCookie(name, value)
-	c.Expires = time.Now().Add(
-		time.Duration(config.Opts.CleanupRemoveSessionsDays()) * 24 * time.Hour)
+	return withExpire(makeSessionCookie(name, value))
+}
+
+func withExpire(c *http.Cookie) *http.Cookie {
+	ttl := config.Opts.CleanupRemoveSessionsDays()
+	if ttl == 0 {
+		ttl = config.Opts.CleanupInactiveSessionsDays()
+	}
+	c.Expires = time.Now().Add(time.Duration(ttl) * 24 * time.Hour)
 	return c
 }
 
@@ -59,4 +65,11 @@ func Expired(name string) *http.Cookie {
 	c.MaxAge = -1
 	c.Expires = time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
 	return c
+}
+
+func Refresh(w http.ResponseWriter, name, value string) {
+	if config.Opts.CleanupRemoveSessionsDays() > 0 {
+		return
+	}
+	http.SetCookie(w, New(name, value))
 }

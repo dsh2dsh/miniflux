@@ -235,6 +235,10 @@ This project is an opinionated fork of Miniflux.
 
   This this configuration inactive sessions will be removed after 30 days.
 
+  If `CLEANUP_REMOVE_SESSIONS_DAYS=0` sessions will be deleted by inactivity
+  only and active sessions will be refreshed and never deleted, until they will
+  inactive for `CLEANUP_INACTIVE_SESSIONS_DAYS`.
+
 * Naive deduplication of feed entries.
 
 Features
