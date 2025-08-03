@@ -1,14 +1,28 @@
-// Sentinel values for specific list navigation
+// Sentinel values for specific list navigation.
 const TOP = 9999;
 const BOTTOM = -9999;
 
 /**
- * Get the CSRF token from the HTML document.
+ * Send a POST request to the specified URL with the given body.
  *
- * @returns {string} The CSRF token.
+ * @param {string} url - The URL to send the request to.
+ * @param {Object} [body] - The body of the request (optional).
+ * @returns {Promise<Response>} The response from the fetch request.
  */
-function getCsrfToken() {
-    return document.body.dataset.csrfToken || "";
+function sendPOSTRequest(url, body = null) {
+    const options = {
+        method: "POST",
+        headers: {
+            "X-Csrf-Token": document.body.dataset.csrfToken || ""
+        }
+    };
+
+    if (body !== null) {
+        options.headers["Content-Type"] = "application/json";
+        options.body = JSON.stringify(body);
+    }
+
+    return fetch(url, options);
 }
 
 /**
@@ -130,17 +144,126 @@ function findEntry(element) {
 }
 
 /**
- * Insert an icon label element into the parent element.
+ * Create an icon label element with the given text.
  *
- * @param {Element} parentElement The parent element to insert the icon label into.
- * @param {string} iconLabelText The text to display in the icon label.
+ * @param {string} labelText - The text to display in the icon label.
+ * @returns {Element} The created icon label element.
+ */
+function createIconLabelElement(labelText) {
+    const labelElement = document.createElement("span");
+    labelElement.classList.add("icon-label");
+    labelElement.textContent = labelText;
+    return labelElement;
+}
+
+/**
+ * Set the icon and label element in the parent element.
+ *
+ * @param {Element} parentElement - The parent element to insert the icon and label into.
+ * @param {string} iconName - The name of the icon to display.
+ * @param {string} labelText - The text to display in the label.
+ */
+function setIconAndLabelElement(parentElement, iconName, labelText) {
+    const iconElement = document.querySelector(`template#icon-${iconName}`);
+    if (iconElement) {
+        const iconClone = iconElement.content.cloneNode(true);
+        parentElement.textContent = ""; // Clear existing content
+        parentElement.appendChild(iconClone);
+    }
+
+    if (labelText) {
+        const labelElement = createIconLabelElement(labelText);
+        parentElement.appendChild(labelElement);
+    }
+}
+
+/**
+ * Set the button to a loading state and return a clone of the original button element.
+ *
+ * @param {Element} buttonElement - The button element to set to loading state.
+ * @return {Element} The original button element cloned before modification.
+ */
+function setButtonToLoadingState(buttonElement) {
+    const originalButtonElement = buttonElement.cloneNode(true);
+
+    buttonElement.textContent = "";
+    buttonElement.appendChild(createIconLabelElement(buttonElement.dataset.labelLoading));
+
+    return originalButtonElement;
+}
+
+/**
+ * Restore the button to its original state.
+ *
+ * @param {Element} buttonElement The button element to restore.
+ * @param {Element} originalButtonElement The original button element to restore from.
  * @returns {void}
  */
-function insertIconLabelElement(parentElement, iconLabelText) {
-    const span = document.createElement('span');
-    span.classList.add('icon-label');
-    span.textContent = iconLabelText;
-    parentElement.appendChild(span);
+function restoreButtonState(buttonElement, originalButtonElement) {
+    buttonElement.textContent = "";
+    buttonElement.appendChild(originalButtonElement);
+}
+
+/**
+ * Set the button to a saved state.
+ *
+ * @param {Element} buttonElement The button element to set to saved state.
+ */
+function setButtonToSavedState(buttonElement) {
+    buttonElement.dataset.completed = "true";
+    setIconAndLabelElement(buttonElement, "save", buttonElement.dataset.labelDone);
+}
+
+/**
+ * Set the bookmark button state.
+ *
+ * @param {Element} buttonElement - The button element to update.
+ * @param {string} newState - The new state to set ("star" or "unstar").
+ */
+function setBookmarkButtonState(buttonElement, newState) {
+    buttonElement.dataset.value = newState;
+    const iconType = newState === "star" ? "unstar" : "star";
+    setIconAndLabelElement(buttonElement, iconType, buttonElement.dataset[newState === "star" ? "labelUnstar" : "labelStar"]);
+}
+
+/**
+ * Set the read status button state.
+ *
+ * @param {Element} buttonElement - The button element to update.
+ * @param {string} newState - The new state to set ("read" or "unread").
+ */
+function setReadStatusButtonState(buttonElement, newState) {
+    buttonElement.dataset.value = newState;
+    const iconType = newState === "read" ? "unread" : "read";
+    setIconAndLabelElement(buttonElement, iconType, buttonElement.dataset[newState === "read" ? "labelUnread" : "labelRead"]);
+}
+
+/**
+ * Show a toast notification.
+ *
+ * @param {string} iconType - The type of icon to display.
+ * @param {string} notificationMessage - The message to display in the toast.
+ * @returns {void}
+ */
+function showToastNotification(iconType, notificationMessage) {
+    const toastMsgElement = document.createElement("span");
+    toastMsgElement.id = "toast-msg";
+
+    setIconAndLabelElement(toastMsgElement, iconType, notificationMessage);
+
+    const toastElementWrapper = document.createElement("div");
+    toastElementWrapper.id = "toast-wrapper";
+    toastElementWrapper.setAttribute("role", "alert");
+    toastElementWrapper.setAttribute("aria-live", "assertive");
+    toastElementWrapper.setAttribute("aria-atomic", "true");
+    toastElementWrapper.appendChild(toastMsgElement);
+    toastElementWrapper.addEventListener("animationend", () => {
+        toastElementWrapper.remove();
+    });
+
+    document.body.appendChild(toastElementWrapper);
+
+    setTimeout(() => toastElementWrapper.classList.add("toast-animate"), 100);
 }
 
 /**
@@ -260,32 +383,45 @@ function goToListItem(offset) {
         return;
     }
 
-    if (document.querySelector(".current-item") === null) {
+    const currentItem = document.querySelector(".current-item");
+
+    // If no current item exists, select the first item
+    if (!currentItem) {
         items[0].classList.add("current-item");
         items[0].focus();
+        scrollPageTo(items[0]);
         return;
     }
 
-    for (let i = 0; i < items.length; i++) {
-        if (items[i].classList.contains("current-item")) {
-            items[i].classList.remove("current-item");
+    // Find the index of the current item
+    const currentIndex = items.indexOf(currentItem);
+    if (currentIndex === -1) {
+        // Current item not found in visible items, select first item
+        currentItem.classList.remove("current-item");
+        items[0].classList.add("current-item");
+        items[0].focus();
+        scrollPageTo(items[0]);
+        return;
+    }
 
-            // By default adjust selection to the next item
-            let itemOffset = (i + offset + items.length) % items.length;
-            // Allow jumping to top or bottom
-            if (offset === TOP) {
-                itemOffset = 0;
-            } else if (offset === BOTTOM) {
-                itemOffset = items.length - 1;
-            }
-            const item = items[itemOffset];
+    // Calculate the new item index
+    let newIndex;
+    if (offset === TOP) {
+        newIndex = 0;
+    } else if (offset === BOTTOM) {
+        newIndex = items.length - 1;
+    } else {
+        newIndex = (currentIndex + offset + items.length) % items.length;
+    }
 
-            item.classList.add("current-item");
-            scrollPageTo(item);
-            item.focus();
+    // Update selection if moving to a different item
+    if (newIndex !== currentIndex) {
+        const newItem = items[newIndex];
 
-            break;
-        }
+        currentItem.classList.remove("current-item");
+        newItem.classList.add("current-item");
+        newItem.focus();
+        scrollPageTo(newItem);
     }
 }
 
@@ -296,46 +432,26 @@ function goToListItem(offset) {
  * If the share status is "share", it will send an Ajax request to fetch the share URL and then trigger the Web Share API.
  * If the Web Share API is not supported, it will redirect to the entry URL.
  */
-async function handleShare() {
+async function handleEntryShareAction() {
     const link = document.querySelector(':is(a, button)[data-share-status]');
-    const title = document.querySelector(".entry-header > h1 > a");
     if (link.dataset.shareStatus === "shared") {
-        await triggerWebShare(title, link.href);
-    }
-    else if (link.dataset.shareStatus === "share") {
-        const request = new RequestBuilder(link.href);
-        request.withCallback((r) => {
-            // Ensure title is not null before passing to triggerWebShare
-            triggerWebShare(title, r.url);
-        });
-        request.withHttpMethod("GET");
-        request.execute();
-    }
-}
+        const title = document.querySelector(".entry-header > h1 > a");
+        const url = link.href;
 
-/**
- * Trigger the Web Share API to share the entry.
- *
- * If the Web Share API is not supported, it will redirect to the entry URL.
- *
- * @param {Element} title - The title element of the entry.
- * @param {string} url - The URL of the entry to share.
- */
-async function triggerWebShare(title, url) {
-    if (!navigator.canShare) {
-        console.error("Your browser doesn't support the Web Share API.");
-        window.location = url;
-        return;
+        if (!navigator.canShare) {
+            console.error("Your browser doesn't support the Web Share API.");
+            window.location = url;
+            return;
+        }
+        try {
+            await navigator.share({
+                title: title ? title.textContent : url,
+                url: url
+            });
+        } catch (err) {
+            console.error(err);
+        }
     }
-    try {
-        await navigator.share({
-            title: title ? title.textContent : url,
-            url: url
-        });
-    } catch (err) {
-        console.error(err);
-    }
-    window.location.reload();
 }
 
 /**
@@ -441,7 +557,7 @@ function initializeFormHandlers() {
 /**
  * Show the keyboard shortcuts modal.
  */
-function showKeyboardShortcuts() {
+function showKeyboardShortcutsAction() {
     const template = document.getElementById("keyboard-shortcuts");
     ModalHandler.open(template.content, "dialog-title");
 }
@@ -449,7 +565,7 @@ function showKeyboardShortcuts() {
 /**
  * Mark all visible entries on the current page as read.
  */
-function markPageAsRead() {
+function markPageAsReadAction() {
     const items = getVisibleEntries();
     if (items.length === 0) return;
 
@@ -480,12 +596,11 @@ function markPageAsRead() {
  * @returns {void}
  */
 function handleEntryStatus(navigationDirection, element, setToRead) {
-    const toasting = !element;
     const currentEntry = findEntry(element);
 
     if (currentEntry) {
         if (!setToRead || currentEntry.querySelector(":is(a, button)[data-toggle-status]").dataset.value === "unread") {
-            toggleEntryStatus(currentEntry, toasting);
+            toggleEntryStatus(currentEntry, isEntryView());
         }
         if (isListView() && currentEntry.classList.contains('current-item')) {
             switch (navigationDirection) {
@@ -508,35 +623,20 @@ function handleEntryStatus(navigationDirection, element, setToRead) {
  */
 function toggleEntryStatus(element, toasting) {
     const entryID = parseInt(element.dataset.id, 10);
-    const link = element.querySelector(":is(a, button)[data-toggle-status]");
-    if (!link) {
-        return;
-    }
+    const buttonElement = element.querySelector(":is(a, button)[data-toggle-status]");
+    if (!buttonElement) return;
 
-    const currentStatus = link.dataset.value;
+    const currentStatus = buttonElement.dataset.value;
     const newStatus = currentStatus === "read" ? "unread" : "read";
 
-    link.querySelector("span").textContent = link.dataset.labelLoading;
+    setButtonToLoadingState(buttonElement);
+
     updateEntriesStatus([entryID], newStatus, () => {
-        let iconElement, label;
+        setReadStatusButtonState(buttonElement, newStatus);
 
-        if (currentStatus === "read") {
-            iconElement = document.querySelector("template#icon-read");
-            label = link.dataset.labelRead;
-            if (toasting) {
-                showToast(link.dataset.toastUnread, iconElement);
-            }
-        } else {
-            iconElement = document.querySelector("template#icon-unread");
-            label = link.dataset.labelUnread;
-            if (toasting) {
-                showToast(link.dataset.toastRead, iconElement);
-            }
+        if (toasting) {
+            showToastNotification(currentStatus, currentStatus === "read" ? buttonElement.dataset.toastUnread : buttonElement.dataset.toastRead);
         }
-
-        link.replaceChildren(iconElement.content.cloneNode(true));
-        insertIconLabelElement(link, label);
-        link.dataset.value = newStatus;
 
         if (element.classList.contains("item-status-" + currentStatus)) {
             element.classList.remove("item-status-" + currentStatus);
@@ -550,26 +650,11 @@ function toggleEntryStatus(element, toasting) {
 }
 
 /**
- * Mark the entry as read if it is currently unread.
- *
- * @param {Element} element The entry element to mark as read.
- */
-function markEntryAsRead(element) {
-    if (element.classList.contains("item-status-unread")) {
-        element.classList.remove("item-status-unread");
-        element.classList.add("item-status-read");
-
-        const entryID = parseInt(element.dataset.id, 10);
-        updateEntriesStatus([entryID], "read");
-    }
-}
-
-/**
  * Handle the refresh of all feeds.
  *
  * This function redirects the user to the URL specified in the data-refresh-all-feeds-url attribute of the body element.
  */
-function handleRefreshAllFeeds() {
+function handleRefreshAllFeedsAction() {
     const refreshAllFeedsUrl = document.body.dataset.refreshAllFeedsUrl;
     if (refreshAllFeedsUrl) {
         window.location.href = refreshAllFeedsUrl;
@@ -584,63 +669,36 @@ function handleRefreshAllFeeds() {
  */
 function updateEntriesStatus(entryIDs, status, callback) {
     const url = document.body.dataset.entriesStatusUrl;
-    const request = new RequestBuilder(url);
-    request.withBody({ entry_ids: entryIDs, status: status });
-    request.withCallback((resp) => {
+    sendPOSTRequest(url, { entry_ids: entryIDs, status: status }).then((resp) => {
         resp.json().then(count => {
             if (callback) {
                 callback(resp);
             }
-
-            if (status === "read") {
-                updateUnreadCounterValue(-count);
-            } else {
-                updateUnreadCounterValue(count);
-            }
+            updateUnreadCounterValue(status === "read" ? -count : count);
         });
     });
-    request.execute();
 }
 
 /**
  * Handle save entry from list view and entry view.
  *
- * @param {Element} element
+ * @param {Element|null} element - The element that triggered the save action (optional).
  */
-function handleSaveEntry(element) {
-    const toasting = !element;
+function handleSaveEntryAction(element = null) {
     const currentEntry = findEntry(element);
-    if (currentEntry) {
-        saveEntry(currentEntry.querySelector(":is(a, button)[data-save-entry]"), toasting);
-    }
-}
+    if (!currentEntry) return;
 
-/**
- * Save the entry by sending an Ajax request to the server.
- *
- * @param {Element} element The element that triggered the save action.
- * @param {boolean} toasting If true, show a toast notification after saving the entry.
- * @return {void}
- */
-function saveEntry(element, toasting) {
-    if (!element || element.dataset.completed) {
-        return;
-    }
+    const buttonElement = currentEntry.querySelector(":is(a, button)[data-save-entry]");
+    if (!buttonElement || buttonElement.dataset.completed) return;
 
-    element.textContent = "";
-    insertIconLabelElement(element, element.dataset.labelLoading);
+    setButtonToLoadingState(buttonElement);
 
-    const request = new RequestBuilder(element.dataset.saveUrl);
-    request.withCallback(() => {
-        element.textContent = "";
-        insertIconLabelElement(element, element.dataset.labelDone);
-        element.dataset.completed = "true";
-        if (toasting) {
-            const iconElement = document.querySelector("template#icon-save");
-            showToast(element.dataset.toastDone, iconElement);
+    sendPOSTRequest(buttonElement.dataset.saveUrl).then(() => {
+        setButtonToSavedState(buttonElement);
+        if (isEntryView()) {
+            showToastNotification("save", buttonElement.dataset.toastDone);
         }
     });
-    request.execute();
 }
 
 /**
@@ -648,47 +706,25 @@ function saveEntry(element, toasting) {
  *
  * @param {Element} element - The element that triggered the bookmark action.
  */
-function handleBookmark(element) {
-    const toasting = !element;
+function handleBookmarkAction(element) {
     const currentEntry = findEntry(element);
-    if (currentEntry) {
-        toggleBookmark(currentEntry, toasting);
-    }
-}
+    if (!currentEntry) return;
 
-/**
- * Toggle the bookmark status of an entry.
- *
- * @param {Element} parentElement - The parent element containing the bookmark button.
- * @param {boolean} toasting - Whether to show a toast notification.
- * @returns {void}
- */
-function toggleBookmark(parentElement, toasting) {
-    const buttonElement = parentElement.querySelector(":is(a, button)[data-toggle-bookmark]");
+    const buttonElement = currentEntry.querySelector(":is(a, button)[data-toggle-bookmark]");
     if (!buttonElement) return;
 
-    buttonElement.textContent = "";
-    insertIconLabelElement(buttonElement, buttonElement.dataset.labelLoading);
+    setButtonToLoadingState(buttonElement);
 
-    const request = new RequestBuilder(buttonElement.dataset.bookmarkUrl);
-    request.withCallback(() => {
-        const currentStarStatus = buttonElement.dataset.value;
-        const newStarStatus = currentStarStatus === "star" ? "unstar" : "star";
-        const isStarred = currentStarStatus === "star";
+    sendPOSTRequest(buttonElement.dataset.bookmarkUrl).then(() => {
+        const isStarred = buttonElement.dataset.value === "star";
+        const newStarStatus = isStarred ? "unstar" : "star";
 
-        const iconElement = document.querySelector(isStarred ? "template#icon-star" : "template#icon-unstar");
-        const label = isStarred ? buttonElement.dataset.labelStar : buttonElement.dataset.labelUnstar;
+        setBookmarkButtonState(buttonElement, newStarStatus);
 
-        if (toasting) {
-            const toastKey = isStarred ? "toastUnstar" : "toastStar";
-            showToast(buttonElement.dataset[toastKey], iconElement);
+        if (isEntryView()) {
+            showToastNotification(newStarStatus, buttonElement.dataset[isStarred ? "toastUnstar" : "toastStar"]);
         }
-
-        buttonElement.replaceChildren(iconElement.content.cloneNode(true));
-        insertIconLabelElement(buttonElement, label);
-        buttonElement.dataset.value = newStarStatus;
     });
-    request.execute();
 }
 
 /**
@@ -696,21 +732,16 @@ function toggleBookmark(parentElement, toasting) {
  *
  * @returns {void}
  */
-function handleFetchOriginalContent() {
+function handleFetchOriginalContentAction() {
     if (isListView()) return;
 
     const buttonElement = document.querySelector(":is(a, button)[data-fetch-content-entry]");
     if (!buttonElement) return;
 
-    const previousElement = buttonElement.cloneNode(true);
+    const originalButtonElement = setButtonToLoadingState(buttonElement);
 
-    buttonElement.textContent = "";
-    insertIconLabelElement(buttonElement, buttonElement.dataset.labelLoading);
-
-    const request = new RequestBuilder(buttonElement.dataset.fetchContentUrl);
-    request.withCallback((response) => {
-        buttonElement.textContent = '';
-        buttonElement.appendChild(previousElement);
+    sendPOSTRequest(buttonElement.dataset.fetchContentUrl).then((response) => {
+        restoreButtonState(buttonElement, originalButtonElement);
 
         response.json().then((data) => {
             if (data.content && data.reading_time) {
@@ -722,7 +753,6 @@ function handleFetchOriginalContent() {
             }
         });
     });
-    request.execute();
 }
 
 /**
@@ -731,27 +761,60 @@ function handleFetchOriginalContent() {
  * @param {boolean} openLinkInCurrentTab - Whether to open the link in the current tab.
  * @returns {void}
  */
-function openOriginalLink(openLinkInCurrentTab) {
-    const entryLink = document.querySelector(".entry h1 a");
-    if (entryLink) {
-        if (openLinkInCurrentTab) {
-            window.location.href = entryLink.getAttribute("href");
-        } else {
-            openNewTab(entryLink.getAttribute("href"));
-        }
-        return;
+function openOriginalLinkAction(openLinkInCurrentTab) {
+    if (isEntryView()) {
+        openOriginalLinkFromEntryView(openLinkInCurrentTab);
+    } else if (isListView()) {
+        openOriginalLinkFromListView();
     }
+}
 
-    const currentItemOriginalLink = document.querySelector(".current-item :is(a, button)[data-original-link]");
-    if (currentItemOriginalLink) {
-        openNewTab(currentItemOriginalLink.getAttribute("href"));
+/**
+ * Open the original link from entry view.
+ *
+ * @param {boolean} openLinkInCurrentTab - Whether to open the link in the current tab.
+ * @returns {void}
+ */
+function openOriginalLinkFromEntryView(openLinkInCurrentTab) {
+    const entryLink = document.querySelector(".entry h1 a");
+    if (!entryLink) return;
 
-        const currentItem = document.querySelector(".current-item");
-        // If we are not on the list of starred items, move to the next item
-        if (document.location.href !== document.querySelector(':is(a, button)[data-page=starred]').href) {
-            goToListItem(1);
-        }
-        markEntryAsRead(currentItem);
+    const url = entryLink.getAttribute("href");
+    if (openLinkInCurrentTab) {
+        window.location.href = url;
+    } else {
+        openNewTab(url);
+    }
+}
+
+/**
+ * Open the original link from list view.
+ *
+ * @returns {void}
+ */
+function openOriginalLinkFromListView() {
+    const currentItem = document.querySelector(".current-item");
+    const originalLink = currentItem?.querySelector(":is(a, button)[data-original-link]");
+
+    if (!currentItem || !originalLink) return;
+
+    // Open the link
+    openNewTab(originalLink.getAttribute("href"));
+
+    // Don't navigate or mark as read on starred page
+    const isStarredPage = document.location.href === document.querySelector(':is(a, button)[data-page=starred]').href;
+    if (isStarredPage) return;
+
+    // Navigate to next item
+    goToListItem(1);
+
+    // Mark as read if currently unread
+    if (currentItem.classList.contains("item-status-unread")) {
+        currentItem.classList.remove("item-status-unread");
+        currentItem.classList.add("item-status-read");
+
+        const entryID = parseInt(currentItem.dataset.id, 10);
+        updateEntriesStatus([entryID], "read");
     }
 }
 
@@ -761,7 +824,7 @@ function openOriginalLink(openLinkInCurrentTab) {
  * @param {boolean} openLinkInCurrentTab - Whether to open the link in the current tab.
  * @returns {void}
  */
-function openCommentLink(openLinkInCurrentTab) {
+function openCommentLinkAction(openLinkInCurrentTab) {
     const entryLink = document.querySelector(isListView() ? ".current-item :is(a, button)[data-comments-link]" : ":is(a, button)[data-comments-link]");
 
     if (entryLink) {
@@ -779,7 +842,7 @@ function openCommentLink(openLinkInCurrentTab) {
  * If the current view is a list view, it will navigate to the link of the currently selected item.
  * If the current view is an entry view, it will navigate to the link of the entry.
  */
-function openSelectedItem() {
+function openSelectedItemAction() {
     const currentItemLink = document.querySelector(".current-item .item-title a");
     if (currentItemLink) {
         window.location.href = currentItemLink.getAttribute("href");
@@ -789,21 +852,19 @@ function openSelectedItem() {
 /**
  * Unsubscribe from the feed of the currently selected item.
  */
-function unsubscribeFromFeed() {
+function handleRemoveFeedAction() {
     const unsubscribeLink = document.querySelector("[data-action=remove-feed]");
     if (unsubscribeLink) {
-        const request = new RequestBuilder(unsubscribeLink.dataset.url);
-        request.withCallback(() => {
+        sendPOSTRequest(unsubscribeLink.dataset.url).then(() => {
             window.location.href = unsubscribeLink.dataset.redirectUrl || window.location.href;
         });
-        request.execute();
     }
 }
 
 /**
  * Scroll the page to the currently selected item.
  */
-function scrollToCurrentItem() {
+function scrollToCurrentItemAction() {
     const currentItem = document.querySelector(".current-item");
     if (currentItem) {
         scrollPageTo(currentItem, true);
@@ -894,27 +955,6 @@ function handleConfirmationMessage(linkElement, callback) {
 }
 
 /**
- * Show a toast notification.
- *
- * @param {string} toastMessage - The label to display in the toast.
- * @param {Element} iconElement - The icon element to display in the toast.
- * @returns {void}
- */
-function showToast(toastMessage, iconElement) {
-    if (!toastMessage || !iconElement) {
-        return;
-    }
-
-    const toastMsgElement = document.getElementById("toast-msg");
-    toastMsgElement.replaceChildren(iconElement.content.cloneNode(true));
-    insertIconLabelElement(toastMsgElement, toastMessage);
-
-    const toastElementWrapper = document.getElementById("toast-wrapper");
-    toastElementWrapper.classList.remove('toast-animate');
-    setTimeout(() => toastElementWrapper.classList.add('toast-animate'), 100);
-}
-
-/**
  * Check if the player is actually playing a media
  *
  * @param mediaElement the player element itself
@@ -952,9 +992,7 @@ function handlePlayerProgressionSaveAndMarkAsReadOnCompletion(playerElement) {
     ) {
         playerElement.dataset.lastPosition = currentPositionInSeconds.toString();
 
-        const request = new RequestBuilder(playerElement.dataset.saveUrl);
-        request.withBody({ media_progression: currentPositionInSeconds });
-        request.execute();
+        sendPOSTRequest(playerElement.dataset.saveUrl, { media_progression: currentPositionInSeconds });
 
         // Handle the mark as read on completion
         if (markAsReadOnCompletion >= 0 && playerElement.duration > 0) {
@@ -1124,32 +1162,32 @@ function initializeKeyboardShortcuts() {
     keyboardHandler.on("n", goToNextPage);
     keyboardHandler.on("h", () => goToPage("previous"));
     keyboardHandler.on("l", () => goToPage("next"));
-    keyboardHandler.on("z t", scrollToCurrentItem);
+    keyboardHandler.on("z t", scrollToCurrentItemAction);
 
     // Item actions
-    keyboardHandler.on("o", openSelectedItem);
-    keyboardHandler.on("Enter", () => openSelectedItem());
-    keyboardHandler.on("v", () => openOriginalLink(false));
-    keyboardHandler.on("V", () => openOriginalLink(true));
-    keyboardHandler.on("c", () => openCommentLink(false));
-    keyboardHandler.on("C", () => openCommentLink(true));
+    keyboardHandler.on("o", openSelectedItemAction);
+    keyboardHandler.on("Enter", () => openSelectedItemAction());
+    keyboardHandler.on("v", () => openOriginalLinkAction(false));
+    keyboardHandler.on("V", () => openOriginalLinkAction(true));
+    keyboardHandler.on("c", () => openCommentLinkAction(false));
+    keyboardHandler.on("C", () => openCommentLinkAction(true));
 
     // Entry management
     keyboardHandler.on("m", () => handleEntryStatus("next"));
     keyboardHandler.on("M", () => handleEntryStatus("previous"));
-    keyboardHandler.on("A", markPageAsRead);
-    keyboardHandler.on("s", () => handleSaveEntry());
-    keyboardHandler.on("d", handleFetchOriginalContent);
-    keyboardHandler.on("f", () => handleBookmark());
+    keyboardHandler.on("A", markPageAsReadAction);
+    keyboardHandler.on("s", () => handleSaveEntryAction());
+    keyboardHandler.on("d", handleFetchOriginalContentAction);
+    keyboardHandler.on("f", () => handleBookmarkAction());
 
     // Feed actions
     keyboardHandler.on("F", goToFeedPage);
-    keyboardHandler.on("R", handleRefreshAllFeeds);
+    keyboardHandler.on("R", handleRefreshAllFeedsAction);
     keyboardHandler.on("+", goToAddSubscriptionPage);
-    keyboardHandler.on("#", unsubscribeFromFeed);
+    keyboardHandler.on("#", handleRemoveFeedAction);
 
     // UI actions
-    keyboardHandler.on("?", showKeyboardShortcuts);
+    keyboardHandler.on("?", showKeyboardShortcutsAction);
     keyboardHandler.on("Escape", () => ModalHandler.close());
     keyboardHandler.on("a", () => {
         const enclosureElement = document.querySelector('.entry-enclosures');
@@ -1174,17 +1212,16 @@ function initializeTouchHandler() {
  */
 function initializeClickHandlers() {
     // Entry actions
-    onClick(":is(a, button)[data-save-entry]", (event) => handleSaveEntry(event.target));
-    onClick(":is(a, button)[data-toggle-bookmark]", (event) => handleBookmark(event.target));
+    onClick(":is(a, button)[data-save-entry]", (event) => handleSaveEntryAction(event.target));
+    onClick(":is(a, button)[data-toggle-bookmark]", (event) => handleBookmarkAction(event.target));
     onClick(":is(a, button)[data-toggle-status]", (event) => handleEntryStatus("next", event.target));
-    onClick(":is(a, button)[data-fetch-content-entry]", handleFetchOriginalContent);
-    onClick(":is(a, button)[data-share-status]", handleShare);
+    onClick(":is(a, button)[data-fetch-content-entry]", handleFetchOriginalContentAction);
+    onClick(":is(a, button)[data-share-status]", handleEntryShareAction);
 
     // Page actions with confirmation
-    onClick(":is(a, button)[data-action=markPageAsRead]", (event) =>
-        handleConfirmationMessage(event.target, markPageAsRead));
+    onClick(":is(a, button)[data-action=markPageAsRead]", (event) => handleConfirmationMessage(event.target, markPageAsReadAction));
 
-    // Original link handlers (both click and middle-click)
+   // Original link handlers (both click and middle-click)
     const handleOriginalLink = (event) => handleEntryStatus("next", event.target, true);
 
     onClick("a[data-original-link='true']", handleOriginalLink, true);

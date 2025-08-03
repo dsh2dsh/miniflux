@@ -1,20 +1,26 @@
+function messageConfirmed(url, redirectURL) {
+  fetch(url, {
+    method: "POST",
+    headers: {
+      "X-Csrf-Token": document.body.dataset.csrfToken || ""
+    },
+    redirect: "manual",
+  }).then((resp) => {
+    if (redirectURL) {
+      window.location.href = redirectURL;
+    } else if (resp.type == "opaqueredirect" && resp.url) {
+      window.location.href = resp.url;
+    } else {
+      window.location.reload();
+    }
+  });
+}
+
 function initDataConfirm() {
   document.body.addEventListener("click", (event) => {
-    if (!event.target.closest(":is(a, button)[data-confirm]")) return;
-
-    handleConfirmationMessage(event.target, (url, redirectURL) => {
-      const request = new RequestBuilder(url);
-      request.withRedirect("manual").withCallback((response) => {
-        if (redirectURL) {
-          window.location.href = redirectURL;
-        } else if (response.type == "opaqueredirect" && response.url) {
-          window.location.href = response.url;
-        } else {
-          window.location.reload();
-        }
-      });
-      request.execute();
-    });
+    if (event.target.closest(":is(a, button)[data-confirm]")) {
+      handleConfirmationMessage(event.target, messageConfirmed);
+    };
   });
 }
 
