@@ -77,12 +77,6 @@ class MarkReadOnScroll {
   }
 }
 
-let readOnScrollObserver;
-function markReadOnScroll() {
-  const entries = document.querySelectorAll(
-    '.items[data-mark-read-on-scroll="1"] .item.item-status-unread');
-  if (entries.length == 0) {
-    return;
-  }
-  readOnScrollObserver = new MarkReadOnScroll(entries);
-}
+const readOnScrollObserver = new MarkReadOnScroll(
+  document.querySelectorAll(
+    '.items[data-mark-read-on-scroll="1"] .item.item-status-unread'));

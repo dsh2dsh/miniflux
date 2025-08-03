@@ -7,9 +7,10 @@
 		"js/request_builder.js",
 		"js/modal_handler.js",
 		"js/webauthn_handler.js",
-    "js/mark_read_on_scroll.js",
+		"js/app.js",
 
-		"js/app.js"
+    "js/mark_read_on_scroll.js",
+		"js/dsh.js"
 	],
 
 	"service-worker": [
