@@ -24,6 +24,11 @@ const (
 
 // DetectFeedFormat tries to guess the feed format from input data.
 func DetectFeedFormat(r io.ReadSeeker) (string, string) {
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		return "", ""
+	}
+	defer func() { _, _ = r.Seek(0, io.SeekStart) }()
+
 	if isJSON, err := detectJSONFormat(r); err == nil && isJSON {
 		return FormatJSON, ""
 	}
