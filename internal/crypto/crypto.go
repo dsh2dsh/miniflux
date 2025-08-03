@@ -11,25 +11,19 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/cespare/xxhash/v2"
 	"golang.org/x/crypto/bcrypt"
 )
-
-// Sun  6 Jul 2025 22:07:51 CEST
-var CompatHashBefore = time.Unix(1751832471, 0).UTC()
 
 // HashFromBytes returns a non-cryptographic checksum of the input.
 func HashFromBytes(b []byte) string {
 	return strconv.FormatUint(xxhash.Sum64(b), 16)
 }
 
-func HashFromStringCompat(s string, t time.Time) string {
-	if t.UTC().Before(CompatHashBefore) {
-		return SHA256(s)
-	}
-	return HashFromBytes([]byte(s))
+// HashFromString returns a non-cryptographic checksum of the input.
+func HashFromString(s string) string {
+	return strconv.FormatUint(xxhash.Sum64String(s), 16)
 }
 
 // SHA256 returns a SHA-256 checksum of a string.

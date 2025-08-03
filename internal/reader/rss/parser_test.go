@@ -92,7 +92,7 @@ func TestParseRss2Sample(t *testing.T) {
 		t.Errorf("Incorrect entry date, got: %v, want: %v", feed.Entries[0].Date, expectedDate)
 	}
 
-	if feed.Entries[0].Hash != "5b2b4ac2fe1786ddf0fd2da2f1b07f64e691264f41f2db3ea360f31bb6d9152b" {
+	if feed.Entries[0].Hash != "8d4b2e470a24fccd" {
 		t.Errorf("Incorrect entry hash, got: %s", feed.Entries[0].Hash)
 	}
 
@@ -554,7 +554,7 @@ func TestParseEntryWithoutLinkAndWithoutGUID(t *testing.T) {
 		t.Errorf("Incorrect entry hash, got: %s", feed.Entries[0].Hash)
 	}
 
-	if feed.Entries[1].Hash != "0a937478f9bdbfca2de5cdeeb5ee7b09678a3330fc7cc5b05169a50d4516c9a3" {
+	if feed.Entries[1].Hash != "da56d7378b5b3596" {
 		t.Errorf("Incorrect entry hash, got: %s", feed.Entries[1].Hash)
 	}
 }

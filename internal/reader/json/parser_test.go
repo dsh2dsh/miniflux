@@ -163,7 +163,7 @@ func TestParsePodcast(t *testing.T) {
 		t.Fatalf("Incorrect number of entries, got: %d", len(feed.Entries))
 	}
 
-	if feed.Entries[0].Hash != "6b678e57962a1b001e4e873756563cdc08bbd06ca561e764e0baa9a382485797" {
+	if feed.Entries[0].Hash != "5d0218053a4082a8" {
 		t.Errorf("Incorrect entry hash, got: %s", feed.Entries[0].Hash)
 	}
 

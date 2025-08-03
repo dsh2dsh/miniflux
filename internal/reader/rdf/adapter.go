@@ -94,7 +94,7 @@ func (r *RDFAdapter) BuildFeed(baseURL string) *model.Feed {
 			// Fallback to the title and description if the link is empty.
 			hashValue = item.Title + item.Description
 		}
-		entry.Hash = crypto.HashFromStringCompat(hashValue, entry.Date)
+		entry.Hash = crypto.HashFromString(hashValue)
 
 		// Populate the entry author.
 		switch {

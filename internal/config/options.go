@@ -18,7 +18,6 @@ import (
 
 	"github.com/go-playground/validator/v10"
 
-	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/version"
 )
 
@@ -226,10 +225,6 @@ func (o *Options) init() (err error) {
 
 	o.env.HttpClientMaxBodySize *= 1024 * 1024
 	o.env.MediaProxyResourceTypes = uniqStringList(o.env.MediaProxyResourceTypes)
-
-	if o.env.Testing {
-		crypto.CompatHashBefore = time.Unix(0, 0).UTC()
-	}
 
 	o.applyFileStrings()
 	if err = o.applyPrivateKeys(); err != nil {
