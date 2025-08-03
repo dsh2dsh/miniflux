@@ -50,7 +50,7 @@ class MarkReadOnScroll {
         clearTimeout(this.timeoutId)
         this.timeoutId = 0;
       }
-      markPageAsRead();
+      markPageAsReadAction();
       return;
     }
 
