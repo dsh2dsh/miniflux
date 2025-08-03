@@ -69,8 +69,13 @@ class MarkReadOnScroll {
     this.scrolledEntries.length = 0;
 
     const entryIDs = items.map((element) => parseInt(element.dataset.id, 10));
-    updateEntriesStatus(entryIDs, "read", () => {
+    const readStatus = "read";
+    updateEntriesStatus(entryIDs, readStatus, () => {
       items.forEach((element) => {
+        const markAsRead = element.querySelector(":is(a, button)[data-toggle-status]");
+        if (markAsRead) {
+          setReadStatusButtonState(markAsRead, readStatus);
+        }
         element.classList.replace("item-status-unread", "item-status-read");
       });
     });
