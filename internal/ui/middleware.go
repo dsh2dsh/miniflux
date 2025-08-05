@@ -45,11 +45,6 @@ func newMiddleware(router *mux.ServeMux, store *storage.Storage) *middleware {
 
 func (m *middleware) handleUserSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if request.Public(r) {
-			next.ServeHTTP(w, r)
-			return
-		}
-
 		ctx := r.Context()
 		log := logging.FromContext(ctx).With(
 			slog.String("url", r.URL.String()))
@@ -79,19 +74,11 @@ func (m *middleware) handleUserSession(next http.Handler) http.Handler {
 func (m *middleware) handleAppSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		log := logging.FromContext(ctx).With(
-			slog.String("url", r.URL.String()))
 		s := request.Session(r)
 
 		if s == nil {
-			if request.Public(r) {
-				ctx = contextWithSessionKeys(ctx, &publicSession)
-				next.ServeHTTP(w, r.WithContext(ctx))
-				return
-			}
-			err := errors.New("no app session has been found")
-			log.Warn(err.Error())
-			html.BadRequest(w, r, err)
+			ctx = contextWithSessionKeys(ctx, &publicSession)
+			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 
@@ -213,24 +200,21 @@ func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
 
 func (m *middleware) PublicCSRF(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !request.Public(r) {
+		if request.User(r) != nil {
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		if r.Method != http.MethodPost {
-			csrf := rand.Text()
-			http.SetCookie(w, cookie.NewCSRF(csrf))
-			ctx := request.WithCSRF(r.Context(), csrf)
-			next.ServeHTTP(w, r.WithContext(ctx))
-			return
+		if r.Method == http.MethodPost {
+			csrf := request.CookieValue(r, cookie.CookieCSRF)
+			if !checkCSRF(w, r, csrf) {
+				return
+			}
 		}
 
-		csrf := request.CookieValue(r, cookie.CookieCSRF)
-		if !checkCSRF(w, r, csrf) {
-			return
-		}
-		http.SetCookie(w, cookie.ExpiredCSRF())
-		next.ServeHTTP(w, r)
+		csrf := rand.Text()
+		http.SetCookie(w, cookie.NewCSRF(csrf))
+		ctx := request.WithCSRF(r.Context(), csrf)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

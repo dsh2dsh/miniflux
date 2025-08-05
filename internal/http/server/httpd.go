@@ -263,11 +263,11 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) http.Handler {
 	if config.Opts.BasePath() != "" {
 		m = serveMux.PrefixGroup(config.Opts.BasePath())
 	}
-
-	m.HandleFunc("/healthcheck", readinessProbe).
-		HandleFunc("/version", handleVersion)
+	m.HandleFunc("/healthcheck", readinessProbe)
+	m.HandleFunc("/version", handleVersion)
 
 	m.Use(middleware.Gzip, middleware.RequestId, middleware.ClientIP)
+
 	if config.Opts.HasMetricsCollector() {
 		m.Handle("/metrics", metric.Handler(store))
 	}
@@ -280,35 +280,8 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) http.Handler {
 		})
 	}
 
-	publicRoutes := middleware.WithPublicRoutes(
-		"/data/",
-		"/css/",
-		"/favicon.ico",
-		"/feed-icon/",
-		"/js/",
-		"/login",
-		"/manifest.json",
-		"/oauth2/callback/",
-		"/oauth2/redirect/",
-		"/offline",
-		"/proxy/",
-		"/robots.txt",
-		"/share/",
-		"/webauthn/login/begin",
-		"/webauthn/login/finish")
-	m.Use(publicRoutes)
-
-	authHandlers := middleware.NewPathPrefix().
-		WithPrefix(api.PathPrefix,
-			api.WithKeyAuth(store), api.WithBasicAuth(store)).
-		WithPrefix(googlereader.PathPrefix, googlereader.WithKeyAuth(store)).
-		WithPrefix(fever.PathPrefix, fever.WithKeyAuth(store)).
-		WithDefault(middleware.WithUserSession(store,
-			"/oauth2/callback/",
-			"/oauth2/redirect/"))
-	m.Use(authHandlers.Middleware)
-
 	m.Use(middleware.WithAccessLog(), middleware.WithPanic)
+
 	fever.Serve(m, store)
 	googlereader.Serve(m, store)
 	api.Serve(m, store, pool)

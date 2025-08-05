@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	hmw "miniflux.app/v2/internal/http/middleware"
 	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/securecookie"
@@ -27,14 +28,12 @@ type handler struct {
 
 // Serve declares all routes for the user interface.
 func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
-	m.HandleFunc("/robots.txt", robotsTXT)
-
 	templateEngine := template.NewEngine(m)
 	if err := templateEngine.ParseTemplates(); err != nil {
 		panic(err)
 	}
 
-	handler := &handler{
+	h := &handler{
 		router: m,
 		store:  store,
 		tpl:    templateEngine,
@@ -42,212 +41,207 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 
 		secureCookie: securecookie.New(),
 	}
+	mw := newMiddleware(m, store)
 
-	middleware := newMiddleware(m, store)
-	m = m.Group().Use(middleware.handleUserSession, middleware.handleAppSession)
+	// public endpoints
+	m.Group(func(m *mux.ServeMux) {
+		// Static assets.
+		m.NameHandleFunc("/data/{filename}", h.showBinaryFile, "binaryFile")
+		m.NameHandleFunc("/css/{name}", h.showStylesheet, "stylesheet")
+		m.HandleFunc("/favicon.ico", h.showFavicon)
+		m.NameHandleFunc("/feed-icon/{externalIconID}", h.showFeedIcon, "feedIcon")
+		m.NameHandleFunc("/js/{name}", h.showJavascript, "javascript")
+		m.NameHandleFunc("/manifest.json", h.showWebManifest, "webManifest")
+		m.NameHandleFunc("/offline", h.showOfflinePage, "offline")
+		m.HandleFunc("/robots.txt", robotsTxt)
+
+		// Authentication pages.
+		m.Group().Use(mw.handleAppSession, mw.PublicCSRF).
+			NameHandleFunc("/login", h.checkLogin, "checkLogin")
+
+		// WebAuthn flow
+		m.NameHandleFunc("/webauthn/login/begin", h.beginLogin,
+			"webauthnLoginBegin")
+		m.NameHandleFunc("/webauthn/login/finish", h.finishLogin,
+			"webauthnLoginFinish")
+
+		m.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", h.mediaProxy,
+			"proxy")
+		m.NameHandleFunc("/share/{shareCode}", h.sharedEntry, "sharedEntry")
+	})
+
+	m = m.Group().Use(hmw.WithUserSession(store))
+
+	// OAuth2 flow.
+	m.NameHandleFunc("/oauth2/callback/{provider}", h.oauth2Callback,
+		"oauth2Callback")
+	m.NameHandleFunc("/oauth2/redirect/{provider}", h.oauth2Redirect,
+		"oauth2Redirect")
 
 	// Authentication pages.
 	m.Group(func(m *mux.ServeMux) {
-		m.Use(middleware.handleAuthProxy, middleware.PublicCSRF)
-		m.NameHandleFunc("/", handler.showLoginPage, "login")
+		m.Use(mw.handleAuthProxy, mw.handleAppSession, mw.PublicCSRF)
+		m.NameHandleFunc("/{$}", h.showLoginPage, "login")
 	})
-	m.Group(func(m *mux.ServeMux) {
-		m.Use(middleware.PublicCSRF)
-		m.NameHandleFunc("/login", handler.checkLogin, "checkLogin")
-	})
-	m.NameHandleFunc("/logout", handler.logout, "logout")
 
-	// Static assets.
-	m.NameHandleFunc("/css/{name}", handler.showStylesheet, "stylesheet").
-		NameHandleFunc("/js/{name}", handler.showJavascript, "javascript").
-		HandleFunc("/favicon.ico", handler.showFavicon).
-		NameHandleFunc("/data/{filename}", handler.showBinaryFile, "binaryFile").
-		NameHandleFunc("/manifest.json", handler.showWebManifest, "webManifest")
+	m = m.Group().Use(mw.handleUserSession, mw.handleAppSession)
+	m.NameHandleFunc("/logout", h.logout, "logout")
 
 	// New subscription pages.
-	m.NameHandleFunc("GET /subscribe", handler.showAddSubscriptionPage,
-		"addSubscription").
-		NameHandleFunc("POST /subscribe", handler.submitSubscription,
-			"submitSubscription").
-		NameHandleFunc("/subscriptions", handler.showChooseSubscriptionPage,
-			"chooseSubscription").
-		NameHandleFunc("/bookmarklet", handler.bookmarklet, "bookmarklet")
+	m.NameHandleFunc("GET /subscribe", h.showAddSubscriptionPage,
+		"addSubscription")
+	m.NameHandleFunc("POST /subscribe", h.submitSubscription,
+		"submitSubscription")
+	m.NameHandleFunc("/subscriptions", h.showChooseSubscriptionPage,
+		"chooseSubscription")
+	m.NameHandleFunc("/bookmarklet", h.bookmarklet, "bookmarklet")
 
 	// Unread page.
-	m.NameHandleFunc("/mark-all-as-read", handler.markAllAsRead,
-		"markAllAsRead").
-		NameHandleFunc("/unread", handler.showUnreadPage, "unread").
-		NameHandleFunc("/unread/entry/{entryID}", handler.showUnreadEntryPage,
-			"unreadEntry")
+	m.NameHandleFunc("/mark-all-as-read", h.markAllAsRead, "markAllAsRead")
+	m.NameHandleFunc("/unread", h.showUnreadPage, "unread")
+	m.NameHandleFunc("/unread/entry/{entryID}", h.showUnreadEntryPage,
+		"unreadEntry")
 
 	// History pages.
-	m.NameHandleFunc("/history", handler.showHistoryPage, "history").
-		NameHandleFunc("/history/entry/{entryID}", handler.showReadEntryPage,
-			"readEntry").
-		NameHandleFunc("/history/flush", handler.flushHistory, "flushHistory")
+	m.NameHandleFunc("/history", h.showHistoryPage, "history")
+	m.NameHandleFunc("/history/entry/{entryID}", h.showReadEntryPage, "readEntry")
+	m.NameHandleFunc("/history/flush", h.flushHistory, "flushHistory")
 
 	// Bookmark pages.
-	m.NameHandleFunc("/starred", handler.showStarredPage, "starred").
-		NameHandleFunc("/starred/entry/{entryID}", handler.showStarredEntryPage,
-			"starredEntry")
+	m.NameHandleFunc("/starred", h.showStarredPage, "starred")
+	m.NameHandleFunc("/starred/entry/{entryID}", h.showStarredEntryPage,
+		"starredEntry")
 
 	// Search pages.
-	m.NameHandleFunc("/search", handler.showSearchPage, "search").
-		NameHandleFunc("/search/entry/{entryID}", handler.showSearchEntryPage,
-			"searchEntry")
+	m.NameHandleFunc("/search", h.showSearchPage, "search")
+	m.NameHandleFunc("/search/entry/{entryID}", h.showSearchEntryPage,
+		"searchEntry")
 
 	// Feed listing pages.
-	m.NameHandleFunc("/feeds", handler.showFeedsPage, "feeds").
-		NameHandleFunc("/feeds/refresh", handler.refreshAllFeeds,
-			"refreshAllFeeds")
+	m.NameHandleFunc("/feeds", h.showFeedsPage, "feeds")
+	m.NameHandleFunc("/feeds/refresh", h.refreshAllFeeds, "refreshAllFeeds")
 
 	// Individual feed pages.
-	m.NameHandleFunc("/feed/{feedID}/refresh", handler.refreshFeed,
-		"refreshFeed").
-		NameHandleFunc("/feed/{feedID}/edit", handler.showEditFeedPage,
-			"editFeed").
-		NameHandleFunc("/feed/{feedID}/remove", handler.removeFeed, "removeFeed").
-		NameHandleFunc("/feed/{feedID}/update", handler.updateFeed, "updateFeed").
-		NameHandleFunc("/feed/{feedID}/entries", handler.showFeedEntriesPage,
-			"feedEntries").
-		NameHandleFunc("/feed/{feedID}/entries/all",
-			handler.showFeedEntriesAllPage, "feedEntriesAll").
-		NameHandleFunc("/feed/{feedID}/entry/{entryID}", handler.showFeedEntryPage,
-			"feedEntry").
-		NameHandleFunc("/unread/feed/{feedID}/entry/{entryID}",
-			handler.showUnreadFeedEntryPage, "unreadFeedEntry").
-		NameHandleFunc("/feed-icon/{externalIconID}", handler.showFeedIcon,
-			"feedIcon").
-		NameHandleFunc("/feed/{feedID}/mark-all-as-read", handler.markFeedAsRead,
-			"markFeedAsRead")
+	m.NameHandleFunc("/feed/{feedID}/refresh", h.refreshFeed, "refreshFeed")
+	m.NameHandleFunc("/feed/{feedID}/edit", h.showEditFeedPage, "editFeed")
+	m.NameHandleFunc("/feed/{feedID}/remove", h.removeFeed, "removeFeed")
+	m.NameHandleFunc("/feed/{feedID}/update", h.updateFeed, "updateFeed")
+	m.NameHandleFunc("/feed/{feedID}/entries", h.showFeedEntriesPage,
+		"feedEntries")
+	m.NameHandleFunc("/feed/{feedID}/entries/all", h.showFeedEntriesAllPage,
+		"feedEntriesAll")
+	m.NameHandleFunc("/feed/{feedID}/entry/{entryID}", h.showFeedEntryPage,
+		"feedEntry")
+	m.NameHandleFunc("/unread/feed/{feedID}/entry/{entryID}",
+		h.showUnreadFeedEntryPage, "unreadFeedEntry")
+	m.NameHandleFunc("/feed/{feedID}/mark-all-as-read", h.markFeedAsRead,
+		"markFeedAsRead")
 
 	// Category pages.
 	m.NameHandleFunc("/category/{categoryID}/entry/{entryID}",
-		handler.showCategoryEntryPage, "categoryEntry").
-		NameHandleFunc("/unread/category/{categoryID}/entry/{entryID}",
-			handler.showUnreadCategoryEntryPage, "unreadCategoryEntry").
-		NameHandleFunc("/categories", handler.showCategoryListPage, "categories").
-		NameHandleFunc("/category/create", handler.showCreateCategoryPage,
-			"createCategory").
-		NameHandleFunc("/category/save", handler.saveCategory, "saveCategory").
-		NameHandleFunc("/category/{categoryID}/feeds",
-			handler.showCategoryFeedsPage, "categoryFeeds").
-		NameHandleFunc("/category/{categoryID}/feed/{feedID}/remove",
-			handler.removeCategoryFeed, "removeCategoryFeed").
-		NameHandleFunc("/category/{categoryID}/feeds/refresh",
-			handler.refreshCategoryFeedsPage, "refreshCategoryFeedsPage").
-		NameHandleFunc("/category/{categoryID}/entries",
-			handler.showCategoryEntriesPage, "categoryEntries").
-		NameHandleFunc("/category/{categoryID}/entries/refresh",
-			handler.refreshCategoryEntriesPage, "refreshCategoryEntriesPage").
-		NameHandleFunc("/category/{categoryID}/entries/all",
-			handler.showCategoryEntriesAllPage, "categoryEntriesAll").
-		NameHandleFunc("/category/{categoryID}/entries/starred",
-			handler.showCategoryEntriesStarredPage, "categoryEntriesStarred").
-		NameHandleFunc("/category/{categoryID}/edit", handler.showEditCategoryPage,
-			"editCategory").
-		NameHandleFunc("/category/{categoryID}/update", handler.updateCategory,
-			"updateCategory").
-		NameHandleFunc("/category/{categoryID}/remove", handler.removeCategory,
-			"removeCategory").
-		NameHandleFunc("/category/{categoryID}/mark-all-as-read",
-			handler.markCategoryAsRead, "markCategoryAsRead")
+		h.showCategoryEntryPage, "categoryEntry")
+	m.NameHandleFunc("/unread/category/{categoryID}/entry/{entryID}",
+		h.showUnreadCategoryEntryPage, "unreadCategoryEntry")
+	m.NameHandleFunc("/categories", h.showCategoryListPage, "categories")
+	m.NameHandleFunc("/category/create", h.showCreateCategoryPage,
+		"createCategory")
+	m.NameHandleFunc("/category/save", h.saveCategory, "saveCategory")
+	m.NameHandleFunc("/category/{categoryID}/feeds", h.showCategoryFeedsPage,
+		"categoryFeeds")
+	m.NameHandleFunc("/category/{categoryID}/feed/{feedID}/remove",
+		h.removeCategoryFeed, "removeCategoryFeed")
+	m.NameHandleFunc("/category/{categoryID}/feeds/refresh",
+		h.refreshCategoryFeedsPage, "refreshCategoryFeedsPage")
+	m.NameHandleFunc("/category/{categoryID}/entries", h.showCategoryEntriesPage,
+		"categoryEntries")
+	m.NameHandleFunc("/category/{categoryID}/entries/refresh",
+		h.refreshCategoryEntriesPage, "refreshCategoryEntriesPage")
+	m.NameHandleFunc("/category/{categoryID}/entries/all",
+		h.showCategoryEntriesAllPage, "categoryEntriesAll")
+	m.NameHandleFunc("/category/{categoryID}/entries/starred",
+		h.showCategoryEntriesStarredPage, "categoryEntriesStarred")
+	m.NameHandleFunc("/category/{categoryID}/edit", h.showEditCategoryPage,
+		"editCategory")
+	m.NameHandleFunc("/category/{categoryID}/update", h.updateCategory,
+		"updateCategory")
+	m.NameHandleFunc("/category/{categoryID}/remove", h.removeCategory,
+		"removeCategory")
+	m.NameHandleFunc("/category/{categoryID}/mark-all-as-read",
+		h.markCategoryAsRead, "markCategoryAsRead")
 
 	// Tag pages.
-	m.NameHandleFunc("/tags/{tagName}/entries/all",
-		handler.showTagEntriesAllPage, "tagEntriesAll").
-		NameHandleFunc("/tags/{tagName}/entry/{entryID}", handler.showTagEntryPage,
-			"tagEntry")
+	m.NameHandleFunc("/tags/{tagName}/entries/all", h.showTagEntriesAllPage,
+		"tagEntriesAll")
+	m.NameHandleFunc("/tags/{tagName}/entry/{entryID}", h.showTagEntryPage,
+		"tagEntry")
 
 	// Entry pages.
-	m.NameHandleFunc("/entry/status", handler.updateEntriesStatus,
-		"updateEntriesStatus").
-		NameHandleFunc("/entry/save/{entryID}", handler.saveEntry, "saveEntry").
-		NameHandleFunc("/entry/save-progression/{entryID}/{at}",
-			handler.saveEnclosureProgression, "saveEnclosureProgression").
-		NameHandleFunc("/entry/download/{entryID}",
-			handler.fetchContent, "fetchContent").
-		NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", handler.mediaProxy,
-			"proxy").
-		NameHandleFunc("/entry/bookmark/{entryID}", handler.toggleBookmark,
-			"toggleBookmark")
+	m.NameHandleFunc("/entry/status", h.updateEntriesStatus,
+		"updateEntriesStatus")
+	m.NameHandleFunc("/entry/save/{entryID}", h.saveEntry, "saveEntry")
+	m.NameHandleFunc("/entry/save-progression/{entryID}/{at}",
+		h.saveEnclosureProgression, "saveEnclosureProgression")
+	m.NameHandleFunc("/entry/download/{entryID}", h.fetchContent, "fetchContent")
+	m.NameHandleFunc("/entry/bookmark/{entryID}", h.toggleBookmark,
+		"toggleBookmark")
 
 	// Share pages.
-	m.NameHandleFunc("/entry/share/{entryID}", handler.createSharedEntry,
-		"shareEntry").
-		NameHandleFunc("/entry/unshare/{entryID}", handler.unshareEntry,
-			"unshareEntry").
-		NameHandleFunc("/share/{shareCode}", handler.sharedEntry, "sharedEntry").
-		NameHandleFunc("/shares", handler.sharedEntries, "sharedEntries")
+	m.NameHandleFunc("/entry/share/{entryID}", h.createSharedEntry, "shareEntry")
+	m.NameHandleFunc("/entry/unshare/{entryID}", h.unshareEntry, "unshareEntry")
+	m.NameHandleFunc("/shares", h.sharedEntries, "sharedEntries")
 
 	// User pages.
-	m.NameHandleFunc("/users", handler.showUsersPage, "users").
-		NameHandleFunc("/user/create", handler.showCreateUserPage, "createUser").
-		NameHandleFunc("/user/save", handler.saveUser, "saveUser").
-		NameHandleFunc("/users/{userID}/edit", handler.showEditUserPage,
-			"editUser").
-		NameHandleFunc("/users/{userID}/update", handler.updateUser, "updateUser").
-		NameHandleFunc("/users/{userID}/remove", handler.removeUser, "removeUser")
+	m.NameHandleFunc("/users", h.showUsersPage, "users")
+	m.NameHandleFunc("/user/create", h.showCreateUserPage, "createUser")
+	m.NameHandleFunc("/user/save", h.saveUser, "saveUser")
+	m.NameHandleFunc("/users/{userID}/edit", h.showEditUserPage, "editUser")
+	m.NameHandleFunc("/users/{userID}/update", h.updateUser, "updateUser")
+	m.NameHandleFunc("/users/{userID}/remove", h.removeUser, "removeUser")
 
 	// Settings pages.
-	m.NameHandleFunc("GET /settings", handler.showSettingsPage, "settings").
-		NameHandleFunc("POST /settings", handler.updateSettings, "updateSettings").
-		NameHandleFunc("GET /integrations", handler.showIntegrationPage,
-			"integrations").
-		NameHandleFunc("POST /integration", handler.updateIntegration,
-			"updateIntegration").
-		NameHandleFunc("/about", handler.showAboutPage, "about")
+	m.NameHandleFunc("GET /settings", h.showSettingsPage, "settings")
+	m.NameHandleFunc("POST /settings", h.updateSettings, "updateSettings")
+	m.NameHandleFunc("GET /integrations", h.showIntegrationPage, "integrations")
+	m.NameHandleFunc("POST /integration", h.updateIntegration,
+		"updateIntegration")
+	m.NameHandleFunc("/about", h.showAboutPage, "about")
 
 	// Session pages.
-	m.NameHandleFunc("/sessions", handler.showSessionsPage, "sessions").
-		NameHandleFunc("/sessions/{sessionID}/remove", handler.removeSession,
-			"removeSession")
+	m.NameHandleFunc("/sessions", h.showSessionsPage, "sessions")
+	m.NameHandleFunc("/sessions/{sessionID}/remove", h.removeSession,
+		"removeSession")
 
 	// API Keys pages.
-	m.NameHandleFunc("/keys", handler.showAPIKeysPage, "apiKeys").
-		NameHandleFunc("/keys/{keyID}/delete", handler.deleteAPIKey,
-			"deleteAPIKey").
-		NameHandleFunc("/keys/create", handler.showCreateAPIKeyPage,
-			"createAPIKey").
-		NameHandleFunc("/keys/save", handler.saveAPIKey, "saveAPIKey")
+	m.NameHandleFunc("/keys", h.showAPIKeysPage, "apiKeys")
+	m.NameHandleFunc("/keys/{keyID}/delete", h.deleteAPIKey, "deleteAPIKey")
+	m.NameHandleFunc("/keys/create", h.showCreateAPIKeyPage, "createAPIKey")
+	m.NameHandleFunc("/keys/save", h.saveAPIKey, "saveAPIKey")
 
 	// OPML pages.
-	m.NameHandleFunc("/export", handler.exportFeeds, "export").
-		NameHandleFunc("/import", handler.showImportPage, "import").
-		NameHandleFunc("/upload", handler.uploadOPML, "uploadOPML").
-		NameHandleFunc("/fetch", handler.fetchOPML, "fetchOPML")
+	m.NameHandleFunc("/export", h.exportFeeds, "export")
+	m.NameHandleFunc("/import", h.showImportPage, "import")
+	m.NameHandleFunc("/upload", h.uploadOPML, "uploadOPML")
+	m.NameHandleFunc("/fetch", h.fetchOPML, "fetchOPML")
 
 	// OAuth2 flow.
-	m.NameHandleFunc("/oauth2/unlink/{provider}", handler.oauth2Unlink,
-		"oauth2Unlink").
-		NameHandleFunc("/oauth2/redirect/{provider}", handler.oauth2Redirect,
-			"oauth2Redirect").
-		NameHandleFunc("/oauth2/callback/{provider}", handler.oauth2Callback,
-			"oauth2Callback")
-
-	// Offline page
-	m.NameHandleFunc("/offline", handler.showOfflinePage, "offline")
+	m.NameHandleFunc("/oauth2/unlink/{provider}", h.oauth2Unlink, "oauth2Unlink")
 
 	// WebAuthn flow
-	m.NameHandleFunc("/webauthn/register/begin", handler.beginRegistration,
-		"webauthnRegisterBegin").
-		NameHandleFunc("/webauthn/register/finish", handler.finishRegistration,
-			"webauthnRegisterFinish").
-		NameHandleFunc("/webauthn/login/begin", handler.beginLogin,
-			"webauthnLoginBegin").
-		NameHandleFunc("/webauthn/login/finish", handler.finishLogin,
-			"webauthnLoginFinish").
-		NameHandleFunc("/webauthn/deleteall", handler.deleteAllCredentials,
-			"webauthnDeleteAll").
-		NameHandleFunc("/webauthn/{credentialHandle}/delete",
-			handler.deleteCredential, "webauthnDelete").
-		NameHandleFunc("/webauthn/{credentialHandle}/rename",
-			handler.renameCredential, "webauthnRename").
-		NameHandleFunc("/webauthn/{credentialHandle}/save", handler.saveCredential,
-			"webauthnSave")
+	m.NameHandleFunc("/webauthn/register/begin", h.beginRegistration,
+		"webauthnRegisterBegin")
+	m.NameHandleFunc("/webauthn/register/finish", h.finishRegistration,
+		"webauthnRegisterFinish")
+	m.NameHandleFunc("/webauthn/deleteall", h.deleteAllCredentials,
+		"webauthnDeleteAll")
+	m.NameHandleFunc("/webauthn/{credentialHandle}/delete", h.deleteCredential,
+		"webauthnDelete")
+	m.NameHandleFunc("/webauthn/{credentialHandle}/rename", h.renameCredential,
+		"webauthnRename")
+	m.NameHandleFunc("/webauthn/{credentialHandle}/save", h.saveCredential,
+		"webauthnSave")
 }
 
-func robotsTXT(w http.ResponseWriter, r *http.Request) {
+func robotsTxt(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	_, err := w.Write([]byte("User-agent: *\nDisallow: /"))
 	if err != nil {

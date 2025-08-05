@@ -71,7 +71,9 @@ type keyAuth struct {
 }
 
 func (self *keyAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	if user := request.User(r); user != nil {
+		middleware.AccessLogUser(ctx, user)
 		self.next.ServeHTTP(w, r)
 		return
 	}
@@ -83,7 +85,6 @@ func (self *keyAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	clientIP := request.ClientIP(r)
-	ctx := r.Context()
 	log := logging.FromContext(ctx).With(
 		slog.String("client_ip", clientIP),
 		slog.String("user_agent", r.UserAgent()))
@@ -98,6 +99,7 @@ func (self *keyAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		json.Unauthorized(w, r)
 		return
 	}
+	middleware.AccessLogUser(ctx, user)
 
 	log = log.With(slog.String("username", user.Username))
 	log.Debug(
@@ -148,7 +150,9 @@ type basicAuth struct {
 }
 
 func (self *basicAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	if user := request.User(r); user != nil {
+		middleware.AccessLogUser(ctx, user)
 		self.next.ServeHTTP(w, r)
 		return
 	} else if auth := r.Header.Get("Authorization"); auth == "" {
@@ -157,7 +161,6 @@ func (self *basicAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	clientIP := request.ClientIP(r)
-	ctx := r.Context()
 	log := logging.FromContext(ctx).With(
 		slog.String("client_ip", clientIP),
 		slog.String("user_agent", r.UserAgent()))
@@ -213,6 +216,7 @@ func (self *basicAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		json.Unauthorized(w, r)
 		return
 	}
+	middleware.AccessLogUser(ctx, user)
 
 	log.Debug(
 		"[API] User authenticated successfully with the Basic HTTP Authentication",

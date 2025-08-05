@@ -1045,6 +1045,7 @@ func (self *EndpointTestSuite) TestDiscoverSubscriptionsWithInvalidURL() {
 
 func (self *EndpointTestSuite) TestDiscoverSubscriptionsWithNoSubscription() {
 	_, err := self.admin.Discover(self.cfg.BaseURL)
+	self.T().Log(err)
 	self.Require().ErrorIs(err, client.ErrNotFound,
 		"Discovering subscriptions with no subscription should raise a 404 error")
 }

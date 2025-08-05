@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"net/http"
@@ -9,8 +10,23 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/logging"
+	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/storage"
 )
+
+type ctxAccessLog struct{}
+
+var accessLogKey ctxAccessLog = struct{}{}
+
+type accessLogRequest struct {
+	User *model.User
+}
+
+func AccessLogUser(ctx context.Context, u *model.User) {
+	if r, ok := ctx.Value(accessLogKey).(*accessLogRequest); ok {
+		r.User = u
+	}
+}
 
 func WithAccessLog(prefixes ...string) MiddlewareFunc {
 	m := make(map[string]struct{})
@@ -30,7 +46,10 @@ type AccessLog struct {
 }
 
 func (self *AccessLog) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx, traceStat := storage.WithTraceStat(r.Context())
+	logRequest := accessLogRequest{User: request.User(r)}
+	ctx := context.WithValue(r.Context(), accessLogKey, &logRequest)
+	ctx, traceStat := storage.WithTraceStat(ctx)
+
 	sw := newStatusResponseWriter(w)
 	startTime := time.Now()
 	self.next.ServeHTTP(sw, r.WithContext(ctx))
@@ -39,7 +58,7 @@ func (self *AccessLog) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		slog.String("client_ip", request.ClientIP(r)),
 		slog.String("proto", r.Proto))
 
-	if u := request.User(r); u != nil {
+	if u := logRequest.User; u != nil {
 		log = log.With(slog.Group("user",
 			slog.Int64("id", u.ID),
 			slog.String("name", u.Username)))

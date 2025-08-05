@@ -106,12 +106,13 @@ type keyAuth struct {
 }
 
 func (self *keyAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	if user := request.User(r); user != nil {
+		middleware.AccessLogUser(ctx, user)
 		self.next.ServeHTTP(w, r)
 		return
 	}
 
-	ctx := r.Context()
 	log := logging.FromContext(ctx).With(
 		slog.String("client_ip", request.ClientIP(r)),
 		slog.String("user_agent", r.UserAgent()))
@@ -146,6 +147,7 @@ func (self *keyAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		sendUnauthorizedResponse(w)
 		return
 	}
+	middleware.AccessLogUser(ctx, user)
 
 	if !user.Integration().GoogleReaderEnabled {
 		log.Warn(

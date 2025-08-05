@@ -51,6 +51,7 @@ func (self *UserSession) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		self.next.ServeHTTP(w, r)
 		return
 	}
+	AccessLogUser(ctx, user)
 
 	if d := time.Since(sess.UpdatedAt); d > 5*time.Minute {
 		if err := self.store.RefreshAppSession(ctx, sess); err == nil {

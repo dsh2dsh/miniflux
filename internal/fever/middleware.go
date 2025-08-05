@@ -49,7 +49,9 @@ type keyAuth struct {
 }
 
 func (self *keyAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	if user := request.User(r); user != nil {
+		middleware.AccessLogUser(ctx, user)
 		self.next.ServeHTTP(w, r)
 		return
 	}
@@ -60,7 +62,6 @@ func (self *keyAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
 	log := logging.FromContext(ctx).With(
 		slog.String("client_ip", request.ClientIP(r)),
 		slog.String("user_agent", r.UserAgent()))
@@ -80,6 +81,7 @@ func (self *keyAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		json.OK(w, r, newAuthFailureResponse())
 		return
 	}
+	middleware.AccessLogUser(ctx, user)
 
 	log = log.With(slog.Group("user",
 		slog.Int64("id", user.ID),

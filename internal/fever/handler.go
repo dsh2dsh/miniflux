@@ -28,7 +28,7 @@ const PathPrefix = "/fever"
 func Serve(router *mux.ServeMux, store *storage.Storage) {
 	h := &handler{store: store, router: router}
 	router.PrefixGroup(PathPrefix).
-		Use(requestUser).
+		Use(WithKeyAuth(store), requestUser).
 		NameHandleFunc("/", h.serve, "feverEndpoint")
 }
 

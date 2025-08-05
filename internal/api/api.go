@@ -24,7 +24,8 @@ type handler struct {
 
 // Serve declares API routes for the application.
 func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
-	m = m.PrefixGroup(PathPrefix).Use(CORS, requestUser)
+	m = m.PrefixGroup(PathPrefix)
+	m.Use(WithKeyAuth(store), WithBasicAuth(store), CORS, requestUser)
 
 	handler := &handler{store: store, pool: pool, router: m}
 	m.HandleFunc("POST /users", handler.createUser).

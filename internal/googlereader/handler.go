@@ -53,22 +53,23 @@ func Serve(m *mux.ServeMux, store *storage.Storage) {
 	h := &handler{store: store, router: m}
 	m.HandleFunc(LoginPath, h.clientLogin)
 
-	m = m.PrefixGroup(PathPrefix)
-	m.Use(CORS, requestUserSession).
-		HandleFunc("/", h.serveHandler).
-		HandleFunc("/token", h.tokenHandler).
-		HandleFunc("/edit-tag", h.editTagHandler).
-		HandleFunc("/rename-tag", h.renameTagHandler).
-		HandleFunc("/disable-tag", h.disableTagHandler).
-		HandleFunc("/tag/list", h.tagListHandler).
-		HandleFunc("/user-info", h.userInfoHandler).
-		HandleFunc("/subscription/list", h.subscriptionListHandler).
-		HandleFunc("/subscription/edit", h.editSubscriptionHandler).
-		HandleFunc("/subscription/quickadd", h.quickAddHandler).
-		HandleFunc("/stream/items/ids", h.streamItemIDsHandler).
-		NameHandleFunc("/stream/items/contents", h.streamItemContentsHandler,
-			"StreamItemsContents").
-		HandleFunc("/mark-all-as-read", h.markAllAsReadHandler)
+	m = m.PrefixGroup(PathPrefix).
+		Use(WithKeyAuth(store), CORS, requestUserSession)
+
+	m.HandleFunc("/", h.serveHandler)
+	m.HandleFunc("/token", h.tokenHandler)
+	m.HandleFunc("/edit-tag", h.editTagHandler)
+	m.HandleFunc("/rename-tag", h.renameTagHandler)
+	m.HandleFunc("/disable-tag", h.disableTagHandler)
+	m.HandleFunc("/tag/list", h.tagListHandler)
+	m.HandleFunc("/user-info", h.userInfoHandler)
+	m.HandleFunc("/subscription/list", h.subscriptionListHandler)
+	m.HandleFunc("/subscription/edit", h.editSubscriptionHandler)
+	m.HandleFunc("/subscription/quickadd", h.quickAddHandler)
+	m.HandleFunc("/stream/items/ids", h.streamItemIDsHandler)
+	m.NameHandleFunc("/stream/items/contents", h.streamItemContentsHandler,
+		"StreamItemsContents")
+	m.HandleFunc("/mark-all-as-read", h.markAllAsReadHandler)
 }
 
 func checkAndSimplifyTags(addTags []Stream, removeTags []Stream) (map[StreamType]bool, error) {
