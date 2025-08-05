@@ -50,7 +50,7 @@ class MarkReadOnScroll {
         clearTimeout(this.timeoutId)
         this.timeoutId = 0;
       }
-      markPageAsReadAction();
+      this.markReadOnTimeout().finally(() => window.location.reload());
       return;
     }
 
@@ -70,13 +70,17 @@ class MarkReadOnScroll {
 
     const entryIDs = items.map((element) => parseInt(element.dataset.id, 10));
     const readStatus = "read";
-    updateEntriesStatus(entryIDs, readStatus, () => {
-      items.forEach((element) => {
-        const markAsRead = element.querySelector(":is(a, button)[data-toggle-status]");
-        if (markAsRead) {
-          setReadStatusButtonState(markAsRead, readStatus);
-        }
-        element.classList.replace("item-status-unread", "item-status-read");
+
+    return new Promise((resolve) => {
+      updateEntriesStatus(entryIDs, readStatus, () => {
+        items.forEach((element) => {
+          const markAsRead = element.querySelector(":is(a, button)[data-toggle-status]");
+          if (markAsRead) {
+            setReadStatusButtonState(markAsRead, readStatus);
+          }
+          element.classList.replace("item-status-unread", "item-status-read");
+        });
+        resolve();
       });
     });
   }
