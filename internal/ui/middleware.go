@@ -43,7 +43,20 @@ func newMiddleware(router *mux.ServeMux, store *storage.Storage) *middleware {
 	return &middleware{router, store}
 }
 
-func (m *middleware) handleUserSession(next http.Handler) http.Handler {
+func (m *middleware) userNoRedirect() func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return m.handleUserSession(next, false)
+	}
+}
+
+func (m *middleware) userWithRedirect() func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return m.handleUserSession(next, true)
+	}
+}
+
+func (m *middleware) handleUserSession(next http.Handler, redirect bool,
+) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		log := logging.FromContext(ctx).With(
@@ -53,9 +66,14 @@ func (m *middleware) handleUserSession(next http.Handler) http.Handler {
 		sess := request.Session(r)
 
 		if user == nil || sess == nil {
-			log.Debug(
-				"Redirecting to login page because no user session has been found")
-			html.Redirect(w, r, route.Path(m.router, "login"))
+			if redirect {
+				log.Debug(
+					"Redirecting to login page because no user session has been found")
+				html.Redirect(w, r, route.Path(m.router, "login"))
+			} else {
+				http.Error(w, http.StatusText(http.StatusUnauthorized),
+					http.StatusUnauthorized)
+			}
 			return
 		}
 

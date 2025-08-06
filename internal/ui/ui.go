@@ -84,7 +84,28 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 		m.NameHandleFunc("/{$}", h.showLoginPage, "login")
 	})
 
-	m = m.Group().Use(mw.handleUserSession, mw.handleAppSession)
+	m.Group(func(m *mux.ServeMux) {
+		m.Use(mw.userNoRedirect(), mw.handleAppSession)
+		m.NameHandleFunc("/mark-all-as-read", h.markAllAsRead, "markAllAsRead")
+		m.NameHandleFunc("/history/flush", h.flushHistory, "flushHistory")
+
+		// Entry pages.
+		m.NameHandleFunc("/entry/save-progression/{entryID}/{at}",
+			h.saveEnclosureProgression, "saveEnclosureProgression")
+		m.NameHandleFunc("/entry/save/{entryID}", h.saveEntry, "saveEntry")
+		m.NameHandleFunc("/entry/status", h.updateEntriesStatus,
+			"updateEntriesStatus")
+		m.NameHandleFunc("/entry/bookmark/{entryID}", h.toggleBookmark,
+			"toggleBookmark")
+
+		// WebAuthn flow
+		m.NameHandleFunc("/webauthn/deleteall", h.deleteAllCredentials,
+			"webauthnDeleteAll")
+		m.NameHandleFunc("/webauthn/{credentialHandle}/delete", h.deleteCredential,
+			"webauthnDelete")
+	})
+
+	m = m.Group().Use(mw.userWithRedirect(), mw.handleAppSession)
 	m.NameHandleFunc("/logout", h.logout, "logout")
 
 	// New subscription pages.
@@ -97,7 +118,6 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 	m.NameHandleFunc("/bookmarklet", h.bookmarklet, "bookmarklet")
 
 	// Unread page.
-	m.NameHandleFunc("/mark-all-as-read", h.markAllAsRead, "markAllAsRead")
 	m.NameHandleFunc("/unread", h.showUnreadPage, "unread")
 	m.NameHandleFunc("/unread/entry/{entryID}", h.showUnreadEntryPage,
 		"unreadEntry")
@@ -105,7 +125,6 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 	// History pages.
 	m.NameHandleFunc("/history", h.showHistoryPage, "history")
 	m.NameHandleFunc("/history/entry/{entryID}", h.showReadEntryPage, "readEntry")
-	m.NameHandleFunc("/history/flush", h.flushHistory, "flushHistory")
 
 	// Bookmark pages.
 	m.NameHandleFunc("/starred", h.showStarredPage, "starred")
@@ -176,14 +195,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 		"tagEntry")
 
 	// Entry pages.
-	m.NameHandleFunc("/entry/status", h.updateEntriesStatus,
-		"updateEntriesStatus")
-	m.NameHandleFunc("/entry/save/{entryID}", h.saveEntry, "saveEntry")
-	m.NameHandleFunc("/entry/save-progression/{entryID}/{at}",
-		h.saveEnclosureProgression, "saveEnclosureProgression")
 	m.NameHandleFunc("/entry/download/{entryID}", h.fetchContent, "fetchContent")
-	m.NameHandleFunc("/entry/bookmark/{entryID}", h.toggleBookmark,
-		"toggleBookmark")
 
 	// Share pages.
 	m.NameHandleFunc("/entry/share/{entryID}", h.createSharedEntry, "shareEntry")
@@ -231,10 +243,6 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 		"webauthnRegisterBegin")
 	m.NameHandleFunc("/webauthn/register/finish", h.finishRegistration,
 		"webauthnRegisterFinish")
-	m.NameHandleFunc("/webauthn/deleteall", h.deleteAllCredentials,
-		"webauthnDeleteAll")
-	m.NameHandleFunc("/webauthn/{credentialHandle}/delete", h.deleteCredential,
-		"webauthnDelete")
 	m.NameHandleFunc("/webauthn/{credentialHandle}/rename", h.renameCredential,
 		"webauthnRename")
 	m.NameHandleFunc("/webauthn/{credentialHandle}/save", h.saveCredential,
