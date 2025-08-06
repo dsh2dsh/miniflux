@@ -11,7 +11,7 @@ function messageConfirmed(url, redirectURL) {
     } else if (resp.type == "opaqueredirect" && resp.url) {
       window.location.href = resp.url;
     } else {
-      window.location.reload();
+      location.replace(location.href);
     }
   });
 }

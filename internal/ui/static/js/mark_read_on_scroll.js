@@ -51,7 +51,7 @@ class MarkReadOnScroll {
         clearTimeout(this.timeoutId)
         this.timeoutId = 0;
       }
-      this.markReadOnTimeout().finally(() => location.reload());
+      this.markReadOnTimeout().finally(() => location.replace(location.href));
       return;
     }
 

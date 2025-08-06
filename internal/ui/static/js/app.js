@@ -278,7 +278,7 @@ function goToPage(page, reloadOnFail = false) {
     if (element) {
         document.location.href = element.href;
     } else if (reloadOnFail) {
-        window.location.reload();
+        location.replace(location.href);
     }
 }
 
@@ -579,7 +579,7 @@ function markPageAsReadAction() {
         const showOnlyUnread = element?.dataset.showOnlyUnread || false;
 
         if (showOnlyUnread) {
-            window.location.reload();
+            location.replace(location.href);
         } else {
             goToPage("next", true);
         }
@@ -644,7 +644,7 @@ function toggleEntryStatus(element, toasting) {
         }
 
         if (isListView() && getVisibleEntries().length === 0) {
-            window.location.reload();
+            location.replace(location.href);
         }
     });
 }

@@ -70,7 +70,7 @@ class WebAuthnHandler {
             return;
         }
 
-        window.location.reload();
+        location.replace(location.href);
     }
 
     async register() {
@@ -195,6 +195,6 @@ class WebAuthnHandler {
             throw new Error("Login failed with HTTP status code " + loginFinishResponse.status);
         }
 
-        window.location.reload();
+        location.replace(location.href);
     }
 }
