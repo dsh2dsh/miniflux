@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"html/template"
 	"log/slog"
-	"strings"
 	"time"
 
 	"miniflux.app/v2/internal/http/mux"
@@ -41,63 +40,31 @@ func NewEngine(router *mux.ServeMux) *Engine {
 
 // ParseTemplates parses template files embed into the application.
 func (e *Engine) ParseTemplates() error {
-	var commonTemplateContents strings.Builder
+	funcMap := e.funcMap.Map()
+	commonTemplates := template.Must(template.New("").Funcs(funcMap).ParseFS(commonTemplateFiles, "templates/common/*.html"))
 
-	dirEntries, err := commonTemplateFiles.ReadDir("templates/common")
+	dirEntries, err := viewTemplateFiles.ReadDir("templates/views")
 	if err != nil {
 		return fmt.Errorf("template: filed read templates/common/: %w", err)
 	}
-
 	for _, dirEntry := range dirEntries {
-		fullName := "templates/common/" + dirEntry.Name()
-		fileData, err := commonTemplateFiles.ReadFile(fullName)
+		fullName := "templates/views/" + dirEntry.Name()
+		slog.Debug("Parsing template", slog.String("template_name", fullName))
+		commonTemplatesClone, err := commonTemplates.Clone()
 		if err != nil {
-			return fmt.Errorf("template: failed read %q: %w", fullName, err)
+			panic("Unable to clone the common template")
 		}
-		commonTemplateContents.Write(fileData)
-	}
-
-	dirEntries, err = viewTemplateFiles.ReadDir("templates/views")
-	if err != nil {
-		return fmt.Errorf("template: failed read templates/views/: %w", err)
-	}
-
-	for _, dirEntry := range dirEntries {
-		templateName := dirEntry.Name()
-		fullName := "templates/views/" + templateName
-		fileData, err := viewTemplateFiles.ReadFile(fullName)
-		if err != nil {
-			return fmt.Errorf("template: failed read %q: %w", fullName, err)
-		}
-
-		var templateContents strings.Builder
-		templateContents.WriteString(commonTemplateContents.String())
-		templateContents.Write(fileData)
-
-		slog.Debug("Parsing template",
-			slog.String("template_name", templateName),
-		)
-
-		e.templates[templateName] = template.Must(template.New("main").Funcs(e.funcMap.Map()).Parse(templateContents.String()))
+		e.templates[dirEntry.Name()] = template.Must(commonTemplatesClone.ParseFS(viewTemplateFiles, fullName))
 	}
 
 	dirEntries, err = standaloneTemplateFiles.ReadDir("templates/standalone")
 	if err != nil {
 		return fmt.Errorf("template: failed read templates/standalone/: %w", err)
 	}
-
 	for _, dirEntry := range dirEntries {
-		templateName := dirEntry.Name()
-		fileData, err := standaloneTemplateFiles.ReadFile(
-			"templates/standalone/" + templateName)
-		if err != nil {
-			return fmt.Errorf("template: failed read %q: %w", templateName, err)
-		}
-
-		slog.Debug("Parsing template",
-			slog.String("template_name", templateName),
-		)
-		e.templates[templateName] = template.Must(template.New("base").Funcs(e.funcMap.Map()).Parse(string(fileData)))
+		fullName := "templates/standalone/" + dirEntry.Name()
+		slog.Debug("Parsing template", slog.String("template_name", fullName))
+		e.templates[dirEntry.Name()] = template.Must(template.New(dirEntry.Name()).Funcs(funcMap).ParseFS(standaloneTemplateFiles, fullName))
 	}
 	return nil
 }
