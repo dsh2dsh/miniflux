@@ -7,6 +7,7 @@ class MarkReadOnScroll {
     if (entries.length == 0) {
       return;
     }
+    history.scrollRestoration = "manual";
 
     this.observer = new IntersectionObserver((entries, observer) => {
       this.observerCallback(entries, observer);
@@ -50,7 +51,7 @@ class MarkReadOnScroll {
         clearTimeout(this.timeoutId)
         this.timeoutId = 0;
       }
-      this.markReadOnTimeout().finally(() => window.location.reload());
+      this.markReadOnTimeout().finally(() => location.reload());
       return;
     }
 
