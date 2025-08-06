@@ -442,8 +442,8 @@ func (s *Storage) SetEntriesStatus(ctx context.Context, userID int64,
 ) error {
 	_, err := s.db.Exec(ctx, `
 UPDATE entries
-   SET status=$1, changed_at=now()
- WHERE user_id=$2 AND id=ANY($3)`,
+   SET status = $1, changed_at = now()
+ WHERE user_id = $2 AND id = ANY($3)`,
 		status, userID, entryIDs)
 	if err != nil {
 		return fmt.Errorf(`store: unable to update entries statuses %v: %w`,
@@ -463,10 +463,10 @@ func (s *Storage) SetEntriesStatusCount(ctx context.Context, userID int64,
 	rows, _ := s.db.Query(ctx, `
 SELECT count(*)
   FROM entries e
-		   JOIN feeds f ON (f.id = e.feed_id)
-		   JOIN categories c ON (c.id = f.category_id)
- WHERE e.user_id = $1 AND e.id = ANY($2) AND NOT f.hide_globally
-	     AND NOT c.hide_globally`,
+		   JOIN feeds f ON f.id = e.feed_id
+		   JOIN categories c ON c.id = f.category_id
+ WHERE e.user_id = $1 AND e.id = ANY($2) AND
+       NOT f.hide_globally AND NOT c.hide_globally`,
 		userID, entryIDs)
 
 	visible, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[int])
