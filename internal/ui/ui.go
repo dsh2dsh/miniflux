@@ -95,6 +95,8 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 		m.NameHandleFunc("/entry/save/{entryID}", h.saveEntry, "saveEntry")
 		m.NameHandleFunc("/entry/status", h.updateEntriesStatus,
 			"updateEntriesStatus")
+		m.NameHandleFunc("/entry/status/count", h.updateEntriesStatusCount,
+			"updateEntriesStatusCount")
 		m.NameHandleFunc("/entry/bookmark/{entryID}", h.toggleBookmark,
 			"toggleBookmark")
 

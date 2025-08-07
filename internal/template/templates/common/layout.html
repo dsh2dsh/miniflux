@@ -54,7 +54,11 @@
   data-service-worker-url="{{ javascript "service-worker" }}"
   {{ if .csrf }}data-csrf-token="{{ .csrf }}"{{ end }}
   data-add-subscription-url="{{ route "addSubscription" }}"
-  data-entries-status-url="{{ route "updateEntriesStatus" }}"
+  {{ if .globally_visible }}
+    data-entries-status-url="{{ route "updateEntriesStatus" }}"
+  {{ else }}
+    data-entries-status-url="{{ route "updateEntriesStatusCount" }}"
+  {{ end }}
   data-refresh-all-feeds-url="{{ route "refreshAllFeeds" }}"
   {{ if .webAuthnEnabled }}
     data-webauthn-register-begin-url="{{ route "webauthnRegisterBegin" }}"
