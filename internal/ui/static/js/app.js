@@ -1241,3 +1241,10 @@ initializeKeyboardShortcuts();
 initializeTouchHandler();
 initializeClickHandlers();
 initializePWA();
+
+// Reload the page if it was restored from the back-forward cache and mark entries as read is enabled.
+window.addEventListener("pageshow", (event) => {
+    if (event.persisted && document.body.dataset.markAsReadOnView === "true") {
+        location.reload();
+    }
+});
