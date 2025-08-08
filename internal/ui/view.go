@@ -14,17 +14,6 @@ import (
 	"miniflux.app/v2/internal/ui/view"
 )
 
-func (h *handler) View(r *http.Request) *View {
-	s := session.New(h.store, r)
-	self := &View{
-		View:  view.New(h.tpl, r, s),
-		store: h.store,
-		user:  request.User(r),
-	}
-	self.g, self.ctx = errgroup.WithContext(r.Context())
-	return self.init()
-}
-
 type View struct {
 	*view.View
 
@@ -38,6 +27,19 @@ type View struct {
 	countStarred    int
 	countErrorFeeds int
 	hasSaveEntry    bool
+}
+
+func (h *handler) View(r *http.Request) *View {
+	s := session.New(h.store, r)
+	self := &View{
+		View:  view.New(h.tpl, r, s),
+		store: h.store,
+		user:  request.User(r),
+	}
+	self.Set("updateEntriesStatus",
+		h.router.NamedPath("updateEntriesStatusCount"))
+	self.g, self.ctx = errgroup.WithContext(r.Context())
+	return self.init()
 }
 
 func (self *View) init() *View {

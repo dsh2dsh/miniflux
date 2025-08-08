@@ -21,20 +21,6 @@ type View struct {
 	session *session.Session
 }
 
-// Set adds a new template argument.
-func (v *View) Set(param string, value any) *View {
-	v.params[param] = value
-	return v
-}
-
-// Render executes the template with arguments.
-func (v *View) Render(template string) []byte {
-	if v.session != nil {
-		v.session.Commit(v.r.Context())
-	}
-	return v.tpl.Render(template+".html", v.params)
-}
-
 // New returns a new view with default parameters.
 func New(tpl *template.Engine, r *http.Request, sess *session.Session) *View {
 	theme := request.UserTheme(r)
@@ -57,4 +43,18 @@ func New(tpl *template.Engine, r *http.Request, sess *session.Session) *View {
 				sess.FlashErrorMessage(request.FlashErrorMessage(r)))
 	}
 	return v
+}
+
+// Set adds a new template argument.
+func (v *View) Set(param string, value any) *View {
+	v.params[param] = value
+	return v
+}
+
+// Render executes the template with arguments.
+func (v *View) Render(template string) []byte {
+	if v.session != nil {
+		v.session.Commit(v.r.Context())
+	}
+	return v.tpl.Render(template+".html", v.params)
 }
