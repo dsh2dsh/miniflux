@@ -87,6 +87,7 @@ func (self *keyAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	clientIP := request.ClientIP(r)
 	log := logging.FromContext(ctx).With(
 		slog.String("client_ip", clientIP),
+		slog.String("request", r.Method+" "+r.URL.Path),
 		slog.String("user_agent", r.UserAgent()))
 
 	user, apiKey, err := self.store.UserAPIKey(ctx, token)
@@ -163,6 +164,7 @@ func (self *basicAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	clientIP := request.ClientIP(r)
 	log := logging.FromContext(ctx).With(
 		slog.String("client_ip", clientIP),
+		slog.String("request", r.Method+" "+r.URL.Path),
 		slog.String("user_agent", r.UserAgent()))
 
 	w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
