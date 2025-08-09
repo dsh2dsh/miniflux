@@ -87,11 +87,24 @@ func (e *Engine) Render(name string, data map[string]any) []byte {
 		"plural": printer.Plural,
 	})
 
-	var b bytes.Buffer
-	err := tpl.ExecuteTemplate(&b, "base", data)
+	b, err := lookupExecute(tpl, data, "layout.html", name)
 	if err != nil {
 		panic(err)
 	}
+	return b
+}
 
-	return b.Bytes()
+func lookupExecute(tt *template.Template, data map[string]any,
+	names ...string,
+) ([]byte, error) {
+	for _, name := range names {
+		if t := tt.Lookup(name); t != nil {
+			var b bytes.Buffer
+			if err := t.Execute(&b, data); err != nil {
+				return nil, fmt.Errorf("executing %q: %w", name, err)
+			}
+			return b.Bytes(), nil
+		}
+	}
+	return nil, fmt.Errorf("none of [%v] defined", names)
 }
