@@ -5,6 +5,8 @@ const OFFLINE_VERSION = 1;
 const CACHE_NAME = "offline";
 
 self.addEventListener("install", (event) => {
+  const offlineURL = document.body.dataset.offlineURL;
+
     event.waitUntil(
         (async () => {
             const cache = await caches.open(CACHE_NAME);
@@ -12,7 +14,7 @@ self.addEventListener("install", (event) => {
             // Setting {cache: 'reload'} in the new request will ensure that the
             // response isn't fulfilled from the HTTP cache; i.e., it will be from
             // the network.
-            await cache.add(new Request(OFFLINE_URL, { cache: "reload" }));
+            await cache.add(new Request(offlineURL, { cache: "reload" }));
         })()
     );
 
@@ -21,6 +23,8 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+  const offlineURL = document.body.dataset.offlineURL;
+
     // We proxify requests through fetch() only if we are offline because it's slower.
     if (navigator.onLine === false && event.request.mode === "navigate") {
         event.respondWith(
@@ -35,7 +39,7 @@ self.addEventListener("fetch", (event) => {
                     // If fetch() returns a valid HTTP response with a response code in
                     // the 4xx or 5xx range, the catch() will NOT be called.
                     const cache = await caches.open(CACHE_NAME);
-                    const cachedResponse = await cache.match(OFFLINE_URL);
+                    const cachedResponse = await cache.match(offlineURL);
                     return cachedResponse;
                 }
             })()

@@ -12,10 +12,7 @@ import (
 	"github.com/klauspost/compress/gzhttp"
 )
 
-const (
-	compressionThreshold = 1024
-	longCacheControl     = "public, max-age=31536000, immutable"
-)
+const longCacheControl = "public, max-age=31536000, immutable"
 
 // Builder generates HTTP responses.
 type Builder struct {
@@ -24,6 +21,16 @@ type Builder struct {
 	statusCode int
 	headers    map[string]string
 	body       any
+}
+
+// New creates a new response builder.
+func New(w http.ResponseWriter, r *http.Request) *Builder {
+	return &Builder{
+		w:          w,
+		r:          r,
+		statusCode: http.StatusOK,
+		headers:    make(map[string]string),
+	}
 }
 
 // WithStatus uses the given status code to build the response.
@@ -117,15 +124,5 @@ func (b *Builder) write(data []byte) {
 	if _, err := b.w.Write(data); err != nil {
 		slog.Error("http/response: unable to write response",
 			slog.Any("error", err))
-	}
-}
-
-// New creates a new response builder.
-func New(w http.ResponseWriter, r *http.Request) *Builder {
-	return &Builder{
-		w:          w,
-		r:          r,
-		statusCode: http.StatusOK,
-		headers:    make(map[string]string),
 	}
 }

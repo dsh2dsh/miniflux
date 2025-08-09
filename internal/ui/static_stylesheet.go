@@ -14,16 +14,16 @@ import (
 
 func (h *handler) showStylesheet(w http.ResponseWriter, r *http.Request) {
 	filename := request.RouteStringParam(r, "name")
-	hash := request.RouteStringParam(r, "hash")
-	b := static.StylesheetBundle(filename, hash)
-	if b == nil {
+	compressed := static.StylesheetBundle(filename)
+	if compressed == nil {
 		html.NotFound(w, r)
 		return
 	}
 
-	response.New(w, r).
+	response.New(w, r).WithoutCompression().
+		WithHeader("Content-Encoding", "gzip").
 		WithLongCaching().
 		WithHeader("Content-Type", "text/css; charset=utf-8").
-		WithBody(b).
+		WithBody(compressed).
 		Write()
 }
