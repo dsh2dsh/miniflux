@@ -174,7 +174,7 @@ func (f *IconFinder) FetchIconsFromHTMLDocument() (*model.Icon, error) {
 				slog.Any("error", err),
 			)
 		} else if icon != nil {
-			slog.Debug("Found icon from HTML document",
+			slog.Debug("Downloaded icon from HTML document",
 				slog.String("website_url", f.websiteURL),
 				slog.String("icon_url", iconURL),
 			)
@@ -222,7 +222,7 @@ func (f *IconFinder) DownloadIcon(iconURL string) (*model.Icon, error) {
 
 func resizeIcon(icon *model.Icon) *model.Icon {
 	if !slices.Contains([]string{"image/jpeg", "image/png", "image/gif"}, icon.MimeType) {
-		slog.Info("icon isn't a png/gif/jpeg/ico, can't resize", slog.String("mimetype", icon.MimeType))
+		slog.Info("icon isn't a png/gif/jpeg, can't resize", slog.String("mimetype", icon.MimeType))
 		return icon
 	}
 
