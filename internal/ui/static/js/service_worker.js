@@ -5,7 +5,7 @@ const OFFLINE_VERSION = 1;
 const CACHE_NAME = "offline";
 
 self.addEventListener("install", (event) => {
-  const offlineURL = document.body.dataset.offlineURL;
+  const offlineURL = document.body.dataset.offlineUrl;
 
     event.waitUntil(
         (async () => {
@@ -23,7 +23,7 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  const offlineURL = document.body.dataset.offlineURL;
+  const offlineURL = document.body.dataset.offlineUrl;
 
     // We proxify requests through fetch() only if we are offline because it's slower.
     if (navigator.onLine === false && event.request.mode === "navigate") {
