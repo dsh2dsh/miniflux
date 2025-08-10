@@ -75,10 +75,10 @@ func (e *Engine) Render(name string, data map[string]any) []byte {
 	if !ok {
 		panic("This template does not exists: " + name)
 	}
-
-	printer := locale.NewPrinter(data["language"].(string))
+	tpl = template.Must(tpl.Clone())
 
 	// Functions that need to be declared at runtime.
+	printer := locale.NewPrinter(data["language"].(string))
 	tpl.Funcs(template.FuncMap{
 		"elapsed": func(timezone string, t time.Time) string {
 			return elapsedTime(printer, timezone, t)
