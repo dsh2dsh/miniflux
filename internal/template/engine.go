@@ -15,7 +15,7 @@ import (
 	"miniflux.app/v2/internal/locale"
 )
 
-//go:embed templates/common/*.html
+//go:embed templates/common/*.html templates/common/*.svg
 var commonTemplateFiles embed.FS
 
 //go:embed templates/views/*.html
@@ -41,7 +41,8 @@ func NewEngine(router *mux.ServeMux) *Engine {
 // ParseTemplates parses template files embed into the application.
 func (e *Engine) ParseTemplates() error {
 	funcMap := e.funcMap.Map()
-	commonTemplates := template.Must(template.New("").Funcs(funcMap).ParseFS(commonTemplateFiles, "templates/common/*.html"))
+	commonTemplates := template.Must(template.New("").
+		Funcs(funcMap).ParseFS(commonTemplateFiles, "templates/common/*"))
 
 	dirEntries, err := viewTemplateFiles.ReadDir("templates/views")
 	if err != nil {

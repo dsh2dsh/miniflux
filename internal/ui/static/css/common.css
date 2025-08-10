@@ -947,6 +947,11 @@ article.category-has-unread {
 }
 
 /* Icons */
+#svg-icons {
+    display: none;
+    visibility: hidden;
+}
+
 .icon,
 .icon-label {
     vertical-align: text-bottom;

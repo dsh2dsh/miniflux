@@ -70,6 +70,10 @@
   data-mark-as-read-on-view="{{ if .user.MarkReadOnView }}true{{ else }}false{{ end }}"
   {{ end }}>
 
+    <div id="svg-icons">
+        {{ template "icons.svg" }}
+    </div>
+
     {{ if .user }}
     <a class="skip-to-content-link" href="#main">{{ t "skip_to_content" }}</a>
     <header class="header">

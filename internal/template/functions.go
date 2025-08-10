@@ -130,11 +130,9 @@ func (self *funcMap) Map() template.FuncMap {
 }
 
 func (self *funcMap) icon(iconName string) template.HTML {
-	return template.HTML(fmt.Sprintf(
-		`<svg class="icon" aria-hidden="true"><use xlink:href="%s#icon-%s"/></svg>`,
-		self.routeBinaryFile("sprite.svg"),
-		iconName,
-	))
+	return template.HTML(
+		`<svg class="icon" aria-hidden="true"><use xlink:href="#icon-` +
+			iconName + `"/></svg>`)
 }
 
 func (self *funcMap) javascript(name string) string {
