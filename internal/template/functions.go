@@ -131,7 +131,7 @@ func (self *funcMap) Map() template.FuncMap {
 
 func (self *funcMap) icon(iconName string) template.HTML {
 	return template.HTML(
-		`<svg class="icon" aria-hidden="true"><use xlink:href="#icon-` +
+		`<svg class="icon" aria-hidden="true"><use href="#icon-` +
 			iconName + `"/></svg>`)
 }
 
