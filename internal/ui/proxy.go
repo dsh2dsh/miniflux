@@ -33,13 +33,13 @@ func (h *handler) mediaProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	encodedDigest := request.RouteStringParam(r, "encodedDigest")
 	encodedURL := request.RouteStringParam(r, "encodedURL")
 	if encodedURL == "" {
 		html.BadRequest(w, r, errors.New("no URL provided"))
 		return
 	}
 
+	encodedDigest := request.RouteStringParam(r, "encodedDigest")
 	decodedDigest, err := base64.URLEncoding.DecodeString(encodedDigest)
 	if err != nil {
 		html.BadRequest(w, r, errors.New("unable to decode this digest"))
@@ -99,7 +99,7 @@ func (h *handler) mediaProxy(w http.ResponseWriter, r *http.Request) {
 		req.Header.Set("Referer", referer)
 	}
 
-	forwardedRequestHeader := []string{
+	forwardedRequestHeader := [...]string{
 		"Range", "Accept", "Accept-Encoding", "User-Agent",
 	}
 	for _, requestHeaderName := range forwardedRequestHeader {
@@ -158,7 +158,7 @@ func (h *handler) mediaProxy(w http.ResponseWriter, r *http.Request) {
 			b.WithHeader("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, filename))
 		}
 
-		forwardedResponseHeader := []string{
+		forwardedResponseHeader := [...]string{
 			"Content-Encoding", "Content-Type", "Content-Length", "Accept-Ranges",
 			"Content-Range",
 		}

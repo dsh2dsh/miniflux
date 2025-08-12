@@ -6,6 +6,7 @@ package storage // import "miniflux.app/v2/internal/storage"
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -32,14 +33,14 @@ func (b *BatchBuilder) WithBatchSize(batchSize int) *BatchBuilder {
 
 func (b *BatchBuilder) WithUserID(userID int64) *BatchBuilder {
 	b.conditions = append(b.conditions,
-		fmt.Sprintf("user_id = $%d", len(b.args)+1))
+		"user_id = $"+strconv.Itoa(len(b.args)+1))
 	b.args = append(b.args, userID)
 	return b
 }
 
 func (b *BatchBuilder) WithCategoryID(categoryID int64) *BatchBuilder {
 	b.conditions = append(b.conditions,
-		fmt.Sprintf("category_id = $%d", len(b.args)+1))
+		"category_id = $"+strconv.Itoa(len(b.args)+1))
 	b.args = append(b.args, categoryID)
 	return b
 }
@@ -47,7 +48,7 @@ func (b *BatchBuilder) WithCategoryID(categoryID int64) *BatchBuilder {
 func (b *BatchBuilder) WithErrorLimit(limit int) *BatchBuilder {
 	if limit > 0 {
 		b.conditions = append(b.conditions,
-			fmt.Sprintf("parsing_error_count < $%d", len(b.args)+1))
+			"parsing_error_count < $"+strconv.Itoa(len(b.args)+1))
 		b.args = append(b.args, limit)
 	}
 	return b
@@ -69,8 +70,9 @@ func (b *BatchBuilder) FetchJobs(ctx context.Context) ([]model.Job, error) {
 		query += " WHERE " + strings.Join(b.conditions, " AND ")
 	}
 
+	query += " ORDER BY next_check_at ASC"
 	if b.limit > 0 {
-		query += fmt.Sprintf(" ORDER BY next_check_at ASC LIMIT %d", b.limit)
+		query += " LIMIT " + strconv.Itoa(b.limit)
 	}
 
 	rows, _ := b.db.Query(ctx, query, b.args...)

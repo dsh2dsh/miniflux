@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -63,7 +64,7 @@ func (e *EntryPaginationBuilder) WithFeedID(feedID int64,
 ) *EntryPaginationBuilder {
 	if feedID != 0 {
 		e.conditions = append(e.conditions,
-			fmt.Sprintf("e.feed_id = $%d", len(e.args)+1))
+			"e.feed_id = $"+strconv.Itoa(len(e.args)+1))
 		e.args = append(e.args, feedID)
 	}
 	return e
@@ -74,7 +75,7 @@ func (e *EntryPaginationBuilder) WithCategoryID(categoryID int64,
 ) *EntryPaginationBuilder {
 	if categoryID != 0 {
 		e.conditions = append(e.conditions,
-			fmt.Sprintf("f.category_id = $%d", len(e.args)+1))
+			"f.category_id = $"+strconv.Itoa(len(e.args)+1))
 		e.args = append(e.args, categoryID)
 	}
 	return e
@@ -85,7 +86,7 @@ func (e *EntryPaginationBuilder) WithStatus(status string,
 ) *EntryPaginationBuilder {
 	if status != "" {
 		e.conditions = append(e.conditions,
-			fmt.Sprintf("e.status = $%d", len(e.args)+1))
+			"e.status = $"+strconv.Itoa(len(e.args)+1))
 		e.args = append(e.args, status)
 	}
 	return e
@@ -159,7 +160,7 @@ WITH entry_pagination AS (
 SELECT prev_id, next_id FROM entry_pagination AS ep WHERE %[3]s`
 
 	subCondition := strings.Join(e.conditions, " AND ")
-	finalCondition := fmt.Sprintf("ep.id = $%d", len(e.args)+1)
+	finalCondition := "ep.id = $" + strconv.Itoa(len(e.args)+1)
 	query := fmt.Sprintf(cte, e.order, subCondition, finalCondition)
 	e.args = append(e.args, e.entryID)
 

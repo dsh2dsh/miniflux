@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"miniflux.app/v2/internal/config"
 	hmw "miniflux.app/v2/internal/http/middleware"
 	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/request"
@@ -60,10 +61,12 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 			NameHandleFunc("/login", h.checkLogin, "checkLogin")
 
 		// WebAuthn flow
-		m.NameHandleFunc("/webauthn/login/begin", h.beginLogin,
-			"webauthnLoginBegin")
-		m.NameHandleFunc("/webauthn/login/finish", h.finishLogin,
-			"webauthnLoginFinish")
+		if config.Opts.WebAuthn() {
+			m.NameHandleFunc("/webauthn/login/begin", h.beginLogin,
+				"webauthnLoginBegin")
+			m.NameHandleFunc("/webauthn/login/finish", h.finishLogin,
+				"webauthnLoginFinish")
+		}
 
 		m.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", h.mediaProxy,
 			"proxy")
@@ -100,11 +103,13 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 		m.NameHandleFunc("/entry/bookmark/{entryID}", h.toggleBookmark,
 			"toggleBookmark")
 
-		// WebAuthn flow
-		m.NameHandleFunc("/webauthn/deleteall", h.deleteAllCredentials,
-			"webauthnDeleteAll")
-		m.NameHandleFunc("/webauthn/{credentialHandle}/delete", h.deleteCredential,
-			"webauthnDelete")
+		if config.Opts.WebAuthn() {
+			// WebAuthn flow
+			m.NameHandleFunc("/webauthn/deleteall", h.deleteAllCredentials,
+				"webauthnDeleteAll")
+			m.NameHandleFunc("/webauthn/{credentialHandle}/delete", h.deleteCredential,
+				"webauthnDelete")
+		}
 	})
 
 	m = m.Group().Use(mw.userWithRedirect(), mw.handleAppSession)
@@ -240,15 +245,17 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 	// OAuth2 flow.
 	m.NameHandleFunc("/oauth2/unlink/{provider}", h.oauth2Unlink, "oauth2Unlink")
 
-	// WebAuthn flow
-	m.NameHandleFunc("/webauthn/register/begin", h.beginRegistration,
-		"webauthnRegisterBegin")
-	m.NameHandleFunc("/webauthn/register/finish", h.finishRegistration,
-		"webauthnRegisterFinish")
-	m.NameHandleFunc("/webauthn/{credentialHandle}/rename", h.renameCredential,
-		"webauthnRename")
-	m.NameHandleFunc("/webauthn/{credentialHandle}/save", h.saveCredential,
-		"webauthnSave")
+	if config.Opts.WebAuthn() {
+		// WebAuthn flow
+		m.NameHandleFunc("/webauthn/register/begin", h.beginRegistration,
+			"webauthnRegisterBegin")
+		m.NameHandleFunc("/webauthn/register/finish", h.finishRegistration,
+			"webauthnRegisterFinish")
+		m.NameHandleFunc("/webauthn/{credentialHandle}/rename", h.renameCredential,
+			"webauthnRename")
+		m.NameHandleFunc("/webauthn/{credentialHandle}/save", h.saveCredential,
+			"webauthnSave")
+	}
 }
 
 func robotsTxt(w http.ResponseWriter, r *http.Request) {

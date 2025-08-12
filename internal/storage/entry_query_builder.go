@@ -83,7 +83,7 @@ func (e *EntryQueryBuilder) WithStarred(starred bool) *EntryQueryBuilder {
 func (e *EntryQueryBuilder) BeforeChangedDate(date time.Time,
 ) *EntryQueryBuilder {
 	e.conditions = append(e.conditions,
-		fmt.Sprintf("e.changed_at < $%d", len(e.args)+1))
+		"e.changed_at < $"+strconv.Itoa(len(e.args)+1))
 	e.args = append(e.args, date)
 	return e
 }
@@ -92,7 +92,7 @@ func (e *EntryQueryBuilder) BeforeChangedDate(date time.Time,
 func (e *EntryQueryBuilder) AfterChangedDate(date time.Time,
 ) *EntryQueryBuilder {
 	e.conditions = append(e.conditions,
-		fmt.Sprintf("e.changed_at > $%d", len(e.args)+1))
+		"e.changed_at > $"+strconv.Itoa(len(e.args)+1))
 	e.args = append(e.args, date)
 	return e
 }
@@ -101,7 +101,7 @@ func (e *EntryQueryBuilder) AfterChangedDate(date time.Time,
 func (e *EntryQueryBuilder) BeforePublishedDate(date time.Time,
 ) *EntryQueryBuilder {
 	e.conditions = append(e.conditions,
-		fmt.Sprintf("e.published_at < $%d", len(e.args)+1))
+		"e.published_at < $"+strconv.Itoa(len(e.args)+1))
 	e.args = append(e.args, date)
 	return e
 }
@@ -110,7 +110,7 @@ func (e *EntryQueryBuilder) BeforePublishedDate(date time.Time,
 func (e *EntryQueryBuilder) AfterPublishedDate(date time.Time,
 ) *EntryQueryBuilder {
 	e.conditions = append(e.conditions,
-		fmt.Sprintf("e.published_at > $%d", len(e.args)+1))
+		"e.published_at > $"+strconv.Itoa(len(e.args)+1))
 	e.args = append(e.args, date)
 	return e
 }
@@ -119,7 +119,7 @@ func (e *EntryQueryBuilder) AfterPublishedDate(date time.Time,
 func (e *EntryQueryBuilder) BeforeEntryID(entryID int64) *EntryQueryBuilder {
 	if entryID != 0 {
 		e.conditions = append(e.conditions,
-			fmt.Sprintf("e.id < $%d", len(e.args)+1))
+			"e.id < $"+strconv.Itoa(len(e.args)+1))
 		e.args = append(e.args, entryID)
 	}
 	return e
@@ -129,7 +129,7 @@ func (e *EntryQueryBuilder) BeforeEntryID(entryID int64) *EntryQueryBuilder {
 func (e *EntryQueryBuilder) AfterEntryID(entryID int64) *EntryQueryBuilder {
 	if entryID != 0 {
 		e.conditions = append(e.conditions,
-			fmt.Sprintf("e.id > $%d", len(e.args)+1))
+			"e.id > $"+strconv.Itoa(len(e.args)+1))
 		e.args = append(e.args, entryID)
 	}
 	return e
@@ -147,7 +147,7 @@ func (e *EntryQueryBuilder) WithEntryIDs(entryIDs []int64) *EntryQueryBuilder {
 func (e *EntryQueryBuilder) WithEntryID(entryID int64) *EntryQueryBuilder {
 	if entryID != 0 {
 		e.conditions = append(e.conditions,
-			fmt.Sprintf("e.id = $%d", len(e.args)+1))
+			"e.id = $"+strconv.Itoa(len(e.args)+1))
 		e.args = append(e.args, entryID)
 	}
 	return e
@@ -157,7 +157,7 @@ func (e *EntryQueryBuilder) WithEntryID(entryID int64) *EntryQueryBuilder {
 func (e *EntryQueryBuilder) WithFeedID(feedID int64) *EntryQueryBuilder {
 	if feedID > 0 {
 		e.conditions = append(e.conditions,
-			fmt.Sprintf("e.feed_id = $%d", len(e.args)+1))
+			"e.feed_id = $"+strconv.Itoa(len(e.args)+1))
 		e.args = append(e.args, feedID)
 	}
 	return e
@@ -167,7 +167,7 @@ func (e *EntryQueryBuilder) WithFeedID(feedID int64) *EntryQueryBuilder {
 func (e *EntryQueryBuilder) WithCategoryID(categoryID int64) *EntryQueryBuilder {
 	if categoryID > 0 {
 		e.conditions = append(e.conditions,
-			fmt.Sprintf("f.category_id = $%d", len(e.args)+1))
+			"f.category_id = $"+strconv.Itoa(len(e.args)+1))
 		e.args = append(e.args, categoryID)
 	}
 	return e
@@ -177,7 +177,7 @@ func (e *EntryQueryBuilder) WithCategoryID(categoryID int64) *EntryQueryBuilder 
 func (e *EntryQueryBuilder) WithStatus(status string) *EntryQueryBuilder {
 	if status != "" {
 		e.conditions = append(e.conditions,
-			fmt.Sprintf("e.status = $%d", len(e.args)+1))
+			"e.status = $"+strconv.Itoa(len(e.args)+1))
 		e.args = append(e.args, status)
 	}
 	return e
@@ -210,7 +210,7 @@ func (e *EntryQueryBuilder) WithTags(tags []string) *EntryQueryBuilder {
 func (e *EntryQueryBuilder) WithoutStatus(status string) *EntryQueryBuilder {
 	if status != "" {
 		e.conditions = append(e.conditions,
-			fmt.Sprintf("e.status <> $%d", len(e.args)+1))
+			"e.status <> $"+strconv.Itoa(len(e.args)+1))
 		e.args = append(e.args, status)
 	}
 	return e
@@ -219,7 +219,7 @@ func (e *EntryQueryBuilder) WithoutStatus(status string) *EntryQueryBuilder {
 // WithShareCode set the entry share code.
 func (e *EntryQueryBuilder) WithShareCode(shareCode string) *EntryQueryBuilder {
 	e.conditions = append(e.conditions,
-		fmt.Sprintf("e.share_code = $%d", len(e.args)+1))
+		"e.share_code = $"+strconv.Itoa(len(e.args)+1))
 	e.args = append(e.args, shareCode)
 	return e
 }
@@ -233,8 +233,7 @@ func (e *EntryQueryBuilder) WithShareCodeNotEmpty() *EntryQueryBuilder {
 // WithSorting add a sort expression.
 func (e *EntryQueryBuilder) WithSorting(column, direction string,
 ) *EntryQueryBuilder {
-	e.sortExpressions = append(e.sortExpressions,
-		fmt.Sprintf("%s %s", column, direction))
+	e.sortExpressions = append(e.sortExpressions, column+" "+direction)
 	return e
 }
 

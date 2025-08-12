@@ -282,7 +282,7 @@ func findIconURLsFromHTMLDocument(body io.Reader, contentType string,
 		return nil, fmt.Errorf("icon: unable to read document: %w", err)
 	}
 
-	queries := []string{
+	queries := [...]string{
 		"link[rel~='icon' i][href]",
 		"link[rel='apple-touch-icon' i][href]",
 		"link[rel='apple-touch-icon-precomposed.png'][href]",

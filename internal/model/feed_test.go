@@ -12,10 +12,7 @@ import (
 	"miniflux.app/v2/internal/config"
 )
 
-const (
-	largeWeeklyCount = 10080
-	noRefreshDelay   = 0
-)
+const noRefreshDelay = 0
 
 func TestFeedCategorySetter(t *testing.T) {
 	feed := &Feed{}
