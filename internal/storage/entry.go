@@ -443,8 +443,8 @@ func (s *Storage) SetEntriesStatus(ctx context.Context, userID int64,
 	_, err := s.db.Exec(ctx, `
 UPDATE entries
    SET status = $1, changed_at = now()
- WHERE user_id = $2 AND id = ANY($3)`,
-		status, userID, entryIDs)
+ WHERE user_id = $2 AND id = ANY($3) AND status <> $4`,
+		status, userID, entryIDs, model.EntryStatusRemoved)
 	if err != nil {
 		return fmt.Errorf(`store: unable to update entries statuses %v: %w`,
 			entryIDs, err)

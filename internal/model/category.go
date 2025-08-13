@@ -11,8 +11,10 @@ type Category struct {
 	Title        string `json:"title" db:"title"`
 	UserID       int64  `json:"user_id" db:"user_id"`
 	HideGlobally bool   `json:"hide_globally" db:"hide_globally"`
-	FeedCount    *int   `json:"feed_count,omitempty" db:"feed_count"`
-	TotalUnread  *int   `json:"total_unread,omitempty" db:"total_unread"`
+
+	// Pointers are needed to avoid breaking /v1/categories?counts=true
+	FeedCount   *int `json:"feed_count,omitempty" db:"feed_count"`
+	TotalUnread *int `json:"total_unread,omitempty" db:"total_unread"`
 }
 
 func (c *Category) String() string {

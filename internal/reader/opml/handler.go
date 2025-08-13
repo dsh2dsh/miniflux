@@ -24,9 +24,9 @@ func (h *Handler) Export(ctx context.Context, userID int64) (string, error) {
 		return "", err
 	}
 
-	subscriptions := make(subcriptionList, 0, len(feeds))
+	subscriptions := make([]subcription, 0, len(feeds))
 	for _, feed := range feeds {
-		subscriptions = append(subscriptions, &subcription{
+		subscriptions = append(subscriptions, subcription{
 			Title:        feed.Title,
 			FeedURL:      feed.FeedURL,
 			SiteURL:      feed.SiteURL,

@@ -7,7 +7,8 @@ import (
 	"time"
 )
 
-// APIKey represents an application API key.
+// APIKey represents an application API key. We need to use a pointer for
+// LastUsedAt, as the value obtained from the database might sometimes be nil.
 type APIKey struct {
 	ID          int64      `json:"id" db:"id"`
 	UserID      int64      `json:"user_id" db:"user_id"`

@@ -183,14 +183,14 @@ func (c *Client) DeleteUser(userID int64) error {
 }
 
 // APIKeys returns all API keys for the authenticated user.
-func (c *Client) APIKeys() ([]*model.APIKey, error) {
+func (c *Client) APIKeys() ([]model.APIKey, error) {
 	body, err := c.request.Get("/v1/api-keys")
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var apiKeys []*model.APIKey
+	var apiKeys []model.APIKey
 	if err := json.NewDecoder(body).Decode(&apiKeys); err != nil {
 		return nil, fmt.Errorf("miniflux: response error: %w", err)
 	}

@@ -14,7 +14,7 @@ import (
 func (h *handler) showCategoryListPage(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r)
 
-	var categories []*model.Category
+	var categories []model.Category
 	v.Go(func(ctx context.Context) (err error) {
 		categories, err = h.store.CategoriesWithFeedCount(ctx, v.UserID())
 		return

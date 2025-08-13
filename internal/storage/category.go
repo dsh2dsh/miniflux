@@ -138,7 +138,7 @@ SELECT id, user_id, title, hide_globally
 
 // Categories returns all categories that belongs to the given user.
 func (s *Storage) Categories(ctx context.Context, userID int64,
-) ([]*model.Category, error) {
+) ([]model.Category, error) {
 	rows, _ := s.db.Query(ctx, `
 SELECT id, user_id, title, hide_globally
   FROM categories
@@ -146,7 +146,7 @@ SELECT id, user_id, title, hide_globally
 		userID)
 
 	categories, err := pgx.CollectRows(rows,
-		pgx.RowToAddrOfStructByNameLax[model.Category])
+		pgx.RowToStructByNameLax[model.Category])
 	if err != nil {
 		return nil, fmt.Errorf(`store: unable to fetch category row: %w`, err)
 	}
@@ -155,7 +155,7 @@ SELECT id, user_id, title, hide_globally
 
 // CategoriesWithFeedCount returns all categories with the number of feeds.
 func (s *Storage) CategoriesWithFeedCount(ctx context.Context, userID int64,
-) ([]*model.Category, error) {
+) ([]model.Category, error) {
 	user, err := s.UserByID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -179,7 +179,7 @@ SELECT c.id, c.user_id, c.title, c.hide_globally,
 
 	rows, _ := s.db.Query(ctx, query, model.EntryStatusUnread, userID)
 	categories, err := pgx.CollectRows(rows,
-		pgx.RowToAddrOfStructByName[model.Category])
+		pgx.RowToStructByName[model.Category])
 	if err != nil {
 		return nil, fmt.Errorf(`store: unable to fetch categories: %w`, err)
 	}

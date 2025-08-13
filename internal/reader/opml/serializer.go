@@ -13,7 +13,7 @@ import (
 )
 
 // serialize returns a SubcriptionList in OPML format.
-func serialize(subscriptions subcriptionList) string {
+func serialize(subscriptions []subcription) string {
 	var b bytes.Buffer
 	writer := bufio.NewWriter(&b)
 	if _, err := writer.WriteString(xml.Header); err != nil {
@@ -33,7 +33,7 @@ func serialize(subscriptions subcriptionList) string {
 	return b.String()
 }
 
-func convertSubscriptionsToOPML(subscriptions subcriptionList) *opmlDocument {
+func convertSubscriptionsToOPML(subscriptions []subcription) *opmlDocument {
 	opmlDocument := &opmlDocument{}
 	opmlDocument.Version = "2.0"
 	opmlDocument.Header.Title = "Miniflux"
@@ -64,8 +64,8 @@ func convertSubscriptionsToOPML(subscriptions subcriptionList) *opmlDocument {
 	return opmlDocument
 }
 
-func groupSubscriptionsByFeed(subscriptions subcriptionList) map[string]subcriptionList {
-	groups := make(map[string]subcriptionList)
+func groupSubscriptionsByFeed(subscriptions []subcription) map[string][]subcription {
+	groups := make(map[string][]subcription)
 
 	for _, subscription := range subscriptions {
 		groups[subscription.CategoryName] = append(groups[subscription.CategoryName], subscription)

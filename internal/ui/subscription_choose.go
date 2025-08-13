@@ -65,7 +65,7 @@ func (h *handler) showCreateFeedError(w http.ResponseWriter, r *http.Request,
 ) {
 	v := h.View(r)
 
-	var categories []*model.Category
+	var categories []model.Category
 	v.Go(func(ctx context.Context) (err error) {
 		categories, err = h.store.Categories(ctx, v.UserID())
 		return

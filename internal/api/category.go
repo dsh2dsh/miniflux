@@ -97,7 +97,7 @@ func (h *handler) markCategoryAsRead(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) getCategories(w http.ResponseWriter, r *http.Request) {
-	var categories []*model.Category
+	var categories []model.Category
 	var err error
 	includeCounts := request.QueryStringParam(r, "counts", "false")
 

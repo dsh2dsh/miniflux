@@ -72,7 +72,7 @@ func (h *handler) showUpdateFeedError(w http.ResponseWriter, r *http.Request,
 		return
 	})
 
-	var categories []*model.Category
+	var categories []model.Category
 	v.Go(func(ctx context.Context) (err error) {
 		categories, err = h.store.Categories(ctx, v.UserID())
 		return

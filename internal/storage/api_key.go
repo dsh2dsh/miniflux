@@ -45,16 +45,16 @@ func (s *Storage) SetAPIKeyUsedTimestamp(ctx context.Context, userID int64,
 }
 
 // APIKeys returns all API Keys that belongs to the given user.
-func (s *Storage) APIKeys(ctx context.Context, userID int64,
-) ([]*model.APIKey, error) {
+func (s *Storage) APIKeys(ctx context.Context, userID int64) ([]model.APIKey,
+	error,
+) {
 	rows, _ := s.db.Query(ctx, `
 SELECT id, user_id, token, description, last_used_at, created_at
   FROM api_keys
  WHERE user_id=$1 ORDER BY description ASC`,
 		userID)
 
-	apiKeys, err := pgx.CollectRows(rows,
-		pgx.RowToAddrOfStructByName[model.APIKey])
+	apiKeys, err := pgx.CollectRows(rows, pgx.RowToStructByName[model.APIKey])
 	if err != nil {
 		return nil, fmt.Errorf(`store: unable to fetch API Keys: %w`, err)
 	}

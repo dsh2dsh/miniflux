@@ -407,7 +407,7 @@ func (self *EndpointTestSuite) TestAPIKeysEndpoint() {
 	// Fetch the API keys again.
 	apiKeys, err = self.client.APIKeys()
 	self.Require().NoError(err)
-	self.Equal([]*model.APIKey{apiKey}, apiKeys)
+	self.Equal([]model.APIKey{*apiKey}, apiKeys)
 
 	// Create a new client using the API key.
 	apiKeyClient := client.NewClient(self.cfg.BaseURL, apiKey.Token)
@@ -1252,6 +1252,31 @@ func (self *EndpointTestSuite) TestUpdateEntryStatusEndpoint() {
 	self.Require().NoError(err)
 	self.Require().NotNil(entry)
 	self.Equal(model.EntryStatusRead, entry.Status, "Invalid status")
+}
+
+func (self *EndpointTestSuite) TestUpdateEntryRemovedStatusEndpoint() {
+	feedID := self.createFeed()
+	result, err := self.client.FeedEntries(feedID, nil)
+	self.Require().NoError(err, "Failed to get entries")
+	self.Require().NotNil(result)
+	self.Require().NotEmpty(result.Entries)
+
+	// First we set the entry as "removed"
+	self.Require().NoError(self.client.UpdateEntries(
+		[]int64{result.Entries[0].ID}, model.EntryStatusRemoved))
+
+	entry, err := self.client.Entry(result.Entries[0].ID)
+	self.Require().NoError(err)
+	self.Equal(model.EntryStatusRemoved, entry.Status)
+
+	// Then we try to set it to "unread"
+	self.Require().NoError(self.client.UpdateEntries(
+		[]int64{result.Entries[0].ID}, model.EntryStatusUnread))
+
+	entry, err = self.client.Entry(result.Entries[0].ID)
+	self.Require().NoError(err)
+	self.Equal(model.EntryStatusRemoved, entry.Status,
+		"Modified immutable status")
 }
 
 func (self *EndpointTestSuite) TestUpdateEntryEndpoint() {
