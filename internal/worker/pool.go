@@ -295,7 +295,7 @@ func entriesLogGroup(items []queueItem, dd *storage.DedupEntries) slog.Attr {
 		}
 	}
 
-	attrs := make([]any, 0, 4)
+	attrs := make([]slog.Attr, 0, 4)
 	if n := dd.Created(); n != 0 {
 		attrs = append(attrs, slog.Uint64("created", n))
 	}
@@ -308,7 +308,7 @@ func entriesLogGroup(items []queueItem, dd *storage.DedupEntries) slog.Attr {
 	if deleted != 0 {
 		attrs = append(attrs, slog.Uint64("deleted", deleted))
 	}
-	return slog.Group("entries", attrs...)
+	return slog.GroupAttrs("entries", attrs...)
 }
 
 func traceLogGroup(items []queueItem) slog.Attr {
@@ -320,7 +320,7 @@ func traceLogGroup(items []queueItem) slog.Attr {
 		}
 	}
 
-	return slog.Group("storage",
+	return slog.GroupAttrs("storage",
 		slog.Int64("queries", traceStat.Queries),
 		slog.Duration("elapsed", traceStat.Elapsed))
 }

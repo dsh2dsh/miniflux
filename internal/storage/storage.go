@@ -44,7 +44,7 @@ type Storage struct {
 func (s *Storage) Close(ctx context.Context) {
 	stat := s.db.Stat()
 	logging.FromContext(ctx).Info("pgx pool statistics",
-		slog.Group("acquire",
+		slog.GroupAttrs("acquire",
 			slog.Int64("count", stat.AcquireCount()),
 			slog.Duration("duration", stat.AcquireDuration()),
 			slog.Int64("conns", int64(stat.AcquiredConns())),

@@ -66,12 +66,12 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 	for _, entry := range feed.Entries {
 		log := log.With(
 			slog.Int64("user_id", user.ID),
-			slog.Group("entry",
+			slog.GroupAttrs("entry",
 				slog.Bool("stored", entry.Stored()),
 				slog.String("hash", entry.Hash),
 				slog.String("url", entry.URL),
 				slog.String("title", entry.Title)),
-			slog.Group("feed",
+			slog.GroupAttrs("feed",
 				slog.Int64("id", feed.ID),
 				slog.String("url", feed.FeedURL)))
 		log.Debug("Processing entry")

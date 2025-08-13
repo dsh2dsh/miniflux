@@ -358,7 +358,7 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) {
 
 	log.Info("User authenticated successfully with webauthn",
 		slog.String("client_ip", clientIP),
-		slog.Group("user",
+		slog.GroupAttrs("user",
 			slog.Int64("id", user.ID),
 			slog.String("name", user.Username),
 			slog.String("agent", r.UserAgent())),

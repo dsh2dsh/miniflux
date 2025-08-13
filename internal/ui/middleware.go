@@ -78,10 +78,10 @@ func (m *middleware) handleUserSession(next http.Handler, redirect bool,
 		}
 
 		log.Debug("User session found",
-			slog.Group("user",
+			slog.GroupAttrs("user",
 				slog.Int64("id", user.ID),
 				slog.String("name", user.Username)),
-			slog.Group("session", slog.String("id", sess.ID)))
+			slog.GroupAttrs("session", slog.String("id", sess.ID)))
 
 		ctx = context.WithValue(ctx, request.UserIDContextKey, user.ID)
 		ctx = context.WithValue(ctx, request.IsAuthenticatedContextKey, true)

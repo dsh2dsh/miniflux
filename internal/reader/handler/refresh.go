@@ -353,7 +353,7 @@ func (self *Refresh) logFeedRefreshed(ctx context.Context,
 	}
 
 	if t := storage.TraceStatFrom(ctx); t != nil && t.Queries > 0 {
-		log = log.With(slog.Group("storage",
+		log = log.With(slog.GroupAttrs("storage",
 			slog.Int64("queries", t.Queries),
 			slog.Duration("elapsed", t.Elapsed)))
 	}
@@ -364,7 +364,7 @@ func (self *Refresh) logFeedRefreshed(ctx context.Context,
 }
 
 func (self *Refresh) filteredLogGroup() slog.Attr {
-	attrs := make([]any, 0, 3)
+	attrs := make([]slog.Attr, 0, 3)
 	if n := self.feed.RemovedByAge(); n > 0 {
 		attrs = append(attrs, slog.Int("age", n))
 	}
@@ -374,11 +374,11 @@ func (self *Refresh) filteredLogGroup() slog.Attr {
 	if n := self.feed.RemovedByHash(); n > 0 {
 		attrs = append(attrs, slog.Int("hash", n))
 	}
-	return slog.Group("filtered", attrs...)
+	return slog.GroupAttrs("filtered", attrs...)
 }
 
 func (self *Refresh) entriesLogGroup(refreshed *model.FeedRefreshed) slog.Attr {
-	attrs := make([]any, 0, 5)
+	attrs := make([]slog.Attr, 0, 5)
 	if n := len(self.feed.Entries); n != 0 {
 		attrs = append(attrs, slog.Int("all", n))
 	}
@@ -394,5 +394,5 @@ func (self *Refresh) entriesLogGroup(refreshed *model.FeedRefreshed) slog.Attr {
 	if n := refreshed.Deleted; n > 0 {
 		attrs = append(attrs, slog.Uint64("deleted", n))
 	}
-	return slog.Group("entries", attrs...)
+	return slog.GroupAttrs("entries", attrs...)
 }

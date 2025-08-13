@@ -24,7 +24,7 @@ func DeleteEntries(ctx context.Context, user *model.User, feed *model.Feed,
 		return fmt.Errorf("reader/filter: feed rules: %w", err)
 	}
 
-	log := logging.FromContext(ctx).With(slog.Group("feed",
+	log := logging.FromContext(ctx).With(slog.GroupAttrs("feed",
 		slog.Int64("id", feed.ID),
 		slog.String("url", feed.FeedURL)))
 	block = block.WithLogger(log.With(slog.String("filter_action", "block")))

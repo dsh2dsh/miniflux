@@ -83,7 +83,7 @@ func (self *keyAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	middleware.AccessLogUser(ctx, user)
 
-	log = log.With(slog.Group("user",
+	log = log.With(slog.GroupAttrs("user",
 		slog.Int64("id", user.ID),
 		slog.String("name", user.Username)))
 	log.Debug("[Fever] User authenticated successfully",

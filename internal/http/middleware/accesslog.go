@@ -59,13 +59,13 @@ func (self *AccessLog) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		slog.String("proto", r.Proto))
 
 	if u := logRequest.User; u != nil {
-		log = log.With(slog.Group("user",
+		log = log.With(slog.GroupAttrs("user",
 			slog.Int64("id", u.ID),
 			slog.String("name", u.Username)))
 	}
 
 	if traceStat.Queries > 0 {
-		log = log.With(slog.Group("storage",
+		log = log.With(slog.GroupAttrs("storage",
 			slog.Int64("queries", traceStat.Queries),
 			slog.Duration("elapsed", traceStat.Elapsed)))
 	}

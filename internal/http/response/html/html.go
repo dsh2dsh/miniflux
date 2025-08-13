@@ -40,7 +40,7 @@ func ServerError(w http.ResponseWriter, r *http.Request, err error) {
 	log := logging.FromContext(r.Context()).With(
 		slog.Any("error", err),
 		slog.String("client_ip", request.ClientIP(r)),
-		slog.Group("request",
+		slog.GroupAttrs("request",
 			slog.String("method", r.Method),
 			slog.String("uri", r.RequestURI),
 			slog.String("user_agent", r.UserAgent())))
@@ -50,14 +50,14 @@ func ServerError(w http.ResponseWriter, r *http.Request, err error) {
 	if clientClosed {
 		statusCode := 499
 		log.Debug("client closed request",
-			slog.Group("response", slog.Int("status_code", statusCode)))
+			slog.GroupAttrs("response", slog.Int("status_code", statusCode)))
 		http.Error(w, err.Error(), statusCode)
 		return
 	}
 
 	statusCode := http.StatusInternalServerError
 	log.Error(http.StatusText(statusCode),
-		slog.Group("response",
+		slog.GroupAttrs("response",
 			slog.Int("status_code", http.StatusInternalServerError)))
 
 	response.New(w, r).
@@ -91,11 +91,11 @@ func logStatusCode(r *http.Request, statusCode int, err error) {
 	}
 	log.Warn(http.StatusText(statusCode),
 		slog.String("client_ip", request.ClientIP(r)),
-		slog.Group("request",
+		slog.GroupAttrs("request",
 			slog.String("method", r.Method),
 			slog.String("uri", r.RequestURI),
 			slog.String("user_agent", r.UserAgent())),
-		slog.Group("response",
+		slog.GroupAttrs("response",
 			slog.Int("status_code", statusCode)))
 }
 

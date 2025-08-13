@@ -266,11 +266,11 @@ func robotsTxt(w http.ResponseWriter, r *http.Request) {
 			Error(http.StatusText(http.StatusInternalServerError),
 				slog.Any("error", err),
 				slog.String("client_ip", request.ClientIP(r)),
-				slog.Group("request",
+				slog.GroupAttrs("request",
 					slog.String("method", r.Method),
 					slog.String("uri", r.RequestURI),
 					slog.String("user_agent", r.UserAgent())),
-				slog.Group("response",
+				slog.GroupAttrs("response",
 					slog.Int("status_code", http.StatusInternalServerError)))
 	}
 }

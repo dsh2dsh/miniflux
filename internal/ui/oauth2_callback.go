@@ -163,7 +163,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 	log.Info("User authenticated successfully using OAuth2",
 		slog.Bool("authentication_successful", true),
 		slog.String("client_ip", clientIP),
-		slog.Group("user",
+		slog.GroupAttrs("user",
 			slog.Int64("id", user.ID),
 			slog.String("name", user.Username),
 			slog.String("agent", r.UserAgent())),
