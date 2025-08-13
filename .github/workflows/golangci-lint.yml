@@ -30,3 +30,7 @@ jobs:
           # When `install-mode` is `goinstall` the value can be v1.2.3,
           # `latest`, or the hash of a commit.
           version: 'latest'
+
+          # The mode to install golangci-lint. It can be 'binary', 'goinstall',
+          # or 'none'. Default is "binary".
+          install-mode: "goinstall"
