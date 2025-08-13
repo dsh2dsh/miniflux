@@ -78,7 +78,6 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, cookie.ExpiredCSRF())
 	http.SetCookie(w, cookie.NewSession(sess.ID))
 	html.Redirect(w, r, route.Path(h.router, user.DefaultHomePage))
 }

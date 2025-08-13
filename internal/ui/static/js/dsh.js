@@ -1,9 +1,6 @@
 function messageConfirmed(url, redirectURL) {
   fetch(url, {
     method: "POST",
-    headers: {
-      "X-Csrf-Token": document.body.dataset.csrfToken || ""
-    },
     redirect: "manual",
   }).then((resp) => {
     if (redirectURL) {

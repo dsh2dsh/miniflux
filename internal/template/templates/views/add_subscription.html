@@ -12,8 +12,6 @@
     <p role="alert" class="alert alert-error">{{ t "page.add_feed.no_category" }}</p>
 {{ else }}
     <form action="{{ route "submitSubscription" }}" method="post" autocomplete="off">
-        <input type="hidden" name="csrf" value="{{ .csrf }}">
-
         {{ if .errorMessage }}
             <div role="alert" class="alert alert-error">{{ .errorMessage }}</div>
         {{ end }}

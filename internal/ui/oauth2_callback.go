@@ -174,7 +174,6 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, cookie.ExpiredCSRF())
 	http.SetCookie(w, cookie.ExpiredSessionData())
 	http.SetCookie(w, cookie.NewSession(s.ID))
 	html.Redirect(w, r, route.Path(h.router, user.DefaultHomePage))

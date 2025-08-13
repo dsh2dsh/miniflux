@@ -42,6 +42,8 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 
 		secureCookie: securecookie.New(),
 	}
+
+	m = m.Group().Use(hmw.CrossOriginProtection())
 	mw := newMiddleware(m, store)
 
 	// public endpoints
@@ -57,7 +59,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 		m.HandleFunc("/robots.txt", robotsTxt)
 
 		// Authentication pages.
-		m.Group().Use(mw.handleAppSession, mw.PublicCSRF).
+		m.Group().Use(mw.handleAppSession).
 			NameHandleFunc("/login", h.checkLogin, "checkLogin")
 
 		// WebAuthn flow
@@ -83,7 +85,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 
 	// Authentication pages.
 	m.Group(func(m *mux.ServeMux) {
-		m.Use(mw.handleAuthProxy, mw.handleAppSession, mw.PublicCSRF)
+		m.Use(mw.handleAuthProxy, mw.handleAppSession)
 		m.NameHandleFunc("/{$}", h.showLoginPage, "login")
 	})
 

@@ -29,7 +29,6 @@ func New(tpl *template.Engine, r *http.Request, sess *session.Session) *View {
 		r:   r,
 		params: map[string]any{
 			"menu":            "",
-			"csrf":            request.CSRF(r),
 			"theme":           theme,
 			"language":        request.UserLanguage(r),
 			"webAuthnEnabled": config.Opts.WebAuthn(),

@@ -37,3 +37,11 @@ func ClientIP(next http.Handler) http.Handler {
 func Gzip(next http.Handler) http.Handler {
 	return gzhttp.GzipHandler(next)
 }
+
+func CrossOriginProtection() MiddlewareFunc {
+	c := http.NewCrossOriginProtection()
+	if err := c.AddTrustedOrigin(config.Opts.RootURL()); err != nil {
+		panic(err)
+	}
+	return func(next http.Handler) http.Handler { return c.Handler(next) }
+}

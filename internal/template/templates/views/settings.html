@@ -9,8 +9,6 @@
 
 {{ define "content"}}
 <form method="post" autocomplete="off" action="{{ route "updateSettings" }}">
-    <input type="hidden" name="csrf" value="{{ .csrf }}">
-
     {{ if .errorMessage }}
         <div role="alert" class="alert alert-error">{{ .errorMessage }}</div>
     {{ end }}

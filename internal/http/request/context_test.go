@@ -258,28 +258,6 @@ func TestUserTheme(t *testing.T) {
 	}
 }
 
-func TestCSRF(t *testing.T) {
-	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
-
-	result := CSRF(r)
-	expected := ""
-
-	if result != expected {
-		t.Errorf(`Unexpected context value, got %q instead of %q`, result, expected)
-	}
-
-	ctx := r.Context()
-	ctx = WithCSRF(ctx, "secret")
-	r = r.WithContext(ctx)
-
-	result = CSRF(r)
-	expected = "secret"
-
-	if result != expected {
-		t.Errorf(`Unexpected context value, got %q instead of %q`, result, expected)
-	}
-}
-
 func TestSessionID(t *testing.T) {
 	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 

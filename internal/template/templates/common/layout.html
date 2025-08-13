@@ -52,7 +52,6 @@
 <body
   data-service-worker-url="{{ javascript "service-worker" }}"
   data-offline-url="{{ route "offline" }}"
-  {{ if .csrf }}data-csrf-token="{{ .csrf }}"{{ end }}
   data-add-subscription-url="{{ route "addSubscription" }}"
   data-entries-status-url="{{ .updateEntriesStatus }}"
   data-refresh-all-feeds-url="{{ route "refreshAllFeeds" }}"

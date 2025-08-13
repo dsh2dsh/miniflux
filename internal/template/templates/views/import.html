@@ -13,8 +13,6 @@
 {{ end }}
 
 <form action="{{ route "uploadOPML" }}" method="post" enctype="multipart/form-data">
-    <input type="hidden" name="csrf" value="{{ .csrf }}">
-
     <label for="form-file">{{ t "form.import.label.file" }}</label>
     <input type="file" name="file" id="form-file">
 
@@ -24,8 +22,6 @@
 </form>
 <hr>
 <form action="{{ route "fetchOPML" }}" method="post" enctype="multipart/form-data">
-    <input type="hidden" name="csrf" value="{{ .csrf }}">
-
     <label for="form-url">{{ t "form.import.label.url" }}</label>
     <input type="url" name="url" id="form-url" required>
 

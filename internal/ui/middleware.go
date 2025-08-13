@@ -5,13 +5,10 @@ package ui // import "miniflux.app/v2/internal/ui"
 
 import (
 	"context"
-	"crypto/rand"
-	"errors"
 	"log/slog"
 	"net/http"
 
 	"miniflux.app/v2/internal/config"
-	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/http/cookie"
 	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/request"
@@ -20,11 +17,6 @@ import (
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/storage"
-)
-
-const (
-	csrfForm   = "csrf"
-	csrfHeader = "X-Csrf-Token"
 )
 
 var publicSession = model.Session{
@@ -101,18 +93,13 @@ func (m *middleware) handleAppSession(next http.Handler) http.Handler {
 		}
 
 		ctx = contextWithSessionKeys(ctx, s)
-		r = r.WithContext(ctx)
-		if r.Method == http.MethodPost && !checkCSRF(w, r, s.Data.CSRF) {
-			return
-		}
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
 func contextWithSessionKeys(ctx context.Context, sess *model.Session,
 ) context.Context {
 	ctx = context.WithValue(ctx, request.SessionIDContextKey, sess.ID)
-	ctx = request.WithCSRF(ctx, sess.Data.CSRF)
 	ctx = context.WithValue(ctx, request.OAuth2StateContextKey,
 		sess.Data.OAuth2State)
 	ctx = context.WithValue(ctx, request.OAuth2CodeVerifierContextKey,
@@ -130,25 +117,6 @@ func contextWithSessionKeys(ctx context.Context, sess *model.Session,
 	ctx = context.WithValue(ctx, request.WebAuthnDataContextKey,
 		sess.Data.WebAuthnSessionData)
 	return ctx
-}
-
-func checkCSRF(w http.ResponseWriter, r *http.Request, csrf string) bool {
-	formToken := r.FormValue(csrfForm)
-	headerToken := r.Header.Get(csrfHeader)
-
-	ok := crypto.ConstantTimeCmp(csrf, formToken) ||
-		crypto.ConstantTimeCmp(csrf, headerToken)
-	if csrf != "" && ok {
-		return true
-	}
-
-	err := errors.New("invalid or missing CSRF token")
-	logging.FromContext(r.Context()).Warn(err.Error(),
-		slog.String("csrf", csrf),
-		slog.String("form", formToken),
-		slog.String("header", headerToken))
-	html.BadRequest(w, r, err)
-	return false
 }
 
 func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
@@ -213,26 +181,5 @@ func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
 
 		http.SetCookie(w, cookie.NewSession(sess.ID))
 		html.Redirect(w, r, route.Path(m.router, user.DefaultHomePage))
-	})
-}
-
-func (m *middleware) PublicCSRF(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if request.User(r) != nil {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		if r.Method == http.MethodPost {
-			csrf := request.CookieValue(r, cookie.CookieCSRF)
-			if !checkCSRF(w, r, csrf) {
-				return
-			}
-		}
-
-		csrf := rand.Text()
-		http.SetCookie(w, cookie.NewCSRF(csrf))
-		ctx := request.WithCSRF(r.Context(), csrf)
-		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

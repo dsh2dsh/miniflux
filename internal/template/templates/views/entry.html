@@ -107,7 +107,6 @@
                 {{ else }}
                 <li>
                     <form method="post" action="{{route "shareEntry" "entryID" .entry.ID }}">
-                        <input type="hidden" name="csrf" value="{{ .csrf }}">
                         <button type="submit" class="page-button">
                             {{ icon "share" }}<span class="icon-label">{{ t "entry.share.label" }}</span>
                         </button>

@@ -29,7 +29,6 @@ const (
 	UserLanguageContextKey
 	UserThemeContextKey
 	SessionIDContextKey
-	CSRFContextKey
 	OAuth2StateContextKey
 	OAuth2CodeVerifierContextKey
 	FlashMessageContextKey
@@ -104,15 +103,6 @@ func UserTheme(r *http.Request) string {
 		theme = "system_serif"
 	}
 	return theme
-}
-
-func WithCSRF(ctx context.Context, csrf string) context.Context {
-	return context.WithValue(ctx, CSRFContextKey, csrf)
-}
-
-// CSRF returns the current CSRF token.
-func CSRF(r *http.Request) string {
-	return getContextStringValue(r, CSRFContextKey)
 }
 
 // SessionID returns the current session ID.

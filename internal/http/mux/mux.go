@@ -64,7 +64,7 @@ func (self *ServeMux) NameHandle(pattern string, handler http.Handler,
 }
 
 func (self *ServeMux) joinPathPrefix(pattern string) string {
-	pattern = removeMethod(pattern)
+	pattern = strings.TrimSuffix(removeMethod(pattern), "{$}")
 	if self.pathPrefix == "" {
 		return pattern
 	}

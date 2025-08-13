@@ -12,9 +12,6 @@ const BOTTOM = -9999;
 function sendPOSTRequest(url, body = null) {
     const options = {
         method: "POST",
-        headers: {
-            "X-Csrf-Token": document.body.dataset.csrfToken || ""
-        }
     };
 
     if (body !== null) {

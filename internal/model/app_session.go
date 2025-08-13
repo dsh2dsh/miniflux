@@ -36,7 +36,6 @@ func (self *Session) IP() string        { return self.Data.IP }
 
 // SessionData represents the data attached to the session.
 type SessionData struct {
-	CSRF                string          `json:"csrf,omitempty"`
 	OAuth2State         string          `json:"oauth2_state,omitempty"`
 	OAuth2CodeVerifier  string          `json:"oauth2_code_verifier,omitempty"`
 	FlashMessage        string          `json:"flash_message,omitempty"`
@@ -50,8 +49,7 @@ type SessionData struct {
 }
 
 func (self *SessionData) String() string {
-	return fmt.Sprintf(`CSRF=%q, OAuth2State=%q, OAuth2CodeVerifier=%q, FlashMsg=%q, FlashErrMsg=%q, Lang=%q, Theme=%q, LastForceRefresh=%v, WebAuthnSession=%q`,
-		self.CSRF,
+	return fmt.Sprintf(`OAuth2State=%q, OAuth2CodeVerifier=%q, FlashMsg=%q, FlashErrMsg=%q, Lang=%q, Theme=%q, LastForceRefresh=%v, WebAuthnSession=%q`,
 		self.OAuth2State,
 		self.OAuth2CodeVerifier,
 		self.FlashMessage,

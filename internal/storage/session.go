@@ -24,7 +24,6 @@ func (s *Storage) CreateAppSessionForUser(ctx context.Context, user *model.User,
 		ID:     rand.Text(),
 		UserID: user.ID,
 		Data: &model.SessionData{
-			CSRF:      rand.Text(),
 			Theme:     user.Theme,
 			Language:  user.Language,
 			UserAgent: userAgent,
@@ -40,7 +39,6 @@ func (s *Storage) CreateAppSession(ctx context.Context, userAgent, ip string,
 	session := &model.Session{
 		ID: rand.Text(),
 		Data: &model.SessionData{
-			CSRF:      rand.Text(),
 			UserAgent: userAgent,
 			IP:        ip,
 		},
