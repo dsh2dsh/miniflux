@@ -78,10 +78,12 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 	m = m.Group().Use(hmw.WithUserSession(store))
 
 	// OAuth2 flow.
-	m.NameHandleFunc("/oauth2/callback/{provider}", h.oauth2Callback,
-		"oauth2Callback")
-	m.NameHandleFunc("/oauth2/redirect/{provider}", h.oauth2Redirect,
-		"oauth2Redirect")
+	if config.Opts.OAuth2Provider() != "" {
+		m.NameHandleFunc("/oauth2/callback/{provider}", h.oauth2Callback,
+			"oauth2Callback")
+		m.NameHandleFunc("/oauth2/redirect/{provider}", h.oauth2Redirect,
+			"oauth2Redirect")
+	}
 
 	// Authentication pages.
 	m.Group(func(m *mux.ServeMux) {
@@ -245,7 +247,9 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 	m.NameHandleFunc("/fetch", h.fetchOPML, "fetchOPML")
 
 	// OAuth2 flow.
-	m.NameHandleFunc("/oauth2/unlink/{provider}", h.oauth2Unlink, "oauth2Unlink")
+	if config.Opts.OAuth2Provider() != "" {
+		m.NameHandleFunc("/oauth2/unlink/{provider}", h.oauth2Unlink, "oauth2Unlink")
+	}
 
 	if config.Opts.WebAuthn() {
 		// WebAuthn flow
