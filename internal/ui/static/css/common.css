@@ -857,10 +857,6 @@ template {
     color: var(--item-meta-li-color);
 }
 
-.item-meta-info-title img {
-    vertical-align: top;
-}
-
 .item-meta-icons {
     margin-top: 5px;
 }
@@ -960,13 +956,15 @@ article.category-has-unread {
 }
 
 .icon {
-    width: 16px;
-    height: 16px;
+    width: 1rem;
+    height: 1rem;
+    vertical-align: top;
 }
 
 .feed-icon {
     width: 1rem;
     height: 1rem;
+    vertical-align: top;
 }
 
 /* Entry view */
