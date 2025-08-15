@@ -31,7 +31,7 @@
             <strong>{{t "page.about.go_version" }}</strong> {{ .go_version }}
         </li>
 
-        {{ if .user.IsAdmin }}
+        {{ if .user.Operator }}
         <li>
             <strong>{{ t "page.about.postgres_version" }}</strong>
             {{ .postgres_version }}

@@ -13,7 +13,7 @@
         <li>
             <a href="{{ route "sessions" }}">{{ icon "sessions" }}{{ t "menu.sessions" }}</a>
         </li>
-        {{ if .user.IsAdmin }}
+        {{ if .user.Operator }}
             <li>
                 <a href="{{ route "users" }}">{{ icon "users" }}{{ t "menu.users" }}</a>
             </li>

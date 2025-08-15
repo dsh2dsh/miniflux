@@ -23,7 +23,7 @@ func (h *handler) showUsersPage(w http.ResponseWriter, r *http.Request) {
 	if err := v.Wait(); err != nil {
 		html.ServerError(w, r, err)
 		return
-	} else if !v.User().IsAdmin {
+	} else if !v.User().Operator() {
 		html.Forbidden(w, r)
 		return
 	}

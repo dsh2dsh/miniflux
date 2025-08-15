@@ -152,6 +152,7 @@ type EnvOptions struct {
 	RateLimitPerServer             float64  `env:"RATE_LIMIT_PER_SERVER" validate:"min=0"`
 	TrustedProxies                 []string `env:"TRUSTED_PROXIES" validate:"dive,required,ip"`
 	Testing                        bool     `env:"TESTING"`
+	Operators                      []string `env:"OPERATORS"`
 }
 
 type Log struct {
@@ -700,6 +701,13 @@ func (o *Options) RateLimitPerServer() float64 {
 func (o *Options) TrustedProxy(ip string) bool {
 	_, ok := o.trustedProxies[ip]
 	return ok
+}
+
+func (o *Options) Operator(username string) bool {
+	if len(o.env.Operators) == 0 {
+		return false
+	}
+	return slices.Contains(o.env.Operators, username)
 }
 
 func (o *Options) Logging() []Log {

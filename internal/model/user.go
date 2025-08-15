@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"time"
 
+	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/timezone"
 )
 
@@ -277,6 +278,10 @@ func (u *User) HasSaveEntry() bool {
 		i.WallabagEnabled ||
 		i.WebhookEnabled ||
 		i.PinboardEnabled
+}
+
+func (u *User) Operator() bool {
+	return u.IsAdmin || config.Opts.Operator(u.Username)
 }
 
 // Users represents a list of users.

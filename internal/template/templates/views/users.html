@@ -16,30 +16,37 @@
             <th class="column-20">{{ t "page.users.username" }}</th>
             <th>{{ t "page.users.is_admin" }}</th>
             <th>{{ t "page.users.last_login" }}</th>
+
+            {{ if $.user.IsAdmin }}
             <th>{{ t "page.users.actions" }}</th>
+            {{ end }}
         </tr>
         {{ range .users }}
             {{ if ne .ID $.user.ID }}
             <tr>
                 <td>{{ .Username }}</td>
                 <td>{{ if eq .IsAdmin true }}{{ t "page.users.admin.yes" }}{{ else }}{{ t "page.users.admin.no" }}{{ end }}</td>
+
                 <td>
                     {{ if .LastLoginAt }}
-                        <time datetime="{{ isodate .LastLoginAt }}" title="{{ isodate .LastLoginAt }}">{{ elapsed $.user.Timezone .LastLoginAt }}</time>
+                    <time datetime="{{ isodate .LastLoginAt }}" title="{{ isodate .LastLoginAt }}">{{ elapsed $.user.Timezone .LastLoginAt }}</time>
                     {{ else }}
-                        {{ t "page.users.never_logged" }}
+                    {{ t "page.users.never_logged" }}
                     {{ end }}
                 </td>
+
+                {{ if $.user.IsAdmin }}
                 <td>
                     <a href="{{ route "editUser" "userID" .ID }}">{{ t "action.edit" }}</a>,
                     <a href="#"
-                        data-confirm="true"
-                        data-label-question="{{ t "confirm.question" }}"
-                        data-label-yes="{{ t "confirm.yes" }}"
-                        data-label-no="{{ t "confirm.no" }}"
-                        data-label-loading="{{ t "confirm.loading" }}"
-                        data-url="{{ route "removeUser" "userID" .ID }}">{{ t "action.remove" }}</a>
+                       data-confirm="true"
+                       data-label-question="{{ t "confirm.question" }}"
+                       data-label-yes="{{ t "confirm.yes" }}"
+                       data-label-no="{{ t "confirm.no" }}"
+                       data-label-loading="{{ t "confirm.loading" }}"
+                       data-url="{{ route "removeUser" "userID" .ID }}">{{ t "action.remove" }}</a>
                 </td>
+                {{ end }}
             </tr>
             {{ end }}
         {{ end }}
@@ -47,8 +54,9 @@
     <br>
 {{ end }}
 
+{{ if $.user.IsAdmin }}
 <p>
     <a href="{{ route "createUser" }}" class="button button-primary">{{ t "menu.add_user" }}</a>
 </p>
-
+{{ end }}
 {{ end }}

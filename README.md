@@ -241,6 +241,17 @@ This project is an opinionated fork of Miniflux.
 
 * Naive deduplication of feed entries.
 
+* Add operator permission: users who can see admin info.
+
+  By default only admin users can see some information. With configuration like
+
+  ```
+  OPERATORS=username1,username2,username3
+  ```
+
+  Users `username1`, `username2` and `username3` can see list of users and
+  system information like `Postgres version` and `Database size`.
+
 Features
 --------
 
