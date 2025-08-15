@@ -211,7 +211,7 @@ func (f *IconFinder) DownloadIcon(iconURL string) (*model.Icon, error) {
 		Content:  responseBody,
 	}
 
-	const tooBig = 64 << 10
+	const tooBig = 64 << 10 // 64k
 	if len(icon.Content) < tooBig {
 		slog.Debug("icon don't need to be rescaled",
 			slog.Int("size", len(icon.Content)), slog.Int("limit", tooBig))
@@ -285,7 +285,6 @@ func findIconURLsFromHTMLDocument(body io.Reader, contentType string,
 	queries := [...]string{
 		"link[rel~='icon' i][href]",
 		"link[rel='apple-touch-icon' i][href]",
-		"link[rel='apple-touch-icon-precomposed.png'][href]",
 	}
 
 	iconURLs := []string{}
