@@ -6,7 +6,7 @@
         <li class="item-meta-info-title">
             {{ if ne .entry.Feed.Icon.IconID 0 }}
             {{   $iconSrc := route "feedIcon" "externalIconID" .entry.Feed.Icon.ExternalIconID }}
-            <img src="{{ $iconSrc }}" width="16" height="16" loading="lazy" alt="">
+            <img class="feed-icon" src="{{ $iconSrc }}" loading="lazy" alt="">
             {{ end }}
 
             <a

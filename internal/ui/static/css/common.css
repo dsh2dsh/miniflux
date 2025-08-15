@@ -964,6 +964,11 @@ article.category-has-unread {
     height: 16px;
 }
 
+.feed-icon {
+    width: 1rem;
+    height: 1rem;
+}
+
 /* Entry view */
 .entry header {
     padding-bottom: 5px;
