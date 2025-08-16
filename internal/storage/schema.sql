@@ -3,7 +3,7 @@
 CREATE TABLE schema_version (
     version text NOT NULL
 );
-INSERT INTO schema_version (version) VALUES('121');
+INSERT INTO schema_version (version) VALUES('122');
 
 CREATE TABLE acme_cache (
     key character varying(400) NOT NULL PRIMARY KEY,
@@ -135,17 +135,15 @@ CREATE TABLE icons (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     hash text NOT NULL UNIQUE,
     mime_type text NOT NULL,
-    content bytea NOT NULL,
-    external_id text DEFAULT ''
+    content bytea NOT NULL
 );
-
-CREATE UNIQUE INDEX ON icons (external_id) WHERE (external_id <> '');
 
 CREATE TABLE feed_icons (
-    feed_id bigint NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
-    icon_id bigint NOT NULL REFERENCES icons(id) ON DELETE CASCADE,
-    PRIMARY KEY (feed_id, icon_id)
+    feed_id bigint NOT NULL PRIMARY KEY REFERENCES feeds(id) ON DELETE CASCADE,
+    icon_id bigint NOT NULL REFERENCES icons(id) ON DELETE CASCADE
 );
+
+CREATE INDEX ON feed_icons (icon_id);
 
 CREATE TYPE entry_status AS ENUM (
     'unread',

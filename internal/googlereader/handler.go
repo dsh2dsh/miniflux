@@ -577,11 +577,11 @@ func move(ctx context.Context, feedStream Stream, labelStream Stream,
 }
 
 func (h *handler) feedIconURL(f *model.Feed) string {
-	if f.Icon == nil || f.Icon.ExternalIconID == "" {
+	if f.Icon == nil || f.Icon.ExternalId() == "" {
 		return ""
 	}
 	return config.Opts.RootURL() + route.Path(
-		h.router, "feedIcon", "externalIconID", f.Icon.ExternalIconID)
+		h.router, "feedIcon", "externalIconID", f.Icon.ExternalId())
 }
 
 func (h *handler) editSubscriptionHandler(w http.ResponseWriter,

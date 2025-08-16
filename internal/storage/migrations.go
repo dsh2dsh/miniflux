@@ -726,4 +726,12 @@ DROP TABLE enclosures;`),
 
 	// 121
 	sqlMigration(`CREATE INDEX ON entries (user_id, hash)`),
+
+	// 122
+	sqlMigration(`
+ALTER TABLE icons DROP COLUMN external_id;
+ALTER TABLE feed_icons
+  DROP CONSTRAINT feed_icons_pkey,
+  ADD PRIMARY KEY (feed_id);
+CREATE INDEX ON feed_icons (icon_id);`),
 }

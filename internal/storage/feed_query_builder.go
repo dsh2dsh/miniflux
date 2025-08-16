@@ -156,8 +156,7 @@ SELECT
   f.category_id,
   c.title as category_title,
   c.hide_globally as category_hidden,
-  fi.icon_id,
-  i.external_id,
+  fi.icon_id, i.hash,
   u.timezone,
   f.apprise_service_urls,
   f.webhook_url,
@@ -184,7 +183,7 @@ WHERE `+f.buildCondition()+" "+f.buildSorting(), f.args...)
 	feeds := make(model.Feeds, 0)
 	for rows.Next() {
 		var iconID pgtype.Int8
-		var externalIconID pgtype.Text
+		var iconHash pgtype.Text
 		var tz string
 
 		feed := model.NewFeed()
@@ -218,8 +217,7 @@ WHERE `+f.buildCondition()+" "+f.buildSorting(), f.args...)
 			&feed.Category.ID,
 			&feed.Category.Title,
 			&feed.Category.HideGlobally,
-			&iconID,
-			&externalIconID,
+			&iconID, &iconHash,
 			&tz,
 			&feed.AppriseServiceURLs,
 			&feed.WebhookURL,
@@ -237,11 +235,11 @@ WHERE `+f.buildCondition()+" "+f.buildSorting(), f.args...)
 			return nil, fmt.Errorf("storage: fetch feeds row: %w", err)
 		}
 
-		if iconID.Valid && externalIconID.Valid {
+		if iconID.Valid && iconHash.Valid && iconHash.String != "" {
 			*feed.Icon = model.FeedIcon{
-				FeedID:         feed.ID,
-				IconID:         iconID.Int64,
-				ExternalIconID: externalIconID.String,
+				FeedID: feed.ID,
+				IconID: iconID.Int64,
+				Hash:   iconHash.String,
 			}
 		} else {
 			feed.Icon.FeedID = feed.ID

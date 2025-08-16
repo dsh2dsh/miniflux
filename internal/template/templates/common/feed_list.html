@@ -10,7 +10,7 @@
                 <h2 id="feed-title-{{ .ID }}" class="item-title">
                     <a href="{{ route "feedEntries" "feedID" .ID }}">
                         {{ if and (.Icon) (gt .Icon.IconID 0) }}
-                        <img class="feed-icon" src="{{ route "feedIcon" "externalIconID" .Icon.ExternalIconID }}" loading="lazy" alt="">
+                        <img class="feed-icon" src="{{ route "feedIcon" "externalIconID" .Icon.ExternalId }}" loading="lazy" alt="">
                         {{ end }}
                         {{ if .Disabled }} 🚫 {{ end }}
                         {{ .Title }}

@@ -334,8 +334,7 @@ SELECT
   f.no_media_player,
   f.webhook_url,
   COALESCE(f.extra ->> 'comments_url_template', ''),
-  fi.icon_id,
-  i.external_id AS icon_external_id,
+  fi.icon_id, i.hash AS icon_hash,
   u.timezone` + withContent() + `
 FROM entries e
      LEFT JOIN feeds f ON f.id=e.feed_id
@@ -358,7 +357,7 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 
 	for rows.Next() {
 		var iconID pgtype.Int8
-		var externalIconID pgtype.Text
+		var iconHash pgtype.Text
 		var tz string
 
 		entry := model.NewEntry()
@@ -397,8 +396,7 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 			&entry.Feed.NoMediaPlayer,
 			&entry.Feed.WebhookURL,
 			&entry.Feed.Extra.CommentsURLTemplate,
-			&iconID,
-			&externalIconID,
+			&iconID, &iconHash,
 			&tz)
 
 		if e.fetchContent {
@@ -414,10 +412,12 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 		hasCommentsURLTemplate = hasCommentsURLTemplate ||
 			entry.Feed.Extra.CommentsURLTemplate != ""
 
-		if iconID.Valid && externalIconID.Valid && externalIconID.String != "" {
-			entry.Feed.Icon.FeedID = entry.FeedID
-			entry.Feed.Icon.IconID = iconID.Int64
-			entry.Feed.Icon.ExternalIconID = externalIconID.String
+		if iconID.Valid && iconHash.Valid && iconHash.String != "" {
+			*entry.Feed.Icon = model.FeedIcon{
+				FeedID: entry.FeedID,
+				IconID: iconID.Int64,
+				Hash:   iconHash.String,
+			}
 		} else {
 			entry.Feed.Icon.IconID = 0
 		}

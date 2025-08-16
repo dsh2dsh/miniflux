@@ -48,7 +48,7 @@
                 <h2 id="entry-title-{{ .ID }}" class="item-title">
                     <a href="{{ route "readEntry" "entryID" .ID }}">
                         {{ if ne .Feed.Icon.IconID 0 }}
-                        <img class="feed-icon" src="{{ route "feedIcon" "externalIconID" .Feed.Icon.ExternalIconID }}" loading="lazy" alt="">
+                        <img class="feed-icon" src="{{ route "feedIcon" "externalIconID" .Feed.Icon.ExternalId }}" loading="lazy" alt="">
                         {{ end }}
                         {{ .Title }}
                     </a>

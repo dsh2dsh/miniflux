@@ -8,6 +8,7 @@ import (
 	"log/slog"
 
 	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/storage"
@@ -27,40 +28,31 @@ func NewIconChecker(store *storage.Storage, feed *model.Feed) *IconChecker {
 
 func (c *IconChecker) fetchAndStoreIcon(ctx context.Context) {
 	requestBuilder := fetcher.NewRequestFeed(c.feed)
-
 	iconFinder := NewIconFinder(requestBuilder, c.feed.SiteURL, c.feed.IconURL,
 		config.Opts.PreferSiteIcon())
-	if icon, err := iconFinder.FindIcon(); err != nil {
-		slog.Debug("Unable to find feed icon",
-			slog.Int64("feed_id", c.feed.ID),
-			slog.String("website_url", c.feed.SiteURL),
-			slog.String("feed_icon_url", c.feed.IconURL),
-			slog.Any("error", err),
-		)
+
+	log := logging.FromContext(ctx).With(
+		slog.Int64("feed_id", c.feed.ID),
+		slog.String("website_url", c.feed.SiteURL),
+		slog.String("feed_icon_url", c.feed.IconURL))
+
+	icon, err := iconFinder.FindIcon()
+	if err != nil {
+		log.Debug("Unable to find feed icon", slog.Any("error", err))
+		return
 	} else if icon == nil {
-		slog.Debug("No icon found",
-			slog.Int64("feed_id", c.feed.ID),
-			slog.String("website_url", c.feed.SiteURL),
-			slog.String("feed_icon_url", c.feed.IconURL),
-		)
-	} else {
-		if err := c.store.StoreFeedIcon(ctx, c.feed.ID, icon); err != nil {
-			slog.Error("Unable to store feed icon",
-				slog.Int64("feed_id", c.feed.ID),
-				slog.String("website_url", c.feed.SiteURL),
-				slog.String("feed_icon_url", c.feed.IconURL),
-				slog.Any("error", err),
-			)
-		} else {
-			slog.Debug("Feed icon stored",
-				slog.Int64("feed_id", c.feed.ID),
-				slog.String("website_url", c.feed.SiteURL),
-				slog.String("feed_icon_url", c.feed.IconURL),
-				slog.Int64("icon_id", icon.ID),
-				slog.String("icon_hash", icon.Hash),
-			)
-		}
+		log.Debug("No icon found")
+		return
 	}
+
+	if err := c.store.StoreFeedIcon(ctx, c.feed.ID, icon); err != nil {
+		log.Error("Unable to store feed icon", slog.Any("error", err))
+		return
+	}
+
+	log.Debug("Feed icon stored", slog.GroupAttrs("icon",
+		slog.Int64("id", icon.ID),
+		slog.String("hash", icon.Hash)))
 }
 
 func (c *IconChecker) CreateFeedIconIfMissing(ctx context.Context) {
