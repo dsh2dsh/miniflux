@@ -3,7 +3,7 @@ async function messageConfirmed(url, redirectURL) {
     const resp = await fetch(url, {
       method: "POST",
       headers: {
-        "X-Requested-With": "messageConfirmed",
+        "Accept": "application/json",
       },
       redirect: "error",
     });

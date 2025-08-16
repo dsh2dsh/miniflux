@@ -287,8 +287,8 @@ func robotsTxt(w http.ResponseWriter, r *http.Request) {
 func (h *handler) redirect(w http.ResponseWriter, r *http.Request,
 	name string, args ...any,
 ) {
-	requestedWith := r.Header.Get("X-Requested-With")
-	if requestedWith != "messageConfirmed" {
+	acceptHeader := r.Header.Get("Accept")
+	if acceptHeader != "application/json" {
 		html.Redirect(w, r, route.Path(h.router, name, args))
 		return
 	}
