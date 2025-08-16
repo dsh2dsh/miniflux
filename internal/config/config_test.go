@@ -324,7 +324,7 @@ func TestWorkerPoolSize(t *testing.T) {
 	assert.Equal(t, 42, opts.WorkerPoolSize())
 }
 
-func TestDefautPollingFrequencyValue(t *testing.T) {
+func TestDefaultPollingFrequencyValue(t *testing.T) {
 	os.Clearenv()
 	opts := parseEnvironmentVariables(t)
 	assert.Equal(t, NewOptions().PollingFrequency(), opts.PollingFrequency())
@@ -337,7 +337,7 @@ func TestPollingFrequency(t *testing.T) {
 	assert.Equal(t, 42, opts.PollingFrequency())
 }
 
-func TestDefautForceRefreshInterval(t *testing.T) {
+func TestDefaultForceRefreshInterval(t *testing.T) {
 	os.Clearenv()
 	opts := parseEnvironmentVariables(t)
 	assert.Equal(t, NewOptions().ForceRefreshInterval(),
@@ -601,7 +601,8 @@ func TestMediaProxyCustomURL(t *testing.T) {
 	const expected = "http://example.org/proxy"
 	t.Setenv("MEDIA_PROXY_CUSTOM_URL", expected)
 	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, expected, opts.MediaCustomProxyURL())
+	require.NotNil(t, opts.MediaCustomProxyURL())
+	assert.Equal(t, expected, opts.MediaCustomProxyURL().String())
 }
 
 func TestMediaProxyPrivateKey(t *testing.T) {

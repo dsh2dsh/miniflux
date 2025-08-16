@@ -477,7 +477,7 @@ SELECT count(*)
 	return visible, nil
 }
 
-// SetEntriesBookmarked update the bookmarked state for the given list of
+// SetEntriesBookmarkedState updates the bookmarked state for the given list of
 // entries.
 func (s *Storage) SetEntriesBookmarkedState(ctx context.Context, userID int64,
 	entryIDs []int64, starred bool,

@@ -35,7 +35,7 @@ const (
 	FlashErrorMessageContextKey
 	LastForceRefreshContextKey
 	ClientIPContextKey
-	GoogleReaderToken
+	GoogleReaderTokenKey
 	WebAuthnDataContextKey
 )
 
@@ -49,9 +49,9 @@ func WebAuthnSessionData(r *http.Request) *model.WebAuthnSession {
 	return getContextValue[*model.WebAuthnSession](r, WebAuthnDataContextKey)
 }
 
-// GoolgeReaderToken returns the google reader token if it exists.
-func GoolgeReaderToken(r *http.Request) string {
-	return getContextStringValue(r, GoogleReaderToken)
+// GoogleReaderToken returns the google reader token if it exists.
+func GoogleReaderToken(r *http.Request) string {
+	return getContextStringValue(r, GoogleReaderTokenKey)
 }
 
 // IsAdminUser checks if the logged user is administrator.

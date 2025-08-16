@@ -244,7 +244,7 @@ func (h *handler) tokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := request.GoolgeReaderToken(r)
+	token := request.GoogleReaderToken(r)
 	if token == "" {
 		log.Warn("[GoogleReader] User does not have token",
 			slog.Int64("user_id", request.UserID(r)))

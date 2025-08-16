@@ -108,7 +108,7 @@ type EnvOptions struct {
 	MediaProxyHTTPClientTimeout    int      `env:"MEDIA_PROXY_HTTP_CLIENT_TIMEOUT" validate:"min=0"`
 	MediaProxyMode                 string   `env:"MEDIA_PROXY_MODE" validate:"required,oneof=none http-only all"`
 	MediaProxyResourceTypes        []string `env:"MEDIA_PROXY_RESOURCE_TYPES" validate:"omitempty,required"`
-	MediaProxyCustomURL            string   `env:"MEDIA_PROXY_CUSTOM_URL" validate:"omitempty,url"`
+	MediaProxyCustomURL            *url.URL `env:"MEDIA_PROXY_CUSTOM_URL"`
 	FetchBilibiliWatchTime         bool     `env:"FETCH_BILIBILI_WATCH_TIME"`
 	FetchNebulaWatchTime           bool     `env:"FETCH_NEBULA_WATCH_TIME"`
 	FetchOdyseeWatchTime           bool     `env:"FETCH_ODYSEE_WATCH_TIME"`
@@ -584,7 +584,7 @@ func (o *Options) MediaProxyResourceTypes() []string {
 }
 
 // MediaCustomProxyURL returns the custom proxy URL for medias.
-func (o *Options) MediaCustomProxyURL() string {
+func (o *Options) MediaCustomProxyURL() *url.URL {
 	return o.env.MediaProxyCustomURL
 }
 

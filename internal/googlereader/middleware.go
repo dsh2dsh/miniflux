@@ -90,7 +90,7 @@ func contextWithSessionKeys(ctx context.Context, user *model.User,
 	ctx = context.WithValue(ctx, request.UserTimezoneContextKey, user.Timezone)
 	ctx = context.WithValue(ctx, request.IsAdminUserContextKey, user.IsAdmin)
 	ctx = context.WithValue(ctx, request.IsAuthenticatedContextKey, true)
-	ctx = context.WithValue(ctx, request.GoogleReaderToken, sess.ID)
+	ctx = context.WithValue(ctx, request.GoogleReaderTokenKey, sess.ID)
 	return ctx
 }
 

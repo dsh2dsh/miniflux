@@ -280,7 +280,7 @@ func TestProxyFilterWithHttpsAlwaysAndIncorrectCustomProxyServer(t *testing.T) {
 	var err error
 	parser := config.NewParser()
 	config.Opts, err = parser.ParseEnvironmentVariables()
-	require.ErrorContains(t, err, "MEDIA_PROXY_CUSTOM_URL")
+	require.ErrorContains(t, err, "env: parse error on field")
 }
 
 func TestAbsoluteProxyFilterWithHttpsAlwaysAndCustomProxyServer(t *testing.T) {

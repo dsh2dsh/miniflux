@@ -232,8 +232,8 @@ func (s *Storage) RemoveCategory(ctx context.Context, userID, categoryID int64,
 	return result.RowsAffected() != 0, nil
 }
 
-// delete the given categories, replacing those categories with the user's first
-// category on affected feeds
+// RemoveAndReplaceCategoriesByName deletes the given categories, replacing
+// those categories with the user's first category on affected feeds.
 func (s *Storage) RemoveAndReplaceCategoriesByName(ctx context.Context,
 	userid int64, titles []string,
 ) error {
