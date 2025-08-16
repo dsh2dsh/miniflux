@@ -5,12 +5,22 @@ package version // import "miniflux.app/v2/internal/version"
 
 import "runtime/debug"
 
-// Variables populated at build time.
-var (
-	Version   = "Development Version"
-	Commit    = getCommit()
-	BuildDate = getBuildDate()
-)
+// Variables populated at build time when using LD_FLAGS.
+var Version, Commit, BuildDate string
+
+// Populate build information from VCS metadata if LDFLAGS are not set.
+// Falls back to values from the Go module's build info when available.
+func init() {
+	if Version == "" {
+		Version = "Development Version"
+	}
+	if Commit == "" {
+		Commit = getCommit()
+	}
+	if BuildDate == "" {
+		BuildDate = getBuildDate()
+	}
+}
 
 func getCommit() string {
 	if info, ok := debug.ReadBuildInfo(); ok {

@@ -47,6 +47,7 @@ func (self *funcMap) Map() template.FuncMap {
 		"oidcProviderName":   config.Opts.OIDCProviderName,
 		"routeBinaryFile":    self.routeBinaryFile,
 		"rootURL":            config.Opts.RootURL,
+		"startsWith":         strings.HasPrefix,
 		"stylesheet":         self.stylesheet,
 		"theme_color":        model.ThemeColor,
 		"truncate":           truncate,

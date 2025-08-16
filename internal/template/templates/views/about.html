@@ -13,13 +13,21 @@
     <ul>
         <li>
             <strong>{{ t "page.about.version" }}</strong>
+            {{ if startsWith .version "2." }}
             <a href="https://github.com/dsh2dsh/miniflux/releases/tag/{{ .version }}">{{ .version }}</a>
+            {{ else }}
+            {{ .version }}
+            {{ end }}
         </li>
 
         {{ if .commit }}
         <li>
             <strong>{{ t "page.about.git_commit" }}</strong>
+            {{ if startsWith .commit "Unknown" }}
+            {{ .commit }}
+            {{ else }}
             <a href="https://github.com/dsh2dsh/miniflux/commit/{{ .commit }}">{{ .commit }}</a>
+            {{ end }}
         </li>
         {{ end }}
 
