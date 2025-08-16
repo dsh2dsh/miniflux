@@ -422,8 +422,7 @@ func (h *handler) saveCredential(w http.ResponseWriter, r *http.Request) {
 		html.ServerError(w, r, err)
 		return
 	}
-
-	html.Redirect(w, r, route.Path(h.router, "settings"))
+	h.redirect(w, r, "settings")
 }
 
 func (h *handler) deleteCredential(w http.ResponseWriter, r *http.Request) {

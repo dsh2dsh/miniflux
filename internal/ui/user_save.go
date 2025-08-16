@@ -8,7 +8,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
@@ -64,7 +63,7 @@ func (h *handler) saveUser(w http.ResponseWriter, r *http.Request) {
 		html.ServerError(w, r, err)
 		return
 	}
-	html.Redirect(w, r, route.Path(h.router, "users"))
+	h.redirect(w, r, "users")
 }
 
 func (h *handler) showSaveUserError(w http.ResponseWriter, r *http.Request,

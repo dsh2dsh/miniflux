@@ -9,7 +9,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 )
 
 func (h *handler) markFeedAsRead(w http.ResponseWriter, r *http.Request) {
@@ -21,5 +20,5 @@ func (h *handler) markFeedAsRead(w http.ResponseWriter, r *http.Request) {
 		html.ServerError(w, r, err)
 		return
 	}
-	html.Redirect(w, r, route.Path(h.router, "feeds"))
+	h.redirect(w, r, "feeds")
 }

@@ -11,7 +11,6 @@ import (
 	"miniflux.app/v2/internal/http/cookie"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/ui/form"
@@ -79,5 +78,5 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, cookie.NewSession(sess.ID))
-	html.Redirect(w, r, route.Path(h.router, user.DefaultHomePage))
+	h.redirect(w, r, user.DefaultHomePage)
 }

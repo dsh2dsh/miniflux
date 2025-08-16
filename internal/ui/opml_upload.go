@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/reader/opml"
@@ -27,7 +26,7 @@ func (h *handler) uploadOPML(w http.ResponseWriter, r *http.Request) {
 		slog.Error("OPML file upload error",
 			slog.Int64("user_id", v.UserID()),
 			slog.Any("error", err))
-		html.Redirect(w, r, route.Path(h.router, "import"))
+		h.redirect(w, r, "import")
 		return
 	}
 	defer file.Close()
@@ -51,7 +50,7 @@ func (h *handler) uploadOPML(w http.ResponseWriter, r *http.Request) {
 		html.OK(w, r, v.Render("import"))
 		return
 	}
-	html.Redirect(w, r, route.Path(h.router, "feeds"))
+	h.redirect(w, r, "feeds")
 }
 
 func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +62,7 @@ func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
 
 	opmlURL := strings.TrimSpace(r.FormValue("url"))
 	if opmlURL == "" {
-		html.Redirect(w, r, route.Path(h.router, "import"))
+		h.redirect(w, r, "import")
 		return
 	}
 
@@ -96,5 +95,5 @@ func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
 		html.OK(w, r, v.Render("import"))
 		return
 	}
-	html.Redirect(w, r, route.Path(h.router, "feeds"))
+	h.redirect(w, r, "feeds")
 }

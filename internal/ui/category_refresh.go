@@ -11,7 +11,6 @@ import (
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/ui/session"
 )
@@ -20,14 +19,14 @@ func (h *handler) refreshCategoryEntriesPage(w http.ResponseWriter,
 	r *http.Request,
 ) {
 	id := h.refreshCategory(w, r)
-	html.Redirect(w, r, route.Path(h.router, "categoryEntries", "categoryID", id))
+	h.redirect(w, r, "categoryEntries", "categoryID", id)
 }
 
 func (h *handler) refreshCategoryFeedsPage(w http.ResponseWriter,
 	r *http.Request,
 ) {
 	id := h.refreshCategory(w, r)
-	html.Redirect(w, r, route.Path(h.router, "categoryFeeds", "categoryID", id))
+	h.redirect(w, r, "categoryFeeds", "categoryID", id)
 }
 
 func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request,

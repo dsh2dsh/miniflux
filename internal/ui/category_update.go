@@ -9,7 +9,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
 	"miniflux.app/v2/internal/validator"
@@ -53,7 +52,7 @@ func (h *handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 		html.NotFound(w, r)
 		return
 	}
-	html.Redirect(w, r, route.Path(h.router, "categoryFeeds", "categoryID", id))
+	h.redirect(w, r, "categoryFeeds", "categoryID", id)
 }
 
 func (h *handler) showUpdateCategoryError(w http.ResponseWriter,

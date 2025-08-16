@@ -8,14 +8,13 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/ui/view"
 )
 
 func (h *handler) showLoginPage(w http.ResponseWriter, r *http.Request) {
 	user := request.User(r)
 	if user != nil {
-		html.Redirect(w, r, route.Path(h.router, user.DefaultHomePage))
+		h.redirect(w, r, user.DefaultHomePage)
 		return
 	}
 

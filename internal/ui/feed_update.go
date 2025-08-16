@@ -10,7 +10,6 @@ import (
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
 	"miniflux.app/v2/internal/validator"
@@ -57,7 +56,7 @@ func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
 		html.ServerError(w, r, err)
 		return
 	}
-	html.Redirect(w, r, route.Path(h.router, "feedEntries", "feedID", feedID))
+	h.redirect(w, r, "feedEntries", "feedID", feedID)
 }
 
 func (h *handler) showUpdateFeedError(w http.ResponseWriter, r *http.Request,

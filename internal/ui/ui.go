@@ -11,6 +11,9 @@ import (
 	hmw "miniflux.app/v2/internal/http/middleware"
 	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/http/response/json"
+	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/http/securecookie"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/storage"
@@ -279,4 +282,21 @@ func robotsTxt(w http.ResponseWriter, r *http.Request) {
 				slog.GroupAttrs("response",
 					slog.Int("status_code", http.StatusInternalServerError)))
 	}
+}
+
+func (h *handler) redirect(w http.ResponseWriter, r *http.Request,
+	name string, args ...any,
+) {
+	requestedWith := r.Header.Get("X-Requested-With")
+	if requestedWith != "messageConfirmed" {
+		html.Redirect(w, r, route.Path(h.router, name, args))
+		return
+	}
+
+	resp := struct {
+		URL string `json:"url"`
+	}{
+		URL: route.Path(h.router, name, args...),
+	}
+	json.OK(w, r, &resp)
 }

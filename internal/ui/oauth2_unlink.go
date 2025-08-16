@@ -10,7 +10,6 @@ import (
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/ui/session"
@@ -23,7 +22,7 @@ func (h *handler) oauth2Unlink(w http.ResponseWriter, r *http.Request) {
 	if config.Opts.DisableLocalAuth() {
 		log.Warn("blocking oauth2 unlink attempt, local auth is disabled",
 			slog.String("user_agent", r.UserAgent()))
-		html.Redirect(w, r, route.Path(h.router, "login"))
+		h.redirect(w, r, "login")
 		return
 	}
 
@@ -31,7 +30,7 @@ func (h *handler) oauth2Unlink(w http.ResponseWriter, r *http.Request) {
 	provider := request.RouteStringParam(r, "provider")
 	if provider == "" {
 		log.Warn("Invalid or missing OAuth2 provider")
-		html.Redirect(w, r, route.Path(h.router, "login"))
+		h.redirect(w, r, "login")
 		return
 	}
 
@@ -40,7 +39,7 @@ func (h *handler) oauth2Unlink(w http.ResponseWriter, r *http.Request) {
 		log.Error("Unable to initialize OAuth2 provider",
 			slog.String("provider", provider),
 			slog.Any("error", err))
-		html.Redirect(w, r, route.Path(h.router, "settings"))
+		h.redirect(w, r, "settings")
 		return
 	}
 
@@ -57,7 +56,7 @@ func (h *handler) oauth2Unlink(w http.ResponseWriter, r *http.Request) {
 	if !hasPassword {
 		sess.NewFlashErrorMessage(printer.Print(
 			"error.unlink_account_without_password"))
-		html.Redirect(w, r, route.Path(h.router, "settings"))
+		h.redirect(w, r, "settings")
 		return
 	}
 
@@ -68,5 +67,5 @@ func (h *handler) oauth2Unlink(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sess.NewFlashMessage(printer.Print("alert.account_unlinked"))
-	html.Redirect(w, r, route.Path(h.router, "settings"))
+	h.redirect(w, r, "settings")
 }

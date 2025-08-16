@@ -12,7 +12,6 @@ import (
 	"miniflux.app/v2/internal/http/cookie"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/oauth2"
@@ -26,7 +25,7 @@ func (h *handler) oauth2Redirect(w http.ResponseWriter, r *http.Request) {
 	provider := request.RouteStringParam(r, "provider")
 	if provider == "" {
 		log.Warn("Invalid or missing OAuth2 provider")
-		html.Redirect(w, r, route.Path(h.router, "login"))
+		h.redirect(w, r, "login")
 		return
 	}
 
@@ -35,7 +34,7 @@ func (h *handler) oauth2Redirect(w http.ResponseWriter, r *http.Request) {
 		log.Error("Unable to initialize OAuth2 provider",
 			slog.String("provider", provider),
 			slog.Any("error", err))
-		html.Redirect(w, r, route.Path(h.router, "login"))
+		h.redirect(w, r, "login")
 		return
 	}
 
@@ -56,7 +55,7 @@ func (h *handler) oauth2Redirect(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.setSessionDataCookie(w, &sessionData); err != nil {
 		log.Error("Unable to set OAuth2 session cookie", slog.Any("error", err))
-		html.Redirect(w, r, route.Path(h.router, "login"))
+		h.redirect(w, r, "login")
 		return
 	}
 	html.Redirect(w, r, auth.RedirectURL())

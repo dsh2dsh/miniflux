@@ -8,7 +8,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
 	"miniflux.app/v2/internal/validator"
@@ -28,7 +27,7 @@ func (h *handler) saveAPIKey(w http.ResponseWriter, r *http.Request) {
 			html.ServerError(w, r, err)
 			return
 		}
-		html.Redirect(w, r, route.Path(h.router, "apiKeys"))
+		h.redirect(w, r, "apiKeys")
 		return
 	}
 

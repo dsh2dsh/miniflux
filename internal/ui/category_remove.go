@@ -8,7 +8,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 )
 
 func (h *handler) removeCategory(w http.ResponseWriter, r *http.Request) {
@@ -23,5 +22,5 @@ func (h *handler) removeCategory(w http.ResponseWriter, r *http.Request) {
 		html.NotFound(w, r)
 		return
 	}
-	html.Redirect(w, r, route.Path(h.router, "categories"))
+	h.redirect(w, r, "categories")
 }

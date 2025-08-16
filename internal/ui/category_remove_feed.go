@@ -9,7 +9,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/logging"
 )
 
@@ -42,6 +41,5 @@ func (h *handler) removeCategoryFeed(w http.ResponseWriter, r *http.Request) {
 		html.NotFound(w, r)
 		return
 	}
-	html.Redirect(w, r, route.Path(h.router, "categoryFeeds", "categoryID",
-		categoryID))
+	h.redirect(w, r, "categoryFeeds", "categoryID", categoryID)
 }

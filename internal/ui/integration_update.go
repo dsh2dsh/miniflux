@@ -11,7 +11,6 @@ import (
 	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/ui/form"
 	"miniflux.app/v2/internal/ui/session"
@@ -68,5 +67,5 @@ func (h *handler) updateIntegration(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sess.NewFlashMessage(printer.Print("alert.prefs_saved"))
-	html.Redirect(w, r, route.Path(h.router, "integrations"))
+	h.redirect(w, r, "integrations")
 }

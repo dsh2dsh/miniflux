@@ -8,7 +8,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 )
 
 func (h *handler) removeSession(w http.ResponseWriter, r *http.Request) {
@@ -18,5 +17,5 @@ func (h *handler) removeSession(w http.ResponseWriter, r *http.Request) {
 		html.ServerError(w, r, err)
 		return
 	}
-	html.Redirect(w, r, route.Path(h.router, "sessions"))
+	h.redirect(w, r, "sessions")
 }

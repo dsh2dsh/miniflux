@@ -10,7 +10,6 @@ import (
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/ui/view"
 )
 
@@ -21,8 +20,7 @@ func (h *handler) createSharedEntry(w http.ResponseWriter, r *http.Request) {
 		html.ServerError(w, r, err)
 		return
 	}
-	html.Redirect(w, r,
-		route.Path(h.router, "sharedEntry", "shareCode", shareCode))
+	h.redirect(w, r, "sharedEntry", "shareCode", shareCode)
 }
 
 func (h *handler) unshareEntry(w http.ResponseWriter, r *http.Request) {
@@ -32,7 +30,7 @@ func (h *handler) unshareEntry(w http.ResponseWriter, r *http.Request) {
 		html.ServerError(w, r, err)
 		return
 	}
-	html.Redirect(w, r, route.Path(h.router, "sharedEntries"))
+	h.redirect(w, r, "sharedEntries")
 }
 
 func (h *handler) sharedEntry(w http.ResponseWriter, r *http.Request) {

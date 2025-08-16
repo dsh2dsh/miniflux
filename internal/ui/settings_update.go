@@ -9,7 +9,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
@@ -76,7 +75,7 @@ func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 			locale.NewPrinter(request.UserLanguage(r)).
 				Printf("alert.prefs_saved")).
 		Commit(r.Context())
-	html.Redirect(w, r, route.Path(h.router, "settings"))
+	h.redirect(w, r, "settings")
 }
 
 func (h *handler) showUpdateSettingsError(w http.ResponseWriter,

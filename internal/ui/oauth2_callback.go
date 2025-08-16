@@ -15,7 +15,6 @@ import (
 	"miniflux.app/v2/internal/http/cookie"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
@@ -29,21 +28,21 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 	provider := request.RouteStringParam(r, "provider")
 	if provider == "" {
 		log.Warn("Invalid or missing OAuth2 provider")
-		html.Redirect(w, r, route.Path(h.router, "login"))
+		h.redirect(w, r, "login")
 		return
 	}
 
 	code := request.QueryStringParam(r, "code", "")
 	if code == "" {
 		log.Warn("No code received on OAuth2 callback")
-		html.Redirect(w, r, route.Path(h.router, "login"))
+		h.redirect(w, r, "login")
 		return
 	}
 
 	sessionData, err := h.sessionData(r)
 	if err != nil {
 		log.Error("Unable load OAuth2 session data", slog.Any("error", err))
-		html.Redirect(w, r, route.Path(h.router, "login"))
+		h.redirect(w, r, "login")
 		return
 
 	}
@@ -56,7 +55,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 		log.Warn("Invalid OAuth2 state value received",
 			slog.String("expected", wantState),
 			slog.String("received", state))
-		html.Redirect(w, r, route.Path(h.router, "login"))
+		h.redirect(w, r, "login")
 		return
 	}
 
@@ -65,7 +64,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 		log.Error("Unable to initialize OAuth2 provider",
 			slog.String("provider", provider),
 			slog.Any("error", err))
-		html.Redirect(w, r, route.Path(h.router, "login"))
+		h.redirect(w, r, "login")
 		return
 	}
 
@@ -75,7 +74,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 		log.Warn("Unable to get OAuth2 profile from provider",
 			slog.String("provider", provider),
 			slog.Any("error", err))
-		html.Redirect(w, r, route.Path(h.router, "login"))
+		h.redirect(w, r, "login")
 		return
 	}
 
@@ -105,7 +104,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 				slog.String("oauth2_profile_id", profile.ID))
 			s.NewFlashErrorMessage(printer.Print("error.duplicate_linked_account")).
 				Commit(ctx)
-			html.Redirect(w, r, route.Path(h.router, "settings"))
+			h.redirect(w, r, "settings")
 			return
 		}
 
@@ -116,7 +115,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 		}
 
 		s.NewFlashMessage(printer.Print("alert.account_linked")).Commit(ctx)
-		html.Redirect(w, r, route.Path(h.router, "settings"))
+		h.redirect(w, r, "settings")
 		return
 	}
 
@@ -176,7 +175,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, cookie.ExpiredSessionData())
 	http.SetCookie(w, cookie.NewSession(s.ID))
-	html.Redirect(w, r, route.Path(h.router, user.DefaultHomePage))
+	h.redirect(w, r, user.DefaultHomePage)
 }
 
 func (h *handler) sessionData(r *http.Request) (*model.SessionData, error) {

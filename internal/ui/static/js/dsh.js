@@ -1,16 +1,25 @@
-function messageConfirmed(url, redirectURL) {
-  fetch(url, {
-    method: "POST",
-    redirect: "manual",
-  }).then((resp) => {
+async function messageConfirmed(url, redirectURL) {
+  try {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        "X-Requested-With": "messageConfirmed",
+      },
+      redirect: "error",
+    });
+    if (!resp.ok)
+      throw new Error(`Response status: ${resp.status}`);
+
     if (redirectURL) {
-      window.location.href = redirectURL;
-    } else if (resp.type == "opaqueredirect" && resp.url) {
-      window.location.href = resp.url;
-    } else {
-      location.replace(location.href);
+      location.replace(redirectURL);
+      return;
     }
-  });
+
+    const result = await resp.json();
+    location.replace(result.url || location.href);
+  } catch (error) {
+    console.error(error.message);
+  }
 }
 
 function initDataConfirm() {

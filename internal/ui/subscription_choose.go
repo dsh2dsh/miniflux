@@ -10,7 +10,6 @@ import (
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
 	feedHandler "miniflux.app/v2/internal/reader/handler"
 	"miniflux.app/v2/internal/ui/form"
@@ -57,7 +56,7 @@ func (h *handler) showChooseSubscriptionPage(w http.ResponseWriter,
 		})
 		return
 	}
-	html.Redirect(w, r, route.Path(h.router, "feedEntries", "feedID", feed.ID))
+	h.redirect(w, r, "feedEntries", "feedID", feed.ID)
 }
 
 func (h *handler) showCreateFeedError(w http.ResponseWriter, r *http.Request,

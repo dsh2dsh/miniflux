@@ -10,7 +10,6 @@ import (
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/fetcher"
@@ -98,7 +97,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
-		html.Redirect(w, r, route.Path(h.router, "feedEntries", "feedID", feed.ID))
+		h.redirect(w, r, "feedEntries", "feedID", feed.ID)
 
 	case n == 1 && !finder.IsFeedAlreadyDownloaded():
 		feed, lerr := feedHandler.CreateFeed(ctx, h.store, user.ID,
@@ -128,7 +127,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
-		html.Redirect(w, r, route.Path(h.router, "feedEntries", "feedID", feed.ID))
+		h.redirect(w, r, "feedEntries", "feedID", feed.ID)
 
 	case n > 1:
 		h.showSubmitSubscriptionError(w, r, func(v *View) {

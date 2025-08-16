@@ -11,7 +11,6 @@ import (
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
-	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
 	feedHandler "miniflux.app/v2/internal/reader/handler"
 	"miniflux.app/v2/internal/ui/session"
@@ -32,7 +31,7 @@ func (h *handler) refreshFeed(w http.ResponseWriter, r *http.Request) {
 			slog.Any("error", err))
 		session.New(h.store, r).NewFlashErrorMessage(err.Error()).Commit(ctx)
 	}
-	html.Redirect(w, r, route.Path(h.router, "feedEntries", "feedID", feedID))
+	h.redirect(w, r, "feedEntries", "feedID", feedID)
 }
 
 func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +48,7 @@ func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
 		time := config.Opts.ForceRefreshInterval()
 		sess.NewFlashErrorMessage(printer.Plural(
 			"alert.too_many_feeds_refresh", time, time))
-		html.Redirect(w, r, route.Path(h.router, "feeds"))
+		h.redirect(w, r, "feeds")
 		return
 	}
 
@@ -71,5 +70,5 @@ func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
 	sess.SetLastForceRefresh().
 		NewFlashMessage(printer.Print("alert.background_feed_refresh"))
 	h.pool.Wakeup()
-	html.Redirect(w, r, route.Path(h.router, "feeds"))
+	h.redirect(w, r, "feeds")
 }
