@@ -144,3 +144,19 @@ SELECT icons.id, icons.hash, icons.mime_type, icons.content
 	}
 	return icons, nil
 }
+
+func (s *Storage) DeleteLostIcons(ctx context.Context) (int64, error) {
+	result, err := s.db.Exec(ctx, `
+WITH lost_icons AS (
+  SELECT i.id
+    FROM icons i LEFT JOIN feed_icons fi ON (fi.icon_id = i.id)
+   WHERE fi.feed_id IS NULL
+)
+DELETE FROM icons AS i
+ USING lost_icons AS li
+ WHERE i.id = li.id`)
+	if err != nil {
+		return 0, fmt.Errorf("storage: delete lost icons: %w", err)
+	}
+	return result.RowsAffected(), nil
+}

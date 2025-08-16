@@ -39,6 +39,13 @@ func runCleanupTasks(ctx context.Context, store *storage.Storage) {
 	log := logging.FromContext(ctx)
 	log.Info("Sessions cleanup completed", slog.Int64("removed", removed))
 
+	removed, err := store.DeleteLostIcons(ctx)
+	if err != nil {
+		log.Error("Unable to delete lost feed icons", slog.Any("error", err))
+	} else {
+		log.Info("Delete lost feed icons", slog.Int64("removed", removed))
+	}
+
 	startTime := time.Now()
 	rows, err := store.ArchiveEntries(ctx, model.EntryStatusRead,
 		config.Opts.CleanupArchiveReadDays(),
