@@ -3,46 +3,50 @@
 
 package version // import "miniflux.app/v2/internal/version"
 
-import "runtime/debug"
+import "strings"
+
+const (
+	devVersion = "Development Version"
+	repoURL    = "https://github.com/dsh2dsh/miniflux"
+)
 
 // Variables populated at build time when using LD_FLAGS.
-var Version, Commit, BuildDate string
+var (
+	Commit    = "Unknown (built outside VCS)"
+	BuildDate = "Unknown (built outside VCS)"
+	Version   = devVersion
+)
 
-// Populate build information from VCS metadata if LDFLAGS are not set.
-// Falls back to values from the Go module's build info when available.
-func init() {
-	if Version == "" {
-		Version = "Development Version"
+type Info struct{}
+
+func New() Info { return Info{} }
+
+func (Info) Commit() string { return Commit }
+
+func (self Info) CommitURL() string {
+	if strings.HasPrefix(self.Commit(), "Unknown ") {
+		return ""
 	}
-	if Commit == "" {
-		Commit = getCommit()
-	}
-	if BuildDate == "" {
-		BuildDate = getBuildDate()
-	}
+	return repoURL + "/commit/" + self.Commit()
 }
 
-func getCommit() string {
-	if info, ok := debug.ReadBuildInfo(); ok {
-		for _, setting := range info.Settings {
-			if setting.Key == "vcs.revision" {
-				if len(setting.Value) >= 8 {
-					return setting.Value[:8]
-				}
-				return setting.Value
-			}
-		}
-	}
-	return "Unknown (built outside VCS)"
-}
+func (Info) BuildDate() string { return BuildDate }
 
-func getBuildDate() string {
-	if info, ok := debug.ReadBuildInfo(); ok {
-		for _, setting := range info.Settings {
-			if setting.Key == "vcs.time" {
-				return setting.Value
-			}
-		}
+func (Info) Version() string { return Version }
+
+func (self Info) VersionURL() string {
+	if self.Version() == devVersion {
+		return ""
 	}
-	return "Unknown (built outside VCS)"
+
+	tag, commits, found := strings.Cut(self.Version(), "-")
+	if !found {
+		return repoURL + "/releases/tag/v" + tag
+	}
+
+	_, hash, found := strings.Cut(commits, "-g")
+	if !found {
+		return ""
+	}
+	return repoURL + "/compare/v" + tag + "..." + hash
 }

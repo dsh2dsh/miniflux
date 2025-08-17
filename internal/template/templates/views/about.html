@@ -13,26 +13,26 @@
     <ul>
         <li>
             <strong>{{ t "page.about.version" }}</strong>
-            {{ if startsWith .version "2." }}
-            <a href="https://github.com/dsh2dsh/miniflux/releases/tag/{{ .version }}">{{ .version }}</a>
+            {{ if .version.VersionURL }}
+            <a href="{{ .version.VersionURL | safeURL }}" {{ $.user.TargetBlank }}>{{ .version.Version }}</a>
             {{ else }}
-            {{ .version }}
+            {{ .version.Version }}
             {{ end }}
         </li>
 
-        {{ if .commit }}
+        {{ if .version.Commit }}
         <li>
             <strong>{{ t "page.about.git_commit" }}</strong>
-            {{ if startsWith .commit "Unknown" }}
-            {{ .commit }}
+            {{ if .version.CommitURL }}
+            <a href="{{ .version.CommitURL | safeURL }}" {{ $.user.TargetBlank }}>{{ .version.Commit }}</a>
             {{ else }}
-            <a href="https://github.com/dsh2dsh/miniflux/commit/{{ .commit }}">{{ .commit }}</a>
+            {{ .version.Commit }}
             {{ end }}
         </li>
         {{ end }}
 
         <li>
-            <strong>{{ t "page.about.build_date" }}</strong> {{ .build_date }}
+            <strong>{{ t "page.about.build_date" }}</strong> {{ .version.BuildDate }}
         </li>
 
         <li>

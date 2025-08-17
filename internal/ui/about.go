@@ -39,9 +39,7 @@ func (h *handler) showAboutPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v.Set("menu", "settings").
-		Set("version", version.Version).
-		Set("commit", version.Commit).
-		Set("build_date", version.BuildDate).
+		Set("version", version.New()).
 		Set("globalConfigOptions", config.Opts.SortedOptions(true)).
 		Set("postgres_version", dbVersion).
 		Set("db_usage", dbSize).
