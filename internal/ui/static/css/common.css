@@ -950,7 +950,7 @@ article.category-has-unread {
 
 .icon,
 .icon-label {
-    vertical-align: text-bottom;
+    vertical-align: middle;
     display: inline-block;
     margin-right: 2px;
 }
@@ -958,13 +958,12 @@ article.category-has-unread {
 .icon {
     width: 1rem;
     height: 1rem;
-    vertical-align: top;
 }
 
 .feed-icon {
     width: 1rem;
     height: 1rem;
-    vertical-align: top;
+    vertical-align: middle;
 }
 
 /* Entry view */
