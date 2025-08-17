@@ -404,13 +404,13 @@ DELETE FROM entries
 			feedID, model.EntryStatusRemoved, hashes)
 	}
 	if err != nil {
-		return 0, fmt.Errorf(`store: unable to cleanup entries: %w`, err)
+		return 0, fmt.Errorf("storage: unable to cleanup entries: %w", err)
 	}
 	return result.RowsAffected(), nil
 }
 
 // ArchiveEntries changes the status of entries to "removed" after the given
-// number of days.
+// number of days and clears the content fields, keeping only their metadata.
 func (s *Storage) ArchiveEntries(ctx context.Context, status string,
 	days, limit int,
 ) (int64, error) {
@@ -420,13 +420,22 @@ func (s *Storage) ArchiveEntries(ctx context.Context, status string,
 
 	result, err := s.db.Exec(ctx, `
 UPDATE entries
-   SET status=$1
+   SET status       = $1,
+       title        = '',
+       url          = '',
+       author       = NULL,
+       content      = NULL,
+       comments_url = NULL,
+       tags         = NULL,
+       extra        = '{}'
  WHERE id IN (
    SELECT id
      FROM entries
-    WHERE status=$2 AND starred is false AND share_code=''
+    WHERE status = $2
           AND changed_at < now () - $3::interval
-    ORDER BY changed_at ASC LIMIT $4)`,
+          AND starred IS FALSE AND share_code = ''
+    ORDER BY changed_at ASC LIMIT $4
+ )`,
 		model.EntryStatusRemoved, status,
 		strconv.FormatInt(int64(days), 10)+" days", limit)
 	if err != nil {
