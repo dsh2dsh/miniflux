@@ -210,6 +210,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 
 	// Entry pages.
 	m.NameHandleFunc("/entry/download/{entryID}", h.fetchContent, "fetchContent")
+	m.NameHandleFunc("/entry/inline/{entryID}", h.inlineEntry, "inlineEntry")
 
 	// Share pages.
 	m.NameHandleFunc("/entry/share/{entryID}", h.createSharedEntry, "shareEntry")
