@@ -52,6 +52,7 @@ linters:
         - "io.Copy(*bytes.Buffer)"
         - "io.Copy(os.Stdout)"
         - "(*compress/flate.Writer).Close"
+        - "(*compress/gzip.Reader).Close"
         - "(*compress/gzip.Writer).Close"
         - "(*database/sql.DB).Close"
         - "(*database/sql.Rows).Close"
