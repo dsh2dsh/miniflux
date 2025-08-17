@@ -4,7 +4,6 @@
 package config // import "miniflux.app/v2/internal/config"
 
 import (
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 
+	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/version"
 )
 
@@ -314,10 +314,7 @@ func (o *Options) applyPrivateKeys() error {
 			}
 			*opt.To = []byte(opt.From)
 		case opt.Deprecated == "":
-			randomKey := make([]byte, 16)
-			if _, err := rand.Read(randomKey); err != nil {
-				return fmt.Errorf("config: failed generate random key: %w", err)
-			}
+			*opt.To = crypto.GenerateRandomBytes(16)
 		}
 	}
 	return nil
