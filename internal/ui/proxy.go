@@ -15,13 +15,12 @@ import (
 	"path"
 	"time"
 
-	"github.com/klauspost/compress/gzhttp"
-
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/reader/rewrite"
 )
 
@@ -87,16 +86,9 @@ func (h *handler) mediaProxy(w http.ResponseWriter, r *http.Request) {
 		slog.String("media_url", mediaURL),
 	)
 
-	req, err := http.NewRequest(http.MethodGet, mediaURL, nil)
-	if err != nil {
-		html.ServerError(w, r, err)
-		return
-	}
-
-	req.Header.Set("Connection", "close")
-
+	requestBuilder := fetcher.NewRequestBuilder()
 	if referer := rewrite.GetRefererForURL(mediaURL); referer != "" {
-		req.Header.Set("Referer", referer)
+		requestBuilder.WithHeader("Referer", referer)
 	}
 
 	forwardedRequestHeader := [...]string{
@@ -104,19 +96,11 @@ func (h *handler) mediaProxy(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, requestHeaderName := range forwardedRequestHeader {
 		if r.Header.Get(requestHeaderName) != "" {
-			req.Header.Set(requestHeaderName, r.Header.Get(requestHeaderName))
+			requestBuilder.WithHeader(requestHeaderName, r.Header.Get(requestHeaderName))
 		}
 	}
 
-	transport := &http.Transport{
-		IdleConnTimeout: time.Duration(config.Opts.MediaProxyHTTPClientTimeout()) * time.Second,
-	}
-	clt := &http.Client{
-		Transport: gzhttp.Transport(transport),
-		Timeout:   time.Duration(config.Opts.MediaProxyHTTPClientTimeout()) * time.Second,
-	}
-
-	resp, err := clt.Do(req)
+	resp, err := requestBuilder.Request(mediaURL)
 	if err != nil {
 		slog.Error("MediaProxy: Unable to initialize HTTP client",
 			slog.String("media_url", mediaURL),
@@ -125,34 +109,34 @@ func (h *handler) mediaProxy(w http.ResponseWriter, r *http.Request) {
 			http.StatusInternalServerError)
 		return
 	}
-	defer resp.Body.Close()
+	defer resp.Close()
 
-	if resp.StatusCode == http.StatusRequestedRangeNotSatisfiable {
+	if resp.StatusCode() == http.StatusRequestedRangeNotSatisfiable {
 		slog.Warn(
 			"MediaProxy: "+http.StatusText(http.StatusRequestedRangeNotSatisfiable),
 			slog.String("media_url", mediaURL),
-			slog.Int("status_code", resp.StatusCode))
-		html.RequestedRangeNotSatisfiable(w, r, resp.Header.Get("Content-Range"))
+			slog.Int("status_code", resp.StatusCode()))
+		html.RequestedRangeNotSatisfiable(w, r, resp.Header("Content-Range"))
 		return
 	}
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
+	if resp.StatusCode() != http.StatusOK && resp.StatusCode() != http.StatusPartialContent {
 		slog.Warn("MediaProxy: Unexpected response status code",
 			slog.String("media_url", mediaURL),
-			slog.Int("status_code", resp.StatusCode))
+			slog.Int("status_code", resp.StatusCode()))
 
 		// Forward the status code from the origin.
-		http.Error(w, fmt.Sprintf("Origin status code is %d", resp.StatusCode),
-			resp.StatusCode)
+		http.Error(w, fmt.Sprintf("Origin status code is %d", resp.StatusCode()),
+			resp.StatusCode())
 		return
 	}
 
 	etag := crypto.HashFromBytes(decodedURL)
 
 	response.New(w, r).WithCaching(etag, 72*time.Hour, func(b *response.Builder) {
-		b.WithStatus(resp.StatusCode)
+		b.WithStatus(resp.StatusCode())
 		b.WithHeader("Content-Security-Policy",
 			response.ContentSecurityPolicyForUntrustedContent)
-		b.WithHeader("Content-Type", resp.Header.Get("Content-Type"))
+		b.WithHeader("Content-Type", resp.Header("Content-Type"))
 
 		if filename := path.Base(parsedMediaURL.Path); filename != "" {
 			b.WithHeader("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, filename))
@@ -163,8 +147,8 @@ func (h *handler) mediaProxy(w http.ResponseWriter, r *http.Request) {
 			"Content-Range",
 		}
 		for _, responseHeaderName := range forwardedResponseHeader {
-			if resp.Header.Get(responseHeaderName) != "" {
-				b.WithHeader(responseHeaderName, resp.Header.Get(responseHeaderName))
+			if resp.Header(responseHeaderName) != "" {
+				b.WithHeader(responseHeaderName, resp.Header(responseHeaderName))
 			}
 		}
 		b.WithBody(resp.Body)

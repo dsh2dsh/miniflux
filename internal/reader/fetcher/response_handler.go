@@ -29,6 +29,13 @@ type ResponseHandler struct {
 	maxBodySize int64
 }
 
+func (r *ResponseHandler) Status() string  { return r.httpResponse.Status }
+func (r *ResponseHandler) StatusCode() int { return r.httpResponse.StatusCode }
+
+func (r *ResponseHandler) Header(key string) string {
+	return r.httpResponse.Header.Get(key)
+}
+
 func (r *ResponseHandler) Err() error { return r.clientErr }
 
 func (r *ResponseHandler) EffectiveURL() string {
