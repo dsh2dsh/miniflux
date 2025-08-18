@@ -19,8 +19,7 @@
     </div>
     <div class="items">
         {{ range .entries }}
-        {{   $route := route "starredEntry" "entryID" .ID }}
-        {{   template "item" dict "route" $route "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry }}
+        {{   template "item" dict "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry }}
         {{ end }}
     </div>
     <div class="pagination-bottom">

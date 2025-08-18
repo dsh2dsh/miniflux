@@ -35,7 +35,7 @@ var (
 	//go:embed css.json
 	stylesheetManifest []byte
 
-	//go:embed js/*.js
+	//go:embed js/*.js js/*.js.gz
 	javascriptFiles embed.FS
 
 	//go:embed js.json

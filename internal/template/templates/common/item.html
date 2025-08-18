@@ -8,18 +8,27 @@
 
     <header class="item-header" dir="auto">
         <h2 id="entry-title-{{ .entry.ID }}" class="item-title">
-            {{ if .user.AlwaysOpenExternalLinks }}
-            <a href="{{ .entry.URL | safeURL  }}"
-               {{ .user.TargetBlank }}
-               rel="noopener noreferrer"
-               referrerpolicy="no-referrer"
-               data-original-link="{{ .user.MarkReadOnView }}">
+            <a
+              href="{{ .entry.URL | safeURL }}"
+
+              {{ if .user.AlwaysOpenExternalLinks }}
+              data-original-link="{{ .user.MarkReadOnView }}"
+              {{ else }}
+              data-mark-read-on-view="{{ .user.MarkReadOnView }}"
+              hx-disinherit="*"
+              hx-get="{{ route "inlineEntry" "entryID" .entry.ID }}"
+              hx-swap="afterend"
+              hx-target="closest .item-header"
+              hx-trigger="click once"
+              {{ end }}
+
+              {{ .user.TargetBlank }}
+              rel="noopener noreferrer"
+              referrerpolicy="no-referrer">
                 {{ .entry.Title | noescape }}
             </a>
-            {{ else }}
-            <a href="{{ .route }}">{{ .entry.Title | noescape }}</a>
-            {{ end }}
         </h2>
+
         <span class="category">
             <a
               href="{{ route "categoryEntries" "categoryID" .entry.Feed.Category.ID }}"

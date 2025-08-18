@@ -30,19 +30,22 @@
 
     <link rel="stylesheet" type="text/css" href="{{ stylesheet .theme }}">
 
+    {{ $cspNonce := nonce }}
+    <meta name="htmx-config" content='{"inlineStyleNonce": "{{ $cspNonce }}"}'>
+
     {{ if .user }}
-        {{ $cspNonce := nonce }}
-        <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data:; media-src *; frame-src *; {{ if .user.ExternalFontHosts }}font-src {{ .user.ExternalFontHosts }}; {{ end }}style-src 'self'{{ if .user.Stylesheet }}{{ if .user.ExternalFontHosts }} {{ .user.ExternalFontHosts }}{{ end }} 'nonce-{{ $cspNonce }}'{{ end }}{{ if .user.CustomJS }}; script-src 'self' 'nonce-{{ $cspNonce }}'{{ end }}; require-trusted-types-for 'script'; trusted-types ttpolicy;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data:; media-src *; frame-src *; {{ if .user.ExternalFontHosts }}font-src {{ .user.ExternalFontHosts }}; {{ end }}style-src 'self' 'nonce-{{ $cspNonce }}'{{ if and .user.Stylesheet .user.ExternalFontHosts }} {{ .user.ExternalFontHosts }}{{ end }}{{ if .user.CustomJS }}; script-src 'self' 'nonce-{{ $cspNonce }}'{{ end }}; require-trusted-types-for 'script'; trusted-types ttpolicy;">
 
-        {{ if .user.Stylesheet }}
-        <style nonce="{{ $cspNonce }}">{{ .user.Stylesheet | safeCSS }}</style>
-        {{ end }}
+    {{ if .user.Stylesheet }}
+    <style nonce="{{ $cspNonce }}">{{ .user.Stylesheet | safeCSS }}</style>
+    {{ end }}
 
-        {{ if .user.CustomJS }}
-        <script type="module" nonce="{{ $cspNonce }}">{{ .user.CustomJS | safeJS }}</script>
-        {{ end }}
+    {{ if .user.CustomJS }}
+    <script type="module" nonce="{{ $cspNonce }}">{{ .user.CustomJS | safeJS }}</script>
+    {{ end }}
+
     {{ else }}
-        <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data:; media-src *; frame-src *; require-trusted-types-for 'script'; trusted-types ttpolicy;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data:; media-src *; frame-src *; style-src 'nonce-{{ $cspNonce }}'; require-trusted-types-for 'script'; trusted-types ttpolicy;">
     {{ end }}
 
     <script type="module" src="{{ javascript "app" }}"></script>

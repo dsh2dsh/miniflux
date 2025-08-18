@@ -23,8 +23,7 @@
         </div>
         <div class="items">
             {{ range .entries }}
-            {{   $route := printf "%s?q=%s" (route "unreadEntry" "entryID" .ID) $.searchQuery }}
-            {{   template "item" dict "route" $route "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry }}
+            {{   template "item" dict "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry }}
             {{ end }}
         </div>
         <div class="pagination-bottom">

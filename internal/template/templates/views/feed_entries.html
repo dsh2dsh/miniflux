@@ -97,13 +97,7 @@
     </div>
     <div class="items">
         {{ range .entries }}
-        {{   $route := "" }}
-        {{   if $.showOnlyUnreadEntries }}
-        {{     $route = route "unreadFeedEntry" "feedID" .Feed.ID "entryID" .ID }}
-        {{   else }}
-        {{     $route = route "feedEntry" "feedID" .Feed.ID "entryID" .ID }}
-        {{   end }}
-        {{   template "item" dict "route" $route "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry }}
+        {{   template "item" dict "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry }}
         {{ end }}
     </div>
     <section class="page-footer">

@@ -65,25 +65,10 @@ class MarkReadOnScroll {
     }, 1000);
   }
 
-  markReadOnTimeout() {
+  async markReadOnTimeout() {
     const items = this.scrolledEntries.slice();
     this.scrolledEntries.length = 0;
-
-    const entryIDs = items.map((element) => parseInt(element.dataset.id, 10));
-    const readStatus = "read";
-
-    return new Promise((resolve) => {
-      updateEntriesStatus(entryIDs, readStatus, () => {
-        items.forEach((element) => {
-          const markAsRead = element.querySelector(":is(a, button)[data-toggle-status]");
-          if (markAsRead) {
-            setReadStatusButtonState(markAsRead, readStatus);
-          }
-          element.classList.replace("item-status-unread", "item-status-read");
-        });
-        resolve();
-      });
-    });
+    await markItemsRead(items);
   }
 }
 

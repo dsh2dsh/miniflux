@@ -64,8 +64,7 @@
 <div class="items"
      data-mark-read-on-scroll="{{ if $.user.MarkReadOnScroll }}1{{ end }}">
     {{ range .entries }}
-    {{   $route := route "unreadEntry" "entryID" .ID }}
-    {{   template "item" dict "route" $route "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry }}
+    {{   template "item" dict "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry }}
     {{ end }}
 </div>
 

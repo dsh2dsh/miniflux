@@ -22,6 +22,26 @@ async function messageConfirmed(url, redirectURL) {
   }
 }
 
+async function markItemsRead(items) {
+  const unreadItems = items.filter((el) => el.matches(".item-status-unread"));
+  if (!unreadItems.length) return;
+
+  const entryIDs = unreadItems.map((el) => parseInt(el.dataset.id, 10));
+  const statusRead = "read";
+
+  await new Promise((resolve) => {
+    updateEntriesStatus(entryIDs, statusRead, () => resolve());
+  });
+
+  unreadItems.forEach((el) => {
+    const toggleStatus = el.querySelector(":is(a, button)[data-toggle-status]");
+    if (toggleStatus) {
+      setReadStatusButtonState(toggleStatus, statusRead);
+    }
+    el.classList.replace("item-status-unread", "item-status-read");
+  });
+}
+
 function initDataConfirm() {
   document.body.addEventListener("click", (event) => {
     if (event.target.closest(":is(a, button)[data-confirm]")) {

@@ -1,18 +1,20 @@
 {
   "app": [
-		"js/tt.js",
+    "js/tt.js",
+    "js/htmx.min.js.gz",
 
-		"js/touch_handler.js",
-		"js/keyboard_handler.js",
-		"js/modal_handler.js",
-		"js/webauthn_handler.js",
-		"js/app.js",
+    "js/touch_handler.js",
+    "js/keyboard_handler.js",
+    "js/modal_handler.js",
+    "js/webauthn_handler.js",
+    "js/app.js",
 
+    "js/dsh.js",
     "js/mark_read_on_scroll.js",
-		"js/dsh.js"
-	],
+    "js/inline_entry.js"
+  ],
 
-	"service-worker": [
-		"js/service_worker.js"
-	]
+  "service-worker": [
+    "js/service_worker.js"
+  ]
 }

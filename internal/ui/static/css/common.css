@@ -1068,13 +1068,17 @@ article.category-has-unread {
     color: #555;
 }
 
+.item .entry-content {
+    border-top: 1px solid;
+    border-bottom: 1px solid;
+    padding-bottom: 1em;
+}
+
 .entry-content {
-    padding-top: 15px;
-    font-size: 1.2em;
+    padding-top: 1em;
     font-weight: var(--entry-content-font-weight);
     font-family: var(--entry-content-font-family);
     color: var(--entry-content-color);
-    line-height: 1.4em;
     overflow-wrap: break-word;
 }
 
