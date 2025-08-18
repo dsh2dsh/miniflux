@@ -290,7 +290,7 @@ func (h *handler) redirect(w http.ResponseWriter, r *http.Request,
 ) {
 	acceptHeader := r.Header.Get("Accept")
 	if acceptHeader != "application/json" {
-		html.Redirect(w, r, route.Path(h.router, name, args))
+		html.Redirect(w, r, route.Path(h.router, name, args...))
 		return
 	}
 
