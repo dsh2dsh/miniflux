@@ -6,9 +6,11 @@ package model // import "miniflux.app/v2/internal/model"
 import (
 	"fmt"
 	"html/template"
+	"strings"
 	"time"
 
 	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/timezone"
 )
 
@@ -282,6 +284,22 @@ func (u *User) HasSaveEntry() bool {
 
 func (u *User) Operator() bool {
 	return u.IsAdmin || config.Opts.Operator(u.Username)
+}
+
+func (u *User) HasStylesheet() bool {
+	return strings.TrimSpace(u.Stylesheet) != ""
+}
+
+func (u *User) StylesheetHash() string {
+	return crypto.HashFromString(u.Stylesheet)
+}
+
+func (u *User) HasJavascript() bool {
+	return strings.TrimSpace(u.CustomJS) != ""
+}
+
+func (u *User) JavascriptHash() string {
+	return crypto.HashFromString(u.CustomJS)
 }
 
 // Users represents a list of users.

@@ -219,6 +219,8 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 
 	// User pages.
 	m.NameHandleFunc("/users", h.showUsersPage, "users")
+	m.NameHandleFunc("/user/css/{hash}", h.userStylesheet, "userStylesheet")
+	m.NameHandleFunc("/user/js/{hash}", h.userJavascript, "userJavascript")
 	m.NameHandleFunc("/user/create", h.showCreateUserPage, "createUser")
 	m.NameHandleFunc("/user/save", h.saveUser, "saveUser")
 	m.NameHandleFunc("/users/{userID}/edit", h.showEditUserPage, "editUser")

@@ -34,14 +34,14 @@
     <meta name="htmx-config" content='{"inlineStyleNonce": "{{ $cspNonce }}"}'>
 
     {{ if .user }}
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data:; media-src *; frame-src *; {{ if .user.ExternalFontHosts }}font-src {{ .user.ExternalFontHosts }}; {{ end }}style-src 'self' 'nonce-{{ $cspNonce }}'{{ if and .user.Stylesheet .user.ExternalFontHosts }} {{ .user.ExternalFontHosts }}{{ end }}{{ if .user.CustomJS }}; script-src 'self' 'nonce-{{ $cspNonce }}'{{ end }}; require-trusted-types-for 'script'; trusted-types ttpolicy;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data:; media-src *; frame-src *; {{ if .user.ExternalFontHosts }}font-src {{ .user.ExternalFontHosts }}; {{ end }}style-src 'self' 'nonce-{{ $cspNonce }}'{{ if and .user.HasStylesheet .user.ExternalFontHosts }} {{ .user.ExternalFontHosts }}{{ end }}{{ if .user.HasJavascript }}; script-src 'self' 'nonce-{{ $cspNonce }}'{{ end }}; require-trusted-types-for 'script'; trusted-types ttpolicy;">
 
-    {{ if .user.Stylesheet }}
-    <style nonce="{{ $cspNonce }}">{{ .user.Stylesheet | safeCSS }}</style>
+    {{ if .user.HasStylesheet }}
+    <link rel="stylesheet" type="text/css" href="{{ route "userStylesheet" "hash" .user.StylesheetHash }}">
     {{ end }}
 
-    {{ if .user.CustomJS }}
-    <script type="module" nonce="{{ $cspNonce }}">{{ .user.CustomJS | safeJS }}</script>
+    {{ if .user.HasJavascript }}
+    <script type="module" src="{{ route "userJavascript" "hash" .user.JavascriptHash }}"></script>
     {{ end }}
 
     {{ else }}
