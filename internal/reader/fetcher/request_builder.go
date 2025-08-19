@@ -341,7 +341,11 @@ func (r *RequestBuilder) req(requestURL string) (*http.Request, error) {
 		return nil, fmt.Errorf("reader/fetcher: create http request: %w", err)
 	}
 	req.Header = r.headers.Clone()
-	req.Header.Set("Accept", defaultAcceptHeader)
+	// Set default Accept header if not already set. Note that for the media proxy
+	// requests, we need to forward the browser Accept header.
+	if req.Header.Get("Accept") == "" {
+		req.Header.Set("Accept", defaultAcceptHeader)
+	}
 	return req, nil
 }
 

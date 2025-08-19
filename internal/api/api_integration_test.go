@@ -633,9 +633,22 @@ func (self *EndpointTestSuite) TestGetCategoriesEndpoint() {
 	self.Len(categories, 2, "Invalid number of categories")
 	self.Equal(self.user.ID, categories[0].UserID, "Invalid userID")
 	self.Equal("All", categories[0].Title, "Invalid title")
+	self.Nil(categories[0].FeedCount, "Expected FeedCount to be nil")
+	self.Nil(categories[0].TotalUnread, "Expected TotalUnread to be nil")
+
 	self.Equal(category.ID, categories[1].ID)
 	self.Equal(self.user.ID, categories[1].UserID, "Invalid userID")
 	self.Equal("My category", categories[1].Title, "Invalid title")
+	self.Nil(categories[1].FeedCount, "Expected FeedCount to be nil")
+	self.Nil(categories[1].TotalUnread, "Expected TotalUnread to be nil")
+
+	categories, err = self.client.CategoriesWithCounters()
+	self.Require().NoError(err)
+	self.Len(categories, 2, "Invalid number of categories")
+	self.Require().NotNil(categories[1].FeedCount, "Expected FeedCount to be not nil")
+	self.Require().NotNil(categories[1].TotalUnread, "Expected TotalUnread to be not nil")
+	self.Zero(*categories[1].FeedCount)
+	self.Zero(*categories[1].TotalUnread)
 }
 
 func (self *EndpointTestSuite) TestMarkCategoryAsReadEndpoint() {
