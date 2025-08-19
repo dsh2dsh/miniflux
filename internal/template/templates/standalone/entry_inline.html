@@ -1,3 +1,18 @@
 <article class="entry-content feed-id-{{ .entry.FeedID }}" dir="auto" hx-disable>
     {{ .safeContent }}
 </article>
+
+{{ if .entry.Tags }}
+<details class="entry-tags" hx-disable>
+    <summary>Tags ({{ len .entry.Tags }})</summary>
+    <ul class="entry-tags-list">
+        {{ range .entry.Tags }}
+        <li>
+            <a href="{{ route "tagEntriesAll" "tagName" (urlEncode .) }}">
+                <strong>{{ . }}</strong>
+            </a>
+        </li>
+        {{ end }}
+    </ul>
+</details>
+{{ end }}

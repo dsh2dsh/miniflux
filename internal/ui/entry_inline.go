@@ -29,6 +29,7 @@ func (h *handler) inlineEntry(w http.ResponseWriter, r *http.Request) {
 
 	v := view.New(h.tpl, r, nil).
 		Set("entry", entry).
-		Set("safeContent", template.HTML(content))
+		Set("safeContent", template.HTML(content)).
+		Set("user", request.User(r))
 	html.OK(w, r, v.Render("entry_inline"))
 }

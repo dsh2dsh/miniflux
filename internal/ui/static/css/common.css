@@ -813,6 +813,7 @@ template {
     text-decoration: none;
     font-weight: var(--item-title-link-font-weight);
     font-size: inherit;
+    outline: none;
 }
 
 .feed-entries-counter {
@@ -1016,8 +1017,7 @@ article.category-has-unread {
 }
 
 .entry-tags {
-    margin-top: 20px;
-    margin-bottom: 20px;
+    margin-top: 1em;
 }
 
 .entry-tags strong {
@@ -1025,21 +1025,14 @@ article.category-has-unread {
 }
 
 .entry-tags-list {
-    display: inline;
-    margin: 0;
-    padding: 0;
+    display: flex;
+    list-style-type: none;
+    margin-top: 1ex;
+    margin-left: 1em;
 }
 
-.entry-tags-list li {
-    display: inline-block;
-}
-
-.entry-tags-list li::after {
+.entry-tags-list li ~ li::before {
     content: ", ";
-}
-
-.entry-tags-list li:last-child::after {
-    content: "";
 }
 
 .entry-additional-tags {
@@ -1070,7 +1063,8 @@ article.category-has-unread {
 
 .item .entry-content {
     border-top: 1px solid;
-    border-bottom: 1px solid;
+    border-bottom: 1px dotted;
+    margin-top: 5px;
     padding-bottom: 1em;
 }
 
