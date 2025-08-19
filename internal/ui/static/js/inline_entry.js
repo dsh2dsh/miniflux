@@ -15,7 +15,7 @@ class InlineEntry {
     document.body.addEventListener("click", (event) => {
       const title = event.target.closest(".item-title a");
       if (!title || !title.dataset.hxDisable) return;
-      if (title.dataset.markReadOnView === "true") {
+      if (document.body.dataset.markAsReadOnView === "true") {
         const item = event.target.closest(".item")
         this.markItemRead(item);
       };

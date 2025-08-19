@@ -66,8 +66,10 @@
   {{ end }}
 
   {{ if .user }}
-    {{ if not .user.KeyboardShortcuts }}data-disable-keyboard-shortcuts="true"{{ end }}
-  data-mark-as-read-on-view="{{ if .user.MarkReadOnView }}true{{ else }}false{{ end }}"
+  {{ if not .user.KeyboardShortcuts }}
+  data-disable-keyboard-shortcuts="true"
+  {{ end }}
+  data-mark-as-read-on-view="{{ .user.MarkReadOnView }}"
   {{ end }}>
 
     <div id="svg-icons">
