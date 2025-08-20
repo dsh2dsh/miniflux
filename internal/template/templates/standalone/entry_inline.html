@@ -2,17 +2,59 @@
     {{ .safeContent }}
 </article>
 
-{{ if .entry.Tags }}
-<details class="entry-tags" hx-disable>
-    <summary>Tags ({{ len .entry.Tags }})</summary>
-    <ul class="entry-tags-list">
-        {{ range .entry.Tags }}
-        <li>
-            <a href="{{ route "tagEntriesAll" "tagName" (urlEncode .) }}">
-                <strong>{{ . }}</strong>
-            </a>
-        </li>
+{{ if or .entry.Enclosures .entry.Tags }}
+<details class="entry-content-addons" hx-disable>
+    <summary>
+        {{ if .entry.Enclosures }}
+        Attachments ({{ len .entry.Enclosures }})
         {{ end }}
-    </ul>
+        {{ if .entry.Tags }}
+        Tags ({{ len .entry.Tags }})
+        {{ end }}
+    </summary>
+
+    {{ if .entry.Enclosures }}
+    <div class="addon entry-enclosures">
+
+        {{ range .entry.Enclosures }}
+        <details class="entry-enclosure" name="attachments">
+            <summary>
+                {{ .MimeType }}
+                {{ if gt .Size 0 }}{{ formatFileSize .Size }}{{ end }}
+            </summary>
+
+            <p class="enclosure-download">
+                <a href="{{ .URL | safeURL }}"
+                   {{ $.user.TargetBlank }}
+                   rel="noopener noreferrer" referrerpolicy="no-referrer">
+                    {{ .URL | safeURL  }}
+                </a>
+            </p>
+
+            {{ if .IsImage }}
+            <p class="enclosure-image">
+                <img src="{{ .URL | safeURL }}" loading="lazy" />
+            </p>
+            {{ end }}
+        </details>
+        {{ end }}
+
+    </div>
+    {{ end }}
+
+    {{ if .entry.Tags }}
+    <div class="addon entry-tags">
+        {{ if .entry.Enclosures }}{{ t "entry.tags.label" }}{{ end }}
+        <ul class="entry-tags-list comma-list">
+            {{ range .entry.Tags }}
+            <li>
+                <a href="{{ route "tagEntriesAll" "tagName" (urlEncode .) }}">
+                    <strong>{{ . }}</strong>
+                </a>
+            </li>
+            {{ end }}
+        </ul>
+    </div>
+    {{ end }}
 </details>
 {{ end }}
