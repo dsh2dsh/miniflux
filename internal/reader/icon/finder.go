@@ -222,7 +222,7 @@ func (f *IconFinder) DownloadIcon(iconURL string) (*model.Icon, error) {
 
 func resizeIcon(icon *model.Icon) *model.Icon {
 	if !slices.Contains([]string{"image/jpeg", "image/png", "image/gif"}, icon.MimeType) {
-		slog.Info("icon isn't a png/gif/jpeg, can't resize", slog.String("mimetype", icon.MimeType))
+		slog.Info("Icon resize skipped: unsupported MIME type", slog.String("mime_type", icon.MimeType))
 		return icon
 	}
 
@@ -230,7 +230,7 @@ func resizeIcon(icon *model.Icon) *model.Icon {
 	r := bytes.NewReader(icon.Content)
 	config, _, err := image.DecodeConfig(r)
 	if err != nil {
-		slog.Warn("unable to decode the metadata of the icon", slog.Any("error", err))
+		slog.Warn("Unable to decode icon metadata", slog.Any("error", err))
 		return icon
 	}
 	if config.Height <= 32 && config.Width <= 32 {
@@ -253,7 +253,7 @@ func resizeIcon(icon *model.Icon) *model.Icon {
 		src, err = gif.Decode(r)
 	}
 	if err != nil || src == nil {
-		slog.Warn("unable to decode the icon", slog.Any("error", err))
+		slog.Warn("Unable to decode icon image", slog.Any("error", err))
 		return icon
 	}
 
@@ -262,7 +262,8 @@ func resizeIcon(icon *model.Icon) *model.Icon {
 
 	var b bytes.Buffer
 	if err = png.Encode(io.Writer(&b), dst); err != nil {
-		slog.Warn("unable to encode the new icon", slog.Any("error", err))
+		slog.Warn("Unable to encode resized icon", slog.Any("error", err))
+		return icon
 	}
 
 	icon.Content = b.Bytes()
