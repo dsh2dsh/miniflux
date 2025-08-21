@@ -30,20 +30,11 @@
 {{ end }}
 
 {{ define "content"}}
-{{ if not .entries }}
-    <p role="alert" class="alert alert-info">{{ t "alert.no_history" }}</p>
-{{ else }}
-    <div class="pagination-top">
-        {{ template "pagination" .pagination }}
-    </div>
-    <div class="items">
-        {{ range .entries }}
-        {{   template "item" dict "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry }}
-        {{ end }}
-    </div>
-    <div class="pagination-bottom">
-        {{ template "pagination" .pagination }}
-    </div>
-{{ end }}
+{{   if .entries }}
+{{     template "entries_list.html" . }}
+{{   else }}
 
+<p role="alert" class="alert alert-info">{{ t "alert.no_history" }}</p>
+
+{{   end }}
 {{ end }}

@@ -50,6 +50,7 @@ func (h *handler) showCategoryEntriesPage(w http.ResponseWriter, r *http.Request
 		Set("pagination", getPagination(
 			route.Path(h.router, "categoryEntries", "categoryID", id),
 			count, offset, user.EntriesPerPage)).
+		Set("markReadOnScroll", user.MarkReadOnScroll()).
 		Set("showOnlyUnreadEntries", true)
 	html.OK(w, r, v.Render("category_entries"))
 }

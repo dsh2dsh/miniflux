@@ -51,9 +51,11 @@ func (h *handler) showUnreadPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v.Set("entries", entries).
+		Set("markReadOnScroll", user.MarkReadOnScroll()).
 		Set("menu", "unread").
 		Set("pagination", getPagination(route.Path(h.router, "unread"),
 			v.CountUnread(), offset, user.EntriesPerPage)).
+		Set("showOnlyUnreadEntries", true).
 		Set("updateEntriesStatus", h.router.NamedPath("updateEntriesStatus"))
 	html.OK(w, r, v.Render("unread_entries"))
 }

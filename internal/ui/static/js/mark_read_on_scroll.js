@@ -74,4 +74,4 @@ class MarkReadOnScroll {
 
 const readOnScrollObserver = new MarkReadOnScroll(
   document.querySelectorAll(
-    '.items[data-mark-read-on-scroll="1"] .item.item-status-unread'));
+    ".items[data-mark-read-on-scroll=true] .item.item-status-unread"));

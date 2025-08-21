@@ -85,40 +85,17 @@
 </div>
 {{ end }}
 
-{{ if not .entries }}
-    {{ if .showOnlyUnreadEntries }}
-        <p role="alert" class="alert">{{ t "alert.no_unread_entry" }}</p>
-    {{ else }}
-        <p role="alert" class="alert">{{ t "alert.no_feed_entry" }}</p>
-    {{ end }}
+{{ if .entries }}
+{{   template "entries_list.html" . }}
 {{ else }}
-    <div class="pagination-top">
-        {{ template "pagination" .pagination }}
-    </div>
-    <div class="items">
-        {{ range .entries }}
-        {{   template "item" dict "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry }}
-        {{ end }}
-    </div>
-    <section class="page-footer">
-        {{ if .entries }}
-        <ul>
-            <li>
-                <button
-                    class="page-button"
-                    data-action="markPageAsRead"
-                    data-label-question="{{ t "confirm.question" }}"
-                    data-label-yes="{{ t "confirm.yes" }}"
-                    data-label-no="{{ t "confirm.no" }}"
-                    data-label-loading="{{ t "confirm.loading" }}"
-                    data-show-only-unread="{{ if .showOnlyUnreadEntries }}1{{ end }}">{{ icon "mark-page-as-read" }}{{ t "menu.mark_page_as_read" }}</button>
-            </li>
-        </ul>
-        {{ end }}
-    </section>
-    <div class="pagination-bottom">
-        {{ template "pagination" .pagination }}
-    </div>
-{{ end }}
 
+<p role="alert" class="alert">
+    {{ if .showOnlyUnreadEntries }}
+    {{   t "alert.no_unread_entry" }}
+    {{ else }}
+    {{   t "alert.no_feed_entry" }}
+    {{ end }}
+</p>
+
+{{ end }}
 {{ end }}
