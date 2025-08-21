@@ -61,6 +61,17 @@ func (h *handler) updateIntegration(w http.ResponseWriter, r *http.Request) {
 		i.WebhookSecret = ""
 	}
 
+	if f.LinktacoEnabled {
+		if f.LinktacoAPIToken == "" || f.LinktacoOrgSlug == "" {
+			sess.NewFlashErrorMessage(printer.Print("error.linktaco_missing_required_fields"))
+			h.redirect(w, r, "integrations")
+			return
+		}
+		if i.LinktacoVisibility == "" {
+			i.LinktacoVisibility = "PUBLIC"
+		}
+	}
+
 	if err := h.store.UpdateUser(ctx, user); err != nil {
 		html.ServerError(w, r, err)
 		return

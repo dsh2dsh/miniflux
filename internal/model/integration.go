@@ -40,6 +40,11 @@ type Integration struct {
 	LinkdingMarkAsUnread             bool   `json:"linkding_mark_as_unread,omitempty"`
 	LinkdingTags                     string `json:"linkding_tags,omitempty"`
 	LinkdingURL                      string `json:"linkding_url,omitempty"`
+	LinktacoEnabled                  bool   `json:"linktaco_enabled,omitempty"`
+	LinktacoAPIToken                 string `json:"linktaco_api_token,omitempty"`
+	LinktacoOrgSlug                  string `json:"linktaco_org_slug,omitempty"`
+	LinktacoTags                     string `json:"linktaco_tags,omitempty"`
+	LinktacoVisibility               string `json:"linktaco_visibility,omitempty"`
 	LinkwardenAPIKey                 string `json:"linkwarden_api_key,omitempty"`
 	LinkwardenEnabled                bool   `json:"linkwarden_enabled,omitempty"`
 	LinkwardenURL                    string `json:"linkwarden_url,omitempty"`

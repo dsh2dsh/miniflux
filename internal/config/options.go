@@ -424,8 +424,8 @@ func (o *Options) CertKeyFile() string { return o.env.CertKeyFile }
 func (o *Options) CertDomain() string { return o.env.CertDomain }
 
 // CleanupFrequencyHours returns the interval in hours for cleanup jobs.
-func (o *Options) CleanupFrequencyHours() int {
-	return o.env.CleanupFrequencyHours
+func (o *Options) CleanupFrequencyHours() time.Duration {
+	return time.Duration(o.env.CleanupFrequencyHours) * time.Hour
 }
 
 // CleanupArchiveReadDays returns the number of days after which marking read
@@ -452,15 +452,25 @@ func (o *Options) CleanupRemoveSessionsDays() int {
 	return o.env.CleanupRemoveSessionsDays
 }
 
+func (o *Options) CleanupRemoveSessionsInterval() time.Duration {
+	return time.Duration(o.CleanupRemoveSessionsDays()) * 24 * time.Hour
+}
+
 func (o *Options) CleanupInactiveSessionsDays() int {
 	return o.env.CleanupInactiveSessionsDays
+}
+
+func (o *Options) CleanupInactiveSessionsInterval() time.Duration {
+	return time.Duration(o.env.CleanupInactiveSessionsDays) * 24 * time.Hour
 }
 
 // WorkerPoolSize returns the number of background worker.
 func (o *Options) WorkerPoolSize() int { return o.env.WorkerPoolSize }
 
 // PollingFrequency returns the interval to refresh feeds in the background.
-func (o *Options) PollingFrequency() int { return o.env.PollingFrequency }
+func (o *Options) PollingFrequency() time.Duration {
+	return time.Duration(o.env.PollingFrequency) * time.Minute
+}
 
 // ForceRefreshInterval returns the force refresh interval
 func (o *Options) ForceRefreshInterval() int {
@@ -587,8 +597,8 @@ func (o *Options) MediaCustomProxyURL() *url.URL {
 
 // MediaProxyHTTPClientTimeout returns the time limit in seconds before the
 // proxy HTTP client cancel the request.
-func (o *Options) MediaProxyHTTPClientTimeout() int {
-	return o.env.MediaProxyHTTPClientTimeout
+func (o *Options) MediaProxyHTTPClientTimeout() time.Duration {
+	return time.Duration(o.env.MediaProxyHTTPClientTimeout) * time.Minute
 }
 
 // MediaProxyPrivateKey returns the private key used by the media proxy.
@@ -604,7 +614,9 @@ func (o *Options) HasSchedulerService() bool { return !o.env.DisableScheduler }
 
 // HTTPClientTimeout returns the time limit in seconds before the HTTP client
 // cancel the request.
-func (o *Options) HTTPClientTimeout() int { return o.env.HttpClientTimeout }
+func (o *Options) HTTPClientTimeout() time.Duration {
+	return time.Duration(o.env.HttpClientTimeout) * time.Second
+}
 
 // HTTPClientMaxBodySize returns the number of bytes allowed for the HTTP client
 // to transfer.
@@ -636,7 +648,9 @@ func (o *Options) HasHTTPClientProxiesConfigured() bool {
 
 // HTTPServerTimeout returns the time limit in seconds before the HTTP server
 // cancel the request.
-func (o *Options) HTTPServerTimeout() int { return o.env.HttpServerTimeout }
+func (o *Options) HTTPServerTimeout() time.Duration {
+	return time.Duration(o.env.HttpServerTimeout) * time.Second
+}
 
 // AuthProxyHeader returns an HTTP header name that contains username for
 // authentication using auth proxy.
@@ -772,7 +786,7 @@ func (o *Options) SortedOptions(redactSecret bool) []Option {
 		"CLEANUP_ARCHIVE_BATCH_SIZE":         o.CleanupArchiveBatchSize(),
 		"CLEANUP_ARCHIVE_READ_DAYS":          o.CleanupArchiveReadDays(),
 		"CLEANUP_ARCHIVE_UNREAD_DAYS":        o.CleanupArchiveUnreadDays(),
-		"CLEANUP_FREQUENCY_HOURS":            o.CleanupFrequencyHours(),
+		"CLEANUP_FREQUENCY_HOURS":            o.env.CleanupFrequencyHours,
 		"CLEANUP_REMOVE_SESSIONS_DAYS":       o.CleanupRemoveSessionsDays(),
 		"CLEANUP_INACTIVE_SESSIONS_DAYS":     o.CleanupInactiveSessionsDays(),
 		"CONNECTIONS_PER_SERVER":             o.ConnectionsPerServer(),
@@ -793,9 +807,9 @@ func (o *Options) SortedOptions(redactSecret bool) []Option {
 		"HTTP_CLIENT_MAX_BODY_SIZE":          o.HTTPClientMaxBodySize(),
 		"HTTP_CLIENT_PROXIES":                clientProxyURLsRedacted,
 		"HTTP_CLIENT_PROXY":                  clientProxyURLRedacted,
-		"HTTP_CLIENT_TIMEOUT":                o.HTTPClientTimeout(),
+		"HTTP_CLIENT_TIMEOUT":                o.env.HttpClientTimeout,
 		"HTTP_CLIENT_USER_AGENT":             o.HTTPClientUserAgent(),
-		"HTTP_SERVER_TIMEOUT":                o.HTTPServerTimeout(),
+		"HTTP_SERVER_TIMEOUT":                o.env.HttpServerTimeout,
 		"HTTP_SERVICE":                       o.HasHTTPService(),
 		"INVIDIOUS_INSTANCE":                 o.InvidiousInstance(),
 		"KEY_FILE":                           o.CertKeyFile(),
@@ -819,10 +833,10 @@ func (o *Options) SortedOptions(redactSecret bool) []Option {
 		"OAUTH2_REDIRECT_URL":                o.OAuth2RedirectURL(),
 		"OAUTH2_USER_CREATION":               o.IsOAuth2UserCreationAllowed(),
 		"DISABLE_LOCAL_AUTH":                 o.DisableLocalAuth(),
-		"POLLING_FREQUENCY":                  o.PollingFrequency(),
+		"POLLING_FREQUENCY":                  o.env.PollingFrequency,
 		"FORCE_REFRESH_INTERVAL":             o.ForceRefreshInterval(),
 		"POLLING_PARSING_ERROR_LIMIT":        o.PollingParsingErrorLimit(),
-		"MEDIA_PROXY_HTTP_CLIENT_TIMEOUT":    o.MediaProxyHTTPClientTimeout(),
+		"MEDIA_PROXY_HTTP_CLIENT_TIMEOUT":    o.env.MediaProxyHTTPClientTimeout,
 		"MEDIA_PROXY_RESOURCE_TYPES":         o.MediaProxyResourceTypes(),
 		"MEDIA_PROXY_MODE":                   o.MediaProxyMode(),
 		"MEDIA_PROXY_PRIVATE_KEY":            mediaProxyPrivateKeyValue,

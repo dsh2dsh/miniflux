@@ -3,7 +3,6 @@ package server
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/storage"
@@ -25,7 +24,7 @@ func makeReadinessProbe(store *storage.Storage, pool *worker.Pool,
 				http.StatusServiceUnavailable)
 		}
 
-		schedulerFreq := time.Duration(config.Opts.PollingFrequency()) * time.Minute
+		schedulerFreq := config.Opts.PollingFrequency()
 		if d := pool.SinceSchedulerCompleted(); d > schedulerFreq*2 {
 			http.Error(w, fmt.Sprintf("slow scheduler: %s", d),
 				http.StatusServiceUnavailable)

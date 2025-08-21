@@ -73,7 +73,7 @@ type RequestBuilder struct {
 	ctx              context.Context
 	headers          http.Header
 	clientProxyURL   *url.URL
-	clientTimeout    int
+	clientTimeout    time.Duration
 	useClientProxy   bool
 	withoutRedirects bool
 	ignoreTLSErrors  bool
@@ -163,9 +163,7 @@ func (r *RequestBuilder) WithCustomFeedProxyURL(proxyURL string) *RequestBuilder
 	return r
 }
 
-func (r *RequestBuilder) Timeout() time.Duration {
-	return time.Duration(r.clientTimeout) * time.Second
-}
+func (r *RequestBuilder) Timeout() time.Duration { return r.clientTimeout }
 
 func (r *RequestBuilder) WithoutRedirects() *RequestBuilder {
 	r.withoutRedirects = true

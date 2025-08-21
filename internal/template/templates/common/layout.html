@@ -4,29 +4,25 @@
     <meta charset="utf-8">
     <title>{{template "title" .}} - Miniflux</title>
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Miniflux">
+    <meta name="googlebot" content="notranslate">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="referrer" content="no-referrer">
+    <meta name="robots" content="noindex,nofollow">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="{{ theme_color .theme "light" }}" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="{{ theme_color .theme "dark" }}" media="(prefers-color-scheme: dark)">
+
     <link rel="manifest" href="{{ route "webManifest" }}" crossorigin="use-credentials">
 
-    <meta name="robots" content="noindex,nofollow">
-    <meta name="referrer" content="no-referrer">
-    <meta name="google" content="notranslate">
-
-    <!-- Android icons -->
     <link rel="icon" type="image/png" sizes="16x16" href="{{ routeBinaryFile "icon-16.png" }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ routeBinaryFile "icon-32.png" }}">
     <link rel="icon" type="image/png" sizes="128x128" href="{{ routeBinaryFile "icon-128.png" }}">
     <link rel="icon" type="image/png" sizes="192x192" href="{{ routeBinaryFile "icon-192.png" }}">
-
-    <!-- iOS icons -->
     <link rel="apple-touch-icon" sizes="120x120" href="{{ routeBinaryFile "icon-120.png" }}">
     <link rel="apple-touch-icon" sizes="152x152" href="{{ routeBinaryFile "icon-152.png" }}">
     <link rel="apple-touch-icon" sizes="167x167" href="{{ routeBinaryFile "icon-167.png" }}">
     <link rel="apple-touch-icon" sizes="180x180" href="{{ routeBinaryFile "icon-180.png" }}">
-
-    <meta name="theme-color" content="{{ theme_color .theme "light" }}" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="{{ theme_color .theme "dark" }}" media="(prefers-color-scheme: dark)">
 
     <link rel="stylesheet" type="text/css" href="{{ stylesheet .theme }}">
 
@@ -84,9 +80,7 @@
                 <a aria-label="{{ t "menu.home_page" }}" href="{{ route .user.DefaultHomePage }}">
                     Mini<span>flux</span>
                 </a>
-                <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16">
-                    <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
-                </svg>
+                {{ icon "chevron-down"}}
             </div>
             <ul id="header-menu">
                 <li

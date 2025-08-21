@@ -6,6 +6,7 @@ package config // import "miniflux.app/v2/internal/config"
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -281,7 +282,7 @@ func TestCleanupFrequencyHours(t *testing.T) {
 	t.Setenv("CLEANUP_FREQUENCY_HOURS", "42")
 	t.Setenv("CLEANUP_FREQUENCY", "19")
 	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, 42, opts.CleanupFrequencyHours())
+	assert.Equal(t, 42*time.Hour, opts.CleanupFrequencyHours())
 }
 
 func TestDefaultCleanupArchiveReadDaysValue(t *testing.T) {
@@ -334,7 +335,7 @@ func TestPollingFrequency(t *testing.T) {
 	os.Clearenv()
 	t.Setenv("POLLING_FREQUENCY", "42")
 	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, 42, opts.PollingFrequency())
+	assert.Equal(t, 42*time.Minute, opts.PollingFrequency())
 }
 
 func TestDefaultForceRefreshInterval(t *testing.T) {
@@ -586,7 +587,7 @@ func TestMediaProxyHTTPClientTimeout(t *testing.T) {
 	os.Clearenv()
 	t.Setenv("MEDIA_PROXY_HTTP_CLIENT_TIMEOUT", "24")
 	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, 24, opts.MediaProxyHTTPClientTimeout())
+	assert.Equal(t, 24*time.Minute, opts.MediaProxyHTTPClientTimeout())
 }
 
 func TestDefaultMediaProxyHTTPClientTimeoutValue(t *testing.T) {
@@ -630,7 +631,7 @@ func TestHTTPClientTimeout(t *testing.T) {
 	os.Clearenv()
 	t.Setenv("HTTP_CLIENT_TIMEOUT", "42")
 	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, 42, opts.HTTPClientTimeout())
+	assert.Equal(t, 42*time.Second, opts.HTTPClientTimeout())
 }
 
 func TestDefaultHTTPClientTimeoutValue(t *testing.T) {
@@ -657,7 +658,7 @@ func TestHTTPServerTimeout(t *testing.T) {
 	os.Clearenv()
 	t.Setenv("HTTP_SERVER_TIMEOUT", "342")
 	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, 342, opts.HTTPServerTimeout())
+	assert.Equal(t, 342*time.Second, opts.HTTPServerTimeout())
 }
 
 func TestDefaultHTTPServerTimeoutValue(t *testing.T) {

@@ -29,10 +29,9 @@ func (self *Daemon) runScheduler(ctx context.Context) {
 	})
 }
 
-func (self *Daemon) feedScheduler(ctx context.Context,
-	freq, batchSize, errorLimit int,
+func (self *Daemon) feedScheduler(ctx context.Context, d time.Duration,
+	batchSize, errorLimit int,
 ) {
-	d := time.Duration(freq) * time.Minute
 	slog.Info("feed scheduler started", slog.Duration("freq", d))
 
 	timer := time.NewTimer(d)
@@ -67,8 +66,7 @@ forLoop:
 		slog.Any("reason", context.Cause(ctx)))
 }
 
-func (self *Daemon) cleanupScheduler(ctx context.Context, freq int) {
-	d := time.Duration(freq) * time.Hour
+func (self *Daemon) cleanupScheduler(ctx context.Context, d time.Duration) {
 	slog.Info("cleanup scheduler started", slog.Duration("freq", d))
 
 	ticker := time.NewTicker(d)
