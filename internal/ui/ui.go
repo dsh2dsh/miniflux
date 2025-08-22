@@ -103,7 +103,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 		// Entry pages.
 		m.NameHandleFunc("/entry/{entryID}/bookmark", h.toggleBookmark,
 			"toggleBookmark")
-		m.NameHandleFunc("/entry/{entryID}/download", h.fetchContent,
+		m.NameHandleFunc("/entry/{entryID}/fetch", h.fetchContent,
 			"fetchContent")
 		m.NameHandleFunc("/entry/{entryID}/inline", h.inlineEntry, "inlineEntry")
 		m.NameHandleFunc("/entry/{entryID}/save", h.saveEntry, "saveEntry")
@@ -114,6 +114,9 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 			"updateEntriesStatus")
 		m.NameHandleFunc("/entries/status/count", h.updateEntriesStatusCount,
 			"updateEntriesStatusCount")
+
+		m.NameHandleFunc("/feed/{feedID}/entry/{entryID}/download", h.downloadEntry,
+			"downloadEntry")
 
 		// Share pages.
 		m.NameHandleFunc("/entry/{entryID}/share", h.createSharedEntry,

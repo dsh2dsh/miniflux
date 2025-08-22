@@ -17,13 +17,13 @@ import (
 )
 
 func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
-	userID := request.UserID(r)
+	user := request.User(r)
 	entryID := request.RouteInt64Param(r, "entryID")
 	g, ctx := errgroup.WithContext(r.Context())
 
 	var entry *model.Entry
 	g.Go(func() (err error) {
-		entry, err = h.store.NewEntryQueryBuilder(userID).
+		entry, err = h.store.NewEntryQueryBuilder(user.ID).
 			WithEntryID(entryID).
 			WithoutStatus(model.EntryStatusRemoved).
 			GetEntry(ctx)
@@ -32,7 +32,7 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 
 	var feed *model.Feed
 	g.Go(func() (err error) {
-		feed, err = h.store.FeedByID(ctx, userID, entry.FeedID)
+		feed, err = h.store.FeedByID(ctx, user.ID, entry.FeedID)
 		return
 	})
 
@@ -44,14 +44,14 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := request.User(r)
-	err := processor.ProcessEntryWebPage(r.Context(), feed, entry, user)
+	ctx = r.Context()
+	err := processor.ProcessEntryWebPage(ctx, feed, entry, user)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
 	}
 
-	err = h.store.UpdateEntryTitleAndContent(r.Context(), entry)
+	err = h.store.UpdateEntryTitleAndContent(ctx, entry)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return

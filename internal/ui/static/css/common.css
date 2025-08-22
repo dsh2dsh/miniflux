@@ -840,8 +840,18 @@ template {
     color: #333;
 }
 
-.item-meta li {
+.item-meta li.if-content-download,
+.item.download .item-meta li.if-content-download {
+    display: none;
+}
+
+.item-meta li,
+.item.with-inline-content .item-meta li.if-content-download {
     display: inline-block;
+}
+
+.item.downloaded .item-meta li.if-content-download {
+    display: none;
 }
 
 .item-meta-info {

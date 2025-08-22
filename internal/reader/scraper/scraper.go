@@ -4,73 +4,95 @@
 package scraper // import "miniflux.app/v2/internal/reader/scraper"
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
+	"net/url"
 	"strings"
 
+	"github.com/PuerkitoBio/goquery"
+	"github.com/go-shiori/go-readability"
+
+	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/reader/encoding"
 	"miniflux.app/v2/internal/reader/fetcher"
-	"miniflux.app/v2/internal/reader/readability"
 	"miniflux.app/v2/internal/urllib"
-
-	"github.com/PuerkitoBio/goquery"
 )
 
-func ScrapeWebsite(requestBuilder *fetcher.RequestBuilder, pageURL, rules string) (baseURL string, extractedContent string, err error) {
-	responseHandler, err := requestBuilder.Request(pageURL)
+func ScrapeWebsite(ctx context.Context, requestBuilder *fetcher.RequestBuilder,
+	pageURL, rules string,
+) (string, string, error) {
+	resp, err := requestBuilder.Request(pageURL)
 	if err != nil {
 		return "", "", fmt.Errorf("reader/scraper: scrape website: %w", err)
 	}
-	defer responseHandler.Close()
+	defer resp.Close()
 
-	if localizedError := responseHandler.LocalizedError(); localizedError != nil {
-		slog.Warn("Unable to scrape website", slog.String("website_url", pageURL), slog.Any("error", localizedError))
-		return "", "", localizedError
+	log := logging.FromContext(ctx)
+	if lerr := resp.LocalizedError(); lerr != nil {
+		log.Warn("Unable to scrape website",
+			slog.String("url", pageURL),
+			slog.Any("error", lerr))
+		return "", "", lerr
 	}
 
-	if !isAllowedContentType(responseHandler.ContentType()) {
-		return "", "", fmt.Errorf("scraper: this resource is not a HTML document (%s)", responseHandler.ContentType())
+	if !isAllowedContentType(resp.ContentType()) {
+		return "", "", fmt.Errorf(
+			"reader/scraper: this resource is not a HTML document (%s)",
+			resp.ContentType())
+	}
+
+	r, err := encoding.NewCharsetReader(resp.Body(),
+		resp.ContentType())
+	if err != nil {
+		return "", "", fmt.Errorf(
+			"reader/scraper: unable to read HTML document with charset reader: %w",
+			err)
 	}
 
 	// The entry URL could redirect somewhere else.
-	sameSite := urllib.Domain(pageURL) == urllib.Domain(responseHandler.EffectiveURL())
-	pageURL = responseHandler.EffectiveURL()
-
+	sameSite := urllib.Domain(pageURL) == urllib.Domain(resp.EffectiveURL())
 	if rules == "" {
-		rules = getPredefinedScraperRules(pageURL)
-	}
-
-	htmlDocumentReader, err := encoding.NewCharsetReader(responseHandler.Body(),
-		responseHandler.ContentType())
-	if err != nil {
-		return "", "", fmt.Errorf(
-			"scraper: unable to read HTML document with charset reader: %w", err)
+		rules = getPredefinedScraperRules(resp.EffectiveURL())
 	}
 
 	if sameSite && rules != "" {
-		slog.Debug("Extracting content with custom rules",
-			slog.String("url", pageURL), slog.String("rules", rules))
-		baseURL, extractedContent, err = findContentUsingCustomRules(
-			htmlDocumentReader, rules)
-	} else {
-		slog.Debug("Extracting content with readability",
-			slog.String("url", pageURL))
-		baseURL, extractedContent, err = readability.ExtractContent(
-			htmlDocumentReader)
+		return extractCustom(ctx, r, resp.URL(), rules)
 	}
+	return extractReadability(ctx, r, resp.URL())
+}
+
+func extractCustom(ctx context.Context, r io.Reader, u *url.URL, rules string,
+) (string, string, error) {
+	pageURL := u.String()
+	log := logging.FromContext(ctx).With(slog.String("url", pageURL))
+	log.Debug("Extracting content with custom rules", slog.String("rules", rules))
+
+	contentURL, content, err := findContentUsingCustomRules(r, rules)
 	if err != nil {
-		return "", "", fmt.Errorf("scraper: extract content: %w", err)
+		return "", "", fmt.Errorf(
+			"reader/scraper: extracting custom content: %w", err)
+	} else if contentURL == "" {
+		return pageURL, content, nil
 	}
 
-	if baseURL == "" {
-		baseURL = pageURL
-	} else {
-		slog.Debug("Using base URL from HTML document",
-			slog.String("base_url", baseURL))
-	}
+	log.Debug("Using base URL from HTML document",
+		slog.String("base_url", contentURL))
+	return contentURL, content, nil
+}
 
-	return baseURL, extractedContent, nil
+func extractReadability(ctx context.Context, r io.Reader, u *url.URL) (string, string, error) {
+	pageURL := u.String()
+	log := logging.FromContext(ctx).With(slog.String("url", pageURL))
+	log.Debug("Extracting content with readability", slog.String("url", pageURL))
+
+	article, err := readability.FromReader(r, u)
+	if err != nil {
+		return "", "", fmt.Errorf(
+			"reader/scraper: extracting readable content: %w", err)
+	}
+	return pageURL, article.Content, nil
 }
 
 func findContentUsingCustomRules(page io.Reader, rules string) (baseURL string, extractedContent string, err error) {

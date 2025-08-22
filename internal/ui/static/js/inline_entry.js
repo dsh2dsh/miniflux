@@ -1,13 +1,17 @@
 class InlineEntry {
   constructor() {
-    this.listenEntryInlined();
+    this.listenAfterSettle();
     this.listenLinkClick();
   }
 
-  listenEntryInlined() {
+  listenAfterSettle() {
     document.body.addEventListener("htmx:afterSettle", (event) => {
-      if (!event.target.matches(".item-header")) return;
-      this.entryInlined(event.target);
+      const detail = event.detail;
+      if (detail.target.matches(".item-header")) {
+        this.entryInlined(detail.target);
+      } else if (detail.elt.matches(".entry-content.download")) {
+        this.downloaded(detail.elt);
+      }
     });
   }
 
@@ -34,6 +38,11 @@ class InlineEntry {
 
   markItemRead(el) {
     markItemsRead([el]);
+  }
+
+  downloaded(el) {
+    const item = el.closest(".item")
+    item.classList.add("downloaded");
   }
 }
 

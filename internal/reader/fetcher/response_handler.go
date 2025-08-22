@@ -38,9 +38,9 @@ func (r *ResponseHandler) Header(key string) string {
 
 func (r *ResponseHandler) Err() error { return r.clientErr }
 
-func (r *ResponseHandler) EffectiveURL() string {
-	return r.httpResponse.Request.URL.String()
-}
+func (r *ResponseHandler) URL() *url.URL { return r.httpResponse.Request.URL }
+
+func (r *ResponseHandler) EffectiveURL() string { return r.URL().String() }
 
 func (r *ResponseHandler) ContentType() string {
 	return r.httpResponse.Header.Get("Content-Type")

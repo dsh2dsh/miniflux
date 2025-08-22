@@ -148,7 +148,7 @@ func scrape(ctx context.Context, feed *model.Feed, entry *model.Entry,
 	startTime := time.Now()
 	builder := fetcher.NewRequestFeed(feed).WithContext(ctx)
 
-	baseURL, content, err := scraper.ScrapeWebsite(builder, entry.URL,
+	baseURL, content, err := scraper.ScrapeWebsite(ctx, builder, entry.URL,
 		feed.ScraperRules)
 	if config.Opts.HasMetricsCollector() {
 		status := "success"
@@ -174,21 +174,25 @@ func scrape(ctx context.Context, feed *model.Feed, entry *model.Entry,
 func ProcessEntryWebPage(ctx context.Context, feed *model.Feed,
 	entry *model.Entry, user *model.User,
 ) error {
+	// The errors are handled in RemoveTrackingParameters.
+	feedURL, _ := url.Parse(feed.FeedURL)
+	siteURL, _ := url.Parse(feed.SiteURL)
+	removeTracking(feedURL, siteURL, entry)
 	rewrite.RewriteEntryURL(ctx, feed, entry)
-	baseURL, content, err := scrape(ctx, feed, entry)
+
+	pageURL, content, err := scrape(ctx, feed, entry)
 	if err != nil || content == "" {
+		return err
+	}
+
+	rewrite.ApplyContentRewriteRules(entry, entry.Feed.RewriteRules)
+	if err := sanitizeEntry(entry, pageURL); err != nil {
 		return err
 	}
 
 	if user.ShowReadingTime {
 		entry.ReadingTime = readingtime.EstimateReadingTime(entry.Content,
 			user.DefaultReadingSpeed, user.CJKReadingSpeed)
-	}
-
-	rewrite.ApplyContentRewriteRules(entry, entry.Feed.RewriteRules)
-
-	if err := sanitizeEntry(entry, baseURL); err != nil {
-		return err
 	}
 	return nil
 }

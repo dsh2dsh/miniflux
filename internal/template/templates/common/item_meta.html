@@ -114,6 +114,19 @@
         </li>
         {{ end }}
 
+        <li class="if-content-download">
+            <button
+              class="page-button"
+              title="{{ t "entry.scraper.title" }}"
+              hx-get="{{ route "downloadEntry" "feedID" .entry.Feed.ID  "entryID" .entry.ID }}"
+              hx-target="previous .item > .entry-content.inline"
+              hx-trigger="click once"
+              hx-swap="outerHTML">
+                {{ icon "scraper" }}
+                <span class="icon-label">{{ t "entry.scraper.label" }}</span>
+            </button>
+        </li>
+
         {{ if .entry.CommentsURL }}
         <li class="item-meta-icons-comments">
             <a href="{{ .entry.CommentsURL | safeURL  }}"
