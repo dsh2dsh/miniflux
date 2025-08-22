@@ -78,7 +78,7 @@ func (self *funcMap) Map() template.FuncMap {
 			return template.JS(str)
 		},
 
-		"noescape": func(str string) template.HTML {
+		"safeHTML": func(str string) template.HTML {
 			return template.HTML(str)
 		},
 

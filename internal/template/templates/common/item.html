@@ -24,7 +24,7 @@
               {{ .user.TargetBlank }}
               rel="noopener noreferrer"
               referrerpolicy="no-referrer">
-                {{ .entry.Title | noescape }}
+                {{ .entry.Title | safeHTML }}
             </a>
         </h2>
 
