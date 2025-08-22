@@ -50,6 +50,12 @@ function initDataConfirm() {
   });
 }
 
+function createScriptURL(src) {
+  const ttpolicy = trustedTypes
+    .createPolicy('url', {createScriptURL: src => src});
+  return ttpolicy.createScriptURL(src);
+}
+
 function initServiceWorker() {
   if ("serviceWorker" in navigator === false) return;
 
@@ -57,7 +63,7 @@ function initServiceWorker() {
   if (!serviceWorkerURL) return;
 
 	navigator.serviceWorker.
-    register(ttpolicy.createScriptURL(serviceWorkerURL), {type: "module"}).
+    register(createScriptURL(serviceWorkerURL), {type: "module"}).
     catch((error) => {
       console.warn(`Service worker registration failed: ${error}`);
     });

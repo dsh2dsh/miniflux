@@ -1,6 +1,5 @@
 {
   "app": [
-    "js/tt.js",
     "js/htmx.min.js.gz",
 
     "js/touch_handler.js",
