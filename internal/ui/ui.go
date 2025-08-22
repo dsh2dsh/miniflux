@@ -133,8 +133,6 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 
 	// Unread page.
 	m.NameHandleFunc("/unread", h.showUnreadPage, "unread")
-	m.NameHandleFunc("/unread/entry/{entryID}", h.showUnreadEntryPage,
-		"unreadEntry")
 
 	// History pages.
 	m.NameHandleFunc("/history", h.showHistoryPage, "history")
@@ -142,13 +140,9 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 
 	// Bookmark pages.
 	m.NameHandleFunc("/starred", h.showStarredPage, "starred")
-	m.NameHandleFunc("/starred/entry/{entryID}", h.showStarredEntryPage,
-		"starredEntry")
 
 	// Search pages.
 	m.NameHandleFunc("/search", h.showSearchPage, "search")
-	m.NameHandleFunc("/search/entry/{entryID}", h.showSearchEntryPage,
-		"searchEntry")
 
 	// Feed listing pages.
 	m.NameHandleFunc("/feeds", h.showFeedsPage, "feeds")
@@ -163,18 +157,10 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 		"feedEntries")
 	m.NameHandleFunc("/feed/{feedID}/entries/all", h.showFeedEntriesAllPage,
 		"feedEntriesAll")
-	m.NameHandleFunc("/feed/{feedID}/entry/{entryID}", h.showFeedEntryPage,
-		"feedEntry")
-	m.NameHandleFunc("/unread/feed/{feedID}/entry/{entryID}",
-		h.showUnreadFeedEntryPage, "unreadFeedEntry")
 	m.NameHandleFunc("/feed/{feedID}/mark-all-as-read", h.markFeedAsRead,
 		"markFeedAsRead")
 
 	// Category pages.
-	m.NameHandleFunc("/category/{categoryID}/entry/{entryID}",
-		h.showCategoryEntryPage, "categoryEntry")
-	m.NameHandleFunc("/unread/category/{categoryID}/entry/{entryID}",
-		h.showUnreadCategoryEntryPage, "unreadCategoryEntry")
 	m.NameHandleFunc("/categories", h.showCategoryListPage, "categories")
 	m.NameHandleFunc("/category/create", h.showCreateCategoryPage,
 		"createCategory")
@@ -205,8 +191,6 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 	// Tag pages.
 	m.NameHandleFunc("/tags/{tagName}/entries/all", h.showTagEntriesAllPage,
 		"tagEntriesAll")
-	m.NameHandleFunc("/tags/{tagName}/entry/{entryID}", h.showTagEntryPage,
-		"tagEntry")
 
 	// Entry pages.
 	m.NameHandleFunc("/entry/download/{entryID}", h.fetchContent, "fetchContent")
