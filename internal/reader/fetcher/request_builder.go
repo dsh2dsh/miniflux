@@ -227,6 +227,7 @@ func (r *RequestBuilder) execute(requestURL string) (*http.Response,
 		slog.Int("status_code", resp.StatusCode),
 		slog.String("status", resp.Status),
 		slog.Int64("content_length", resp.ContentLength),
+		slog.Bool("uncompressed", resp.Uncompressed),
 		slog.String("proto", resp.Proto),
 		slog.Duration("request_time", time.Since(start)))
 	return resp, nil
