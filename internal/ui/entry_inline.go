@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"golang.org/x/sync/errgroup"
+
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
