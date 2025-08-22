@@ -96,19 +96,30 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 
 	m.Group(func(m *mux.ServeMux) {
 		m.Use(mw.userNoRedirect(), mw.handleAppSession)
+
 		m.NameHandleFunc("/mark-all-as-read", h.markAllAsRead, "markAllAsRead")
 		m.NameHandleFunc("/history/flush", h.flushHistory, "flushHistory")
 
 		// Entry pages.
-		m.NameHandleFunc("/entry/save-progression/{entryID}/{at}",
-			h.saveEnclosureProgression, "saveEnclosureProgression")
-		m.NameHandleFunc("/entry/save/{entryID}", h.saveEntry, "saveEntry")
-		m.NameHandleFunc("/entry/status", h.updateEntriesStatus,
-			"updateEntriesStatus")
-		m.NameHandleFunc("/entry/status/count", h.updateEntriesStatusCount,
-			"updateEntriesStatusCount")
-		m.NameHandleFunc("/entry/bookmark/{entryID}", h.toggleBookmark,
+		m.NameHandleFunc("/entry/{entryID}/bookmark", h.toggleBookmark,
 			"toggleBookmark")
+		m.NameHandleFunc("/entry/{entryID}/download", h.fetchContent,
+			"fetchContent")
+		m.NameHandleFunc("/entry/{entryID}/inline", h.inlineEntry, "inlineEntry")
+		m.NameHandleFunc("/entry/{entryID}/save", h.saveEntry, "saveEntry")
+		m.NameHandleFunc("/entry/{entryID}/save-progression/{at}",
+			h.saveEnclosureProgression, "saveEnclosureProgression")
+
+		m.NameHandleFunc("/entries/status", h.updateEntriesStatus,
+			"updateEntriesStatus")
+		m.NameHandleFunc("/entries/status/count", h.updateEntriesStatusCount,
+			"updateEntriesStatusCount")
+
+		// Share pages.
+		m.NameHandleFunc("/entry/{entryID}/share", h.createSharedEntry,
+			"shareEntry")
+		m.NameHandleFunc("/entry/{entryID}/unshare", h.unshareEntry,
+			"unshareEntry")
 
 		if config.Opts.WebAuthn() {
 			// WebAuthn flow
@@ -192,13 +203,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 	m.NameHandleFunc("/tags/{tagName}/entries/all", h.showTagEntriesAllPage,
 		"tagEntriesAll")
 
-	// Entry pages.
-	m.NameHandleFunc("/entry/download/{entryID}", h.fetchContent, "fetchContent")
-	m.NameHandleFunc("/entry/inline/{entryID}", h.inlineEntry, "inlineEntry")
-
 	// Share pages.
-	m.NameHandleFunc("/entry/share/{entryID}", h.createSharedEntry, "shareEntry")
-	m.NameHandleFunc("/entry/unshare/{entryID}", h.unshareEntry, "unshareEntry")
 	m.NameHandleFunc("/shares", h.sharedEntries, "sharedEntries")
 
 	// User pages.
