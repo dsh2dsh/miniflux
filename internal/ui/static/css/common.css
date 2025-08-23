@@ -816,6 +816,10 @@ template {
     outline: none;
 }
 
+.item > .htmx-indicator {
+    margin-top: 1ex;
+}
+
 .feed-entries-counter {
     display: inline-flex;
     gap: 2px;

@@ -52,6 +52,7 @@
   data-add-subscription-url="{{ route "addSubscription" }}"
   data-entries-status-url="{{ .updateEntriesStatus }}"
   data-refresh-all-feeds-url="{{ route "refreshAllFeeds" }}"
+  data-label-loading="{{ t "entry.state.loading" }}"
 
   {{ if .webAuthnEnabled }}
     data-webauthn-register-begin-url="{{ route "webauthnRegisterBegin" }}"
@@ -224,5 +225,11 @@
     <template id="icon-star">{{ icon "star" }}</template>
     <template id="icon-unstar">{{ icon "unstar" }}</template>
     <template id="icon-save">{{ icon "save" }}</template>
+
+    <template id="loading-indicator">
+        <div class="htmx-indicator">
+            {{ t "entry.state.loading" }}
+        </div>
+    </template>
 </body>
 </html>

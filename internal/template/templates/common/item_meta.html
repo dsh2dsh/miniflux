@@ -118,6 +118,7 @@
             <button
               class="page-button"
               title="{{ t "entry.scraper.title" }}"
+              hx-disabled-elt="this"
               hx-get="{{ route "downloadEntry" "feedID" .entry.Feed.ID  "entryID" .entry.ID }}"
               hx-target="previous .item > .entry-content.inline"
               hx-trigger="click once"

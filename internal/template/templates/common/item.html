@@ -14,8 +14,8 @@
               {{ if .user.AlwaysOpenExternalLinks }}
               data-original-link="{{ .user.MarkReadOnView }}"
               {{ else }}
-              hx-disinherit="*"
               hx-get="{{ route "inlineEntry" "entryID" .entry.ID }}"
+              hx-indicator="closest .item"
               hx-swap="afterend"
               hx-target="closest .item-header"
               hx-trigger="click once"
