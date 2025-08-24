@@ -13,6 +13,9 @@
     <meta name="theme-color" content="{{ theme_color .theme "light" }}" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="{{ theme_color .theme "dark" }}" media="(prefers-color-scheme: dark)">
 
+    <meta name="htmx-config"
+          content='{"includeIndicatorStyles": false, "allowScriptTags": false}'>
+
     <link rel="manifest" href="{{ route "webManifest" }}" crossorigin="use-credentials">
 
     <link rel="icon" type="image/png" sizes="16x16" href="{{ routeBinaryFile "icon-16.png" }}">
@@ -27,8 +30,6 @@
     <link rel="stylesheet" type="text/css" href="{{ stylesheet .theme }}">
 
     {{ $cspNonce := nonce }}
-    <meta name="htmx-config" content='{"inlineStyleNonce": "{{ $cspNonce }}"}'>
-
     {{ if .user }}
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data:; media-src *; frame-src *; {{ if .user.ExternalFontHosts }}font-src {{ .user.ExternalFontHosts }}; {{ end }}style-src 'self' 'nonce-{{ $cspNonce }}'{{ if and .user.HasStylesheet .user.ExternalFontHosts }} {{ .user.ExternalFontHosts }}{{ end }}{{ if .user.HasJavascript }}; script-src 'self' 'nonce-{{ $cspNonce }}'{{ end }}; require-trusted-types-for 'script'; trusted-types html url;">
 
@@ -220,16 +221,14 @@
         </div>
     </template>
 
+    <template id="entry-loading-inline">
+        {{ template "entry_inline_loading.html" }}
+    </template>
+
     <template id="icon-read">{{ icon "read" }}</template>
     <template id="icon-unread">{{ icon "unread" }}</template>
     <template id="icon-star">{{ icon "star" }}</template>
     <template id="icon-unstar">{{ icon "unstar" }}</template>
     <template id="icon-save">{{ icon "save" }}</template>
-
-    <template id="loading-indicator">
-        <div class="htmx-indicator">
-            {{ t "entry.state.loading" }}
-        </div>
-    </template>
 </body>
 </html>

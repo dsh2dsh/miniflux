@@ -16,8 +16,8 @@
               {{ else }}
               hx-get="{{ route "inlineEntry" "entryID" .entry.ID }}"
               hx-indicator="closest .item"
-              hx-swap="afterend"
-              hx-target="closest .item-header"
+              hx-swap="outerHTML"
+              hx-target="next .entry-content.htmx-indicator"
               hx-trigger="click once"
               {{ end }}
 

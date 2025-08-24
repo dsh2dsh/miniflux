@@ -120,7 +120,7 @@
               title="{{ t "entry.scraper.title" }}"
               hx-disabled-elt="this"
               hx-get="{{ route "downloadEntry" "feedID" .entry.Feed.ID  "entryID" .entry.ID }}"
-              hx-target="previous .item > .entry-content.inline"
+              hx-target="previous .entry-content.inline"
               hx-trigger="click once"
               hx-swap="outerHTML">
                 {{ icon "scraper" }}

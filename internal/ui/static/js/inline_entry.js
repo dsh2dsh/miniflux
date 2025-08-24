@@ -1,69 +1,73 @@
 class InlineEntry {
   constructor() {
-    this.listenBeforeSend();
-    this.listenAfterSettle();
-    this.listenLinkClick();
-  }
+    const body = document.body;
 
-  listenBeforeSend() {
-    document.body.addEventListener("htmx:beforeSend", (event) => {
-      const target = event.detail.target;
-      if (target.matches(".item-header")) {
-        this.loadingInline(target);
-      } else if (target.matches(".entry-content.inline")) {
-        this.downloading(event.target, target);
-      }
-    });
-  }
-
-  listenAfterSettle() {
-    document.body.addEventListener("htmx:afterSettle", (event) => {
-      const detail = event.detail;
-      if (detail.target.matches(".item-header")) {
-        this.entryInlined(detail.target);
-      } else if (detail.elt.matches(".entry-content.download")) {
-        this.downloaded(detail.elt);
-      }
-    });
-  }
-
-  listenLinkClick() {
-    document.body.addEventListener("click", (event) => {
-      if (!event.target.closest(".item-title a")) return;
-
-      const item = event.target.closest(".item")
-      if (!item || !item.classList.contains("with-inline-content")) return;
-      if (document.body.dataset.markAsReadOnView === "true") {
-        this.markItemRead(item);
+    body.addEventListener("htmx:trigger", (event) => {
+      const el = event.detail.elt;
+      if (el.closest(".item-title a")) {
+        this.beginInline(el);
       };
     });
+
+    body.addEventListener("htmx:beforeRequest", (event) => {
+      const target = event.detail.target;
+      if (target.matches(".entry-content.inline")) {
+        this.downloadingOriginal(event.target);
+      }
+    });
+
+    body.addEventListener("htmx:afterSettle", (event) => {
+      const el = event.detail.elt;
+      if (el.matches(".item > .loaded")) {
+        this.entryInlined(el.closest(".item"));
+      } else if (el.matches(".entry-content.download")) {
+        this.downloaded(el.closest(".item"));
+      }
+    });
+
+    if (body.dataset.markAsReadOnView === "true") {
+      body.addEventListener("click", (event) => {
+        const el = event.target;
+        if (el.closest(".item-title a")) {
+          this.originalLinkClick(el.closest(".item"));
+        };
+      });
+    };
   }
 
-  loadingInline(el) {
-    const t = document.querySelector("template#loading-indicator");
-    el.after(t.content.cloneNode(true));
-    el.addEventListener("htmx:beforeSwap", () => {
-      const item = el.parentElement;
-      item.querySelector(".htmx-indicator").remove();
-    }, { once: true });
+  beginInline(title) {
+    this.addLoadingTarget(title.closest(".item"));
+    title.addEventListener("htmx:confirm", (event) => {
+      event.preventDefault();
+      this.nextEventCycle(() => event.detail.issueRequest());
+    });
   }
 
-  entryInlined(el) {
-    const titleLink = el.querySelector(".item-title a");
-    titleLink.dataset.hxDisable = "true";
-    htmx.process(el);
+  addLoadingTarget(item) {
+    const t = document.querySelector("template#entry-loading-inline");
+    item.querySelector(".item-header").after(t.content.cloneNode(true));
+  }
 
-    const item = el.closest(".item")
+  nextEventCycle(fn) {
+    setTimeout(fn, 0);
+  }
+
+  entryInlined(item) {
+    const titleLink = item.querySelector(".item-title a");
+    titleLink.setAttribute("hx-disable", "");
+    htmx.process(titleLink);
     item.classList.add("with-inline-content");
   }
 
-  markItemRead(el) {
-    markItemsRead([el]);
+  originalLinkClick(item) {
+    if (item.classList.contains("with-inline-content")) {
+      markItemsRead([item]);
+    };
   }
 
-  downloading(button, target) {
+  downloadingOriginal(button) {
     this.setButtonLoading(button);
-    const item = target.closest(".item");
+    const item = button.closest(".item");
     item.addEventListener("htmx:afterSettle", (event) => {
       if (event.detail.elt.matches(".entry-content.download")) {
         button.parentElement.remove();
@@ -79,8 +83,7 @@ class InlineEntry {
     return originalLabel;
   }
 
-  downloaded(el) {
-    const item = el.closest(".item")
+  downloaded(item) {
     item.classList.add("downloaded");
   }
 }
