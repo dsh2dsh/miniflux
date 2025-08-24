@@ -21,6 +21,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dsh2dsh/bluemonday v1.1.0 h1:3c4LJyDO72jXNRjm0SJiMCBuhI5GLsFygvbJEztUJdw=
 github.com/dsh2dsh/bluemonday v1.1.0/go.mod h1:mIRqAbBetJKP6pkTqPBcRof+WHpEyEXTMlKAWEQzzRI=
+github.com/dsh2dsh/bluemonday v1.1.1 h1:XQec9omtpLvbSXPdRbVI2iKb4rdiyrr+vcB5I5lfyC0=
+github.com/dsh2dsh/bluemonday v1.1.1/go.mod h1:mIRqAbBetJKP6pkTqPBcRof+WHpEyEXTMlKAWEQzzRI=
 github.com/dsh2dsh/expx-dotenv v1.4.0 h1:GLDENXzl79jsPLUemIVzSc7SrhJonAM8enTxe60D7ds=
 github.com/dsh2dsh/expx-dotenv v1.4.0/go.mod h1:GBgZKlYrqEnUetmP2NMnKj7lVc1TTQIOV0wQbGQrxmA=
 github.com/fxamacker/cbor/v2 v2.9.0 h1:NpKPmjDBgUfBms6tr6JZkTHtfFGcMKsw3eGcmD/sapM=

@@ -7,7 +7,7 @@ require (
 	github.com/caarlos0/env/v11 v11.3.1
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/coreos/go-oidc/v3 v3.15.0
-	github.com/dsh2dsh/bluemonday v1.1.0
+	github.com/dsh2dsh/bluemonday v1.1.1
 	github.com/dsh2dsh/expx-dotenv v1.4.0
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/go-shiori/go-readability v0.0.0-20250217085726-9f5bf5ca7612
