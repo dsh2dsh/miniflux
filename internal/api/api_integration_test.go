@@ -1165,6 +1165,31 @@ func (self *EndpointTestSuite) TestGetGlobalEntriesEndpoint() {
 	self.Empty(globallyVisibleEntries.Entries, "Expected no entries")
 }
 
+func (self *EndpointTestSuite) TestCannotGetRemovedEntries() {
+	feedID := self.createFeed()
+	feedEntries, err := self.client.FeedEntries(feedID, nil)
+	self.Require().NoError(err, "Failed to get entries")
+	self.Require().NotNil(feedEntries)
+	self.Require().NotZero(feedEntries.Total)
+
+	self.Require().NoError(self.client.UpdateEntries(
+		[]int64{feedEntries.Entries[0].ID}, model.EntryStatusRemoved))
+
+	_, err = self.client.Entry(feedEntries.Entries[0].ID)
+	self.Require().ErrorIs(err, client.ErrNotFound)
+
+	_, err = self.client.FeedEntry(feedID, feedEntries.Entries[0].ID)
+	self.Require().ErrorIs(err, client.ErrNotFound)
+
+	_, err = self.client.CategoryEntry(feedEntries.Entries[0].Feed.Category.ID,
+		feedEntries.Entries[0].ID)
+	self.Require().ErrorIs(err, client.ErrNotFound)
+
+	updatedFeedEntries, err := self.client.Entries(&client.Filter{FeedID: feedID})
+	self.Require().NoError(err)
+	self.Equal(feedEntries.Total-1, updatedFeedEntries.Total)
+}
+
 func (self *EndpointTestSuite) TestUpdateEnclosureEndpoint() {
 	feedID := self.createFeed()
 	result, err := self.client.FeedEntries(feedID, nil)
@@ -1267,31 +1292,6 @@ func (self *EndpointTestSuite) TestUpdateEntryStatusEndpoint() {
 	self.Equal(model.EntryStatusRead, entry.Status, "Invalid status")
 }
 
-func (self *EndpointTestSuite) TestUpdateEntryRemovedStatusEndpoint() {
-	feedID := self.createFeed()
-	result, err := self.client.FeedEntries(feedID, nil)
-	self.Require().NoError(err, "Failed to get entries")
-	self.Require().NotNil(result)
-	self.Require().NotEmpty(result.Entries)
-
-	// First we set the entry as "removed"
-	self.Require().NoError(self.client.UpdateEntries(
-		[]int64{result.Entries[0].ID}, model.EntryStatusRemoved))
-
-	entry, err := self.client.Entry(result.Entries[0].ID)
-	self.Require().NoError(err)
-	self.Equal(model.EntryStatusRemoved, entry.Status)
-
-	// Then we try to set it to "unread"
-	self.Require().NoError(self.client.UpdateEntries(
-		[]int64{result.Entries[0].ID}, model.EntryStatusUnread))
-
-	entry, err = self.client.Entry(result.Entries[0].ID)
-	self.Require().NoError(err)
-	self.Equal(model.EntryStatusRemoved, entry.Status,
-		"Modified immutable status")
-}
-
 func (self *EndpointTestSuite) TestUpdateEntryEndpoint() {
 	feedID := self.createFeed()
 	result, err := self.client.FeedEntries(feedID, nil)
@@ -1383,10 +1383,4 @@ func (self *EndpointTestSuite) TestFlushHistoryEndpoint() {
 	self.Require().NoError(err)
 	self.Require().NotNil(readEntries)
 	self.Zero(readEntries.Total, "Invalid total")
-
-	removedEntries, err := self.client.Entries(
-		&client.Filter{Status: model.EntryStatusRemoved})
-	self.Require().NoError(err)
-	self.Require().NotNil(removedEntries)
-	self.Equal(2, removedEntries.Total, "Invalid total")
 }

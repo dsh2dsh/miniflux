@@ -49,7 +49,8 @@ func (h *handler) getFeedEntry(w http.ResponseWriter, r *http.Request) {
 	id := request.RouteInt64Param(r, "entryID")
 	h.getEntryFromBuilder(w, r, h.store.NewEntryQueryBuilder(request.UserID(r)).
 		WithFeedID(feedID).
-		WithEntryID(id))
+		WithEntryID(id).
+		WithoutStatus(model.EntryStatusRemoved))
 }
 
 func (h *handler) getCategoryEntry(w http.ResponseWriter, r *http.Request) {
@@ -57,13 +58,15 @@ func (h *handler) getCategoryEntry(w http.ResponseWriter, r *http.Request) {
 	id := request.RouteInt64Param(r, "entryID")
 	h.getEntryFromBuilder(w, r, h.store.NewEntryQueryBuilder(request.UserID(r)).
 		WithCategoryID(categoryID).
-		WithEntryID(id))
+		WithEntryID(id).
+		WithoutStatus(model.EntryStatusRemoved))
 }
 
 func (h *handler) getEntry(w http.ResponseWriter, r *http.Request) {
 	id := request.RouteInt64Param(r, "entryID")
 	h.getEntryFromBuilder(w, r, h.store.NewEntryQueryBuilder(request.UserID(r)).
-		WithEntryID(id))
+		WithEntryID(id).
+		WithoutStatus(model.EntryStatusRemoved))
 }
 
 func (h *handler) getFeedEntries(w http.ResponseWriter, r *http.Request) {
@@ -144,7 +147,8 @@ func (h *handler) findEntries(w http.ResponseWriter, r *http.Request, feedID,
 		WithOffset(offset).
 		WithLimit(limit).
 		WithTags(tags).
-		WithContent()
+		WithContent().
+		WithoutStatus(model.EntryStatusRemoved)
 
 	if request.HasQueryParam(r, "globally_visible") {
 		globallyVisible := request.QueryBoolParam(r, "globally_visible", true)
