@@ -81,6 +81,8 @@ func init() {
 	p.AllowURLSchemes(allowSchemes...)
 	p.RequireNoReferrerOnLinks(true)
 
+	p.AllowAttrs("id").DeleteFromGlobally()
+
 	p.SetAttr("controls", "controls").OnElements("audio", "video").
 		SetAttr("loading", "lazy").OnElements("iframe", "img").
 		SetAttr("sandbox", iframeSandbox).OnElements("iframe")
