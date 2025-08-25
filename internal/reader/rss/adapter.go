@@ -106,10 +106,10 @@ func (r *rssAdapter) buildFeed(baseURL string) *model.Feed {
 
 		// Generate the entry hash.
 		switch {
-		case item.GUID.Data != "":
-			entry.Hash = crypto.HashFromString(item.GUID.Data)
 		case entryURL != "":
 			entry.Hash = crypto.HashFromString(entryURL)
+		case item.GUID.Data != "":
+			entry.Hash = crypto.HashFromString(item.GUID.Data)
 		default:
 			entry.Hash = crypto.HashFromString(entry.Title + entry.Content)
 		}

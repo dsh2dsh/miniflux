@@ -167,14 +167,17 @@ func (j *JSONAdapter) BuildFeed(baseURL string) *model.Feed {
 		entry.Tags = slices.Compact(entry.Tags)
 
 		// Generate a hash for the entry.
-		for _, value := range []string{item.ID, item.URL, item.ContentText + item.ContentHTML + item.Summary} {
+		hashCandidates := [...]string{
+			item.URL, item.ID,
+			item.ContentText + item.ContentHTML + item.Summary,
+		}
+		for _, value := range hashCandidates {
 			value = strings.TrimSpace(value)
 			if value != "" {
 				entry.Hash = crypto.HashFromString(value)
 				break
 			}
 		}
-
 		feed.Entries = append(feed.Entries, entry)
 	}
 

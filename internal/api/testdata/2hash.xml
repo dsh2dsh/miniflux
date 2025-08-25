@@ -44,9 +44,9 @@
     <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/323546?s=60&amp;v=4"/>
   </entry>
   <entry>
-    <id>tag:github.com,2008:Repository/111364256/2.2.8</id>
+    <id>tag:github.com,2008:Repository/111364256/v2.2.8</id>
     <updated>2025-04-23T04:34:09Z</updated>
-    <link rel="alternate" type="text/html" href="https://github.com/miniflux/v2/releases/tag/v2.2.8"/>
+    <link rel="alternate" type="text/html" href="https://github.com/miniflux/v2/releases/tag/2.2.8"/>
     <title>v2.2.8: Miniflux 2.2.8</title>
     <content type="html">&lt;ul&gt;
 &lt;li&gt;refactor(js): replace &lt;code&gt;DomHelper&lt;/code&gt; methods with standalone functions&lt;/li&gt;

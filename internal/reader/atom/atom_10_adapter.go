@@ -152,7 +152,8 @@ func (a *atom10Adapter) populateEntries(siteURL string) model.Entries {
 		}
 
 		// Generate the entry hash.
-		for _, value := range []string{atomEntry.ID, atomEntry.Links.originalLink()} {
+		hashCandidates := [...]string{atomEntry.Links.originalLink(), atomEntry.ID}
+		for _, value := range hashCandidates {
 			if value != "" {
 				entry.Hash = crypto.HashFromString(value)
 				break

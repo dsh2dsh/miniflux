@@ -57,7 +57,7 @@ func TestParseAtomSample(t *testing.T) {
 		t.Errorf("Incorrect entry date, got: %v", feed.Entries[0].Date)
 	}
 
-	if feed.Entries[0].Hash != "791c3149284a7000" {
+	if feed.Entries[0].Hash != "cbc8e814535b8477" {
 		t.Errorf("Incorrect entry hash, got: %s", feed.Entries[0].Hash)
 	}
 

@@ -92,7 +92,7 @@ func TestParseRss2Sample(t *testing.T) {
 		t.Errorf("Incorrect entry date, got: %v, want: %v", feed.Entries[0].Date, expectedDate)
 	}
 
-	if feed.Entries[0].Hash != "8d4b2e470a24fccd" {
+	if feed.Entries[0].Hash != "794444729ba5dcd0" {
 		t.Errorf("Incorrect entry hash, got: %s", feed.Entries[0].Hash)
 	}
 
