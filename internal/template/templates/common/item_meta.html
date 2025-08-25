@@ -59,18 +59,6 @@
                 >{{ if .entry.Starred }}{{ icon "unstar" }}{{ else }}{{ icon "star" }}{{ end }}<span class="icon-label">{{ if .entry.Starred }}{{ t "entry.bookmark.toggle.off" }}{{ else }}{{ t "entry.bookmark.toggle.on" }}{{ end }}</span></button>
         </li>
 
-        {{ if .entry.ShareCode }}
-        <li class="item-meta-icons-share">
-            <a href="{{ route "sharedEntry" "shareCode" .entry.ShareCode }}"
-               {{ $.user.TargetBlank }}
-               aria-describedby="entry-title-{{ .entry.ID }}"
-               title="{{ t "entry.shared_entry.title" }}">
-                {{ icon "share" }}
-                <span class="icon-label">{{ t "entry.shared_entry.label" }}</span>
-            </a>
-        </li>
-        {{ end }}
-
         {{ if .hasSaveEntry }}
         <li>
             <button
