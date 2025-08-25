@@ -734,4 +734,9 @@ ALTER TABLE feed_icons
   DROP CONSTRAINT feed_icons_pkey,
   ADD PRIMARY KEY (feed_id);
 CREATE INDEX ON feed_icons (icon_id);`),
+
+	// 123
+	sqlMigration(`
+ALTER TABLE entries DROP COLUMN share_code;
+DROP INDEX entries_share_code_idx;`),
 }

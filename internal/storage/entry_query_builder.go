@@ -216,20 +216,6 @@ func (e *EntryQueryBuilder) WithoutStatus(status string) *EntryQueryBuilder {
 	return e
 }
 
-// WithShareCode set the entry share code.
-func (e *EntryQueryBuilder) WithShareCode(shareCode string) *EntryQueryBuilder {
-	e.conditions = append(e.conditions,
-		"e.share_code = $"+strconv.Itoa(len(e.args)+1))
-	e.args = append(e.args, shareCode)
-	return e
-}
-
-// WithShareCodeNotEmpty adds a filter for non-empty share code.
-func (e *EntryQueryBuilder) WithShareCodeNotEmpty() *EntryQueryBuilder {
-	e.conditions = append(e.conditions, "e.share_code <> ''")
-	return e
-}
-
 // WithSorting add a sort expression.
 func (e *EntryQueryBuilder) WithSorting(column, direction string,
 ) *EntryQueryBuilder {
@@ -309,7 +295,6 @@ SELECT
   e.url,
   e.comments_url,
   e.author,
-  e.share_code,
   e.status,
   e.starred,
   e.reading_time,
@@ -371,7 +356,6 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 			&entry.URL,
 			&entry.CommentsURL,
 			&entry.Author,
-			&entry.ShareCode,
 			&entry.Status,
 			&entry.Starred,
 			&entry.ReadingTime,

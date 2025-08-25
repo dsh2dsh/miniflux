@@ -14,7 +14,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 )
@@ -433,7 +432,7 @@ UPDATE entries
      FROM entries
     WHERE status = $2
           AND changed_at < now () - $3::interval
-          AND starred IS FALSE AND share_code = ''
+          AND starred IS FALSE
     ORDER BY changed_at ASC LIMIT $4
  )`,
 		model.EntryStatusRemoved, status,
@@ -530,8 +529,8 @@ UPDATE entries
 func (s *Storage) FlushHistory(ctx context.Context, userID int64) error {
 	_, err := s.db.Exec(ctx, `
 UPDATE entries
-   SET status=$1, changed_at=now()
- WHERE user_id=$2 AND status=$3 AND starred is false AND share_code=''`,
+   SET status = $1, changed_at = now()
+ WHERE user_id = $2 AND status = $3 AND starred IS FALSE`,
 		model.EntryStatusRemoved, userID, model.EntryStatusRead)
 	if err != nil {
 		return fmt.Errorf(`store: unable to flush history: %w`, err)
@@ -646,48 +645,6 @@ UPDATE entries
 		slog.Int64("nb_entries", result.RowsAffected()),
 		slog.String("before", before.Format(time.RFC3339)))
 	return result.RowsAffected() != 0, nil
-}
-
-// EntryShareCode returns the share code of the provided entry. It generates a
-// new one if not already defined.
-func (s *Storage) EntryShareCode(ctx context.Context, userID, entryID int64,
-) (string, error) {
-	rows, _ := s.db.Query(ctx,
-		`SELECT share_code FROM entries WHERE user_id=$1 AND id=$2`,
-		userID, entryID)
-
-	shareCode, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[string])
-	if err != nil {
-		return "", fmt.Errorf(
-			`store: unable to get share code for entry #%d: %w`, entryID, err)
-	}
-
-	if shareCode != "" {
-		return shareCode, nil
-	}
-	shareCode = crypto.GenerateRandomStringHex(20)
-
-	_, err = s.db.Exec(ctx,
-		`UPDATE entries SET share_code = $1 WHERE user_id=$2 AND id=$3`,
-		shareCode, userID, entryID)
-	if err != nil {
-		return "", fmt.Errorf(`store: unable to set share code for entry #%d: %w`,
-			entryID, err)
-	}
-	return shareCode, nil
-}
-
-// UnshareEntry removes the share code for the given entry.
-func (s *Storage) UnshareEntry(ctx context.Context, userID, entryID int64,
-) error {
-	_, err := s.db.Exec(ctx,
-		`UPDATE entries SET share_code='' WHERE user_id=$1 AND id=$2`,
-		userID, entryID)
-	if err != nil {
-		return fmt.Errorf(
-			`store: unable to remove share code for entry #%d: %w`, entryID, err)
-	}
-	return nil
 }
 
 func (s *Storage) KnownEntryHashes(ctx context.Context, feedID int64,

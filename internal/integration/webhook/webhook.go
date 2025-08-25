@@ -49,7 +49,6 @@ func (c *Client) SendSaveEntryWebhookEvent(entry *model.Entry) error {
 			ChangedAt:   entry.ChangedAt,
 			Content:     entry.Content,
 			Author:      entry.Author,
-			ShareCode:   entry.ShareCode,
 			Starred:     entry.Starred,
 			ReadingTime: entry.ReadingTime,
 			Enclosures:  entry.Enclosures(),
@@ -89,7 +88,6 @@ func (c *Client) SendNewEntriesWebhookEvent(feed *model.Feed, entries model.Entr
 			ChangedAt:   entry.ChangedAt,
 			Content:     entry.Content,
 			Author:      entry.Author,
-			ShareCode:   entry.ShareCode,
 			Starred:     entry.Starred,
 			ReadingTime: entry.ReadingTime,
 			Enclosures:  entry.Enclosures(),
@@ -177,7 +175,6 @@ type WebhookEntry struct {
 	ChangedAt   time.Time           `json:"changed_at"`
 	Content     string              `json:"content"`
 	Author      string              `json:"author"`
-	ShareCode   string              `json:"share_code"`
 	Starred     bool                `json:"starred"`
 	ReadingTime int                 `json:"reading_time"`
 	Enclosures  model.EnclosureList `json:"enclosures"`

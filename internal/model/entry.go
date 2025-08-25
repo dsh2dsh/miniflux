@@ -42,7 +42,6 @@ type Entry struct {
 	ChangedAt   time.Time  `json:"changed_at" db:"changed_at"`
 	Content     string     `json:"content" db:"content"`
 	Author      string     `json:"author" db:"author"`
-	ShareCode   string     `json:"share_code" db:"share_code"`
 	Starred     bool       `json:"starred" db:"starred"`
 	ReadingTime int        `json:"reading_time" db:"reading_time"`
 	Feed        *Feed      `json:"feed,omitempty" db:"feed"`

@@ -75,7 +75,6 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 
 		m.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", h.mediaProxy,
 			"proxy")
-		m.NameHandleFunc("/share/{shareCode}", h.sharedEntry, "sharedEntry")
 	})
 
 	m = m.Group().Use(hmw.WithUserSession(store))
@@ -103,8 +102,6 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 		// Entry pages.
 		m.NameHandleFunc("/entry/{entryID}/bookmark", h.toggleBookmark,
 			"toggleBookmark")
-		m.NameHandleFunc("/entry/{entryID}/fetch", h.fetchContent,
-			"fetchContent")
 		m.NameHandleFunc("/entry/{entryID}/inline", h.inlineEntry, "inlineEntry")
 		m.NameHandleFunc("/entry/{entryID}/save", h.saveEntry, "saveEntry")
 		m.NameHandleFunc("/entry/{entryID}/save-progression/{at}",
@@ -117,12 +114,6 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 
 		m.NameHandleFunc("/feed/{feedID}/entry/{entryID}/download", h.downloadEntry,
 			"downloadEntry")
-
-		// Share pages.
-		m.NameHandleFunc("/entry/{entryID}/share", h.createSharedEntry,
-			"shareEntry")
-		m.NameHandleFunc("/entry/{entryID}/unshare", h.unshareEntry,
-			"unshareEntry")
 
 		if config.Opts.WebAuthn() {
 			// WebAuthn flow
@@ -150,7 +141,6 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 
 	// History pages.
 	m.NameHandleFunc("/history", h.showHistoryPage, "history")
-	m.NameHandleFunc("/history/entry/{entryID}", h.showReadEntryPage, "readEntry")
 
 	// Bookmark pages.
 	m.NameHandleFunc("/starred", h.showStarredPage, "starred")
@@ -205,9 +195,6 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 	// Tag pages.
 	m.NameHandleFunc("/tags/{tagName}/entries/all", h.showTagEntriesAllPage,
 		"tagEntriesAll")
-
-	// Share pages.
-	m.NameHandleFunc("/shares", h.sharedEntries, "sharedEntries")
 
 	// User pages.
 	m.NameHandleFunc("/users", h.showUsersPage, "users")

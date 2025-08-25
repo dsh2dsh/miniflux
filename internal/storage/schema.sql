@@ -3,7 +3,7 @@
 CREATE TABLE schema_version (
     version text NOT NULL
 );
-INSERT INTO schema_version (version) VALUES('122');
+INSERT INTO schema_version (version) VALUES('123');
 
 CREATE TABLE acme_cache (
     key character varying(400) NOT NULL PRIMARY KEY,
@@ -169,7 +169,6 @@ CREATE TABLE entries (
       setweight(to_tsvector('simple', left(coalesce(content, ''), 500000)), 'B')
     ) STORED,
     changed_at timestamp with time zone NOT NULL,
-    share_code text DEFAULT '' NOT NULL,
     reading_time integer DEFAULT 0 NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     tags text[] DEFAULT '{}',
@@ -181,7 +180,6 @@ CREATE INDEX ON entries USING gin (document_vectors);
 CREATE INDEX ON entries (feed_id, status, hash);
 CREATE INDEX ON entries (feed_id);
 CREATE INDEX ON entries (id, user_id, status);
-CREATE UNIQUE INDEX ON entries (share_code) WHERE (share_code <> '');
 CREATE INDEX ON entries (user_id, feed_id);
 CREATE INDEX ON entries (user_id, hash);
 CREATE INDEX ON entries (user_id, status, starred);
