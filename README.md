@@ -252,6 +252,15 @@ This project is an opinionated fork of Miniflux.
   Users `username1`, `username2` and `username3` can see list of users and
   system information like `Postgres version` and `Database size`.
 
+* Inline entry reader.
+
+  Click entry title and its content will be inlined:
+  ![Entry content](images/inline.png)
+
+  Click the `Download` button and original content will be inlined.
+
+---
+
 Features
 --------
 
