@@ -53,7 +53,6 @@ type SettingsForm struct {
 	MediaPlaybackRate       float64
 	BlockFilterEntryRules   string
 	KeepFilterEntryRules    string
-	MarkReadOnScroll        bool
 	AlwaysOpenExternalLinks bool
 	OpenExternalLinkSameTab bool
 }
@@ -122,7 +121,6 @@ func (s *SettingsForm) Merge(user *model.User) *model.User {
 	MarkReadOnView, MarkReadOnMediaPlayerCompletion := ExtractMarkAsReadBehavior(s.MarkReadBehavior)
 	user.MarkReadOnView = MarkReadOnView
 	user.MarkReadOnMediaPlayerCompletion = MarkReadOnMediaPlayerCompletion
-	user.Extra.MarkReadOnScroll = s.MarkReadOnScroll
 	user.Extra.AlwaysOpenExternalLinks = s.AlwaysOpenExternalLinks
 	user.Extra.OpenExternalLinkSameTab = s.OpenExternalLinkSameTab
 
@@ -212,7 +210,6 @@ func NewSettingsForm(r *http.Request) *SettingsForm {
 		MediaPlaybackRate:       mediaPlaybackRate,
 		BlockFilterEntryRules:   r.FormValue("block_filter_entry_rules"),
 		KeepFilterEntryRules:    r.FormValue("keep_filter_entry_rules"),
-		MarkReadOnScroll:        r.FormValue("mark_read_on_scroll") != "",
 		AlwaysOpenExternalLinks: r.FormValue("always_open_external_links") != "",
 		OpenExternalLinkSameTab: r.FormValue("open_external_links_in_new_tab") == "",
 	}

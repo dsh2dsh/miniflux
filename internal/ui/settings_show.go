@@ -65,7 +65,6 @@ func (h *handler) showSettingsPage(w http.ResponseWriter, r *http.Request) {
 		MediaPlaybackRate:       user.MediaPlaybackRate,
 		BlockFilterEntryRules:   user.BlockFilterEntryRules,
 		KeepFilterEntryRules:    user.KeepFilterEntryRules,
-		MarkReadOnScroll:        user.MarkReadOnScroll(),
 		AlwaysOpenExternalLinks: user.AlwaysOpenExternalLinks(),
 		OpenExternalLinkSameTab: user.OpenExternalLinkSameTab(),
 	}

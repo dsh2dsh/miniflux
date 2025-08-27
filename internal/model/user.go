@@ -52,7 +52,6 @@ type User struct {
 type UserExtra struct {
 	AlwaysOpenExternalLinks bool        `json:"always_open_external_links,omitempty"`
 	Integration             Integration `json:"integration,omitzero"`
-	MarkReadOnScroll        bool        `json:"mark_read_on_scroll,omitempty"`
 	OpenExternalLinkSameTab bool        `json:"open_external_link_same_tab,omitempty"`
 }
 
@@ -95,7 +94,6 @@ type UserModificationRequest struct {
 	MediaPlaybackRate               *float64 `json:"media_playback_rate"`
 	BlockFilterEntryRules           *string  `json:"block_filter_entry_rules"`
 	KeepFilterEntryRules            *string  `json:"keep_filter_entry_rules"`
-	MarkReadOnScroll                *bool    `json:"mark_read_on_scroll,omitempty"`
 	AlwaysOpenExternalLinks         *bool    `json:"always_open_external_links,omitempty"`
 	OpenExternalLinkSameTab         *bool    `json:"open_external_link_same_tab,omitempty"`
 }
@@ -214,10 +212,6 @@ func (u *UserModificationRequest) Patch(user *User) {
 		user.KeepFilterEntryRules = *u.KeepFilterEntryRules
 	}
 
-	if u.MarkReadOnScroll != nil {
-		user.Extra.MarkReadOnScroll = *u.MarkReadOnScroll
-	}
-
 	if u.AlwaysOpenExternalLinks != nil {
 		user.Extra.AlwaysOpenExternalLinks = *u.AlwaysOpenExternalLinks
 	}
@@ -243,7 +237,6 @@ func (u *User) AlwaysOpenExternalLinks() bool {
 }
 
 func (u *User) Integration() *Integration { return &u.Extra.Integration }
-func (u *User) MarkReadOnScroll() bool    { return u.Extra.MarkReadOnScroll }
 
 func (u *User) OpenExternalLinkSameTab() bool {
 	return u.Extra.OpenExternalLinkSameTab

@@ -737,4 +737,8 @@ CREATE INDEX ON feed_icons (icon_id);`),
 
 	// 123
 	sqlMigration(`ALTER TABLE entries DROP COLUMN share_code`),
+
+	// 124
+	sqlMigration(
+		`ALTER TABLE users SET extra = extra - '{mark_read_on_scroll}'::text[]`),
 }

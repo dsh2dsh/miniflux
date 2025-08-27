@@ -297,15 +297,6 @@ func (self *EndpointTestSuite) TestUpdateUserEndpoint() {
 		assert  func(updatedUser *model.User)
 	}{
 		{
-			name: "mark_read_on_scroll",
-			req: model.UserModificationRequest{
-				MarkReadOnScroll: model.SetOptionalField(true),
-			},
-			assert: func(updatedUser *model.User) {
-				self.True(updatedUser.Extra.MarkReadOnScroll)
-			},
-		},
-		{
 			name: "default theme",
 			req: model.UserModificationRequest{
 				Theme: model.SetOptionalField("dark_serif"),

@@ -125,13 +125,6 @@
         <label><input type="radio" name="mark_read_behavior" value="{{ .readBehaviors.MarkAsReadOnlyOnPlayerCompletion }}"
                       {{ if eq .form.MarkReadBehavior .readBehaviors.MarkAsReadOnlyOnPlayerCompletion }}checked{{end}}          > {{ t "form.prefs.label.mark_read_on_media_completion" }}</label>
 
-        <label>
-            <input type="checkbox" name="mark_read_on_scroll"
-                   id="form-mark-read-on-scroll"
-                   value="1" {{ if .form.MarkReadOnScroll }}checked{{ end }} />
-            Mark entries as read when scrolled
-        </label>
-
         <div class="buttons">
             <button type="submit" class="button button-primary" data-label-loading="{{ t "form.submit.saving" }}">{{ t "action.update" }}</button>
         </div>

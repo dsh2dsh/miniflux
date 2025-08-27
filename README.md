@@ -213,8 +213,6 @@ This project is an opinionated fork of Miniflux.
 
 * Mark entries as read when scrolled.
 
-  This new option is disabled by default and can be enabled in user settings.
-
 * Don't trust HTTP headers `X-Forwarded-For` and `X-Real-IP` by default.
 
   Parse them only if request is from one of configured trusted proxies. By

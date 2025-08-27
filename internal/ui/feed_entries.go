@@ -49,7 +49,6 @@ func (h *handler) showFeedEntriesPage(w http.ResponseWriter, r *http.Request) {
 		Set("pagination", getPagination(
 			route.Path(h.router, "feedEntries", "feedID", feedID), count, offset,
 			user.EntriesPerPage)).
-		Set("markReadOnScroll", user.MarkReadOnScroll()).
 		Set("showOnlyUnreadEntries", true)
 	html.OK(w, r, v.Render("feed_entries"))
 }

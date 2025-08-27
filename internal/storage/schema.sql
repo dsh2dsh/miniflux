@@ -3,7 +3,7 @@
 CREATE TABLE schema_version (
     version text NOT NULL
 );
-INSERT INTO schema_version (version) VALUES('123');
+INSERT INTO schema_version (version) VALUES('124');
 
 CREATE TABLE acme_cache (
     key character varying(400) NOT NULL PRIMARY KEY,
