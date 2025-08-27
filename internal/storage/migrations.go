@@ -740,5 +740,5 @@ CREATE INDEX ON feed_icons (icon_id);`),
 
 	// 124
 	sqlMigration(
-		`ALTER TABLE users SET extra = extra - '{mark_read_on_scroll}'::text[]`),
+		`UPDATE users SET extra = extra - '{mark_read_on_scroll}'::text[]`),
 }
