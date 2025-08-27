@@ -16,6 +16,20 @@ class InlineEntry {
       }
     });
 
+    body.addEventListener("htmx:sendError", (event) => {
+        const el = event.detail.elt;
+        if (el.closest(".item-title a")) {
+          this.inlineFailed(el.closest(".item"), event.detail);
+        };
+    });
+
+    body.addEventListener("htmx:responseError", (event) => {
+        const el = event.detail.elt;
+        if (el.closest(".item-title a")) {
+          this.inlineFailed(el.closest(".item"), event.detail);
+        };
+    });
+
     body.addEventListener("htmx:afterSettle", (event) => {
       const el = event.detail.elt;
       if (el.matches(".item > .loaded")) {
@@ -45,11 +59,26 @@ class InlineEntry {
 
   addLoadingTarget(item) {
     const t = document.querySelector("template#entry-loading-inline");
-    item.querySelector(".item-header").after(t.content.cloneNode(true));
+    const article = t.content.cloneNode(true);
+
+    const withError = item.querySelector(".entry-content.with-error");
+    if (withError) {
+      withError.replaceWith(article);
+    } else {
+      item.querySelector(".item-header").after(article);
+    };
   }
 
   nextEventCycle(fn) {
     setTimeout(fn, 0);
+  }
+
+  inlineFailed(item, detail) {
+    const t = document.querySelector("template#entry-loading-error");
+    const loadingError = t.content.cloneNode(true);
+    loadingError.querySelector(".errorText").innerText = detail.error;
+    loadingError.querySelector(".responseText").innerText = detail.xhr.responseText;
+    detail.target.replaceWith(loadingError);
   }
 
   entryInlined(item) {

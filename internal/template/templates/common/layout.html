@@ -14,7 +14,10 @@
     <meta name="theme-color" content="{{ theme_color .theme "dark" }}" media="(prefers-color-scheme: dark)">
 
     <meta name="htmx-config"
-          content='{"includeIndicatorStyles": false, "allowScriptTags": false}'>
+          content='{
+                "includeIndicatorStyles": false,
+                "allowScriptTags": false,
+                "timeout": 10000}'>
 
     <link rel="manifest" href="{{ route "webManifest" }}" crossorigin="use-credentials">
 
@@ -222,7 +225,16 @@
     </template>
 
     <template id="entry-loading-inline">
-        {{ template "entry_inline_loading.html" }}
+        <article class="entry-content htmx-indicator" dir="auto">
+            {{ t "entry.state.loading" }}
+        </article>
+    </template>
+
+    <template id="entry-loading-error">
+        <article class="entry-content with-error" dir="auto">
+            <span class="errorText"></span>:
+            <span class="responseText"></span>
+        </article>
     </template>
 
     <template id="icon-read">{{ icon "read" }}</template>
