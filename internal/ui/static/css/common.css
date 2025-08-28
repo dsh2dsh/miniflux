@@ -906,6 +906,16 @@ template {
     translate: 1px 1px;
 }
 
+.page-button .htmx-indicator,
+.page-button.htmx-request .caption {
+    display: none;
+    visibility: hidden;
+}
+.page-button.htmx-request .htmx-indicator {
+    display: inline-block;
+    visibility: visible;
+}
+
 .items {
     overflow-x: hidden;
     touch-action: pan-y;

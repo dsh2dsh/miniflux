@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"html/template"
 	"net/http"
 
@@ -76,12 +77,13 @@ func (h *handler) downloadEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	content := mediaproxy.RewriteDocumentWithRelativeProxyURL(
-		h.router, entry.Content)
+	// content := mediaproxy.RewriteDocumentWithRelativeProxyURL(
+	// 	h.router, entry.Content)
 
-	v := view.New(h.tpl, r, nil).
-		Set("entry", entry).
-		Set("safeContent", template.HTML(content)).
-		Set("user", request.User(r))
-	html.OK(w, r, v.Render("entry_download"))
+	// v := view.New(h.tpl, r, nil).
+	// 	Set("entry", entry).
+	// 	Set("safeContent", template.HTML(content)).
+	// 	Set("user", request.User(r))
+	// html.OK(w, r, v.Render("entry_download"))
+	html.ServerError(w, r, errors.New("Oops"))
 }

@@ -17,17 +17,17 @@ class InlineEntry {
     });
 
     body.addEventListener("htmx:sendError", (event) => {
-        const el = event.detail.elt;
-        if (el.closest(".item-title a")) {
-          this.inlineFailed(el.closest(".item"), event.detail);
-        };
+      const el = event.detail.elt;
+      if (el.closest(".item-title a")) {
+        this.inlineFailed(el.closest(".item"), event.detail);
+      };
     });
 
     body.addEventListener("htmx:responseError", (event) => {
-        const el = event.detail.elt;
-        if (el.closest(".item-title a")) {
-          this.inlineFailed(el.closest(".item"), event.detail);
-        };
+      const el = event.detail.elt;
+      if (el.closest(".item-title a")) {
+        this.inlineFailed(el.closest(".item"), event.detail);
+      }
     });
 
     body.addEventListener("htmx:afterSettle", (event) => {
@@ -79,6 +79,8 @@ class InlineEntry {
     loadingError.querySelector(".errorText").innerText = detail.error;
     loadingError.querySelector(".responseText").innerText = detail.xhr.responseText;
     detail.target.replaceWith(loadingError);
+    showToastNotification("error",
+      `${detail.error}: ${detail.xhr.responseText}`);
   }
 
   entryInlined(item) {
@@ -95,21 +97,35 @@ class InlineEntry {
   }
 
   downloadingOriginal(button) {
-    this.setButtonLoading(button);
+    if (!this.setButtonLoading(button)) return;
+
     const item = button.closest(".item");
     item.addEventListener("htmx:afterSettle", (event) => {
       if (event.detail.elt.matches(".entry-content.download")) {
         button.parentElement.remove();
       }
     }, { once: true });
+
+    button.addEventListener("htmx:sendError", (event) => {
+      this.downloadFailed(button, event.detail);
+    });
+
+    button.addEventListener("htmx:responseError", (event) => {
+      this.downloadFailed(button, event.detail);
+    });
   }
 
   setButtonLoading(button) {
-    const originalLabel = button.querySelector(".icon-label")
-    const loadingLabel = createIconLabelElement(
-      document.body.dataset.labelLoading);
-    button.replaceChild(loadingLabel, originalLabel);
-    return originalLabel;
+    if (button.querySelector(".htmx-indicator")) return false;
+
+    const t = document.querySelector("template#entry-downloading");
+    button.appendChild(t.content.cloneNode(true));
+    return true;
+  }
+
+  downloadFailed(button, detail) {
+    showToastNotification("error",
+      `${detail.error}: ${detail.xhr.responseText}`);
   }
 
   downloaded(item) {

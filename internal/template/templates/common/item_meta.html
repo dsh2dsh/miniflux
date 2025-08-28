@@ -95,10 +95,12 @@
               hx-disabled-elt="this"
               hx-get="{{ route "downloadEntry" "feedID" .entry.Feed.ID  "entryID" .entry.ID }}"
               hx-target="previous .entry-content.inline"
-              hx-trigger="click once"
+              hx-trigger="click"
               hx-swap="outerHTML">
                 {{ icon "scraper" }}
-                <span class="icon-label">{{ t "entry.scraper.label" }}</span>
+                <span class="icon-label caption">
+                    {{ t "entry.scraper.label" }}
+                </span>
             </button>
         </li>
 
