@@ -206,7 +206,7 @@ func (r *RequestBuilder) execute(requestURL string) (*http.Response,
 	}
 
 	log := logging.FromContext(r.Context())
-	log.Info("Making outgoing request",
+	log.Debug("Making outgoing request",
 		slog.Bool("customized", r.customizedClient),
 		slog.String("method", req.Method),
 		slog.String("url", req.URL.String()),
