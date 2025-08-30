@@ -148,6 +148,9 @@ func scrape(ctx context.Context, feed *model.Feed, entry *model.Entry,
 	startTime := time.Now()
 	builder := fetcher.NewRequestFeed(feed).WithContext(ctx)
 
+	logging.FromContext(ctx).Info("Fetch original content",
+		slog.String("url", entry.URL))
+
 	baseURL, content, err := scraper.ScrapeWebsite(ctx, builder, entry.URL,
 		feed.ScraperRules)
 	if config.Opts.HasMetricsCollector() {
