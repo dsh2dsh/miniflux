@@ -1375,3 +1375,41 @@ func (self *EndpointTestSuite) TestFlushHistoryEndpoint() {
 	self.Require().NotNil(readEntries)
 	self.Zero(readEntries.Total, "Invalid total")
 }
+
+func (self *EndpointTestSuite) TestRefreshRemovedEntry() {
+	feedID := self.createFeed()
+	entries, err := self.client.FeedEntries(feedID, nil)
+	self.Require().NoError(err)
+	self.Require().NotNil(entries)
+	self.Require().NotEmpty(entries.Entries)
+
+	entry := entries.Entries[0]
+	self.T().Log(entry.Title)
+	self.T().Log(entry.Hash)
+	self.Require().NoError(self.client.UpdateEntries(
+		[]int64{entry.ID}, model.EntryStatusRemoved))
+
+	_, err = self.client.Entry(entry.ID)
+	self.T().Log(err)
+	self.Require().ErrorIs(err, client.ErrNotFound)
+
+	feedURL, err := url.Parse(self.cfg.FeedURL)
+	self.Require().NoError(err)
+
+	ref, err := url.Parse("/updated_entry.xml")
+	self.Require().NoError(err)
+	feedURL = feedURL.ResolveReference(ref)
+
+	self.T().Log(feedURL)
+	_, err = self.client.UpdateFeed(feedID, &model.FeedModificationRequest{
+		FeedURL: model.SetOptionalField(feedURL.String()),
+	})
+	self.Require().NoError(err)
+
+	self.Require().NoError(self.client.RefreshFeed(feedID))
+	entry2, err := self.client.Entry(entry.ID)
+	self.Require().NoError(err)
+	self.T().Log(entry2.Title)
+	self.Equal(entry.Hash, entry2.Hash)
+	self.Equal(model.EntryStatusUnread, entry2.Status)
+}
