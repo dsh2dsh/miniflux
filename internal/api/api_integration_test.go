@@ -1377,7 +1377,9 @@ func (self *EndpointTestSuite) TestFlushHistoryEndpoint() {
 }
 
 func (self *EndpointTestSuite) TestRefreshRemovedEntry() {
-	feedID := self.createFeed()
+	feedID := self.createFeedWith(model.FeedCreationRequest{
+		IgnoreHTTPCache: true,
+	})
 	entries, err := self.client.FeedEntries(feedID, nil)
 	self.Require().NoError(err)
 	self.Require().NotNil(entries)
