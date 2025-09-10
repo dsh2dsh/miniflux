@@ -88,14 +88,17 @@ func (f *IconFinder) tryFetchSiteIcon() (*model.Icon, error) {
 	// https://example.org/subfolder/), and icons can be referenced relative to
 	// that path.
 	urls := [...]string{f.websiteURL, urllib.RootURL(f.websiteURL)}
-	for _, documentURL := range urls {
+	for i, documentURL := range urls {
+		if i > 0 && documentURL == urls[i-1] {
+			continue
+		}
 		icon, err := f.FetchIconsFromHTMLDocument(documentURL)
 		if err != nil {
 			slog.Debug("Unable to fetch icons from HTML document",
 				slog.String("document_url", documentURL),
 				slog.Any("error", err))
 		} else if icon != nil {
-			return icon, err
+			return icon, nil
 		}
 	}
 	return nil, nil
