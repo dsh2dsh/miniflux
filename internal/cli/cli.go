@@ -137,7 +137,7 @@ func persistentPreRunE(cmd *cobra.Command, args []string) error {
 }
 
 func printErrorAndExit(err error) {
-	fmt.Fprintf(os.Stderr, "%v\n", err)
+	fmt.Fprintln(os.Stderr, err)
 	os.Exit(1)
 }
 

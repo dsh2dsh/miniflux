@@ -8,11 +8,11 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"path"
+	"strconv"
 	"time"
 
 	"miniflux.app/v2/internal/config"
@@ -125,7 +125,8 @@ func (h *handler) mediaProxy(w http.ResponseWriter, r *http.Request) {
 			slog.Int("status_code", resp.StatusCode()))
 
 		// Forward the status code from the origin.
-		http.Error(w, fmt.Sprintf("Origin status code is %d", resp.StatusCode()),
+		http.Error(w,
+			"Origin status code is "+strconv.Itoa(resp.StatusCode()),
 			resp.StatusCode())
 		return
 	}
@@ -139,7 +140,7 @@ func (h *handler) mediaProxy(w http.ResponseWriter, r *http.Request) {
 		b.WithHeader("Content-Type", resp.Header("Content-Type"))
 
 		if filename := path.Base(parsedMediaURL.Path); filename != "" {
-			b.WithHeader("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, filename))
+			b.WithHeader("Content-Disposition", `inline; filename="`+filename+`"`)
 		}
 
 		forwardedResponseHeader := [...]string{

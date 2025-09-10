@@ -35,6 +35,7 @@ func (h *handler) showIntegrationPage(w http.ResponseWriter, r *http.Request) {
 		WallabagClientSecret:             i.WallabagClientSecret,
 		WallabagUsername:                 i.WallabagUsername,
 		WallabagPassword:                 i.WallabagPassword,
+		WallabagTags:                     i.WallabagTags,
 		NotionEnabled:                    i.NotionEnabled,
 		NotionPageID:                     i.NotionPageID,
 		NotionToken:                      i.NotionToken,

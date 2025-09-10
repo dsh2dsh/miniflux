@@ -31,6 +31,6 @@ func askCredentials() (string, string) {
 	defer term.Restore(fd, state)
 	bytePassword, _ := term.ReadPassword(fd)
 
-	fmt.Printf("\n")
+	fmt.Print("\n")
 	return strings.TrimSpace(username), strings.TrimSpace(string(bytePassword))
 }

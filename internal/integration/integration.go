@@ -107,6 +107,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 	if userIntegrations.WallabagEnabled {
 		slog.Debug("Sending entry to Wallabag",
 			slog.Int64("user_id", user.ID),
+			slog.String("user_tags", userIntegrations.WallabagTags),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
@@ -117,12 +118,14 @@ func SendEntry(entry *model.Entry, user *model.User) {
 			userIntegrations.WallabagClientSecret,
 			userIntegrations.WallabagUsername,
 			userIntegrations.WallabagPassword,
+			userIntegrations.WallabagTags,
 			userIntegrations.WallabagOnlyURL,
 		)
 
 		if err := client.CreateEntry(entry.URL, entry.Title, entry.Content); err != nil {
 			slog.Error("Unable to send entry to Wallabag",
 				slog.Int64("user_id", user.ID),
+				slog.String("user_tags", userIntegrations.WallabagTags),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),

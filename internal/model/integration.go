@@ -114,6 +114,7 @@ type Integration struct {
 	WallabagEnabled                  bool   `json:"wallabag_enabled,omitempty"`
 	WallabagOnlyURL                  bool   `json:"wallabag_only_url,omitempty"`
 	WallabagPassword                 string `json:"wallabag_password,omitempty"`
+	WallabagTags                     string `json:"wallabag_tags,omitempty"`
 	WallabagURL                      string `json:"wallabag_url,omitempty"`
 	WallabagUsername                 string `json:"wallabag_username,omitempty"`
 	WebhookEnabled                   bool   `json:"webhook_enabled,omitempty"`

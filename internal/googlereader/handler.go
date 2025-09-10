@@ -787,7 +787,7 @@ func (h *handler) streamItemContentsHandler(w http.ResponseWriter,
 				Content:   entry.Content,
 			},
 			Origin: contentItemOrigin{
-				StreamID: fmt.Sprintf("feed/%d", entry.FeedID),
+				StreamID: feedPrefix + strconv.FormatInt(entry.FeedID, 10),
 				Title:    entry.Feed.Title,
 				HTMLUrl:  entry.Feed.SiteURL,
 			},

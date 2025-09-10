@@ -1217,8 +1217,10 @@ function initializeKeyboardShortcuts() {
  * Initialize touch handler for mobile devices.
  */
 function initializeTouchHandler() {
-    const touchHandler = new TouchHandler();
-    touchHandler.listen();
+    if ( "ontouchstart" in window || navigator.maxTouchPoints > 0) {
+        const touchHandler = new TouchHandler();
+        touchHandler.listen();
+    }
 }
 
 /**
