@@ -12,7 +12,7 @@ import (
 var schemaVersion = len(migrations)
 
 // Order is important. Add new migrations at the end of the list.
-var migrations = []func(tx *sql.Tx) error{
+var migrations = [...]func(tx *sql.Tx) error{
 	func(tx *sql.Tx) (err error) {
 		sql := `
 			CREATE TABLE schema_version (
@@ -1147,6 +1147,13 @@ var migrations = []func(tx *sql.Tx) error{
 				ADD COLUMN linktaco_org_slug text default '',
 				ADD COLUMN linktaco_tags text default '',
 				ADD COLUMN linktaco_visibility linktaco_link_visibility default 'PUBLIC';
+		`
+		_, err = tx.Exec(sql)
+		return err
+	},
+	func(tx *sql.Tx) (err error) {
+		sql := `
+			ALTER TABLE integrations ADD COLUMN wallabag_tags text default '';
 		`
 		_, err = tx.Exec(sql)
 		return err
