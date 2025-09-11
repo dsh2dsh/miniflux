@@ -135,10 +135,9 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 
 func (f *SubscriptionFinder) FindSubscriptionsFromWebPage(websiteURL, contentType string, body io.Reader) (Subscriptions, *locale.LocalizedErrorWrapper) {
 	queries := map[string]string{
-		"link[type='application/rss+xml']":   parser.FormatRSS,
-		"link[type='application/atom+xml']":  parser.FormatAtom,
-		"link[type='application/json']":      parser.FormatJSON,
-		"link[type='application/feed+json']": parser.FormatJSON,
+		"link[type='application/rss+xml']":                                  parser.FormatRSS,
+		"link[type='application/atom+xml']":                                 parser.FormatAtom,
+		"link[type='application/json'], link[type='application/feed+json']": parser.FormatJSON,
 	}
 
 	htmlDocumentReader, err := encoding.NewCharsetReader(body, contentType)
@@ -165,24 +164,24 @@ func (f *SubscriptionFinder) FindSubscriptionsFromWebPage(websiteURL, contentTyp
 			subscription := new(Subscription)
 			subscription.Type = kind
 
-			if title, exists := s.Attr("title"); exists {
-				subscription.Title = title
+			if feedURL, exists := s.Attr("href"); exists && feedURL != "" {
+				subscription.URL, err = urllib.AbsoluteURL(websiteURL, feedURL)
+				if err != nil {
+					return
+				}
+			} else {
+				return // without an url, there can be no subscription.
 			}
 
-			if feedURL, exists := s.Attr("href"); exists {
-				if feedURL != "" {
-					subscription.URL, err = urllib.AbsoluteURL(websiteURL, feedURL)
-					if err != nil {
-						return
-					}
-				}
+			if title, exists := s.Attr("title"); exists {
+				subscription.Title = title
 			}
 
 			if subscription.Title == "" {
 				subscription.Title = subscription.URL
 			}
 
-			if subscription.URL != "" && !subscriptionURLs[subscription.URL] {
+			if !subscriptionURLs[subscription.URL] {
 				subscriptionURLs[subscription.URL] = true
 				subscriptions = append(subscriptions, subscription)
 			}
