@@ -125,7 +125,8 @@ func TestFindIconURLsFromHTMLDocument_MultipleIcons(t *testing.T) {
 </head>
 </html>`
 
-	iconURLs, err := findIconURLsFromHTMLDocument("https://example.org", strings.NewReader(html), "text/html")
+	iconURLs, err := findIconURLsFromHTMLDocument(t.Context(),
+		"https://example.org", strings.NewReader(html), "text/html")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +162,8 @@ func TestFindIconURLsFromHTMLDocument_CaseInsensitiveRel(t *testing.T) {
 </head>
 </html>`
 
-	iconURLs, err := findIconURLsFromHTMLDocument("https://example.org/folder/", strings.NewReader(html), "text/html")
+	iconURLs, err := findIconURLsFromHTMLDocument(t.Context(),
+		"https://example.org/folder/", strings.NewReader(html), "text/html")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -196,7 +198,8 @@ func TestFindIconURLsFromHTMLDocument_NoIcons(t *testing.T) {
 </head>
 </html>`
 
-	iconURLs, err := findIconURLsFromHTMLDocument("https://example.org", strings.NewReader(html), "text/html")
+	iconURLs, err := findIconURLsFromHTMLDocument(t.Context(),
+		"https://example.org", strings.NewReader(html), "text/html")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,7 +220,8 @@ func TestFindIconURLsFromHTMLDocument_EmptyHref(t *testing.T) {
 </head>
 </html>`
 
-	iconURLs, err := findIconURLsFromHTMLDocument("https://example.org", strings.NewReader(html), "text/html")
+	iconURLs, err := findIconURLsFromHTMLDocument(t.Context(),
+		"https://example.org", strings.NewReader(html), "text/html")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,7 +247,8 @@ func TestFindIconURLsFromHTMLDocument_DataURLs(t *testing.T) {
 </head>
 </html>`
 
-	iconURLs, err := findIconURLsFromHTMLDocument("https://example.org/folder", strings.NewReader(html), "text/html")
+	iconURLs, err := findIconURLsFromHTMLDocument(t.Context(),
+		"https://example.org/folder", strings.NewReader(html), "text/html")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,7 +275,8 @@ func TestFindIconURLsFromHTMLDocument_RelativeAndAbsoluteURLs(t *testing.T) {
 </head>
 </html>`
 
-	iconURLs, err := findIconURLsFromHTMLDocument("https://example.org/folder/", strings.NewReader(html), "text/html")
+	iconURLs, err := findIconURLsFromHTMLDocument(t.Context(),
+		"https://example.org/folder/", strings.NewReader(html), "text/html")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -304,7 +310,8 @@ func TestFindIconURLsFromHTMLDocument_InvalidHTML(t *testing.T) {
 </head>
 </html>`
 
-	iconURLs, err := findIconURLsFromHTMLDocument("https://example.org", strings.NewReader(html), "text/html")
+	iconURLs, err := findIconURLsFromHTMLDocument(t.Context(),
+		"https://example.org", strings.NewReader(html), "text/html")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -329,7 +336,8 @@ func TestFindIconURLsFromHTMLDocument_InvalidHTML(t *testing.T) {
 }
 
 func TestFindIconURLsFromHTMLDocument_EmptyDocument(t *testing.T) {
-	iconURLs, err := findIconURLsFromHTMLDocument("https://example.org", strings.NewReader(""), "text/html")
+	iconURLs, err := findIconURLsFromHTMLDocument(t.Context(),
+		"https://example.org", strings.NewReader(""), "text/html")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -348,7 +356,7 @@ func TestResizeIconSmallGif(t *testing.T) {
 		Content:  data,
 		MimeType: "image/gif",
 	}
-	if !bytes.Equal(icon.Content, resizeIcon(&icon).Content) {
+	if !bytes.Equal(icon.Content, resizeIcon(t.Context(), &icon).Content) {
 		t.Fatalf("Converted gif smaller than 16x16")
 	}
 }
@@ -362,7 +370,7 @@ func TestResizeIconPng(t *testing.T) {
 		Content:  data,
 		MimeType: "image/png",
 	}
-	resizedIcon := resizeIcon(&icon)
+	resizedIcon := resizeIcon(t.Context(), &icon)
 
 	if bytes.Equal(data, resizedIcon.Content) {
 		t.Fatalf("Didn't convert png of 33x33")
@@ -383,7 +391,7 @@ func TestResizeInvalidImage(t *testing.T) {
 		Content:  []byte("invalid data"),
 		MimeType: "image/gif",
 	}
-	if !bytes.Equal(icon.Content, resizeIcon(&icon).Content) {
+	if !bytes.Equal(icon.Content, resizeIcon(t.Context(), &icon).Content) {
 		t.Fatalf("Tried to convert an invalid image")
 	}
 }
