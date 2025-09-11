@@ -27,14 +27,17 @@ func NewIconChecker(store *storage.Storage, feed *model.Feed) *IconChecker {
 }
 
 func (c *IconChecker) fetchAndStoreIcon(ctx context.Context) {
-	requestBuilder := fetcher.NewRequestFeed(c.feed)
-	iconFinder := NewIconFinder(requestBuilder, c.feed.SiteURL, c.feed.IconURL,
-		config.Opts.PreferSiteIcon())
-
 	log := logging.FromContext(ctx).With(
 		slog.Int64("feed_id", c.feed.ID),
 		slog.String("website_url", c.feed.SiteURL),
 		slog.String("feed_icon_url", c.feed.IconURL))
+
+	iconFinder, err := NewIconFinder(fetcher.NewRequestFeed(c.feed),
+		c.feed.SiteURL, c.feed.IconURL, config.Opts.PreferSiteIcon())
+	if err != nil {
+		log.Debug("Unable to find feed icon", slog.Any("error", err))
+		return
+	}
 
 	icon, err := iconFinder.FindIcon(ctx)
 	if err != nil {
@@ -57,9 +60,8 @@ func (c *IconChecker) fetchAndStoreIcon(ctx context.Context) {
 
 func (c *IconChecker) CreateFeedIconIfMissing(ctx context.Context) {
 	if c.store.HasFeedIcon(ctx, c.feed.ID) {
-		slog.Debug("Feed icon already exists",
-			slog.Int64("feed_id", c.feed.ID),
-		)
+		logging.FromContext(ctx).Debug("Feed icon already exists",
+			slog.Int64("feed_id", c.feed.ID))
 		return
 	}
 	c.fetchAndStoreIcon(ctx)
