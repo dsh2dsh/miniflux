@@ -4,10 +4,10 @@ class MarkReadOnScroll {
   lastEntryID = "";
 
   constructor(entries) {
+    history.scrollRestoration = "manual";
     if (entries.length == 0) {
       return;
     }
-    history.scrollRestoration = "manual";
 
     this.observer = new IntersectionObserver((entries, observer) => {
       this.observerCallback(entries, observer);
