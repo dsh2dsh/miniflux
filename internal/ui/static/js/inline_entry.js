@@ -59,7 +59,7 @@ class InlineEntry {
 
   addLoadingTarget(item) {
     const t = document.querySelector("template#entry-loading-inline");
-    const article = t.content.cloneNode(true);
+    const article = document.importNode(t.content, true);
 
     const withError = item.querySelector(".entry-content.with-error");
     if (withError) {
@@ -75,7 +75,7 @@ class InlineEntry {
 
   inlineFailed(item, detail) {
     const t = document.querySelector("template#entry-loading-error");
-    const loadingError = t.content.cloneNode(true);
+    const loadingError = document.importNode(t.content, true);
     loadingError.querySelector(".errorText").innerText = detail.error;
     loadingError.querySelector(".responseText").innerText = detail.xhr.responseText;
     detail.target.replaceWith(loadingError);
@@ -100,9 +100,11 @@ class InlineEntry {
     if (!this.setButtonLoading(button)) return;
 
     const item = button.closest(".item");
+    const rect = item.getBoundingClientRect();
     item.addEventListener("htmx:afterSettle", (event) => {
       if (event.detail.elt.matches(".entry-content.download")) {
         button.parentElement.remove();
+        item.scroll(rect.left, rect.top);
       }
     }, { once: true });
 
@@ -119,7 +121,7 @@ class InlineEntry {
     if (button.querySelector(".htmx-indicator")) return false;
 
     const t = document.querySelector("template#entry-downloading");
-    button.appendChild(t.content.cloneNode(true));
+    button.appendChild(document.importNode(t.content, true));
     return true;
   }
 
