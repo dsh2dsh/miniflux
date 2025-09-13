@@ -26,8 +26,7 @@ func (self *Session) String() string {
 
 // UseTimezone converts creation date to the given timezone.
 func (self *Session) UseTimezone(tz string) {
-	self.CreatedAt = timezone.Convert(tz, self.CreatedAt)
-	self.UpdatedAt = timezone.Convert(tz, self.UpdatedAt)
+	timezone.Convert(tz, &self.CreatedAt, &self.UpdatedAt)
 }
 
 func (self *Session) Token() string     { return self.ID }

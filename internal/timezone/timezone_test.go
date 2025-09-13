@@ -32,8 +32,8 @@ func TestNowWithInvalidTimezone(t *testing.T) {
 
 func TestConvertTimeWithNoTimezoneInformation(t *testing.T) {
 	tz := "Canada/Pacific"
-	input := time.Date(2018, 3, 1, 14, 2, 3, 0, time.FixedZone("", 0))
-	output := Convert(tz, input)
+	output := converted(t, tz,
+		time.Date(2018, 3, 1, 14, 2, 3, 0, time.FixedZone("", 0)))
 
 	if output.Location().String() != tz {
 		t.Fatalf(`Unexpected timezone, got %q instead of %s`, output.Location(), tz)
@@ -45,10 +45,14 @@ func TestConvertTimeWithNoTimezoneInformation(t *testing.T) {
 	}
 }
 
+func converted(t *testing.T, tz string, input time.Time) time.Time {
+	t.Helper()
+	return convert(tz, &input)
+}
+
 func TestConvertTimeWithDifferentTimezone(t *testing.T) {
 	tz := "Canada/Central"
-	input := time.Date(2018, 3, 1, 14, 2, 3, 0, time.UTC)
-	output := Convert(tz, input)
+	output := converted(t, tz, time.Date(2018, 3, 1, 14, 2, 3, 0, time.UTC))
 
 	if output.Location().String() != tz {
 		t.Fatalf(`Unexpected timezone, got %q instead of %s`, output.Location(), tz)
@@ -63,8 +67,7 @@ func TestConvertTimeWithDifferentTimezone(t *testing.T) {
 func TestConvertTimeWithIdenticalTimezone(t *testing.T) {
 	tz := "Canada/Central"
 	loc, _ := time.LoadLocation(tz)
-	input := time.Date(2018, 3, 1, 14, 2, 3, 0, loc)
-	output := Convert(tz, input)
+	output := converted(t, tz, time.Date(2018, 3, 1, 14, 2, 3, 0, loc))
 
 	if output.Location().String() != tz {
 		t.Fatalf(`Unexpected timezone, got %q instead of %s`, output.Location(), tz)
@@ -78,8 +81,8 @@ func TestConvertTimeWithIdenticalTimezone(t *testing.T) {
 
 func TestConvertPostgresDateTimeWithNegativeTimezoneOffset(t *testing.T) {
 	tz := "US/Eastern"
-	input := time.Date(0, 1, 1, 0, 0, 0, 0, time.FixedZone("", -5))
-	output := Convert(tz, input)
+	output := converted(t, tz,
+		time.Date(0, 1, 1, 0, 0, 0, 0, time.FixedZone("", -5)))
 
 	if output.Location().String() != tz {
 		t.Fatalf(`Unexpected timezone, got %q instead of %s`, output.Location(), tz)

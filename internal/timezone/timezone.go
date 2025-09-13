@@ -10,33 +10,41 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
-// Convert converts provided date time to actual timezone.
-func Convert(tz string, t time.Time) time.Time {
-	if t.Location().String() == "" {
-		userTimezone := getLocation(tz)
-		if t.Before(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)) {
-			return time.Date(0, time.January, 1, 0, 0, 0, 0, userTimezone)
-		}
+// Convert converts provided date times to actual timezone.
+func Convert(tz string, times ...*time.Time) {
+	for _, t := range times {
+		*t = convert(tz, t)
+	}
+}
 
-		// In this case, the provided date is already converted to the user timezone
-		// by Postgres, but the timezone information is not set in the time struct.
-		// We cannot use time.In() because the date will be converted a second time.
-		return time.Date(
-			t.Year(),
-			t.Month(),
-			t.Day(),
-			t.Hour(),
-			t.Minute(),
-			t.Second(),
-			t.Nanosecond(),
-			userTimezone,
-		)
+func convert(tz string, t *time.Time) time.Time {
+	name := t.Location().String()
+	if name == tz {
+		return *t
 	}
 
-	if t.Location().String() != tz {
-		return t.In(getLocation(tz))
+	userTimezone := getLocation(tz)
+	if name != "" {
+		return t.In(userTimezone)
 	}
-	return t
+
+	if t.Before(time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)) {
+		return time.Date(0, time.January, 1, 0, 0, 0, 0, userTimezone)
+	}
+
+	// In this case, the provided date is already converted to the user timezone
+	// by Postgres, but the timezone information is not set in the time struct. We
+	// cannot use time.In() because the date will be converted a second time.
+	return time.Date(
+		t.Year(),
+		t.Month(),
+		t.Day(),
+		t.Hour(),
+		t.Minute(),
+		t.Second(),
+		t.Nanosecond(),
+		userTimezone,
+	)
 }
 
 // Now returns the current time with the given timezone.

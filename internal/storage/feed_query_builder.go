@@ -245,8 +245,7 @@ WHERE `+f.buildCondition()+" "+f.buildSorting(), f.args...)
 			feed.Icon.FeedID = feed.ID
 		}
 
-		feed.CheckedAt = timezone.Convert(tz, feed.CheckedAt)
-		feed.NextCheckAt = timezone.Convert(tz, feed.NextCheckAt)
+		timezone.Convert(tz, &feed.CheckedAt, &feed.NextCheckAt)
 		feed.Category.UserID = feed.UserID
 		feeds = append(feeds, feed)
 	}

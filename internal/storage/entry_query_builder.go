@@ -407,10 +407,11 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 		}
 
 		// Make sure that timestamp fields contain timezone information (API)
-		entry.Date = timezone.Convert(tz, entry.Date)
-		entry.CreatedAt = timezone.Convert(tz, entry.CreatedAt)
-		entry.ChangedAt = timezone.Convert(tz, entry.ChangedAt)
-		entry.Feed.CheckedAt = timezone.Convert(tz, entry.Feed.CheckedAt)
+		timezone.Convert(tz,
+			&entry.Date,
+			&entry.CreatedAt,
+			&entry.ChangedAt,
+			&entry.Feed.CheckedAt)
 
 		entry.Feed.ID = entry.FeedID
 		entry.Feed.UserID = entry.UserID

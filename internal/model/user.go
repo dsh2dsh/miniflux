@@ -228,7 +228,7 @@ func (u *User) String() string {
 // UseTimezone converts last login date to the given timezone.
 func (u *User) UseTimezone(tz string) {
 	if u.LastLoginAt != nil {
-		*u.LastLoginAt = timezone.Convert(tz, *u.LastLoginAt)
+		timezone.Convert(tz, u.LastLoginAt)
 	}
 }
 

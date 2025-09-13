@@ -202,8 +202,8 @@ func elapsedTime(printer *locale.Printer, tz string, t time.Time) string {
 		return printer.Print("time_elapsed.not_yet")
 	}
 
+	timezone.Convert(tz, &t)
 	now := timezone.Now(tz)
-	t = timezone.Convert(tz, t)
 	if now.Before(t) {
 		return t.Format("2006-01-02 15:04:05")
 	}
