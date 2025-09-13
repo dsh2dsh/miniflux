@@ -1,8 +1,16 @@
+{{ if not .showOnlyUnreadEntries }}
+<div class="pagination-top">
+    {{ template "pagination" .pagination }}
+</div>
+{{ end }}
+
 <div class="items">
     {{ range .entries }}
     {{   template "item" dict "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry }}
     {{ end }}
 </div>
+
+{{ if .showOnlyUnreadEntries }}
 
 <section class="page-header scroll-down-go-next">
     <div>
@@ -13,3 +21,11 @@
         {{ t "confirm.loading" }}
     </div>
 </section>
+
+{{ else }}
+
+<div class="pagination-bottom">
+    {{ template "pagination" .pagination }}
+</div>
+
+{{ end }}

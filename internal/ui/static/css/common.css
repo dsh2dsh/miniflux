@@ -1401,4 +1401,5 @@ footer .elevator {
 .pagination-top .elevator,
 .pagination-entry-top .elevator {
     display: none;
+    visibility: hidden;
 }
