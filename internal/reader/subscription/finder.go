@@ -81,24 +81,15 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 	}
 
 	// Step 2) Check if the website URL is a YouTube channel.
-	slog.Debug("Try to detect feeds from YouTube channel page", slog.String("website_url", websiteURL))
-	if subscriptions, localizedError := f.FindSubscriptionsFromYouTubeChannelPage(websiteURL); localizedError != nil {
+	slog.Debug("Try to detect feeds for a YouTube page", slog.String("website_url", websiteURL))
+	if subscriptions, localizedError := f.findSubscriptionsFromYouTube(websiteURL); localizedError != nil {
 		return nil, localizedError
 	} else if len(subscriptions) > 0 {
-		slog.Debug("Subscriptions found from YouTube channel page", slog.String("website_url", websiteURL), slog.Any("subscriptions", subscriptions))
+		slog.Debug("Subscriptions found from YouTube page", slog.String("website_url", websiteURL), slog.Any("subscriptions", subscriptions))
 		return subscriptions, nil
 	}
 
-	// Step 3) Check if the website URL is a YouTube playlist.
-	slog.Debug("Try to detect feeds from YouTube playlist page", slog.String("website_url", websiteURL))
-	if subscriptions, localizedError := f.FindSubscriptionsFromYouTubePlaylistPage(websiteURL); localizedError != nil {
-		return nil, localizedError
-	} else if len(subscriptions) > 0 {
-		slog.Debug("Subscriptions found from YouTube playlist page", slog.String("website_url", websiteURL), slog.Any("subscriptions", subscriptions))
-		return subscriptions, nil
-	}
-
-	// Step 4) Parse web page to find feeds from HTML meta tags.
+	// Step 3) Parse web page to find feeds from HTML meta tags.
 	slog.Debug("Try to detect feeds from HTML meta tags",
 		slog.String("website_url", websiteURL),
 		slog.String("content_type", resp.ContentType()),
@@ -110,7 +101,7 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 		return subscriptions, nil
 	}
 
-	// Step 5) Check if the website URL can use RSS-Bridge.
+	// Step 4) Check if the website URL can use RSS-Bridge.
 	if rssBridgeURL != "" {
 		slog.Debug("Try to detect feeds with RSS-Bridge", slog.String("website_url", websiteURL))
 		if subscriptions, localizedError := f.FindSubscriptionsFromRSSBridge(websiteURL, rssBridgeURL, rssBridgeToken); localizedError != nil {
@@ -121,7 +112,7 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 		}
 	}
 
-	// Step 6) Check if the website has a known feed URL.
+	// Step 5) Check if the website has a known feed URL.
 	slog.Debug("Try to detect feeds from well-known URLs", slog.String("website_url", websiteURL))
 	if subscriptions, localizedError := f.FindSubscriptionsFromWellKnownURLs(websiteURL); localizedError != nil {
 		return nil, localizedError
@@ -300,40 +291,26 @@ func (f *SubscriptionFinder) FindSubscriptionsFromRSSBridge(websiteURL, rssBridg
 	return subscriptions, nil
 }
 
-func (f *SubscriptionFinder) FindSubscriptionsFromYouTubeChannelPage(websiteURL string) (Subscriptions, *locale.LocalizedErrorWrapper) {
-	decodedUrl, err := url.Parse(websiteURL)
+func (f *SubscriptionFinder) findSubscriptionsFromYouTube(websiteURL string) (Subscriptions, *locale.LocalizedErrorWrapper) {
+	decodedURL, err := url.Parse(websiteURL)
 	if err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err, "error.invalid_site_url", err)
 	}
 
-	if !strings.HasSuffix(decodedUrl.Host, "youtube.com") {
-		slog.Debug("This website is not a YouTube page, the regex doesn't match", slog.String("website_url", websiteURL))
+	if !strings.HasSuffix(decodedURL.Host, "youtube.com") {
+		slog.Debug("YouTube feed discovery skipped: not a YouTube domain", slog.String("website_url", websiteURL))
 		return nil, nil
 	}
-
-	if _, channelID, found := strings.Cut(decodedUrl.Path, "channel/"); found {
+	if _, channelID, found := strings.Cut(decodedURL.Path, "channel/"); found {
 		feedURL := "https://www.youtube.com/feeds/videos.xml?channel_id=" + channelID
-		return Subscriptions{NewSubscription(websiteURL, feedURL, parser.FormatAtom)}, nil
+		return Subscriptions{NewSubscription(decodedURL.String(), feedURL, parser.FormatAtom)}, nil
 	}
 
-	return nil, nil
-}
-
-func (f *SubscriptionFinder) FindSubscriptionsFromYouTubePlaylistPage(websiteURL string) (Subscriptions, *locale.LocalizedErrorWrapper) {
-	decodedUrl, err := url.Parse(websiteURL)
-	if err != nil {
-		return nil, locale.NewLocalizedErrorWrapper(err, "error.invalid_site_url", err)
-	}
-
-	if !strings.HasSuffix(decodedUrl.Host, "youtube.com") {
-		slog.Debug("This website is not a YouTube page, the regex doesn't match", slog.String("website_url", websiteURL))
-		return nil, nil
-	}
-
-	if (strings.HasPrefix(decodedUrl.Path, "/watch") && decodedUrl.Query().Has("list")) || strings.HasPrefix(decodedUrl.Path, "/playlist") {
-		playlistID := decodedUrl.Query().Get("list")
-		feedURL := "https://www.youtube.com/feeds/videos.xml?playlist_id=" + playlistID
-		return Subscriptions{NewSubscription(websiteURL, feedURL, parser.FormatAtom)}, nil
+	if strings.HasPrefix(decodedURL.Path, "/watch") || strings.HasPrefix(decodedURL.Path, "/playlist") {
+		if playlistID := decodedURL.Query().Get("list"); playlistID != "" {
+			feedURL := "https://www.youtube.com/feeds/videos.xml?playlist_id=" + playlistID
+			return Subscriptions{NewSubscription(decodedURL.String(), feedURL, parser.FormatAtom)}, nil
+		}
 	}
 
 	return nil, nil
