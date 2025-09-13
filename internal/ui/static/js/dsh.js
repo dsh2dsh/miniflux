@@ -77,6 +77,16 @@ function initCommentLinks() {
   });
 }
 
+function initElevator() {
+  document.body.addEventListener("click", (e) => {
+    if (e.target.closest("a.elevator")) {
+      e.preventDefault();
+      scroll(0, 0);
+    }
+  })
+}
+
 initDataConfirm();
 initServiceWorker();
 initCommentLinks();
+initElevator();
