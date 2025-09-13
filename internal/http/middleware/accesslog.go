@@ -70,7 +70,7 @@ func (self *AccessLog) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			slog.Duration("elapsed", traceStat.Elapsed)))
 	}
 
-	methodURL := r.Method + " " + r.URL.Path
+	methodURL := r.Method + " " + r.URL.RequestURI()
 	log.LogAttrs(ctx, self.level(r), methodURL,
 		slog.Int("status_code", sw.StatusCode()),
 		slog.Int("size", sw.Size()),
