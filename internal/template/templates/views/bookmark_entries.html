@@ -11,13 +11,9 @@
 {{ end }}
 
 {{ define "content" }}
-{{ if .entries }}
-{{   template "entries_list.html" . }}
-{{ else }}
-
-<p role="alert" class="alert alert-info">
-    {{ t "alert.no_bookmark" }}
-</p>
-
-{{ end }}
+{{   if .entries }}
+{{     template "entries_list.html" . }}
+{{   else }}
+{{     template "info.html" "alert.no_bookmark" }}
+{{   end }}
 {{ end }}

@@ -12,13 +12,13 @@
             {{ if .entries }}
             <li>
                 <button
-                    class="page-button"
-                    data-confirm="true"
-                    data-url="{{ route "flushHistory" }}"
-                    data-label-question="{{ t "confirm.question" }}"
-                    data-label-yes="{{ t "confirm.yes" }}"
-                    data-label-no="{{ t "confirm.no" }}"
-                    data-label-loading="{{ t "confirm.loading" }}">{{ icon "delete" }}{{ t "menu.flush_history" }}</button>
+                  class="page-button"
+                  data-confirm="true"
+                  data-url="{{ route "flushHistory" }}"
+                  data-label-question="{{ t "confirm.question" }}"
+                  data-label-yes="{{ t "confirm.yes" }}"
+                  data-label-no="{{ t "confirm.no" }}"
+                  data-label-loading="{{ t "confirm.loading" }}">{{ icon "delete" }}{{ t "menu.flush_history" }}</button>
             </li>
             {{ end }}
         </ul>
@@ -30,8 +30,6 @@
 {{   if .entries }}
 {{     template "entries_list.html" . }}
 {{   else }}
-
-<p role="alert" class="alert alert-info">{{ t "alert.no_history" }}</p>
-
+{{     template "info.html" "alert.no_history" }}
 {{   end }}
 {{ end }}

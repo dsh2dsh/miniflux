@@ -54,6 +54,13 @@ func (self *funcMap) Map() template.FuncMap {
 		"truncate":           truncate,
 		"urlEncode":          url.PathEscape,
 
+		"condMsg": func(cond bool, s1, s2 string) string {
+			if cond {
+				return s1
+			}
+			return s2
+		},
+
 		"hasOAuth2Provider": func(provider string) bool {
 			return config.Opts.OAuth2Provider() == provider
 		},

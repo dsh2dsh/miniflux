@@ -88,14 +88,7 @@
 {{ if .entries }}
 {{   template "entries_list.html" . }}
 {{ else }}
-
-<p role="alert" class="alert">
-    {{ if .showOnlyUnreadEntries }}
-    {{   t "alert.no_unread_entry" }}
-    {{ else }}
-    {{   t "alert.no_feed_entry" }}
-    {{ end }}
-</p>
-
+{{   template "info.html" condMsg .showOnlyUnreadEntries
+       "alert.no_unread_entry" "alert.no_feed_entry" }}
 {{ end }}
 {{ end }}

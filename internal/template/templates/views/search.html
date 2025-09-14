@@ -18,11 +18,7 @@
 {{   if .entries }}
 {{     template "entries_list.html" . }}
 {{   else }}
-
-<p role="alert" class="alert alert-info">
-    {{ t "alert.no_search_result" }}
-</p>
-
+{{     template "info.html" "alert.no_search_result" }}
 {{   end }}
 {{ end }}
 {{ end }}
