@@ -147,7 +147,7 @@ func (h *handler) handleFeeds(w http.ResponseWriter, r *http.Request) {
 
 	result := feedsResponse{Feeds: make([]feed, len(feeds))}
 	for i, f := range feeds {
-		subscripion := feed{
+		subscription := feed{
 			ID:          f.ID,
 			Title:       f.Title,
 			URL:         f.FeedURL,
@@ -157,9 +157,9 @@ func (h *handler) handleFeeds(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if f.Icon != nil {
-			subscripion.FaviconID = f.Icon.IconID
+			subscription.FaviconID = f.Icon.IconID
 		}
-		result.Feeds[i] = subscripion
+		result.Feeds[i] = subscription
 	}
 
 	result.FeedsGroups = h.buildFeedGroups(feeds)
