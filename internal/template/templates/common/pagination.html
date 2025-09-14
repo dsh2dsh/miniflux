@@ -1,50 +1,60 @@
-{{ define "pagination" }}
 <div class="pagination">
     <div class="pagination-backward">
-        <div class="pagination-first {{ if not .ShowFirst }}disabled{{end}}">
-            {{ if .ShowFirst }}
-                <a href="{{ .Route }}{{ if gt .FirstOffset 0 }}?offset={{ .FirstOffset }}{{ if .SearchQuery }}&amp;q={{ .SearchQuery }}{{ end }}{{ else }}{{ if .SearchQuery }}?q={{ .SearchQuery }}{{ end }}{{ end }}" data-page="first">{{ t "pagination.first" }}</a>
+        <div class="pagination-first {{ .FirstDisabled }}">
+            {{ if .FirstDisabled }}
+            {{   t "pagination.first" }}
             {{ else }}
+
+            <a href="{{ .FirstRoute }}" data-page="first">
                 {{ t "pagination.first" }}
+            </a>
+
             {{ end }}
         </div>
 
-        <div class="pagination-prev {{ if not .ShowPrev }}disabled{{end}}">
-            {{ if .ShowPrev }}
-                <a href="{{ .Route }}{{ if gt .PrevOffset 0 }}?offset={{ .PrevOffset }}{{ if .SearchQuery }}&amp;q={{ .SearchQuery }}{{ end }}{{ else }}{{ if .SearchQuery }}?q={{ .SearchQuery }}{{ end }}{{ end }}" data-page="previous" rel="prev">{{ t "pagination.previous" }}</a>
+        <div class="pagination-prev {{ .PrevDisabled }}">
+            {{ if .PrevDisabled }}
+            {{   t "pagination.previous" }}
             {{ else }}
+
+            <a href="{{ .PrevRoute }}" data-page="previous" rel="prev">
                 {{ t "pagination.previous" }}
+            </a>
+
             {{ end }}
         </div>
     </div>
 
-    <a href="#" class="elevator">{{ icon "up" }}{{ t "page.footer.elevator" }}</a>
+    <a href="#" class="elevator">
+        {{ icon "up" }}
+        {{ t "page.footer.elevator" }}
+    </a>
 
     <div class="pagination-forward">
-        {{ if .ShowNext }}
-        <div class="pagination-next">
-            <a href="{{ .Route }}?offset={{ .NextOffset }}{{ if .SearchQuery }}&amp;q={{ .SearchQuery }}{{ end }}"
-               data-page="next"
-               data-offset="{{ .NextOffset }}"
-               rel="next">
+        <div class="pagination-next {{ .NextDisabled }}">
+            {{ if .NextDisabled }}
+            {{   t "pagination.next" }}
+            {{ else }}
+
+            <a href="{{ .NextRoute }}"
+               data-page="next" data-offset="{{ .NextOffset }}" rel="next">
                 {{ t "pagination.next" }}
             </a>
-        </div>
-        {{ else }}
-        <div class="pagination-next disabled">{{ t "pagination.next" }}</div>
-        {{ end }}
 
-        {{ if .ShowLast }}
-        <div class="pagination-last">
-            <a href="{{ .Route }}?offset={{ .LastOffset }}{{ if .SearchQuery }}&amp;q={{ .SearchQuery }}{{ end }}"
-               data-page="last"
+            {{ end }}
+        </div>
+
+        <div class="pagination-last {{ .LastDisabled }}">
+            {{ if .LastDisabled }}
+            {{   t "pagination.last" }}
+            {{ else }}
+
+            <a href="{{ .LastRoute }}" data-page="last"
                data-offset="{{ .LastOffset }}">
                 {{ t "pagination.last" }}
             </a>
+
+            {{ end }}
         </div>
-        {{ else }}
-        <div class="pagination-last disabled">{{ t "pagination.last" }}</div>
-        {{ end }}
     </div>
 </div>
-{{ end }}
