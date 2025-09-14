@@ -80,34 +80,34 @@ type EnvOptions struct {
 	DatabaseURLFile                *string  `env:"DATABASE_URL_FILE,file"`
 	DatabaseMaxConns               int      `env:"DATABASE_MAX_CONNS" validate:"min=1"`
 	DatabaseMinConns               int      `env:"DATABASE_MIN_CONNS" validate:"min=0"`
-	DatabaseConnectionLifetime     int      `env:"DATABASE_CONNECTION_LIFETIME" validate:"min=0"`
+	DatabaseConnectionLifetime     int      `env:"DATABASE_CONNECTION_LIFETIME" validate:"gt=0"`
 	RunMigrations                  bool     `env:"RUN_MIGRATIONS"`
-	ListenAddr                     string   `env:"LISTEN_ADDR" validate:"required"`
+	ListenAddr                     string   `env:"LISTEN_ADDR" validate:"required,hostname|hostname_port"`
 	Port                           string   `env:"PORT"`
 	CertFile                       string   `env:"CERT_FILE" validate:"omitempty,filepath"`
 	CertDomain                     string   `env:"CERT_DOMAIN"`
 	CertKeyFile                    string   `env:"KEY_FILE" validate:"omitempty,filepath"`
-	CleanupFrequencyHours          int      `env:"CLEANUP_FREQUENCY_HOURS" validate:"min=0"`
+	CleanupFrequencyHours          int      `env:"CLEANUP_FREQUENCY_HOURS" validate:"min=1"`
 	CleanupArchiveReadDays         int      `env:"CLEANUP_ARCHIVE_READ_DAYS" validate:"min=0"`
 	CleanupArchiveUnreadDays       int      `env:"CLEANUP_ARCHIVE_UNREAD_DAYS" validate:"min=0"`
-	CleanupArchiveBatchSize        int      `env:"CLEANUP_ARCHIVE_BATCH_SIZE" validate:"min=0"`
+	CleanupArchiveBatchSize        int      `env:"CLEANUP_ARCHIVE_BATCH_SIZE" validate:"min=1"`
 	CleanupRemoveSessionsDays      int      `env:"CLEANUP_REMOVE_SESSIONS_DAYS" validate:"min=0"`
 	CleanupInactiveSessionsDays    int      `env:"CLEANUP_INACTIVE_SESSIONS_DAYS" validate:"min=0"`
-	PollingFrequency               int      `env:"POLLING_FREQUENCY" validate:"min=0"`
+	PollingFrequency               int      `env:"POLLING_FREQUENCY" validate:"min=1"`
 	ForceRefreshInterval           int      `env:"FORCE_REFRESH_INTERVAL" validate:"min=0"`
-	BatchSize                      int      `env:"BATCH_SIZE" validate:"min=0"`
-	SchedulerRoundRobinMinInterval int      `env:"SCHEDULER_ROUND_ROBIN_MIN_INTERVAL" validate:"min=0"`
-	SchedulerRoundRobinMaxInterval int      `env:"SCHEDULER_ROUND_ROBIN_MAX_INTERVAL" validate:"min=0"`
+	BatchSize                      int      `env:"BATCH_SIZE" validate:"min=1"`
+	SchedulerRoundRobinMinInterval int      `env:"SCHEDULER_ROUND_ROBIN_MIN_INTERVAL" validate:"min=1"`
+	SchedulerRoundRobinMaxInterval int      `env:"SCHEDULER_ROUND_ROBIN_MAX_INTERVAL" validate:"min=1"`
 	PollingParsingErrorLimit       int      `env:"POLLING_PARSING_ERROR_LIMIT" validate:"min=0"`
-	WorkerPoolSize                 int      `env:"WORKER_POOL_SIZE" validate:"min=0"`
+	WorkerPoolSize                 int      `env:"WORKER_POOL_SIZE" validate:"min=1"`
 	CreateAdmin                    bool     `env:"CREATE_ADMIN"`
 	AdminUsername                  string   `env:"ADMIN_USERNAME"`
 	AdminUsernameFile              *string  `env:"ADMIN_USERNAME_FILE,file"`
 	AdminPassword                  string   `env:"ADMIN_PASSWORD"`
 	AdminPasswordFile              *string  `env:"ADMIN_PASSWORD_FILE,file"`
-	MediaProxyHTTPClientTimeout    int      `env:"MEDIA_PROXY_HTTP_CLIENT_TIMEOUT" validate:"min=0"`
+	MediaProxyHTTPClientTimeout    int      `env:"MEDIA_PROXY_HTTP_CLIENT_TIMEOUT" validate:"min=1"`
 	MediaProxyMode                 string   `env:"MEDIA_PROXY_MODE" validate:"required,oneof=none http-only all"`
-	MediaProxyResourceTypes        []string `env:"MEDIA_PROXY_RESOURCE_TYPES" validate:"omitempty,required"`
+	MediaProxyResourceTypes        []string `env:"MEDIA_PROXY_RESOURCE_TYPES" validate:"omitempty,dive,oneof=image video audio"`
 	MediaProxyCustomURL            *url.URL `env:"MEDIA_PROXY_CUSTOM_URL"`
 	FetchBilibiliWatchTime         bool     `env:"FETCH_BILIBILI_WATCH_TIME"`
 	FetchNebulaWatchTime           bool     `env:"FETCH_NEBULA_WATCH_TIME"`
@@ -126,18 +126,18 @@ type EnvOptions struct {
 	OidcProviderName               string   `env:"OAUTH2_OIDC_PROVIDER_NAME"`
 	Oauth2Provider                 string   `env:"OAUTH2_PROVIDER" validate:"omitempty,oneof=oidc google"`
 	DisableLocalAuth               bool     `env:"DISABLE_LOCAL_AUTH"`
-	HttpClientTimeout              int      `env:"HTTP_CLIENT_TIMEOUT" validate:"min=0"`
-	HttpClientMaxBodySize          int64    `env:"HTTP_CLIENT_MAX_BODY_SIZE" validate:"min=0"`
+	HttpClientTimeout              int      `env:"HTTP_CLIENT_TIMEOUT" validate:"min=1"`
+	HttpClientMaxBodySize          int64    `env:"HTTP_CLIENT_MAX_BODY_SIZE" validate:"min=1"`
 	HttpClientProxyURL             *url.URL `env:"HTTP_CLIENT_PROXY"`
 	HttpClientProxies              []string `env:"HTTP_CLIENT_PROXIES" validate:"dive,required,url"`
 	HttpClientUserAgent            string   `env:"HTTP_CLIENT_USER_AGENT"`
-	HttpServerTimeout              int      `env:"HTTP_SERVER_TIMEOUT" validate:"min=0"`
+	HttpServerTimeout              int      `env:"HTTP_SERVER_TIMEOUT" validate:"min=1"`
 	AuthProxyHeader                string   `env:"AUTH_PROXY_HEADER"`
 	AuthProxyUserCreation          bool     `env:"AUTH_PROXY_USER_CREATION"`
 	MaintenanceMode                bool     `env:"MAINTENANCE_MODE"`
 	MaintenanceMessage             string   `env:"MAINTENANCE_MESSAGE" validate:"required_with=MaintenanceMode"`
 	MetricsCollector               bool     `env:"METRICS_COLLECTOR"`
-	MetricsRefreshInterval         int      `env:"METRICS_REFRESH_INTERVAL" validate:"min=0"`
+	MetricsRefreshInterval         int      `env:"METRICS_REFRESH_INTERVAL" validate:"min=1"`
 	MetricsAllowedNetworks         []string `env:"METRICS_ALLOWED_NETWORKS" validate:"dive,required"`
 	MetricsUsername                string   `env:"METRICS_USERNAME"`
 	MetricsUsernameFile            *string  `env:"METRICS_USERNAME_FILE,file"`
@@ -837,7 +837,7 @@ func (o *Options) SortedOptions(redactSecret bool) []Option {
 		"FORCE_REFRESH_INTERVAL":             o.ForceRefreshInterval(),
 		"POLLING_PARSING_ERROR_LIMIT":        o.PollingParsingErrorLimit(),
 		"MEDIA_PROXY_HTTP_CLIENT_TIMEOUT":    o.env.MediaProxyHTTPClientTimeout,
-		"MEDIA_PROXY_RESOURCE_TYPES":         o.MediaProxyResourceTypes(),
+		"MEDIA_PROXY_RESOURCE_TYPES":         strings.Join(o.MediaProxyResourceTypes(), ","),
 		"MEDIA_PROXY_MODE":                   o.MediaProxyMode(),
 		"MEDIA_PROXY_PRIVATE_KEY":            mediaProxyPrivateKeyValue,
 		"MEDIA_PROXY_CUSTOM_URL":             o.MediaCustomProxyURL(),

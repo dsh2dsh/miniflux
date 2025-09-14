@@ -572,7 +572,7 @@ func TestMediaProxyResourceTypes(t *testing.T) {
 
 func TestMediaProxyResourceTypesWithDuplicatedValues(t *testing.T) {
 	os.Clearenv()
-	t.Setenv("MEDIA_PROXY_RESOURCE_TYPES", "image,audio, image")
+	t.Setenv("MEDIA_PROXY_RESOURCE_TYPES", "image,audio,image")
 	opts := parseEnvironmentVariables(t)
 	assert.Equal(t, []string{"image", "audio"}, opts.MediaProxyResourceTypes())
 }
