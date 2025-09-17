@@ -15,6 +15,12 @@ import (
 	"miniflux.app/v2/internal/logging"
 )
 
+// Storage handles all operations related to the database.
+type Storage struct {
+	db    *pgxpool.Pool
+	dedup *DedupEntries
+}
+
 // New returns a new Storage.
 func New(ctx context.Context, connString string, maxConns, minConns int,
 	lifeTime time.Duration,
@@ -34,11 +40,6 @@ func New(ctx context.Context, connString string, maxConns, minConns int,
 		return nil, fmt.Errorf("storage: new pgx pool: %w", err)
 	}
 	return &Storage{db: p}, nil
-}
-
-// Storage handles all operations related to the database.
-type Storage struct {
-	db *pgxpool.Pool
 }
 
 func (s *Storage) Close(ctx context.Context) {
@@ -93,4 +94,12 @@ func (s *Storage) DBSize(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("storage: %w", err)
 	}
 	return size, nil
+}
+
+func (s *Storage) Copy(opts ...Option) *Storage {
+	copied := *s
+	for _, opt := range opts {
+		opt(&copied)
+	}
+	return &copied
 }

@@ -58,6 +58,7 @@ type Pool struct {
 type queueItem struct {
 	*model.Job
 
+	store *storage.Storage
 	ctx   context.Context
 	index int
 	end   func()
@@ -65,16 +66,6 @@ type queueItem struct {
 	err       error
 	refreshed *model.FeedRefreshed
 	traceStat *storage.TraceStat
-}
-
-func NewItem(ctx context.Context, job *model.Job, index int, end func(),
-) queueItem {
-	return queueItem{
-		Job:   job,
-		ctx:   ctx,
-		index: index,
-		end:   end,
-	}
 }
 
 func (self *queueItem) Id() int { return self.index + 1 }
@@ -116,10 +107,10 @@ func (self *Pool) SinceSchedulerCompleted() time.Duration {
 func (self *Pool) Push(ctx context.Context, jobs []model.Job) {
 	log := logging.FromContext(ctx).With(slog.Int("jobs", len(jobs)))
 	log.Info("worker: created a batch of feeds")
-	ctx, dd := storage.WithDedupEntries(ctx)
 
 	var wg sync.WaitGroup
-	items := makeItems(ctx, jobs, wg.Done)
+	store := self.store.Copy(storage.WithNewDedup())
+	items := makeItems(ctx, store, jobs, wg.Done)
 	startTime := time.Now()
 	wg.Add(len(items))
 
@@ -149,7 +140,7 @@ jobsLoop:
 	wg.Wait()
 
 	log = log.With(
-		entriesLogGroup(items, dd),
+		entriesLogGroup(items, store.DedupEntries()),
 		traceLogGroup(items),
 		slog.Duration("elapsed", time.Since(startTime)))
 
@@ -166,10 +157,19 @@ jobsLoop:
 	log.Info("worker: refreshed a batch of feeds")
 }
 
-func makeItems(ctx context.Context, jobs []model.Job, end func()) []queueItem {
+func makeItems(ctx context.Context, store *storage.Storage, jobs []model.Job,
+	end func(),
+) []queueItem {
 	items := make([]queueItem, 0, len(jobs))
 	for job := range distributeJobs(jobs) {
-		items = append(items, NewItem(ctx, job, len(items), end))
+		items = append(items, queueItem{
+			Job: job,
+
+			store: store,
+			ctx:   ctx,
+			index: len(items),
+			end:   end,
+		})
 	}
 	return items
 }
@@ -265,7 +265,7 @@ func (self *Pool) refreshFeed(job *queueItem) (*model.FeedRefreshed, error) {
 	log.Debug("worker: job received")
 
 	startTime := time.Now()
-	refreshed, err := handler.RefreshFeed(ctx, self.store, job.UserID, job.FeedID,
+	refreshed, err := handler.RefreshFeed(ctx, job.store, job.UserID, job.FeedID,
 		false)
 	if err != nil && !errors.Is(err, handler.ErrBadFeed) {
 		job.err = err

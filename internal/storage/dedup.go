@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"context"
 	"sync"
 	"sync/atomic"
 
@@ -15,24 +14,8 @@ type DedupEntries struct {
 	created uint64
 }
 
-type ctxDedupEntries struct{}
-
-var DedupEntriesKey ctxDedupEntries = struct{}{}
-
-func WithDedupEntries(ctx context.Context) (context.Context, *DedupEntries) {
-	dd := NewDedupEntries()
-	return context.WithValue(ctx, DedupEntriesKey, dd), dd
-}
-
 func NewDedupEntries() *DedupEntries {
 	return &DedupEntries{hashes: make(map[int64]*dedupUserEntries)}
-}
-
-func DedupEntriesFrom(ctx context.Context) *DedupEntries {
-	if s, ok := ctx.Value(DedupEntriesKey).(*DedupEntries); ok {
-		return s
-	}
-	return nil
 }
 
 func (self *DedupEntries) Created() uint64 { return self.created }

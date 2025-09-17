@@ -71,7 +71,7 @@ func Test_makeItems(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := makeItems(context.Background(), tt.jobs, nil)
+			got := makeItems(context.Background(), nil, tt.jobs, nil)
 			assert.EqualExportedValues(t, tt.want, got)
 		})
 	}

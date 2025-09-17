@@ -181,7 +181,7 @@ func (s *Storage) knownEntries(ctx context.Context, tx pgx.Tx, userID,
 	}
 
 	refreshed := model.NewFeedRefreshed().Append(entries, byHash)
-	if dd := DedupEntriesFrom(ctx); dd != nil {
+	if dd := s.DedupEntries(); dd != nil {
 		dd.Filter(userID, refreshed)
 	}
 	return refreshed, nil
