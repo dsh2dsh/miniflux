@@ -100,11 +100,10 @@ class InlineEntry {
     if (!this.setButtonLoading(button)) return;
 
     const item = button.closest(".item");
-    const rect = item.getBoundingClientRect();
     item.addEventListener("htmx:afterSettle", (event) => {
       if (event.detail.elt.matches(".entry-content.download")) {
         button.parentElement.remove();
-        item.scroll(rect.left, rect.top);
+        item.scrollIntoView();
       }
     }, { once: true });
 
