@@ -28,7 +28,7 @@ type posts struct {
 	Posts   []Post   `xml:"post"`
 }
 
-func NewPost(url string, description string) *Post {
+func NewPost(url, description string) *Post {
 	return &Post{
 		Url:         url,
 		Description: description,

@@ -20,7 +20,7 @@ func (h *handler) showEditCategoryPage(w http.ResponseWriter, r *http.Request) {
 	var category *model.Category
 	v.Go(func(ctx context.Context) (err error) {
 		category, err = h.store.Category(ctx, v.UserID(), id)
-		return
+		return err
 	})
 
 	if err := v.Wait(); err != nil {

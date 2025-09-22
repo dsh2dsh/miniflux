@@ -32,7 +32,7 @@ type Client struct {
 	apiToken    string
 }
 
-func NewClient(apiToken string, apiEndpoint string) *Client {
+func NewClient(apiToken, apiEndpoint string) *Client {
 	return &Client{
 		wrapped:     &http.Client{Timeout: defaultClientTimeout},
 		apiEndpoint: apiEndpoint,

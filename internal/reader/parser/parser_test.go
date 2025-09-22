@@ -80,7 +80,7 @@ func FuzzParse(f *testing.F) {
 "items": [
 {"id": "2","content_text": "a","url": "https://z.org/2"},
 {"id": "1","content_html": "<a","url":"http://z.org/1"}]}`)
-	f.Fuzz(func(t *testing.T, url string, data string) {
+	f.Fuzz(func(t *testing.T, url, data string) {
 		ParseFeed(url, strings.NewReader(data))
 	})
 }

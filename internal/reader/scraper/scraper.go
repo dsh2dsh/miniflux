@@ -95,7 +95,7 @@ func extractReadability(ctx context.Context, r io.Reader, u *url.URL) (string, s
 	return pageURL, article.Content, nil
 }
 
-func findContentUsingCustomRules(page io.Reader, rules string) (baseURL string, extractedContent string, err error) {
+func findContentUsingCustomRules(page io.Reader, rules string) (baseURL, extractedContent string, err error) {
 	document, err := goquery.NewDocumentFromReader(page)
 	if err != nil {
 		return "", "", fmt.Errorf("reader/scraper: %w", err)

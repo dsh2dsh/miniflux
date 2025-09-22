@@ -111,13 +111,13 @@ func (self *View) WaitEntriesCount(query *storage.EntryQueryBuilder,
 	var entries model.Entries
 	self.Go(func(ctx context.Context) (err error) {
 		entries, err = query.GetEntries(ctx)
-		return
+		return err
 	})
 
 	var count int
 	self.Go(func(ctx context.Context) (err error) {
 		count, err = query.CountEntries(ctx)
-		return
+		return err
 	})
 	return entries, count, self.Wait()
 }

@@ -262,13 +262,13 @@ func (f *FeedQueryBuilder) GetFeeds(ctx context.Context) (model.Feeds, error) {
 	var feeds model.Feeds
 	g.Go(func() (err error) {
 		feeds, err = f.queryFeeds(ctx)
-		return
+		return err
 	})
 
 	var read, unread map[int64]int
 	g.Go(func() (err error) {
 		read, unread, err = f.fetchFeedCounter(ctx)
-		return
+		return err
 	})
 
 	if err := g.Wait(); err != nil {

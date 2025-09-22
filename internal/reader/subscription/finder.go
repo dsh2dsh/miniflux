@@ -256,7 +256,7 @@ func (f *SubscriptionFinder) FindSubscriptionsFromWellKnownURLs(websiteURL strin
 	return subscriptions, nil
 }
 
-func (f *SubscriptionFinder) FindSubscriptionsFromRSSBridge(websiteURL, rssBridgeURL string, rssBridgeToken string) (Subscriptions, *locale.LocalizedErrorWrapper) {
+func (f *SubscriptionFinder) FindSubscriptionsFromRSSBridge(websiteURL, rssBridgeURL, rssBridgeToken string) (Subscriptions, *locale.LocalizedErrorWrapper) {
 	slog.Debug("Trying to detect feeds using RSS-Bridge",
 		slog.String("website_url", websiteURL),
 		slog.String("rssbridge_url", rssBridgeURL),

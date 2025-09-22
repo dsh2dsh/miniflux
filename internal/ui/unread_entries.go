@@ -29,7 +29,7 @@ func (h *handler) showUnreadPage(w http.ResponseWriter, r *http.Request) {
 	if offset == 0 {
 		v.Go(func(ctx context.Context) (err error) {
 			entries, err = query.GetEntries(ctx)
-			return
+			return err
 		})
 	}
 

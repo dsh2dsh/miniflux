@@ -64,7 +64,7 @@ func (h *handler) showUpdateCategoryError(w http.ResponseWriter,
 	var category *model.Category
 	v.Go(func(ctx context.Context) (err error) {
 		category, err = h.store.Category(ctx, v.UserID(), id)
-		return
+		return err
 	})
 
 	if err := v.Wait(); err != nil {

@@ -23,7 +23,7 @@ type Client struct {
 	checkDisabled bool
 }
 
-func NewClient(baseURL, apiKey, tags string, private bool, checkDisabled bool) *Client {
+func NewClient(baseURL, apiKey, tags string, private, checkDisabled bool) *Client {
 	return &Client{baseURL: baseURL, apiKey: apiKey, tags: tags, private: private, checkDisabled: checkDisabled}
 }
 

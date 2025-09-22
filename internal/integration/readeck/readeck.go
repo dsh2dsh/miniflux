@@ -30,7 +30,7 @@ func NewClient(baseURL, apiKey, labels string, onlyURL bool) *Client {
 	return &Client{baseURL: baseURL, apiKey: apiKey, labels: labels, onlyURL: onlyURL}
 }
 
-func (c *Client) CreateBookmark(entryURL, entryTitle string, entryContent string) error {
+func (c *Client) CreateBookmark(entryURL, entryTitle, entryContent string) error {
 	if c.baseURL == "" || c.apiKey == "" {
 		return errors.New("readeck: missing base URL or API key")
 	}

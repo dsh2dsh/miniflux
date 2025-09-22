@@ -146,7 +146,7 @@ func (h *handler) showSubmitSubscriptionError(w http.ResponseWriter,
 	var categories []model.Category
 	v.Go(func(ctx context.Context) (err error) {
 		categories, err = h.store.Categories(ctx, v.UserID())
-		return
+		return err
 	})
 
 	if err := v.Wait(); err != nil {

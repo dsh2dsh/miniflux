@@ -25,7 +25,7 @@ func NewClient(apiToken, pageID string) *Client {
 	return &Client{apiToken, pageID}
 }
 
-func (c *Client) UpdateDocument(entryURL string, entryTitle string) error {
+func (c *Client) UpdateDocument(entryURL, entryTitle string) error {
 	if c.apiToken == "" || c.pageID == "" {
 		return errors.New("notion: missing API token or page ID")
 	}

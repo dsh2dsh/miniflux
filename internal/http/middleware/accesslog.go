@@ -123,7 +123,7 @@ func (self *statusResponseWriter) Write(b []byte) (n int, err error) {
 	self.headerWritten = true
 	n, err = self.ResponseWriter.Write(b)
 	self.size += n
-	return
+	return n, err //nolint:wrapcheck // return as is
 }
 
 func (self *statusResponseWriter) Unwrap() http.ResponseWriter {
@@ -139,5 +139,5 @@ func (self *statusResponseWriter) ReadFrom(r io.Reader) (n int64, err error) {
 		n, err = io.Copy(self.ResponseWriter, r)
 	}
 	self.size += int(n)
-	return
+	return n, err //nolint:wrapcheck // return as is
 }

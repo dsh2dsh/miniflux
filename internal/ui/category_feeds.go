@@ -20,13 +20,13 @@ func (h *handler) showCategoryFeedsPage(w http.ResponseWriter, r *http.Request,
 	var category *model.Category
 	v.Go(func(ctx context.Context) (err error) {
 		category, err = h.store.Category(ctx, v.UserID(), id)
-		return
+		return err
 	})
 
 	var feeds model.Feeds
 	v.Go(func(ctx context.Context) (err error) {
 		feeds, err = h.store.FeedsByCategoryWithCounters(ctx, v.UserID(), id)
-		return
+		return err
 	})
 
 	if err := v.Wait(); err != nil {

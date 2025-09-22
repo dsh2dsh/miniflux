@@ -22,10 +22,10 @@ func Load(filename string) error {
 func parseEnvFile(cfg *Parser, filename string) (err error) {
 	if filename != "" {
 		Opts, err = cfg.ParseEnvFile(filename)
-		return
+		return err
 	}
 	Opts, err = cfg.ParseEnvironmentVariables()
-	return
+	return err
 }
 
 func LoadYAML(filename, envName string) error {

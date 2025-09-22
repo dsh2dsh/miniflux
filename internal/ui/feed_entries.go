@@ -21,7 +21,7 @@ func (h *handler) showFeedEntriesPage(w http.ResponseWriter, r *http.Request) {
 	var feed *model.Feed
 	v.Go(func(ctx context.Context) (err error) {
 		feed, err = h.store.FeedByID(ctx, v.UserID(), feedID)
-		return
+		return err
 	})
 
 	offset := request.QueryIntParam(r, "offset", 0)

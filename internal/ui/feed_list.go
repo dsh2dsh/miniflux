@@ -17,7 +17,7 @@ func (h *handler) showFeedsPage(w http.ResponseWriter, r *http.Request) {
 	var feeds model.Feeds
 	v.Go(func(ctx context.Context) (err error) {
 		feeds, err = h.store.FeedsWithCounters(ctx, v.UserID())
-		return
+		return err
 	})
 
 	if err := v.Wait(); err != nil {

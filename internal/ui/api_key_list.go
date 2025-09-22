@@ -18,7 +18,7 @@ func (h *handler) showAPIKeysPage(w http.ResponseWriter, r *http.Request) {
 	var keys []model.APIKey
 	v.Go(func(ctx context.Context) (err error) {
 		keys, err = h.store.APIKeys(ctx, user.ID)
-		return
+		return err
 	})
 
 	if err := v.Wait(); err != nil {

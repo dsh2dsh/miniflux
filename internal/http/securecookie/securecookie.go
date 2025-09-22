@@ -101,7 +101,7 @@ func (self *SecureCookie) Decrypt(message []byte) ([]byte, error) {
 	return nil, resultErr
 }
 
-func (self *SecureCookie) decrypt(key []byte, message []byte) ([]byte, error) {
+func (self *SecureCookie) decrypt(key, message []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, fmt.Errorf(

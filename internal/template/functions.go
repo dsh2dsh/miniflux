@@ -192,7 +192,7 @@ func duration(t time.Time) string {
 }
 
 // Accepts now argument for easy testing
-func durationImpl(t time.Time, now time.Time) string {
+func durationImpl(t, now time.Time) string {
 	if t.IsZero() {
 		return ""
 	}

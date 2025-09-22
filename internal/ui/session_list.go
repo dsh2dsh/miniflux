@@ -18,7 +18,7 @@ func (h *handler) showSessionsPage(w http.ResponseWriter, r *http.Request) {
 	var sessions model.Sessions
 	v.Go(func(ctx context.Context) (err error) {
 		sessions, err = h.store.UserSessions(ctx, v.UserID())
-		return
+		return err
 	})
 
 	if err := v.Wait(); err != nil {

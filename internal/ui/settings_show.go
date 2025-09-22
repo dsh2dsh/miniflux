@@ -19,13 +19,13 @@ func (h *handler) showSettingsPage(w http.ResponseWriter, r *http.Request) {
 	var creds []model.WebAuthnCredential
 	v.Go(func(ctx context.Context) (err error) {
 		creds, err = h.store.WebAuthnCredentialsByUserID(ctx, v.UserID())
-		return
+		return err
 	})
 
 	var timezones map[string]string
 	v.Go(func(ctx context.Context) (err error) {
 		timezones, err = h.store.Timezones(ctx)
-		return
+		return err
 	})
 
 	var webAuthnCount int

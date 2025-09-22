@@ -149,7 +149,7 @@ func getContextValue[T any](r *http.Request, key ContextKey) (zero T) {
 			return value
 		}
 	}
-	return
+	return zero
 }
 
 func getContextStringValue(r *http.Request, key ContextKey) string {

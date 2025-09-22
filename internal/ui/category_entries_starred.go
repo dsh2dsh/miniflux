@@ -23,7 +23,7 @@ func (h *handler) showCategoryEntriesStarredPage(w http.ResponseWriter,
 	var category *model.Category
 	v.Go(func(ctx context.Context) (err error) {
 		category, err = h.store.Category(ctx, v.UserID(), id)
-		return
+		return err
 	})
 
 	offset := request.QueryIntParam(r, "offset", 0)

@@ -160,13 +160,13 @@ func (h *handler) getCategoryFeeds(w http.ResponseWriter, r *http.Request) {
 	var category *model.Category
 	g.Go(func() (err error) {
 		category, err = h.store.Category(ctx, userID, id)
-		return
+		return err
 	})
 
 	var feeds model.Feeds
 	g.Go(func() (err error) {
 		feeds, err = h.store.FeedsByCategoryWithCounters(ctx, userID, id)
-		return
+		return err
 	})
 
 	if err := g.Wait(); err != nil {

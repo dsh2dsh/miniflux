@@ -26,7 +26,7 @@ func (self *LogFile) open() (err error) {
 	if err != nil {
 		return fmt.Errorf("open file: %w", err)
 	}
-	return
+	return nil
 }
 
 func (self *LogFile) Write(p []byte) (int, error) {

@@ -72,7 +72,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage) {
 	m.HandleFunc("/mark-all-as-read", h.markAllAsReadHandler)
 }
 
-func checkAndSimplifyTags(addTags []Stream, removeTags []Stream) (map[StreamType]bool, error) {
+func checkAndSimplifyTags(addTags, removeTags []Stream) (map[StreamType]bool, error) {
 	tags := make(map[StreamType]bool)
 	for _, s := range addTags {
 		switch s.Type {
@@ -473,8 +473,8 @@ func getOrCreateCategory(ctx context.Context, streamCategory Stream,
 	return category, nil
 }
 
-func subscribe(ctx context.Context, newFeed Stream, category Stream,
-	title string, store *storage.Storage, userID int64,
+func subscribe(ctx context.Context, newFeed, category Stream, title string,
+	store *storage.Storage, userID int64,
 ) (*model.Feed, error) {
 	destCategory, err := getOrCreateCategory(ctx, category, store, userID)
 	if err != nil {
@@ -549,7 +549,7 @@ func rename(ctx context.Context, feedStream Stream, title string,
 	return store.UpdateFeed(ctx, feed)
 }
 
-func move(ctx context.Context, feedStream Stream, labelStream Stream,
+func move(ctx context.Context, feedStream, labelStream Stream,
 	store *storage.Storage, userID int64,
 ) error {
 	logging.FromContext(ctx).Debug("[GoogleReader] Moving feed",
@@ -1111,13 +1111,13 @@ func makeStreamIDResp(ctx context.Context, builder *storage.EntryQueryBuilder,
 	var rawEntryIDs []int64
 	g.Go(func() (err error) {
 		rawEntryIDs, err = builder.GetEntryIDs(ctx)
-		return
+		return err
 	})
 
 	var totalEntries int
 	g.Go(func() (err error) {
 		totalEntries, err = builder.CountEntries(ctx)
-		return
+		return err
 	})
 
 	if err := g.Wait(); err != nil {

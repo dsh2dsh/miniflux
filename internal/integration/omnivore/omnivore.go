@@ -65,7 +65,7 @@ type client struct {
 	apiToken    string
 }
 
-func NewClient(apiToken string, apiEndpoint string) Client {
+func NewClient(apiToken, apiEndpoint string) Client {
 	if apiEndpoint == "" {
 		apiEndpoint = defaultApiEndpoint
 	}

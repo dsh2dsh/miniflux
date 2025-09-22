@@ -68,13 +68,13 @@ func (h *handler) showUpdateFeedError(w http.ResponseWriter, r *http.Request,
 	var feed *model.Feed
 	v.Go(func(ctx context.Context) (err error) {
 		feed, err = h.store.FeedByID(ctx, v.UserID(), feedID)
-		return
+		return err
 	})
 
 	var categories []model.Category
 	v.Go(func(ctx context.Context) (err error) {
 		categories, err = h.store.Categories(ctx, v.UserID())
-		return
+		return err
 	})
 
 	if err := v.Wait(); err != nil {

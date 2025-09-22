@@ -229,12 +229,12 @@ func (o *Options) init() (err error) {
 
 	o.applyFileStrings()
 	if err = o.applyPrivateKeys(); err != nil {
-		return
+		return err
 	}
 	o.makeTrustedProxies()
 
 	o.env.BaseURL, o.rootURL, o.basePath, err = parseBaseURL(o.env.BaseURL)
-	return
+	return err
 }
 
 func (o *Options) validate() error {

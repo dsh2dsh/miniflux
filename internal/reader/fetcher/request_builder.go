@@ -124,7 +124,7 @@ func (r *RequestBuilder) WithLastModified(lastModified string) *RequestBuilder {
 	return r
 }
 
-func (r *RequestBuilder) WithUserAgent(userAgent string, defaultUserAgent string) *RequestBuilder {
+func (r *RequestBuilder) WithUserAgent(userAgent, defaultUserAgent string) *RequestBuilder {
 	if userAgent != "" {
 		r.headers.Set("User-Agent", userAgent)
 	} else {

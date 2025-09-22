@@ -283,7 +283,7 @@ func (h *handler) handleItems(w http.ResponseWriter, r *http.Request) {
 	var entries model.Entries
 	g.Go(func() (err error) {
 		entries, err = builder.GetEntries(ctx)
-		return
+		return err
 	})
 
 	var result itemsResponse
@@ -291,7 +291,7 @@ func (h *handler) handleItems(w http.ResponseWriter, r *http.Request) {
 		result.Total, err = h.store.NewEntryQueryBuilder(userID).
 			WithoutStatus(model.EntryStatusRemoved).
 			CountEntries(ctx)
-		return
+		return err
 	})
 
 	if err := g.Wait(); err != nil {

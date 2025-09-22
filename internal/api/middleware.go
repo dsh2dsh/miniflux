@@ -202,7 +202,7 @@ func (self *basicAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var user *model.User
 	g.Go(func() (err error) {
 		user, err = self.store.UserByUsername(ctx, username)
-		return
+		return err
 	})
 
 	if err := g.Wait(); err != nil {

@@ -161,13 +161,13 @@ func (h *handler) findEntries(w http.ResponseWriter, r *http.Request, feedID,
 	var entries model.Entries
 	g.Go(func() (err error) {
 		entries, err = builder.GetEntries(r.Context())
-		return
+		return err
 	})
 
 	var count int
 	g.Go(func() (err error) {
 		count, err = builder.CountEntries(r.Context())
-		return
+		return err
 	})
 
 	if err := g.Wait(); err != nil {

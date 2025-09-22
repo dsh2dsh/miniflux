@@ -17,7 +17,7 @@ func (h *handler) showUsersPage(w http.ResponseWriter, r *http.Request) {
 	var users model.Users
 	v.Go(func(ctx context.Context) (err error) {
 		users, err = h.store.Users(ctx)
-		return
+		return err
 	})
 
 	if err := v.Wait(); err != nil {

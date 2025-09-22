@@ -65,7 +65,7 @@ func feedRules(user *model.User, feed *model.Feed) (*Filter, *Filter, error) {
 	return block, keep, nil
 }
 
-func joinRules(userRules string, feedRules string) (*Filter, error) {
+func joinRules(userRules, feedRules string) (*Filter, error) {
 	userFilter, err := New(userRules)
 	if err != nil {
 		return nil, fmt.Errorf("bad user rules: %w", err)

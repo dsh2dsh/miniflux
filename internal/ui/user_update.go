@@ -21,7 +21,7 @@ func (h *handler) updateUser(w http.ResponseWriter, r *http.Request) {
 	var user *model.User
 	v.Go(func(ctx context.Context) (err error) {
 		user, err = h.store.UserByID(ctx, userID)
-		return
+		return err
 	})
 
 	if err := v.Wait(); err != nil {

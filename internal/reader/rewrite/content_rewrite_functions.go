@@ -357,7 +357,7 @@ func replaceTextLinks(input string) string {
 	return textLinkRegex.ReplaceAllString(input, `<a href="${1}">${1}</a>`)
 }
 
-func replaceCustom(entryContent string, searchTerm string, replaceTerm string) string {
+func replaceCustom(entryContent, searchTerm, replaceTerm string) string {
 	re, err := regexp.Compile(searchTerm)
 	if err == nil {
 		return re.ReplaceAllString(entryContent, replaceTerm)
@@ -365,7 +365,7 @@ func replaceCustom(entryContent string, searchTerm string, replaceTerm string) s
 	return entryContent
 }
 
-func removeCustom(entryContent string, selector string) string {
+func removeCustom(entryContent, selector string) string {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(entryContent))
 	if err != nil {
 		return entryContent
@@ -383,7 +383,7 @@ func addCastopodEpisode(entryURL, entryContent string) string {
 	return player + `<br>` + entryContent
 }
 
-func applyFuncOnTextContent(entryContent string, selector string, repl func(string) string) string {
+func applyFuncOnTextContent(entryContent, selector string, repl func(string) string) string {
 	var treatChildren func(i int, s *goquery.Selection)
 	treatChildren = func(i int, s *goquery.Selection) {
 		if s.Nodes[0].Type == nethtml.TextNode {

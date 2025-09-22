@@ -13,7 +13,7 @@ import (
 	"miniflux.app/v2/internal/urllib"
 )
 
-func PushEntry(feed *model.Feed, entry *model.Entry, botToken, chatID string, topicID *int64, disableWebPagePreview, disableNotification bool, disableButtons bool) error {
+func PushEntry(feed *model.Feed, entry *model.Entry, botToken, chatID string, topicID *int64, disableWebPagePreview, disableNotification, disableButtons bool) error {
 	formattedText := fmt.Sprintf(
 		`<b>%s</b> - <a href=%q>%s</a>`,
 		feed.Title,

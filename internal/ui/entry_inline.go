@@ -51,14 +51,14 @@ func (h *handler) downloadEntry(w http.ResponseWriter, r *http.Request) {
 			WithEntryID(entryID).
 			WithoutStatus(model.EntryStatusRemoved).
 			GetEntry(ctx)
-		return
+		return err
 	})
 
 	feedID := request.RouteInt64Param(r, "feedID")
 	var feed *model.Feed
 	g.Go(func() (err error) {
 		feed, err = h.store.FeedByID(ctx, user.ID, feedID)
-		return
+		return err
 	})
 
 	if err := g.Wait(); err != nil {

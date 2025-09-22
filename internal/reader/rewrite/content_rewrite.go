@@ -130,7 +130,7 @@ func parseRules(rulesText string) (rules []rule) {
 				rules[l].args = append(rules[l].args, text)
 			}
 		case scanner.EOF:
-			return
+			return rules
 		}
 	}
 }
