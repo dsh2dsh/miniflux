@@ -38,14 +38,7 @@ func RefreshFeed(ctx context.Context, store *storage.Storage, userID,
 
 	refreshed, err := r.Refresh(ctx)
 	if err != nil {
-		var lerr *locale.LocalizedErrorWrapper
-		if errors.As(err, &lerr) {
-			if err := r.incFeedError(ctx, lerr); err != nil {
-				return nil, err
-			}
-			return nil, fmt.Errorf("%w: %w", ErrBadFeed, err)
-		}
-		return nil, err
+		return nil, r.incFeedError(ctx, err)
 	}
 	return refreshed, nil
 }
@@ -57,20 +50,6 @@ type Refresh struct {
 	force  bool
 
 	feed *model.Feed
-}
-
-func (self *Refresh) incFeedError(ctx context.Context,
-	lerr *locale.LocalizedErrorWrapper,
-) error {
-	user, err := self.store.UserByID(ctx, self.userID)
-	if err != nil {
-		return fmt.Errorf("reader/handler: fetch user from db: %w: %w", err, lerr)
-	}
-	self.feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
-	if err := self.store.IncFeedError(ctx, self.feed); err != nil {
-		return fmt.Errorf("reader/handler: inc feed error count: %w: %w", err, lerr)
-	}
-	return nil
 }
 
 // Refresh refreshes a feed.
@@ -92,22 +71,17 @@ func (self *Refresh) Refresh(ctx context.Context) (*model.FeedRefreshed, error) 
 
 	resp, err := self.response(ctx)
 	if err != nil {
-		return nil, err
+		return nil, self.maybeTooManyRequests(log, err)
 	}
 	defer resp.Close()
 
-	if resp.IsRateLimited() {
-		self.logRateLimited(logging.WithLogger(ctx, log), resp)
-	}
-
-	err = self.respError(logging.WithLogger(ctx, log), resp)
-	if err != nil {
+	if err := self.respError(log, resp); err != nil {
 		return nil, err
 	}
 
 	var refreshed *model.FeedRefreshed
 	if self.refreshAnyway(resp) {
-		r, err := self.refreshFeed(logging.WithLogger(ctx, log), resp)
+		r, err := self.refreshFeed(ctx, log, resp)
 		if err != nil {
 			return nil, err
 		}
@@ -131,8 +105,7 @@ func (self *Refresh) Refresh(ctx context.Context) (*model.FeedRefreshed, error) 
 		return nil, err
 	}
 
-	self.logFeedRefreshed(logging.WithLogger(ctx, log), refreshed,
-		time.Since(startTime))
+	self.logFeedRefreshed(ctx, log, refreshed, time.Since(startTime))
 	return refreshed, nil
 }
 
@@ -172,6 +145,47 @@ func (self *Refresh) response(ctx context.Context) (*fetcher.ResponseSemaphore,
 	return resp, nil
 }
 
+func (self *Refresh) maybeTooManyRequests(log *slog.Logger, err error) error {
+	var errTooManyRequests *fetcher.ErrTooManyRequests
+	if !errors.As(err, &errTooManyRequests) {
+		return err
+	}
+
+	self.logRateLimited(log, errTooManyRequests.RetryAfter())
+	log.Warn("Unable to fetch feed",
+		slog.String("feed_url", self.feed.FeedURL),
+		slog.Any("error", err))
+	return errTooManyRequests.Localized()
+}
+
+func (self *Refresh) logRateLimited(log *slog.Logger, retryAfter time.Time) {
+	refreshDelay := int(time.Until(retryAfter).Minutes())
+	nextCheck := self.feed.ScheduleNextCheck(refreshDelay)
+
+	log.Warn("Feed is rate limited",
+		slog.String("feed_url", self.feed.FeedURL),
+		slog.Duration("retry_after", time.Until(retryAfter)),
+		slog.Int("refresh_delay_in_minutes", refreshDelay),
+		slog.Int("calculated_next_check_interval_in_minutes", nextCheck),
+		slog.Time("new_next_check_at", self.feed.NextCheckAt))
+}
+
+func (self *Refresh) respError(log *slog.Logger,
+	resp *fetcher.ResponseSemaphore,
+) error {
+	if retryAfter, ok := resp.TooManyRequests(); ok {
+		self.logRateLimited(log, retryAfter)
+	}
+
+	if lerr := resp.LocalizedError(); lerr != nil {
+		log.Warn("Unable to fetch feed",
+			slog.String("feed_url", self.feed.FeedURL),
+			slog.Any("error", lerr))
+		return lerr
+	}
+	return nil
+}
+
 func (self *Refresh) refreshAnyway(resp *fetcher.ResponseSemaphore) bool {
 	return self.ignoreHTTPCache() ||
 		resp.IsModified(self.feed.EtagHeader, self.feed.LastModifiedHeader)
@@ -181,37 +195,9 @@ func (self *Refresh) ignoreHTTPCache() bool {
 	return self.feed.IgnoreHTTPCache || self.force
 }
 
-func (self *Refresh) logRateLimited(ctx context.Context,
-	resp *fetcher.ResponseSemaphore,
-) {
-	retryDelaySeconds := resp.ParseRetryDelay()
-	refreshDelay := retryDelaySeconds / 60
-	nextCheck := self.feed.ScheduleNextCheck(refreshDelay)
-
-	logging.FromContext(ctx).Warn("Feed is rate limited",
-		slog.String("feed_url", self.feed.FeedURL),
-		slog.Int("retry_delay_in_seconds", retryDelaySeconds),
-		slog.Int("refresh_delay_in_minutes", refreshDelay),
-		slog.Int("calculated_next_check_interval_in_minutes", nextCheck),
-		slog.Time("new_next_check_at", self.feed.NextCheckAt))
-}
-
-func (self *Refresh) respError(ctx context.Context,
-	resp *fetcher.ResponseSemaphore,
-) error {
-	if lerr := resp.LocalizedError(); lerr != nil {
-		logging.FromContext(ctx).Warn("Unable to fetch feed",
-			slog.String("feed_url", self.feed.FeedURL),
-			slog.Any("error", lerr))
-		return lerr
-	}
-	return nil
-}
-
-func (self *Refresh) refreshFeed(ctx context.Context,
+func (self *Refresh) refreshFeed(ctx context.Context, log *slog.Logger,
 	resp *fetcher.ResponseSemaphore,
 ) (*model.FeedRefreshed, error) {
-	log := logging.FromContext(ctx)
 	log.Info("Feed modified",
 		slog.String("etag_header", self.feed.EtagHeader),
 		slog.String("last_modified_header", self.feed.LastModifiedHeader))
@@ -324,10 +310,9 @@ func (self *Refresh) updateFeed(ctx context.Context) error {
 	return nil
 }
 
-func (self *Refresh) logFeedRefreshed(ctx context.Context,
+func (self *Refresh) logFeedRefreshed(ctx context.Context, log *slog.Logger,
 	refreshed *model.FeedRefreshed, elapsed time.Duration,
 ) {
-	log := logging.FromContext(ctx)
 	var msg string
 
 	switch {
@@ -395,4 +380,22 @@ func (self *Refresh) entriesLogGroup(refreshed *model.FeedRefreshed) slog.Attr {
 		attrs = append(attrs, slog.Uint64("deleted", n))
 	}
 	return slog.GroupAttrs("entries", attrs...)
+}
+
+func (self *Refresh) incFeedError(ctx context.Context, err error) error {
+	var lerr *locale.LocalizedErrorWrapper
+	if !errors.As(err, &lerr) {
+		return err
+	}
+
+	user, err := self.store.UserByID(ctx, self.userID)
+	if err != nil {
+		return fmt.Errorf("reader/handler: fetch user from db: %w: %w", err, lerr)
+	}
+
+	self.feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
+	if err := self.store.IncFeedError(ctx, self.feed); err != nil {
+		return fmt.Errorf("reader/handler: inc feed error count: %w: %w", err, lerr)
+	}
+	return fmt.Errorf("%w: %w", ErrBadFeed, err)
 }

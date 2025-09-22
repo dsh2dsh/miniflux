@@ -89,24 +89,27 @@ func (r *ResponseHandler) CacheControlMaxAgeInMinutes() int {
 	return 0
 }
 
-func (r *ResponseHandler) ParseRetryDelay() int {
+func (r *ResponseHandler) parseRetryDelay() time.Duration {
 	retryAfterHeaderValue := r.httpResponse.Header.Get("Retry-After")
-	if retryAfterHeaderValue != "" {
-		// First, try to parse as an integer (number of seconds)
-		if seconds, err := strconv.Atoi(retryAfterHeaderValue); err == nil {
-			return seconds
-		}
+	if retryAfterHeaderValue == "" {
+		return 0
+	}
 
-		// If not an integer, try to parse as an HTTP-date
-		if t, err := time.Parse(time.RFC1123, retryAfterHeaderValue); err == nil {
-			return int(time.Until(t).Seconds())
-		}
+	// First, try to parse as an integer (number of seconds)
+	if seconds, err := strconv.Atoi(retryAfterHeaderValue); err == nil {
+		return time.Duration(seconds) * time.Second
+	}
+
+	// If not an integer, try to parse as an HTTP-date
+	if t, err := time.Parse(time.RFC1123, retryAfterHeaderValue); err == nil {
+		return time.Until(t)
 	}
 	return 0
 }
 
-func (r *ResponseHandler) IsRateLimited() bool {
-	return r.httpResponse != nil && r.httpResponse.StatusCode == http.StatusTooManyRequests
+func (r *ResponseHandler) rateLimited() bool {
+	return r.httpResponse != nil &&
+		r.httpResponse.StatusCode == http.StatusTooManyRequests
 }
 
 func (r *ResponseHandler) IsModified(lastEtagValue, lastModifiedValue string) bool {

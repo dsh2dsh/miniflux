@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIsModified(t *testing.T) {
@@ -72,7 +74,7 @@ func TestIsModified(t *testing.T) {
 func TestRetryDelay(t *testing.T) {
 	testCases := map[string]struct {
 		RetryAfterHeader string
-		ExpectedDelay    int
+		ExpectedDelay    time.Duration
 	}{
 		"Empty header": {
 			RetryAfterHeader: "",
@@ -80,13 +82,14 @@ func TestRetryDelay(t *testing.T) {
 		},
 		"Integer value": {
 			RetryAfterHeader: "42",
-			ExpectedDelay:    42,
+			ExpectedDelay:    42 * time.Second,
 		},
 		"HTTP-date": {
 			RetryAfterHeader: time.Now().Add(42 * time.Second).Format(time.RFC1123),
-			ExpectedDelay:    41,
+			ExpectedDelay:    41 * time.Second,
 		},
 	}
+
 	for name, tc := range testCases {
 		t.Run(name, func(tt *testing.T) {
 			header := http.Header{}
@@ -96,9 +99,8 @@ func TestRetryDelay(t *testing.T) {
 					Header: header,
 				},
 			}
-			if tc.ExpectedDelay != rh.ParseRetryDelay() {
-				tt.Errorf("Expected %d, got %d for scenario %q", tc.ExpectedDelay, rh.ParseRetryDelay(), name)
-			}
+			assert.Equal(t, tc.ExpectedDelay,
+				rh.parseRetryDelay().Truncate(time.Second))
 		})
 	}
 }
