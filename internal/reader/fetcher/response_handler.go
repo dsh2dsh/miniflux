@@ -197,3 +197,18 @@ func (r *ResponseHandler) ReadBody() ([]byte, *locale.LocalizedErrorWrapper) {
 	}
 	return buffer.Bytes(), nil
 }
+
+func (r *ResponseHandler) bodyStatusText() string {
+	statusText := http.StatusText(r.StatusCode())
+	var b bytes.Buffer
+	_, _ = io.CopyN(&b, r.httpResponse.Body, 1024)
+	if s, _, _ := strings.Cut(b.String(), "\n"); s != "" {
+		switch statusText {
+		case "":
+			statusText = s
+		default:
+			statusText += ": " + s
+		}
+	}
+	return statusText
+}
