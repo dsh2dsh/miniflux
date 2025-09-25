@@ -840,11 +840,12 @@ template {
 }
 
 .item-meta a {
-    color: #777;
+    /* color: #777; */
+    outline: none;
     text-decoration: none;
 }
 
-.item-meta :is(a:is(:focus, :hover), button:is(:focus, :hover)) {
+.item-meta-icons :is(a:is(:focus, :hover), button:is(:focus, :hover)) {
     color: #333;
 }
 
