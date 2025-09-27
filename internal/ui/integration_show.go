@@ -132,6 +132,7 @@ func (h *handler) showIntegrationPage(w http.ResponseWriter, r *http.Request) {
 		PushoverToken:                    i.PushoverToken,
 		PushoverDevice:                   i.PushoverDevice,
 		PushoverPrefix:                   i.PushoverPrefix,
+		ArchiveorgEnabled:                i.ArchiveorgEnabled,
 	}
 
 	v.Set("menu", "settings").

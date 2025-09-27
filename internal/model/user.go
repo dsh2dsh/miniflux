@@ -252,6 +252,7 @@ func (u *User) TargetBlank() template.HTMLAttr {
 func (u *User) HasSaveEntry() bool {
 	i := u.Integration()
 	return i.AppriseEnabled ||
+		i.ArchiveorgEnabled ||
 		i.BetulaEnabled ||
 		i.CuboxEnabled ||
 		i.DiscordEnabled ||
@@ -264,6 +265,7 @@ func (u *User) HasSaveEntry() bool {
 		i.NotionEnabled ||
 		i.NunuxKeeperEnabled ||
 		i.OmnivoreEnabled ||
+		i.PinboardEnabled ||
 		i.RaindropEnabled ||
 		i.ReadeckEnabled ||
 		i.ReadwiseEnabled ||
@@ -271,8 +273,7 @@ func (u *User) HasSaveEntry() bool {
 		i.ShioriEnabled ||
 		i.SlackEnabled ||
 		i.WallabagEnabled ||
-		i.WebhookEnabled ||
-		i.PinboardEnabled
+		i.WebhookEnabled
 }
 
 func (u *User) Operator() bool {

@@ -8,6 +8,7 @@ type Integration struct {
 	AppriseEnabled                   bool   `json:"apprise_enabled,omitempty"`
 	AppriseServicesURL               string `json:"apprise_services_url,omitempty"`
 	AppriseURL                       string `json:"apprise_url,omitempty"`
+	ArchiveorgEnabled                bool   `json:"archiveorg_enabled,omitempty"`
 	BetulaEnabled                    bool   `json:"betula_enabled,omitempty"`
 	BetulaToken                      string `json:"betula_token,omitempty"`
 	BetulaURL                        string `json:"betula_url,omitempty"`
