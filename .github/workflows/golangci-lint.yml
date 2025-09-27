@@ -33,4 +33,4 @@ jobs:
 
           # The mode to install golangci-lint. It can be 'binary', 'goinstall',
           # or 'none'. Default is "binary".
-          install-mode: "goinstall"
+          install-mode: "binary"
