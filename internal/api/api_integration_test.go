@@ -177,7 +177,7 @@ func (self *EndpointTestSuite) TestGetUsersEndpointAsRegularUser() {
 func (self *EndpointTestSuite) TestCreateUserEndpointAsAdmin() {
 	self.Empty(self.user.Password, "Invalid password")
 	self.Equal("en_US", self.user.Language, "Invalid language")
-	self.Equal("light_serif", self.user.Theme, "Invalid theme")
+	self.Equal("system_sans_serif", self.user.Theme, "Invalid theme")
 	self.Equal("UTC", self.user.Timezone, "Invalid timezone")
 	self.False(self.user.IsAdmin, "Invalid role")
 	self.Equal(100, self.user.EntriesPerPage, "Invalid entries per page")
