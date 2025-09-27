@@ -3,7 +3,7 @@
 CREATE TABLE schema_version (
     version text NOT NULL
 );
-INSERT INTO schema_version (version) VALUES('124');
+INSERT INTO schema_version (version) VALUES('125');
 
 CREATE TABLE acme_cache (
     key character varying(400) NOT NULL PRIMARY KEY,
@@ -35,7 +35,7 @@ CREATE TABLE users (
     is_admin boolean DEFAULT false,
     language text DEFAULT 'en_US',
     timezone text DEFAULT 'UTC',
-    theme text DEFAULT 'light_serif',
+    theme text DEFAULT 'system_sans_serif',
     last_login_at timestamp with time zone,
     entry_direction entry_sorting_direction DEFAULT 'asc',
     keyboard_shortcuts boolean DEFAULT true,

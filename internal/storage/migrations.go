@@ -741,4 +741,8 @@ CREATE INDEX ON feed_icons (icon_id);`),
 	// 124
 	sqlMigration(
 		`UPDATE users SET extra = extra - '{mark_read_on_scroll}'::text[]`),
+
+	// 125
+	sqlMigration(
+		`ALTER TABLE users ALTER COLUMN theme SET DEFAULT 'system_sans_serif'`),
 }
