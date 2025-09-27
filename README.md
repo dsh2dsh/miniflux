@@ -263,6 +263,9 @@ This project is an opinionated fork of Miniflux.
   switches theme of current session to dark or light variant and reloads current
   page.
 
+  Thanks [Feather](https://feathericons.com) for
+  [icons](https://github.com/feathericons/feather).
+
 ---
 
 Features
