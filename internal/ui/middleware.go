@@ -14,6 +14,7 @@ import (
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
+	"miniflux.app/v2/internal/http/securecookie"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/storage"
@@ -22,17 +23,24 @@ import (
 var publicSession = model.Session{
 	Data: &model.SessionData{
 		Language: "en_US",
-		Theme:    "light_sans_serif",
+		Theme:    "system_sans_serif",
 	},
 }
 
 type middleware struct {
-	router *mux.ServeMux
-	store  *storage.Storage
+	router       *mux.ServeMux
+	store        *storage.Storage
+	secureCookie *securecookie.SecureCookie
 }
 
-func newMiddleware(router *mux.ServeMux, store *storage.Storage) *middleware {
-	return &middleware{router, store}
+func newMiddleware(router *mux.ServeMux, store *storage.Storage,
+	secureCookie *securecookie.SecureCookie,
+) *middleware {
+	return &middleware{
+		router:       router,
+		store:        store,
+		secureCookie: secureCookie,
+	}
 }
 
 func (m *middleware) userNoRedirect() func(next http.Handler) http.Handler {
@@ -61,7 +69,7 @@ func (m *middleware) handleUserSession(next http.Handler, redirect bool,
 			if redirect {
 				log.Debug(
 					"Redirecting to login page because no user session has been found")
-				html.Redirect(w, r, route.Path(m.router, "login"))
+				m.redirectToLogin(w, r)
 			} else {
 				http.Error(w, http.StatusText(http.StatusUnauthorized),
 					http.StatusUnauthorized)
@@ -79,6 +87,17 @@ func (m *middleware) handleUserSession(next http.Handler, redirect bool,
 		ctx = context.WithValue(ctx, request.IsAuthenticatedContextKey, true)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func (m *middleware) redirectToLogin(w http.ResponseWriter, r *http.Request) {
+	log := logging.FromContext(r.Context())
+	redirect := r.URL.RequestURI()
+	log.Debug("After login redirect to", slog.String("uri", redirect))
+
+	if err := setLoginRedirect(w, m.secureCookie, redirect); err != nil {
+		log.Error("Unable to set login redirect", slog.Any("error", err))
+	}
+	html.Redirect(w, r, route.Path(m.router, "login"))
 }
 
 func (m *middleware) handleAppSession(next http.Handler) http.Handler {

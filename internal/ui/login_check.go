@@ -4,6 +4,8 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -11,8 +13,10 @@ import (
 	"miniflux.app/v2/internal/http/cookie"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/http/securecookie"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/logging"
+	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
 	"miniflux.app/v2/internal/ui/view"
 )
@@ -78,5 +82,72 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, cookie.NewSession(sess.ID))
+	h.redirectHome(w, r, user)
+}
+
+func (h *handler) redirectHome(w http.ResponseWriter, r *http.Request,
+	user *model.User,
+) {
+	log := logging.FromContext(r.Context())
+
+	redirect, err := redirectFromCookie(w, r, h.secureCookie)
+	if err != nil {
+		log.Error("Unable redirect back to original page", slog.Any("error", err))
+		h.redirect(w, r, user.DefaultHomePage)
+		return
+	}
+
+	if redirect != "" {
+		log.Debug("Redirect back to original page", slog.String("uri", redirect))
+		html.Redirect(w, r, redirect)
+		return
+	}
+
+	log.Debug("Redirect to user default home page")
 	h.redirect(w, r, user.DefaultHomePage)
+}
+
+type redirectCookie struct {
+	Redirect string `json:"redirect"`
+}
+
+func setLoginRedirect(w http.ResponseWriter,
+	secureCookie *securecookie.SecureCookie, redirect string,
+) error {
+	data := redirectCookie{Redirect: redirect}
+	b, err := json.Marshal(&data)
+	if err != nil {
+		return fmt.Errorf("ui: marshal login redirect to cookie: %w", err)
+	}
+
+	encrypted, err := secureCookie.EncryptCookie(b)
+	if err != nil {
+		return fmt.Errorf("ui: encrypt login redirect cookie: %w", err)
+	}
+
+	http.SetCookie(w, cookie.NewSessionData(encrypted))
+	return nil
+}
+
+func redirectFromCookie(w http.ResponseWriter, r *http.Request,
+	secureCookie *securecookie.SecureCookie,
+) (string, error) {
+	plaintext := request.CookieValue(r, cookie.CookieSessionData)
+	if plaintext == "" {
+		return "", nil
+	}
+	http.SetCookie(w, cookie.ExpiredSessionData())
+
+	b, err := secureCookie.DecryptCookie(plaintext)
+	if err != nil {
+		return "", fmt.Errorf("ui: decrypt login redirect cookie: %w", err)
+	}
+
+	var data redirectCookie
+	if err := json.Unmarshal(b, &data); err != nil {
+		return "", fmt.Errorf("ui: unmarshal login redirect cookie: %w", err)
+	}
+
+	http.SetCookie(w, cookie.ExpiredSessionData())
+	return data.Redirect, nil
 }

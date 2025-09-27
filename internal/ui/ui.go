@@ -37,17 +37,18 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 		panic(err)
 	}
 
+	secureCookie := securecookie.New()
 	h := &handler{
 		router: m,
 		store:  store,
 		tpl:    templateEngine,
 		pool:   pool,
 
-		secureCookie: securecookie.New(),
+		secureCookie: secureCookie,
 	}
 
 	m = m.Group().Use(hmw.CrossOriginProtection())
-	mw := newMiddleware(m, store)
+	mw := newMiddleware(m, store, secureCookie)
 
 	// public endpoints
 	m.Group(func(m *mux.ServeMux) {
