@@ -35,6 +35,7 @@ type funcMap struct {
 func (self *funcMap) Map() template.FuncMap {
 	return template.FuncMap{
 		"baseURL":            config.Opts.BaseURL,
+		"colorScheme":        model.ColorScheme,
 		"contains":           strings.Contains,
 		"dict":               dict,
 		"disableLocalAuth":   config.Opts.DisableLocalAuth,

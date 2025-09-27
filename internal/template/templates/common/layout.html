@@ -51,6 +51,7 @@
     <script type="module" src="{{ javascript "app" }}"></script>
 </head>
 <body
+  class="user-theme-{{ colorScheme .theme }}"
   data-service-worker-url="{{ javascript "service-worker" }}"
   data-offline-url="{{ route "offline" }}"
   data-add-subscription-url="{{ route "addSubscription" }}"
@@ -150,6 +151,23 @@
                         <a href="{{ route "logout" }}" title="{{ t "tooltip.logged_user" .user.Username }}">{{ icon "logout" }}{{ t "menu.logout" }}</a>
                     </li>
                 {{ end }}
+
+                <li>
+                    <span
+                      class="to-light"
+                      data-theme-switch="{{ route "switchLight" }}"
+                      aria-label="Activate light mode"
+                      title="Activate light mode">
+                        {{ icon "sun" }}
+                    </span>
+                    <span
+                      class="to-dark"
+                      data-theme-switch="{{ route "switchDark" }}"
+                      aria-label="Activate dark mode"
+                      title="Activate dark mode">
+                        {{ icon "moon" }}
+                    </span>
+                </li>
             </ul>
         </nav>
     </header>

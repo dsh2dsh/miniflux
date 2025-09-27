@@ -100,6 +100,9 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 		m.NameHandleFunc("/mark-all-as-read", h.markAllAsRead, "markAllAsRead")
 		m.NameHandleFunc("/history/flush", h.flushHistory, "flushHistory")
 
+		m.NameHandleFunc("POST /session/theme/dark", h.switchDark, "switchDark")
+		m.NameHandleFunc("POST /session/theme/light", h.switchLight, "switchLight")
+
 		// Entry pages.
 		m.NameHandleFunc("/entry/{entryID}/bookmark", h.toggleBookmark,
 			"toggleBookmark")

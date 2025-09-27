@@ -257,6 +257,12 @@ This project is an opinionated fork of Miniflux.
 
   Click the `Download` button and original content will be inlined.
 
+* Fast switch to dark or light mode for current session.
+
+  The last item of the main menu is a moon or sun icon. Click on this icon
+  switches theme of current session to dark or light variant and reloads current
+  page.
+
 ---
 
 Features

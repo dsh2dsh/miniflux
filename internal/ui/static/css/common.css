@@ -180,6 +180,32 @@ a:hover {
     margin-bottom: 2px;
 }
 
+body.user-theme-system {
+    @media (prefers-color-scheme: dark) {
+        #header-menu .to-dark {
+            display: none;
+            visibility: hidden;
+        }
+    }
+
+    @media (prefers-color-scheme: light) {
+        #header-menu .to-light {
+            display: none;
+            visibility: hidden;
+        }
+    }
+}
+
+body.user-theme-dark #header-menu .to-dark {
+    display: none;
+    visibility: hidden;
+}
+
+body.user-theme-light #header-menu .to-light {
+    display: none;
+    visibility: hidden;
+}
+
 .page-header-action-form {
     display: inline-flex;
 }
