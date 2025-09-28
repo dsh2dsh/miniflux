@@ -123,11 +123,11 @@ html {
 
 @media (prefers-color-scheme: dark) {
     :root {
-        --body-color: #efefef;
+        --body-color: #d6d8da;
         --body-background: #222;
         --hr-border-color: #555;
-        --title-color: #aaa;
-        --link-color: #aaa;
+        --title-color: #d6d8da;
+        --link-color: #d6d8da;
         --link-focus-color: #ddd;
         --link-hover-color: #ddd;
         --link-visited-color: #f083e4;
@@ -213,7 +213,7 @@ html {
 
         --entry-header-border-color: #333;
         --entry-header-title-link-color: #bbb;
-        --entry-content-color: #999;
+        --entry-content-color: #d6d8da;
         --entry-content-code-color: #fff;
         --entry-content-code-background: #555;
         --entry-content-code-border-color: #888;
