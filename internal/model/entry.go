@@ -200,6 +200,15 @@ func (self Entries) Unread() iter.Seq2[int, *Entry] {
 	}
 }
 
+func (self Entries) RefreshFeed(userID, feedID int64) []string {
+	hashes := make([]string, len(self))
+	for i, e := range self {
+		e.UserID, e.FeedID, e.Status = userID, feedID, EntryStatusUnread
+		hashes[i] = e.Hash
+	}
+	return hashes
+}
+
 // EntriesStatusUpdateRequest represents a request to change entries status.
 type EntriesStatusUpdateRequest struct {
 	EntryIDs []int64 `json:"entry_ids"`

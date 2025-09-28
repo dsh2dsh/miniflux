@@ -370,39 +370,61 @@ type FeedRefreshed struct {
 
 	Refreshed   bool
 	NotModified int
+
+	hashes []string
 }
 
 func NewFeedRefreshed() *FeedRefreshed { return new(FeedRefreshed) }
 
-func (self *FeedRefreshed) Append(entries []*Entry, published map[string]*Entry,
+func (self *FeedRefreshed) WithHashes(hashes []string) *FeedRefreshed {
+	self.hashes = hashes
+	return self
+}
+
+func (self *FeedRefreshed) Hashes() []string { return self.hashes }
+
+func (self *FeedRefreshed) Append(feedID int64, feedEntries []*Entry,
+	storedEntries []Entry,
 ) *FeedRefreshed {
-	if len(published) == 0 {
-		self.CreatedEntries = entries
+	storedBy := mapStoredEntries(feedID, storedEntries)
+	if len(storedBy) == 0 {
+		self.CreatedEntries = feedEntries
 		return self
 	}
 
-	for _, e := range entries {
-		stored, ok := published[e.Hash]
+	for _, e := range feedEntries {
+		storedEntry, ok := storedBy[e.Hash]
 		switch {
 		case !ok:
 			e.Status = EntryStatusUnread
 			self.CreatedEntries = append(self.CreatedEntries, e)
-		case e.FeedID != stored.FeedID:
-			if e.Date.After(stored.Date) {
+		case e.FeedID != storedEntry.FeedID:
+			if e.Date.After(storedEntry.Date) {
 				e.Status = EntryStatusUnread
 			} else {
 				e.Status = EntryStatusRead
 				self.Dedups++
 			}
 			self.CreatedEntries = append(self.CreatedEntries, e)
-		case e.Date.After(stored.Date):
+		case e.Date.After(storedEntry.Date):
 			e.Status = EntryStatusUnread
 			self.UpdatedEntires = append(self.UpdatedEntires, e)
 		default:
-			e.Status = stored.Status
+			e.Status = storedEntry.Status
 		}
 	}
 	return self
+}
+
+func mapStoredEntries(feedID int64, entries []Entry) map[string]*Entry {
+	byHash := make(map[string]*Entry, len(entries))
+	for i := range entries {
+		e := &entries[i]
+		if _, ok := byHash[e.Hash]; !ok || e.FeedID == feedID {
+			byHash[e.Hash] = e
+		}
+	}
+	return byHash
 }
 
 func (self *FeedRefreshed) Created() int { return len(self.CreatedEntries) }

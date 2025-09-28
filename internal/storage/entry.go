@@ -109,32 +109,13 @@ func (s *Storage) GetReadTime(ctx context.Context, feedID int64,
 func (s *Storage) RefreshFeedEntries(ctx context.Context, userID, feedID int64,
 	entries model.Entries, updateExisting bool,
 ) (*model.FeedRefreshed, error) {
-	hashes := make([]string, len(entries))
-	for i, e := range entries {
-		e.UserID, e.FeedID, e.Status = userID, feedID, model.EntryStatusUnread
-		hashes[i] = e.Hash
+	refreshed, err := s.StoreFeedEntries(ctx, userID, feedID, entries,
+		updateExisting)
+	if err != nil {
+		return nil, err
 	}
 
-	var refreshed *model.FeedRefreshed
-	if len(entries) > 0 {
-		err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-			r, err := s.refreshEntries(ctx, tx, userID, feedID, hashes, entries,
-				updateExisting)
-			if err != nil {
-				return err
-			}
-			refreshed = r
-			return nil
-		})
-		if err != nil {
-			return refreshed, fmt.Errorf("unable refresh feed(#%d) entries: %w",
-				feedID, err)
-		}
-	} else {
-		refreshed = &model.FeedRefreshed{}
-	}
-
-	deleted, err := s.cleanupEntries(ctx, feedID, hashes)
+	deleted, err := s.cleanupEntries(ctx, feedID, refreshed.Hashes())
 	if err != nil {
 		return nil, err
 	}
@@ -142,10 +123,32 @@ func (s *Storage) RefreshFeedEntries(ctx context.Context, userID, feedID int64,
 	return refreshed, nil
 }
 
-func (s *Storage) refreshEntries(ctx context.Context, tx pgx.Tx, userID,
-	feedID int64, hashes []string, entries model.Entries, update bool,
+func (s *Storage) StoreFeedEntries(ctx context.Context, userID, feedID int64,
+	entries model.Entries, updateExisting bool,
 ) (*model.FeedRefreshed, error) {
-	refreshed, err := s.knownEntries(ctx, tx, userID, feedID, hashes, entries)
+	if len(entries) == 0 {
+		return model.NewFeedRefreshed(), nil
+	}
+
+	var refreshed *model.FeedRefreshed
+	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) (err error) {
+		refreshed, err = s.refreshEntries(ctx, tx, userID, feedID, entries,
+			updateExisting)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("unable refresh feed(#%d) entries: %w", feedID, err)
+	}
+	return refreshed, nil
+}
+
+func (s *Storage) refreshEntries(ctx context.Context, tx pgx.Tx, userID,
+	feedID int64, entries model.Entries, update bool,
+) (*model.FeedRefreshed, error) {
+	refreshed, err := s.knownEntries(ctx, tx, userID, feedID, entries)
 	if err != nil {
 		return nil, err
 	}
@@ -165,22 +168,17 @@ func (s *Storage) refreshEntries(ctx context.Context, tx pgx.Tx, userID,
 }
 
 func (s *Storage) knownEntries(ctx context.Context, tx pgx.Tx, userID,
-	feedID int64, hashes []string, entries []*model.Entry,
+	feedID int64, entries model.Entries,
 ) (*model.FeedRefreshed, error) {
+	hashes := entries.RefreshFeed(userID, feedID)
 	published, err := s.publishedEntries(ctx, tx, userID, hashes)
 	if err != nil {
 		return nil, err
 	}
 
-	byHash := make(map[string]*model.Entry, len(published))
-	for i := range published {
-		e := &published[i]
-		if _, ok := byHash[e.Hash]; !ok || e.FeedID == feedID {
-			byHash[e.Hash] = e
-		}
-	}
+	refreshed := model.NewFeedRefreshed().WithHashes(hashes)
+	refreshed.Append(feedID, entries, published)
 
-	refreshed := model.NewFeedRefreshed().Append(entries, byHash)
 	if dd := s.DedupEntries(); dd != nil {
 		dd.Filter(userID, refreshed)
 	}
