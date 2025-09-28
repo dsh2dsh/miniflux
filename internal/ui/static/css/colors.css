@@ -1,0 +1,119 @@
+:root {
+    --font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    --body-color: light-dark(#333, #d6d8da);
+    --body-background: light-dark(#fff, #222);
+    --hr-border-color: light-dark(#ccc, #555);
+    --title-color: light-dark(#333, #d6d8da);
+    --link-color: light-dark(#3366CC, #d6d8da);
+    --link-focus-color: light-dark(red, #ddd);
+    --link-hover-color: light-dark(#333, #ddd);
+    --link-visited-color: light-dark(purple, #f083e4);
+
+    --header-list-border-color: light-dark(#ddd, #333);
+    --header-link-color: light-dark(#444, #ddd);
+    --header-link-focus-color: light-dark(#888, rgba(82, 168, 236, 0.85));
+    --header-link-hover-color: light-dark(#888, rgba(82, 168, 236, 0.85));
+    --header-active-link-color: light-dark(#444, #9b9494);
+
+    --page-header-title-color: light-dark(#333, #aaa);
+    --page-header-title-border-color: light-dark(#333, #333);
+
+    --logo-color: light-dark(#000, #bbb);
+    --logo-hover-color-span: light-dark(#000, #bbb);
+
+    --table-border-color: light-dark(#ddd, #555);
+    --table-th-background: light-dark(#fcfcfc, #333);
+    --table-th-color: light-dark(#333, #aaa);
+    --table-tr-hover-background-color: light-dark(#f9f9f9, #333);
+    --table-tr-hover-color: light-dark(#333, #aaa);
+
+    --button-primary-border-color: light-dark(#3079ed, #444);
+    --button-primary-background: light-dark(#4d90fe, #333);
+    --button-primary-color: light-dark(#fff, #efefef);
+    --button-primary-focus-border-color: light-dark(#2f5bb7, #888);
+    --button-primary-focus-background: light-dark(#357ae8, #555);
+
+    --input-border: 1px solid light-dark(#ccc, #555);
+    --input-background: light-dark(#fff, #333);
+    --input-color: light-dark(#333, #ccc);
+    --input-placeholder-color: light-dark(#d0d0d0, #666);
+
+    --input-focus-color: light-dark(#000, #efefef);
+    --input-focus-border-color: light-dark(rgba(82, 168, 236, 0.8), rgba(82, 168, 236, 0.8));
+    --input-focus-box-shadow: 0 0 8px light-dark(rgba(82, 168, 236, 0.6), rgba(82, 168, 236, 0.6));
+
+    --alert-color: light-dark(#c09853, #efefef);
+    --alert-background-color: light-dark(#fcf8e3, #333);
+    --alert-border-color: light-dark(#fbeed5, #444);
+
+    --alert-success-color: light-dark(#468847, #efefef);
+    --alert-success-background-color: light-dark(#dff0d8, #333);
+    --alert-success-border-color: light-dark(#d6e9c6, #444);
+
+    --alert-error-color: light-dark(#b94a48, #efefef);
+    --alert-error-background-color: light-dark(#f2dede, #333);
+    --alert-error-border-color: light-dark(#eed3d7, #444);
+
+    --alert-info-color: light-dark(#3a87ad, #efefef);
+    --alert-info-background-color: light-dark(#d9edf7, #333);
+    --alert-info-border-color: light-dark(#bce8f1, #444);
+
+    --panel-background: light-dark(#fcfcfc, #333);
+    --panel-border-color: light-dark(#ddd, #555);
+    --panel-color: light-dark(#333, #9b9b9b);
+
+    --modal-background: light-dark(#f0f0f0, #333);
+    --modal-color: light-dark(#333, #efefef);
+    --modal-box-shadow: 2px 0 5px 0 light-dark(#ccc, rgba(82, 168, 236, 0.6));
+
+    --pagination-link-color: light-dark(#333, #aaa);
+    --pagination-border-color: light-dark(#ddd, #333);
+
+    --category-color: light-dark(#333, #efefef);
+    --category-background-color: light-dark(#fffcd7, #333);
+    --category-border-color: light-dark(#d5d458, #444);
+    --category-link-color: light-dark(#000, #999);
+    --category-link-hover-color: light-dark(#000, #aaa);
+
+    --item-border-color: light-dark(#ddd, #666);
+    --item-padding: 5px;
+    --item-title-link-font-weight: 600;
+
+    --item-status-read-title-link-color: light-dark(#777, #666);
+    --item-status-read-title-focus-color: light-dark(#777, rgba(82, 168, 236, 0.6));
+
+    --item-meta-focus-color: light-dark(#777, #aaa);
+    --item-meta-li-color: light-dark(#aaa, #ddd);
+
+    --current-item-border-width: 3px;
+    --current-item-border-color: light-dark(#bce, rgba(82, 168, 236, 0.8));
+    --current-item-box-shadow: none;
+
+    --entry-header-border-color: light-dark(#ddd, #333);
+    --entry-header-title-link-color: light-dark(#333, #bbb);
+    --entry-content-color: light-dark(#333, #d6d8da);
+    --entry-content-code-color: light-dark(#333, #fff);
+    --entry-content-code-background: light-dark(#f0f0f0, #555);
+    --entry-content-code-border-color: light-dark(#ddd, #888);
+    --entry-content-quote-color: light-dark(#666, #777);
+    --entry-content-abbr-border-color: light-dark(#999, #777);
+    --entry-content-aside-border-color: light-dark(#D3D3D3, #777);
+    --entry-enclosure-border-color: light-dark(#333, #333);
+
+    --parsing-error-color: light-dark(#333, #eee);
+    --feed-parsing-error-background-color: light-dark(#fcf8e3, #3a1515);
+    --feed-parsing-error-border-style: solid;
+    --feed-parsing-error-border-color: light-dark(#f9e883, #562222);
+
+    --feed-has-unread-background-color: light-dark(#dfd, #1b1a1a);
+    --feed-has-unread-border-style: solid;
+    --feed-has-unread-border-color: light-dark(#bee6bc, rgb(33 57 76));
+
+    --category-has-unread-background-color: light-dark(#dfd, #1b1a1a);
+    --category-has-unread-border-style: solid;
+    --category-has-unread-border-color: light-dark(#bee6bc, rgb(33 57 76));
+
+    --keyboard-shortcuts-li-color: light-dark(#333, #9b9b9b);
+
+    --counter-color: light-dark(#666, #bbb);
+}

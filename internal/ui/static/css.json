@@ -1,36 +1,36 @@
 {
   "light_serif": [
-    "css/light.css",
+    "css/colors.css",
     "css/serif.css",
     "css/common.css"
   ],
 
   "light_sans_serif": [
-    "css/light.css",
+    "css/colors.css",
     "css/sans_serif.css",
     "css/common.css"
   ],
 
   "dark_serif": [
-    "css/dark.css",
+    "css/colors.css",
     "css/serif.css",
     "css/common.css"
   ],
 
   "dark_sans_serif": [
-    "css/dark.css",
+    "css/colors.css",
     "css/sans_serif.css",
     "css/common.css"
   ],
 
   "system_serif": [
-    "css/system.css",
+    "css/colors.css",
     "css/serif.css",
     "css/common.css"
   ],
 
   "system_sans_serif": [
-    "css/system.css",
+    "css/colors.css",
     "css/sans_serif.css",
     "css/common.css"
   ]

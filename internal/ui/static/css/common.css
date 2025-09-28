@@ -180,7 +180,7 @@ a:hover {
     margin-bottom: 2px;
 }
 
-body.user-theme-system {
+body[data-color-scheme=system] {
     @media (prefers-color-scheme: dark) {
         #header-menu .to-dark {
             display: none;
@@ -196,14 +196,18 @@ body.user-theme-system {
     }
 }
 
-body.user-theme-dark #header-menu .to-dark {
-    display: none;
-    visibility: hidden;
+body[data-color-scheme=dark] {
+    #header-menu .to-dark {
+        display: none;
+        visibility: hidden;
+    }
 }
 
-body.user-theme-light #header-menu .to-light {
-    display: none;
-    visibility: hidden;
+body[data-color-scheme=light] {
+    #header-menu .to-light {
+        display: none;
+        visibility: hidden;
+    }
 }
 
 .page-header-action-form {

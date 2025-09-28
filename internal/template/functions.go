@@ -70,6 +70,14 @@ func (self *funcMap) Map() template.FuncMap {
 			return config.Opts.AuthProxyHeader() != ""
 		},
 
+		"metaColorScheme": func(theme string) string {
+			colorScheme := model.ColorScheme(theme)
+			if colorScheme == "system" {
+				return "light dark"
+			}
+			return colorScheme
+		},
+
 		"route": func(name string, args ...any) string {
 			return route.Path(self.router, name, args...)
 		},

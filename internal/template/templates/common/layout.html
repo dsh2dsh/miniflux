@@ -13,6 +13,8 @@
     <meta name="theme-color" content="{{ theme_color .theme "light" }}" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="{{ theme_color .theme "dark" }}" media="(prefers-color-scheme: dark)">
 
+    <meta name="color-scheme" content="{{ metaColorScheme .theme }}">
+
     <meta name="htmx-config"
           content='{
                 "includeIndicatorStyles": false,
@@ -51,7 +53,7 @@
     <script type="module" src="{{ javascript "app" }}"></script>
 </head>
 <body
-  class="user-theme-{{ colorScheme .theme }}"
+  data-color-scheme="{{ colorScheme .theme }}"
   data-service-worker-url="{{ javascript "service-worker" }}"
   data-offline-url="{{ route "offline" }}"
   data-add-subscription-url="{{ route "addSubscription" }}"
@@ -157,7 +159,7 @@
                       class="to-light"
                       hx-post="{{ route "switchLight" }}"
                       hx-trigger="click"
-                      data-reload="true"
+                      data-color-scheme="light"
                       aria-label="Activate light mode"
                       title="Activate light mode">
                         {{ icon "sun" }}
@@ -166,7 +168,7 @@
                       class="to-dark"
                       hx-post="{{ route "switchDark" }}"
                       hx-trigger="click"
-                      data-reload="true"
+                      data-color-scheme="dark"
                       aria-label="Activate dark mode"
                       title="Activate dark mode">
                         {{ icon "moon" }}
