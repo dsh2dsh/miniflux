@@ -155,14 +155,18 @@
                 <li>
                     <span
                       class="to-light"
-                      data-theme-switch="{{ route "switchLight" }}"
+                      hx-post="{{ route "switchLight" }}"
+                      hx-trigger="click"
+                      data-reload="true"
                       aria-label="Activate light mode"
                       title="Activate light mode">
                         {{ icon "sun" }}
                     </span>
                     <span
                       class="to-dark"
-                      data-theme-switch="{{ route "switchDark" }}"
+                      hx-post="{{ route "switchDark" }}"
+                      hx-trigger="click"
+                      data-reload="true"
                       aria-label="Activate dark mode"
                       title="Activate dark mode">
                         {{ icon "moon" }}

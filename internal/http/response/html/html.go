@@ -142,3 +142,7 @@ func RequestedRangeNotSatisfiable(w http.ResponseWriter, r *http.Request,
 		WithBody("Range Not Satisfiable").
 		Write()
 }
+
+func NoContent(w http.ResponseWriter, r *http.Request) {
+	response.New(w, r).WithStatus(http.StatusNoContent).Write()
+}

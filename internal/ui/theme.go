@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/json"
+	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/ui/session"
 )
 
@@ -27,5 +27,5 @@ func (h *handler) switchTheme(w http.ResponseWriter, r *http.Request,
 		s.SetTheme(user.LightTheme())
 	}
 	s.Commit(r.Context())
-	json.OK(w, r, "OK")
+	html.NoContent(w, r)
 }

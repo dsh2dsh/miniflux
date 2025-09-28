@@ -103,6 +103,13 @@ function handleHtmxEvents() {
   body.addEventListener("htmx:timeout", (event) => {
     showToastNotification("error", `Unexpected timeout`);
   });
+
+  body.addEventListener("htmx:beforeSwap", (event) => {
+    const el = event.detail.elt;
+    if (el.dataset.reload) {
+      location.replace(location.href);
+    }
+  });
 }
 
 initDataConfirm();
