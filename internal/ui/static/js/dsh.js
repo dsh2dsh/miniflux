@@ -86,7 +86,27 @@ function initElevator() {
   })
 }
 
+function handleHtmxEvents() {
+  const body = document.body;
+  body.addEventListener("htmx:sendError", (event) => {
+    showToastNotification("error",
+      `Unexpected send error: ${event.detail.error}`);
+  });
+
+  body.addEventListener("htmx:responseError", (event) => {
+    console.log(event);
+    const xhr = event.detail.xhr;
+    showToastNotification("error",
+      `Unexpected server error: ${xhr.status} ${xhr.statusText}`);
+  });
+
+  body.addEventListener("htmx:timeout", (event) => {
+    showToastNotification("error", `Unexpected timeout`);
+  });
+}
+
 initDataConfirm();
 initServiceWorker();
 initCommentLinks();
 initElevator();
+handleHtmxEvents();

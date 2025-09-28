@@ -79,8 +79,6 @@ class InlineEntry {
     loadingError.querySelector(".errorText").innerText = detail.error;
     loadingError.querySelector(".responseText").innerText = detail.xhr.responseText;
     detail.target.replaceWith(loadingError);
-    showToastNotification("error",
-      `${detail.error}: ${detail.xhr.responseText}`);
   }
 
   entryInlined(item) {
@@ -106,14 +104,6 @@ class InlineEntry {
         item.scrollIntoView();
       }
     }, { once: true });
-
-    button.addEventListener("htmx:sendError", (event) => {
-      this.downloadFailed(button, event.detail);
-    });
-
-    button.addEventListener("htmx:responseError", (event) => {
-      this.downloadFailed(button, event.detail);
-    });
   }
 
   setButtonLoading(button) {
@@ -122,11 +112,6 @@ class InlineEntry {
     const t = document.querySelector("template#entry-downloading");
     button.appendChild(document.importNode(t.content, true));
     return true;
-  }
-
-  downloadFailed(button, detail) {
-    showToastNotification("error",
-      `${detail.error}: ${detail.xhr.responseText}`);
   }
 
   downloaded(item) {
