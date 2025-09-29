@@ -39,15 +39,17 @@ func ColorScheme(theme string) string {
 	return scheme
 }
 
-func switchTheme(theme string, toDark bool) string {
-	toScheme := "light_"
-	if toDark {
-		toScheme = "dark_"
-	}
-
-	scheme, font, ok := strings.Cut(theme, "_")
-	if !ok || scheme == toScheme {
+func switchTheme(theme, colorScheme string) string {
+	_, font, ok := strings.Cut(theme, "_")
+	if !ok {
 		return theme
 	}
-	return toScheme + font
+
+	switch colorScheme {
+	case "dark":
+		return "dark_" + font
+	case "light":
+		return "light_" + font
+	}
+	return "system_" + font
 }

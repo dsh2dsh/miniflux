@@ -296,8 +296,9 @@ func (u *User) JavascriptHash() string {
 	return crypto.HashFromString(u.CustomJS)
 }
 
-func (u *User) DarkTheme() string  { return switchTheme(u.Theme, true) }
-func (u *User) LightTheme() string { return switchTheme(u.Theme, false) }
+func (u *User) DarkTheme() string      { return switchTheme(u.Theme, "dark") }
+func (u *User) LightTheme() string     { return switchTheme(u.Theme, "light") }
+func (u *User) LightDarkTheme() string { return switchTheme(u.Theme, "system") }
 
 // Users represents a list of users.
 type Users []*User

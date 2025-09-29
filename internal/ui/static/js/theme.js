@@ -11,7 +11,8 @@ class SwitchTheme {
   }
 
   switchColorScheme(mode) {
-    this.colorScheme.setAttribute("content", mode);
+    this.colorScheme.setAttribute(
+      "content", mode == "system" ? "light dark" : mode);
     document.body.dataset.colorScheme = mode;
   }
 }

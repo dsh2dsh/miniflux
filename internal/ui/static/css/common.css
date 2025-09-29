@@ -180,33 +180,66 @@ a:hover {
     margin-bottom: 2px;
 }
 
-body[data-color-scheme=system] {
-    @media (prefers-color-scheme: dark) {
-        #header-menu .to-dark {
+body[data-color-scheme=system] #header-menu {
+    @media (prefers-color-scheme: light) {
+        .to-light {
             display: none;
             visibility: hidden;
         }
+    }
+
+    .to-light-dark, .to-dark-light {
+        display: none;
+        visibility: hidden;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .to-dark {
+            display: none;
+            visibility: hidden;
+        }
+    }
+}
+
+body[data-color-scheme=dark] #header-menu {
+    @media (prefers-color-scheme: light) {
+        .to-light {
+            display: none;
+            visibility: hidden;
+        }
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .to-light-dark {
+            display: none;
+            visibility: hidden;
+        }
+    }
+
+    .to-dark-light, .to-dark {
+        display: none;
+        visibility: hidden;
+    }
+}
+
+body[data-color-scheme=light] #header-menu {
+    .to-light, .to-light-dark {
+        display: none;
+        visibility: hidden;
     }
 
     @media (prefers-color-scheme: light) {
-        #header-menu .to-light {
+        .to-dark-light {
             display: none;
             visibility: hidden;
         }
     }
-}
 
-body[data-color-scheme=dark] {
-    #header-menu .to-dark {
-        display: none;
-        visibility: hidden;
-    }
-}
-
-body[data-color-scheme=light] {
-    #header-menu .to-light {
-        display: none;
-        visibility: hidden;
+    @media (prefers-color-scheme: dark) {
+        .to-dark {
+            display: none;
+            visibility: hidden;
+        }
     }
 }
 

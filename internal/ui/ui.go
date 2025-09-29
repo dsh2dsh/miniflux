@@ -102,6 +102,8 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 
 		m.NameHandleFunc("POST /session/theme/dark", h.switchDark, "switchDark")
 		m.NameHandleFunc("POST /session/theme/light", h.switchLight, "switchLight")
+		m.NameHandleFunc("POST /session/theme/system", h.switchLightDark,
+			"switchLightDark")
 
 		// Entry pages.
 		m.NameHandleFunc("/entry/{entryID}/bookmark", h.toggleBookmark,

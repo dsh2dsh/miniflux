@@ -164,6 +164,22 @@
                         {{ icon "sun" }}
                     </span>
                     <span
+                      class="to-light-dark"
+                      hx-post="{{ route "switchLightDark" }}"
+                      data-color-scheme="system"
+                      aria-label="Activate auto (light) mode"
+                      title="Activate auto (light) mode">
+                        {{ icon "sun" }}
+                    </span>
+                    <span
+                      class="to-dark-light"
+                      hx-post="{{ route "switchLightDark" }}"
+                      data-color-scheme="system"
+                      aria-label="Activate auto (dark) mode"
+                      title="Activate auto (dark) mode">
+                        {{ icon "moon" }}
+                    </span>
+                    <span
                       class="to-dark"
                       hx-post="{{ route "switchDark" }}"
                       data-color-scheme="dark"
