@@ -154,11 +154,10 @@
                     </li>
                 {{ end }}
 
-                <li>
+                <li hx-trigger="click">
                     <span
                       class="to-light"
                       hx-post="{{ route "switchLight" }}"
-                      hx-trigger="click"
                       data-color-scheme="light"
                       aria-label="Activate light mode"
                       title="Activate light mode">
@@ -167,7 +166,6 @@
                     <span
                       class="to-dark"
                       hx-post="{{ route "switchDark" }}"
-                      hx-trigger="click"
                       data-color-scheme="dark"
                       aria-label="Activate dark mode"
                       title="Activate dark mode">

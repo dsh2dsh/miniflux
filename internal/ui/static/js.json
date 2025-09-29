@@ -10,7 +10,8 @@
 
     "js/dsh.js",
     "js/mark_read_on_scroll.js",
-    "js/inline_entry.js"
+    "js/inline_entry.js",
+    "js/theme.js"
   ],
 
   "service-worker": [
