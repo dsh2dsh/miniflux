@@ -840,6 +840,7 @@ template {
 }
 
 .item-title a {
+    color: var(--title-color);
     text-decoration: none;
     font-weight: var(--item-title-link-font-weight);
     font-size: inherit;
@@ -870,9 +871,13 @@ template {
 }
 
 .item-meta a {
-    /* color: #777; */
+    color: #777;
     outline: none;
     text-decoration: none;
+}
+
+.item-meta-info a {
+    color: var(--item-meta-focus-color);
 }
 
 .item-meta-icons :is(a:is(:focus, :hover), button:is(:focus, :hover)) {

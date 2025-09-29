@@ -4,7 +4,7 @@
     --body-background: light-dark(#fff, #222);
     --hr-border-color: light-dark(#ccc, #555);
     --title-color: light-dark(#333, #d6d8da);
-    --link-color: light-dark(#3366CC, #d6d8da);
+    --link-color: light-dark(#3366CC, #aaa);
     --link-focus-color: light-dark(red, #ddd);
     --link-hover-color: light-dark(#333, #ddd);
     --link-visited-color: light-dark(purple, #f083e4);
