@@ -1212,11 +1212,8 @@ article.category-has-unread {
 }
 
 .entry-content a {
+    color: revert;
     overflow-wrap: break-word;
-}
-
-.entry-content a:visited {
-    color: var(--link-visited-color);
 }
 
 .entry-content dt {
