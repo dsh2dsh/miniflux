@@ -266,6 +266,11 @@ This project is an opinionated fork of Miniflux.
   Thanks [Feather](https://feathericons.com) for
   [icons](https://github.com/feathericons/feather).
 
+* Show feed errors in the list of entries, as a pseudo entry.
+
+  So anybody, who uses Google Reader API, will see if some feeds require their
+  attention.
+
 ---
 
 Features

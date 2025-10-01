@@ -3,9 +3,11 @@ package storage
 type Option func(s *Storage)
 
 func WithNewDedup() Option {
-	return func(s *Storage) {
-		s.WithDedup(NewDedupEntries())
-	}
+	return func(s *Storage) { s.WithDedup(NewDedupEntries()) }
+}
+
+func WithoutDedup() Option {
+	return func(s *Storage) { s.WithDedup(nil) }
 }
 
 func (s *Storage) WithDedup(d *DedupEntries) *Storage {

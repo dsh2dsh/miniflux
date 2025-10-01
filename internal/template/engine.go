@@ -26,6 +26,7 @@ var standaloneTemplateFiles embed.FS
 
 // Engine handles the templating system.
 type Engine struct {
+	router    *mux.ServeMux
 	templates map[string]*template.Template
 	funcMap   *funcMap
 }
@@ -33,10 +34,13 @@ type Engine struct {
 // NewEngine returns a new template engine.
 func NewEngine(router *mux.ServeMux) *Engine {
 	return &Engine{
+		router:    router,
 		templates: make(map[string]*template.Template),
 		funcMap:   &funcMap{router},
 	}
 }
+
+func (e *Engine) Router() *mux.ServeMux { return e.router }
 
 // ParseTemplates parses template files embed into the application.
 func (e *Engine) ParseTemplates() error {

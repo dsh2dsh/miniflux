@@ -23,6 +23,7 @@ import (
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/handler"
 	"miniflux.app/v2/internal/storage"
+	"miniflux.app/v2/internal/template"
 )
 
 // NewPool creates a pool of background workers.
@@ -45,7 +46,8 @@ type Pool struct {
 	queue chan *queueItem
 	g     errgroup.Group
 
-	store *storage.Storage
+	store     *storage.Storage
+	templates *template.Engine
 
 	wakeupCh chan struct{}
 
@@ -69,6 +71,11 @@ type queueItem struct {
 }
 
 func (self *queueItem) Id() int { return self.index + 1 }
+
+func (self *Pool) WithTemplates(templates *template.Engine) *Pool {
+	self.templates = templates
+	return self
+}
 
 func (self *Pool) Wakeup() {
 	select {
@@ -266,7 +273,7 @@ func (self *Pool) refreshFeed(job *queueItem) (*model.FeedRefreshed, error) {
 
 	startTime := time.Now()
 	refreshed, err := handler.RefreshFeed(ctx, job.store, job.UserID, job.FeedID,
-		false)
+		handler.WithTemplates(self.templates))
 	if err != nil && !errors.Is(err, handler.ErrBadFeed) {
 		job.err = err
 		log.Error("worker: error refreshing feed", slog.Any("error", err))

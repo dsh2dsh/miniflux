@@ -376,6 +376,10 @@ type FeedRefreshed struct {
 
 func NewFeedRefreshed() *FeedRefreshed { return new(FeedRefreshed) }
 
+func NewFeedNotModified(v int) *FeedRefreshed {
+	return &FeedRefreshed{NotModified: v}
+}
+
 func (self *FeedRefreshed) WithHashes(hashes []string) *FeedRefreshed {
 	self.hashes = hashes
 	return self

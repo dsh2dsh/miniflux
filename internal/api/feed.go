@@ -65,7 +65,7 @@ func (h *handler) refreshFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := feedHandler.RefreshFeed(ctx, h.store, userID, id, false)
+	_, err := feedHandler.RefreshFeed(ctx, h.store, userID, id)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return

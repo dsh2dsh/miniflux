@@ -8,6 +8,9 @@ import (
 	"log/slog"
 	"time"
 
+	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/crypto"
+	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/integration"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/logging"
@@ -17,6 +20,7 @@ import (
 	"miniflux.app/v2/internal/reader/parser"
 	"miniflux.app/v2/internal/reader/processor"
 	"miniflux.app/v2/internal/storage"
+	"miniflux.app/v2/internal/template"
 )
 
 const (
@@ -27,33 +31,38 @@ const (
 var ErrBadFeed = errors.New("reader/handler: bad feed")
 
 func RefreshFeed(ctx context.Context, store *storage.Storage, userID,
-	feedID int64, forceRefresh bool,
+	feedID int64, opts ...Option,
 ) (*model.FeedRefreshed, error) {
 	r := Refresh{
 		store:  store,
 		userID: userID,
 		feedID: feedID,
-		force:  forceRefresh,
 	}
 
-	refreshed, err := r.Refresh(ctx)
-	if err != nil {
-		return nil, r.incFeedError(ctx, err)
+	for _, fn := range opts {
+		fn(&r)
 	}
-	return refreshed, nil
+
+	if err := r.Refresh(ctx); err != nil {
+		return nil, r.IncFeedError(ctx, err)
+	}
+	return r.refreshed, nil
 }
 
 type Refresh struct {
-	store  *storage.Storage
+	store     *storage.Storage
+	templates *template.Engine
+
 	userID int64
 	feedID int64
 	force  bool
 
-	feed *model.Feed
+	feed      *model.Feed
+	refreshed *model.FeedRefreshed
 }
 
 // Refresh refreshes a feed.
-func (self *Refresh) Refresh(ctx context.Context) (*model.FeedRefreshed, error) {
+func (self *Refresh) Refresh(ctx context.Context) error {
 	log := logging.FromContext(ctx).With(
 		slog.Int64("user_id", self.userID),
 		slog.Int64("feed_id", self.feedID))
@@ -63,7 +72,7 @@ func (self *Refresh) Refresh(ctx context.Context) (*model.FeedRefreshed, error) 
 	ctx = withTraceStat(ctx)
 	startTime := time.Now()
 	if err := self.initFeed(ctx); err != nil {
-		return nil, err
+		return err
 	}
 
 	self.feed.CheckedNow()
@@ -71,28 +80,27 @@ func (self *Refresh) Refresh(ctx context.Context) (*model.FeedRefreshed, error) 
 
 	resp, err := self.response(ctx)
 	if err != nil {
-		return nil, self.maybeTooManyRequests(log, err)
+		return self.maybeTooManyRequests(log, err)
 	}
 	defer resp.Close()
 
 	if err := self.respError(log, resp); err != nil {
-		return nil, err
+		return err
 	}
 
-	var refreshed *model.FeedRefreshed
 	if self.refreshAnyway(resp) {
 		r, err := self.refreshFeed(ctx, log, resp)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		refreshed = r
+		self.refreshed = r
 	} else {
 		log.Debug("Feed not modified")
-		refreshed = &model.FeedRefreshed{NotModified: notModifiedHeaders}
+		self.refreshed = model.NewFeedNotModified(notModifiedHeaders)
 	}
 	log.Debug("feed refreshing completed")
 
-	if !refreshed.Refreshed {
+	if !self.feedRefreshed() {
 		// Last-Modified may be updated even if ETag is not. In this case, per
 		// RFC9111 sections 3.2 and 4.3.4, the stored response must be updated.
 		if resp.LastModified() != "" {
@@ -102,11 +110,11 @@ func (self *Refresh) Refresh(ctx context.Context) (*model.FeedRefreshed, error) 
 
 	self.feed.ResetErrorCounter()
 	if err := self.updateFeed(ctx); err != nil {
-		return nil, err
+		return err
 	}
 
-	self.logFeedRefreshed(ctx, log, refreshed, time.Since(startTime))
-	return refreshed, nil
+	self.logFeedRefreshed(ctx, log, time.Since(startTime))
+	return nil
 }
 
 func withTraceStat(ctx context.Context) context.Context {
@@ -303,6 +311,8 @@ func (self *Refresh) pushIntegrations(ctx context.Context,
 	integration.PushEntries(self.feed, entries, user)
 }
 
+func (self *Refresh) feedRefreshed() bool { return self.refreshed.Refreshed }
+
 func (self *Refresh) updateFeed(ctx context.Context) error {
 	if err := self.store.UpdateFeedRuntime(ctx, self.feed); err != nil {
 		return fmt.Errorf("reader/handler: update feed runtime: %w", err)
@@ -311,9 +321,10 @@ func (self *Refresh) updateFeed(ctx context.Context) error {
 }
 
 func (self *Refresh) logFeedRefreshed(ctx context.Context, log *slog.Logger,
-	refreshed *model.FeedRefreshed, elapsed time.Duration,
+	elapsed time.Duration,
 ) {
 	var msg string
+	refreshed := self.refreshed
 
 	switch {
 	case refreshed.Refreshed:
@@ -382,20 +393,71 @@ func (self *Refresh) entriesLogGroup(refreshed *model.FeedRefreshed) slog.Attr {
 	return slog.GroupAttrs("entries", attrs...)
 }
 
-func (self *Refresh) incFeedError(ctx context.Context, err error) error {
+func (self *Refresh) IncFeedError(ctx context.Context, err error) error {
 	var lerr *locale.LocalizedErrorWrapper
 	if !errors.As(err, &lerr) {
 		return err
 	}
 
-	user, err := self.store.UserByID(ctx, self.userID)
-	if err != nil {
-		return fmt.Errorf("reader/handler: fetch user from db: %w: %w", err, lerr)
+	user, err2 := self.store.UserByID(ctx, self.userID)
+	if err2 != nil {
+		return fmt.Errorf("reader/handler: fetch user from db: %w: %w", err2, err)
 	}
 
 	self.feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
-	if err := self.store.IncFeedError(ctx, self.feed); err != nil {
-		return fmt.Errorf("reader/handler: inc feed error count: %w: %w", err, lerr)
+	if err2 := self.store.IncFeedError(ctx, self.feed); err2 != nil {
+		return fmt.Errorf("reader/handler: inc feed error count: %w: %w", err2, err)
+	}
+
+	if self.feed.ParsingErrorCount >= config.Opts.PollingParsingErrorLimit() {
+		self.notifyFeedError(ctx, user)
 	}
 	return fmt.Errorf("%w: %w", ErrBadFeed, err)
+}
+
+func (self *Refresh) notifyFeedError(ctx context.Context, user *model.User) {
+	if self.templates == nil {
+		return
+	}
+
+	store := self.store.Copy(storage.WithoutDedup())
+	refreshed, err := store.StoreFeedEntries(ctx, self.userID, self.feedID,
+		model.Entries{self.feedParsingError(user)}, true)
+	if err != nil {
+		logging.FromContext(ctx).Error("Unable store feed_parsing_error.html",
+			slog.Int64("user_id", self.userID),
+			slog.Int64("feed_id", self.feedID),
+			slog.Any("error", err))
+		return
+	}
+	self.refreshed = refreshed
+}
+
+func (self *Refresh) feedParsingError(user *model.User) *model.Entry {
+	entry := model.NewEntry()
+
+	// There is a problem with this feed: %d errors
+	printer := locale.NewPrinter(user.Language)
+	entry.Title = printer.Print("alert.feed_error") + ": " +
+		printer.Plural("page.feeds.error_count",
+			self.feed.ParsingErrorCount, self.feed.ParsingErrorCount)
+
+	entry.Content = self.render("feed_parsing_error.html", user, map[string]any{
+		"Feed": self.feed,
+	})
+
+	entry.URL = self.routeURL("feedEntries", "feedID", self.feedID)
+	entry.Hash = crypto.HashFromString(entry.URL)
+	return entry
+}
+
+func (self *Refresh) render(name string, user *model.User, data map[string]any,
+) string {
+	data["language"] = user.Language
+	return string(self.templates.Render(name, data))
+}
+
+func (self *Refresh) routeURL(name string, args ...any) string {
+	return config.Opts.RootURL() + route.Path(self.templates.Router(),
+		name, args...)
 }

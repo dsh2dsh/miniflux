@@ -56,7 +56,11 @@ type EntryExtra struct {
 }
 
 func NewEntry() *Entry {
-	return &Entry{Tags: []string{}, Feed: NewFeed()}
+	return &Entry{
+		Date: time.Now(),
+		Feed: NewFeed(),
+		Tags: []string{},
+	}
 }
 
 // ShouldMarkAsReadOnView Return whether the entry should be marked as viewed
