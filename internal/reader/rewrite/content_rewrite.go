@@ -94,6 +94,8 @@ func (rule rule) applyRule(entryURL string, entry *model.Entry) {
 		entry.Title = titlelize(entry.Title)
 	case "fix_ghost_cards":
 		entry.Content = fixGhostCards(entry.Content)
+	case "remove_img_blur_params":
+		entry.Content = removeImgBlurParams(entry.Content)
 	}
 }
 
