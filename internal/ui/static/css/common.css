@@ -1201,9 +1201,9 @@ article.category-has-unread {
 }
 
 .entry-content figcaption {
-    font-size: 0.75em;
-    text-transform: uppercase;
-    color: #777;
+    font-size: smaller;
+    font-style: italic;
+    text-align: center;
 }
 
 .entry-content p {
