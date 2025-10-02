@@ -176,18 +176,8 @@ func (r *ResponseHandler) Body() io.ReadCloser {
 
 func (r *ResponseHandler) ReadBody() ([]byte, *locale.LocalizedErrorWrapper) {
 	var buffer bytes.Buffer
-	_, err := io.Copy(&buffer, r.Body())
-	if err != nil && !errors.Is(err, io.EOF) {
-		var maxBytesErr *http.MaxBytesError
-		if errors.As(err, &maxBytesErr) {
-			return nil, locale.NewLocalizedErrorWrapper(
-				fmt.Errorf("fetcher: response body too large: %d bytes",
-					maxBytesErr.Limit),
-				"error.http_response_too_large")
-		}
-		return nil, locale.NewLocalizedErrorWrapper(
-			fmt.Errorf("fetcher: unable to read response body: %w", err),
-			"error.http_body_read", err)
+	if err := r.WriteBodyTo(&buffer); err != nil {
+		return nil, err
 	}
 
 	if buffer.Len() == 0 {
@@ -196,6 +186,26 @@ func (r *ResponseHandler) ReadBody() ([]byte, *locale.LocalizedErrorWrapper) {
 			"error.http_empty_response_body")
 	}
 	return buffer.Bytes(), nil
+}
+
+func (r *ResponseHandler) WriteBodyTo(w io.Writer,
+) *locale.LocalizedErrorWrapper {
+	_, err := io.Copy(w, r.Body())
+	if err == nil || errors.Is(err, io.EOF) {
+		return nil
+	}
+
+	var maxBytesErr *http.MaxBytesError
+	if errors.As(err, &maxBytesErr) {
+		return locale.NewLocalizedErrorWrapper(
+			fmt.Errorf("fetcher: response body too large: %d bytes",
+				maxBytesErr.Limit),
+			"error.http_response_too_large")
+	}
+
+	return locale.NewLocalizedErrorWrapper(
+		fmt.Errorf("fetcher: unable to read response body: %w", err),
+		"error.http_body_read", err)
 }
 
 func (r *ResponseHandler) bodyStatusText() string {

@@ -210,7 +210,10 @@ func (self *Refresh) refreshFeed(ctx context.Context, log *slog.Logger,
 		slog.String("etag_header", self.feed.EtagHeader),
 		slog.String("last_modified_header", self.feed.LastModifiedHeader))
 
-	body, lerr := resp.ReadBody()
+	body := newBodyBuffer()
+	defer body.Free()
+
+	lerr := resp.WriteBodyTo(body.Buffer)
 	if lerr != nil {
 		log.Warn("Unable to fetch feed body",
 			slog.String("feed_url", self.feed.FeedURL),
@@ -219,12 +222,13 @@ func (self *Refresh) refreshFeed(ctx context.Context, log *slog.Logger,
 	}
 	resp.Close()
 
-	if !self.feed.ContentChanged(body) && !self.force {
+	if !self.feed.ContentChanged(body.Bytes()) && !self.force {
 		return &model.FeedRefreshed{NotModified: notModifiedContent}, nil
 	}
 
 	remoteFeed, err := parser.ParseFeed(resp.EffectiveURL(),
-		bytes.NewReader(body))
+		bytes.NewReader(body.Bytes()))
+	body.Free()
 	if err != nil {
 		var lerr *locale.LocalizedErrorWrapper
 		if errors.Is(err, parser.ErrFeedFormatNotDetected) {
