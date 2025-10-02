@@ -79,7 +79,7 @@
     --item-padding: 5px;
     --item-title-link-font-weight: 600;
 
-    --item-status-read-title-link-color: light-dark(#777, #666);
+    --item-status-read-title-link-color: light-dark(#888, #666);
     --item-status-read-title-focus-color: light-dark(#777, rgba(82, 168, 236, 0.6));
 
     --item-meta-focus-color: light-dark(#777, #aaa);
