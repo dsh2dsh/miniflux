@@ -3,7 +3,7 @@
     --body-color: light-dark(#333, #d6d8da);
     --body-background: light-dark(#fff, #222);
     --hr-border-color: light-dark(#ccc, #555);
-    --title-color: light-dark(#555, #aaa);
+    --title-color: light-dark(#444, #bbb);
     --link-color: light-dark(#3366CC, #aaa);
     --link-focus-color: light-dark(red, #ddd);
     --link-hover-color: light-dark(#333, #ddd);
@@ -91,7 +91,7 @@
 
     --entry-header-border-color: light-dark(#ddd, #333);
     --entry-header-title-link-color: light-dark(#333, #bbb);
-    --entry-content-color: light-dark(#555, #aaa);
+    --entry-content-color: light-dark(#444, #bbb);
     --entry-content-code-color: light-dark(#333, #fff);
     --entry-content-code-background: light-dark(#f0f0f0, #555);
     --entry-content-code-border-color: light-dark(#ddd, #888);
