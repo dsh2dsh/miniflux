@@ -904,7 +904,7 @@ template {
 }
 
 .item-meta a {
-    color: #777;
+    color: #888;
     outline: none;
     text-decoration: none;
 }
@@ -914,7 +914,7 @@ template {
 }
 
 .item-meta-icons :is(a:is(:focus, :hover), button:is(:focus, :hover)) {
-    color: #333;
+    color: var(--header-link-color);
 }
 
 .item-meta li.if-content-download,
