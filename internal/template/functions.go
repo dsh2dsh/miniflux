@@ -28,6 +28,14 @@ import (
 
 type funcMap struct {
 	router *mux.ServeMux
+	csp    *contentSecurityPolicy
+}
+
+func newFuncMap(router *mux.ServeMux) *funcMap {
+	return &funcMap{
+		router: router,
+		csp:    newContentSecurityPolicy(),
+	}
 }
 
 // Map returns a map of template functions that are compiled during template
@@ -61,6 +69,8 @@ func (self *funcMap) Map() template.FuncMap {
 			}
 			return s2
 		},
+
+		"csp": func() *contentSecurityPolicy { return self.csp },
 
 		"hasOAuth2Provider": func(provider string) bool {
 			return config.Opts.OAuth2Provider() == provider

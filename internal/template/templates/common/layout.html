@@ -32,25 +32,28 @@
     <link rel="apple-touch-icon" sizes="167x167" href="{{ routeBinaryFile "icon-167.png" }}">
     <link rel="apple-touch-icon" sizes="180x180" href="{{ routeBinaryFile "icon-180.png" }}">
 
-    <link rel="stylesheet" type="text/css" href="{{ stylesheet .theme }}">
+    <meta http-equiv="Content-Security-Policy"
+          content="{{ csp.Content .user }}">
+
+    <link rel="stylesheet" nonce="{{ csp.Nonce }}" type="text/css"
+          href="{{ stylesheet .theme }}">
+
+    <script type="module" nonce="{{ csp.Nonce }}"
+            src="{{ javascript "app" }}">
+    </script>
 
     {{ $cspNonce := nonce }}
     {{ if .user }}
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data:; media-src *; frame-src *; {{ if .user.ExternalFontHosts }}font-src {{ .user.ExternalFontHosts }}; {{ end }}style-src 'self' 'nonce-{{ $cspNonce }}'{{ if and .user.HasStylesheet .user.ExternalFontHosts }} {{ .user.ExternalFontHosts }}{{ end }}{{ if .user.HasJavascript }}; script-src 'self' 'nonce-{{ $cspNonce }}'{{ end }}; require-trusted-types-for 'script'; trusted-types html url;">
-
-    {{ if .user.HasStylesheet }}
-    <link rel="stylesheet" type="text/css" href="{{ route "userStylesheet" "hash" .user.StylesheetHash }}">
+    {{   if .user.HasStylesheet }}
+    <link rel="stylesheet" nonce="{{ csp.Nonce }}" type="text/css"
+          href="{{ route "userStylesheet" "hash" .user.StylesheetHash }}">
+    {{   end }}
+    {{   if .user.HasJavascript }}
+    <script type="module" nonce="{{ csp.Nonce }}"
+            src="{{ route "userJavascript" "hash" .user.JavascriptHash }}">
+    </script>
+    {{   end }}
     {{ end }}
-
-    {{ if .user.HasJavascript }}
-    <script type="module" src="{{ route "userJavascript" "hash" .user.JavascriptHash }}"></script>
-    {{ end }}
-
-    {{ else }}
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data:; media-src *; frame-src *; style-src 'nonce-{{ $cspNonce }}'; require-trusted-types-for 'script'; trusted-types html url;">
-    {{ end }}
-
-    <script type="module" src="{{ javascript "app" }}"></script>
 </head>
 <body
   data-color-scheme="{{ colorScheme .theme }}"

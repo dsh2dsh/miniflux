@@ -36,7 +36,7 @@ func NewEngine(router *mux.ServeMux) *Engine {
 	return &Engine{
 		router:    router,
 		templates: make(map[string]*template.Template),
-		funcMap:   &funcMap{router},
+		funcMap:   newFuncMap(router),
 	}
 }
 
