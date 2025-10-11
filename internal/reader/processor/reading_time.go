@@ -52,7 +52,7 @@ func fetchWatchTime(websiteURL, query string, isoDate bool) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("unable to parse duration %s: %w", duration, err)
 	}
-	return int(parsedDuration / 60), nil
+	return parsedDuration / 60, nil
 }
 
 func updateEntryReadingTime(ctx context.Context, store *storage.Storage,
