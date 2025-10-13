@@ -4,7 +4,6 @@
 
     "js/touch_handler.js",
     "js/keyboard_handler.js",
-    "js/modal_handler.js",
     "js/webauthn_handler.js",
     "js/app.js",
 

@@ -62,10 +62,6 @@
     --panel-border-color: light-dark(#ddd, #555);
     --panel-color: light-dark(#333, #9b9b9b);
 
-    --modal-background: light-dark(#f0f0f0, #333);
-    --modal-color: light-dark(#333, #efefef);
-    --modal-box-shadow: 2px 0 5px 0 light-dark(#ccc, rgba(82, 168, 236, 0.6));
-
     --pagination-link-color: light-dark(#333, #aaa);
     --pagination-border-color: light-dark(#ddd, #333);
 
