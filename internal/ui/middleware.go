@@ -7,6 +7,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"path"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/cookie"
@@ -92,6 +93,9 @@ func (m *middleware) handleUserSession(next http.Handler, redirect bool,
 func (m *middleware) redirectToLogin(w http.ResponseWriter, r *http.Request) {
 	log := logging.FromContext(r.Context())
 	redirect := r.URL.RequestURI()
+	if bp := config.Opts.BasePath(); bp != "" {
+		redirect = path.Join(bp, redirect)
+	}
 	log.Debug("After login redirect to", slog.String("uri", redirect))
 
 	if err := setLoginRedirect(w, m.secureCookie, redirect); err != nil {
