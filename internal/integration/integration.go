@@ -454,15 +454,20 @@ func SendEntry(entry *model.Entry, user *model.User) {
 	if userIntegrations.KarakeepEnabled {
 		slog.Debug("Sending entry to Karakeep",
 			slog.Int64("user_id", user.ID),
+			slog.String("user_tags", userIntegrations.KarakeepTags),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL),
 		)
 
-		client := karakeep.NewClient(userIntegrations.KarakeepAPIKey,
-			userIntegrations.KarakeepURL)
+		client := karakeep.NewClient(
+			userIntegrations.KarakeepAPIKey,
+			userIntegrations.KarakeepURL,
+			userIntegrations.KarakeepTags,
+		)
 		if err := client.SaveURL(entry.URL); err != nil {
 			slog.Error("Unable to send entry to Karakeep",
 				slog.Int64("user_id", user.ID),
+				slog.String("user_tags", userIntegrations.KarakeepTags),
 				slog.Int64("entry_id", entry.ID),
 				slog.String("entry_url", entry.URL),
 				slog.Any("error", err),

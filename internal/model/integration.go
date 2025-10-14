@@ -30,6 +30,7 @@ type Integration struct {
 	KarakeepAPIKey                   string `json:"karakeep_api_key,omitempty"`
 	KarakeepEnabled                  bool   `json:"karakeep_enabled,omitempty"`
 	KarakeepURL                      string `json:"karakeep_url,omitempty"`
+	KarakeepTags                     string `json:"karakeep_tags,omitempty"`
 	LinkAceAPIKey                    string `json:"linkace_api_key,omitempty"`
 	LinkAceCheckDisabled             bool   `json:"linkace_check_disabled,omitempty"`
 	LinkAceEnabled                   bool   `json:"linkace_enabled,omitempty"`
