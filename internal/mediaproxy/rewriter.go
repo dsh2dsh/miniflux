@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/dsh2dsh/bluemonday"
+	"github.com/dsh2dsh/bluemonday/v2"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/mux"

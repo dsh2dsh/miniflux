@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/dsh2dsh/bluemonday"
+	"github.com/dsh2dsh/bluemonday/v2"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 

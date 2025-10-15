@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/dsh2dsh/bluemonday"
+	"github.com/dsh2dsh/bluemonday/v2"
 	"golang.org/x/net/html"
 
 	"miniflux.app/v2/internal/config"
