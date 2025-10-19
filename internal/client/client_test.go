@@ -1139,7 +1139,7 @@ func TestToggleStarred(t *testing.T) {
 		"http://mf",
 		WithHTTPClient(
 			newFakeHTTPClient(t, func(t *testing.T, req *http.Request) *http.Response {
-				expectRequest(t, http.MethodPut, "http://mf/v1/entries/1/star", nil, req)
+				expectRequest(t, http.MethodPut, "http://mf/v1/entries/1/bookmark", nil, req)
 				return jsonResponseFrom(t, http.StatusOK, http.Header{}, nil)
 			})))
 	if err := client.ToggleBookmarkContext(t.Context(), 1); err != nil {
@@ -1251,13 +1251,13 @@ func TestUpdateEnclosure(t *testing.T) {
 		"http://mf",
 		WithHTTPClient(
 			newFakeHTTPClient(t, func(t *testing.T, req *http.Request) *http.Response {
-				expectRequest(t, http.MethodPut, "http://mf/v1/enclosures/1", nil, req)
+				expectRequest(t, http.MethodPut, "http://mf/v1/entries/1/enclosure/1", nil, req)
 				expectFromJSON(t, req.Body, &model.EnclosureUpdateRequest{
 					MediaProgression: 10,
 				})
 				return jsonResponseFrom(t, http.StatusOK, http.Header{}, expected)
 			})))
-	if err := client.UpdateEnclosureContext(t.Context(), 1, &model.EnclosureUpdateRequest{
+	if err := client.UpdateEnclosureContext(t.Context(), 1, 1, &model.EnclosureUpdateRequest{
 		MediaProgression: 10,
 	}); err != nil {
 		t.Fatalf("Expected no error, got %v", err)
