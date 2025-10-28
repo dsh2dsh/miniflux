@@ -104,7 +104,8 @@ func init() {
 	p.AllowAttrs("height", "width").Matching(bluemonday.Number).
 		OnElements("iframe", "video")
 
-	p.AllowAttrs("allowfullscreen", "frameborder").OnElements("iframe")
+	p.AllowAttrs("allowfullscreen", "frameborder", "referrerpolicy").
+		OnElements("iframe")
 
 	for _, hostname := range allowIframes {
 		allowedIframe[hostname] = struct{}{}

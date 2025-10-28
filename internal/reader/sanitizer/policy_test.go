@@ -272,6 +272,11 @@ func TestSanitizeContent(t *testing.T) {
 			expected: `<iframe src="https://www.youtube.com/" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>`,
 		},
 		{
+			name:     "iframe with referrer policy",
+			input:    `<iframe src="https://www.youtube.com/embed/test123" referrerpolicy="strict-origin-when-cross-origin"></iframe>`,
+			expected: `<iframe src="https://www.invidious.custom/embed/test123" referrerpolicy="strict-origin-when-cross-origin" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>`,
+		},
+		{
 			name:     "link with target",
 			input:    `<p>This link is <a href="http://example.org/index.html">an anchor</a></p>`,
 			expected: `<p>This link is <a href="http://example.org/index.html" target="_blank" rel="nofollow noreferrer noopener">an anchor</a></p>`,
