@@ -146,14 +146,10 @@ func matchDatePattern(pattern string, entryDate time.Time) bool {
 func parseDuration(duration string) (time.Duration, error) {
 	// Handle common duration formats like "30d", "7d", "1h", "1m", etc. Go's
 	// time.ParseDuration doesn't support days, so we handle them manually.
-	if strings.HasSuffix(duration, "d") {
-		daysStr := strings.TrimSuffix(duration, "d")
-		if daysStr == "" {
-			return 0, nil
-		}
-		days, err := strconv.Atoi(daysStr)
+	if s, ok := strings.CutSuffix(duration, "d"); ok {
+		days, err := strconv.Atoi(s)
 		if err != nil {
-			return 0, fmt.Errorf("reader/filter: parse days %q: %w", daysStr, err)
+			return 0, fmt.Errorf("reader/filter: parse days %q: %w", duration, err)
 		}
 		return time.Duration(days) * 24 * time.Hour, nil
 	}
