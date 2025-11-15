@@ -39,6 +39,16 @@ var (
 		"fb_source",
 		"fb_comment_id",
 
+		// Humble Bundles
+		"hmb_campaign",
+		"hmb_medium",
+		"hmb_source",
+
+		// Likely Google as well
+		"itm_campaign",
+		"itm_medium",
+		"itm_source",
+
 		// Google Click Identifiers
 		"gclid",
 		"dclid",
@@ -54,6 +64,9 @@ var (
 		"campaign_term",
 		"campaign_content",
 
+		// Google
+		"srsltid",
+
 		// Yandex Click Identifiers
 		"yclid",
 		"ysclid",
@@ -67,6 +80,7 @@ var (
 		// Mailchimp Click Identifiers
 		"mc_cid",
 		"mc_eid",
+		"mc_tc",
 
 		// Wicked Reports click tracking
 		"wickedid",
@@ -101,12 +115,20 @@ var (
 		// Branch.io
 		"_branch_match_id",
 		"_branch_referrer",
+
+		// Readwise
+		"__readwiseLocation",
 	}
 
 	// Outbound tracking parameters are appending the website's url to outbound links.
 	trackingOutbound = []string{
 		// Ghost
 		"ref",
+	}
+
+	trackingPrefixes = []string{
+		"utm_", // https://en.wikipedia.org/wiki/UTM_parameters
+		"mtm_", // https://matomo.org/faq/reports/common-campaign-tracking-use-cases-and-examples/
 	}
 
 	tracking    = make(map[string]struct{}, len(trackingParams))
@@ -134,7 +156,7 @@ func StripTracking(u *url.URL, refHostnames ...string) bool {
 	// Remove tracking parameters
 	for param := range query {
 		key := strings.ToLower(param)
-		if _, ok := tracking[key]; ok || strings.HasPrefix(key, "utm_") {
+		if trackingParam(key) {
 			query.Del(param)
 			hasTrackers = true
 			continue
@@ -156,6 +178,19 @@ func StripTracking(u *url.URL, refHostnames ...string) bool {
 		u.RawQuery = query.Encode()
 	}
 	return hasTrackers
+}
+
+func trackingParam(key string) bool {
+	if _, ok := tracking[key]; ok {
+		return true
+	}
+
+	for _, prefix := range trackingPrefixes {
+		if strings.HasPrefix(key, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func allowMathML(p *bluemonday.Policy) {

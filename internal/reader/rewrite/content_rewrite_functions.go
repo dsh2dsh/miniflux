@@ -320,7 +320,8 @@ func addYoutubeVideoFromId(entryContent string) string {
 	for _, match := range matches {
 		if len(match) == 2 {
 			videoPlayerHTML.WriteString(buildVideoPlayerIframe(
-				config.Opts.YouTubeEmbedUrlOverride()+match[1]) + "<br>")
+				config.Opts.YouTubeEmbedUrlOverride() + match[1]))
+			videoPlayerHTML.WriteString("<br>")
 		}
 	}
 
