@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	"miniflux.app/v2/internal/config"
@@ -96,7 +97,7 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 		rewrite.ApplyContentRewriteRules(entry, feed.RewriteRules)
 		// The sanitizer should always run at the end of the process to make sure
 		// unsafe HTML is filtered out.
-		entry.Title = sanitizer.StripTags(entry.Title)
+		entry.Title = sanitizeTitle(entry, feed)
 		if err := sanitizeEntry(entry, pageURL); err != nil {
 			return fmt.Errorf("%w: %w", ErrBadFeed, err)
 		}
@@ -198,6 +199,24 @@ func ProcessEntryWebPage(ctx context.Context, feed *model.Feed,
 			user.DefaultReadingSpeed, user.CJKReadingSpeed)
 	}
 	return nil
+}
+
+func sanitizeTitle(entry *model.Entry, feed *model.Feed) string {
+	if entry.Title != "" {
+		return sanitizer.StripTags(entry.Title)
+	}
+
+	title := strings.TrimSpace(sanitizer.StripTags(entry.Content))
+	if title == "" {
+		return feed.SiteURL
+	}
+
+	const maxLen = 100
+	title = strings.Join(strings.Fields(title), " ")
+	if runes := []rune(title); len(runes) > maxLen {
+		return strings.TrimSpace(string(runes[:maxLen])) + "…"
+	}
+	return title
 }
 
 func sanitizeEntry(entry *model.Entry, pageURL string) error {

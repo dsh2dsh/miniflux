@@ -9,6 +9,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.16.0
 	github.com/dsh2dsh/bluemonday/v2 v2.0.0
 	github.com/dsh2dsh/expx-dotenv v1.4.0
+	github.com/dsh2dsh/gofeed/v2 v2.0.0
 	github.com/go-playground/validator/v10 v10.28.0
 	github.com/go-shiori/go-readability v0.0.0-20250217085726-9f5bf5ca7612
 	github.com/go-webauthn/webauthn v0.14.0
@@ -39,6 +40,7 @@ require (
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/dsh2dsh/goxpp/v2 v2.0.5 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.10 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect

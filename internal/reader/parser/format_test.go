@@ -6,51 +6,39 @@ package parser // import "miniflux.app/v2/internal/reader/parser"
 import (
 	"strings"
 	"testing"
+
+	"github.com/dsh2dsh/gofeed/v2"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDetectRDF(t *testing.T) {
 	data := `<?xml version="1.0"?><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://my.netscape.com/rdf/simple/0.9/"></rdf:RDF>`
-	format, _ := DetectFeedFormat(strings.NewReader(data))
-
-	if format != FormatRDF {
-		t.Errorf(`Wrong format detected: %q instead of %q`, format, FormatRDF)
-	}
+	format := gofeed.DetectFeedBytes([]byte(data))
+	assert.Equal(t, gofeed.FeedTypeRSS, format)
 }
 
 func TestDetectRSS(t *testing.T) {
 	data := `<?xml version="1.0"?><rss version="2.0"><channel></channel></rss>`
-	format, _ := DetectFeedFormat(strings.NewReader(data))
-
-	if format != FormatRSS {
-		t.Errorf(`Wrong format detected: %q instead of %q`, format, FormatRSS)
-	}
+	format := gofeed.DetectFeedBytes([]byte(data))
+	assert.Equal(t, gofeed.FeedTypeRSS, format)
 }
 
 func TestDetectAtom10(t *testing.T) {
 	data := `<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom"></feed>`
-	format, _ := DetectFeedFormat(strings.NewReader(data))
-
-	if format != FormatAtom {
-		t.Errorf(`Wrong format detected: %q instead of %q`, format, FormatAtom)
-	}
+	format := gofeed.DetectFeedBytes([]byte(data))
+	assert.Equal(t, gofeed.FeedTypeAtom, format)
 }
 
 func TestDetectAtom03(t *testing.T) {
 	data := `<?xml version="1.0" encoding="utf-8"?><feed version="0.3" xmlns="http://purl.org/atom/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xml:lang="en"></feed>`
-	format, _ := DetectFeedFormat(strings.NewReader(data))
-
-	if format != FormatAtom {
-		t.Errorf(`Wrong format detected: %q instead of %q`, format, FormatAtom)
-	}
+	format := gofeed.DetectFeedBytes([]byte(data))
+	assert.Equal(t, gofeed.FeedTypeAtom, format)
 }
 
 func TestDetectAtomWithISOCharset(t *testing.T) {
 	data := `<?xml version="1.0" encoding="ISO-8859-15"?><feed xmlns="http://www.w3.org/2005/Atom"></feed>`
-	format, _ := DetectFeedFormat(strings.NewReader(data))
-
-	if format != FormatAtom {
-		t.Errorf(`Wrong format detected: %q instead of %q`, format, FormatAtom)
-	}
+	format := gofeed.DetectFeedBytes([]byte(data))
+	assert.Equal(t, gofeed.FeedTypeAtom, format)
 }
 
 func TestDetectJSON(t *testing.T) {
@@ -60,22 +48,16 @@ func TestDetectJSON(t *testing.T) {
 		"title" : "Example"
 	}
 	`
-	format, _ := DetectFeedFormat(strings.NewReader(data))
-
-	if format != FormatJSON {
-		t.Errorf(`Wrong format detected: %q instead of %q`, format, FormatJSON)
-	}
+	format := gofeed.DetectFeedBytes([]byte(data))
+	assert.Equal(t, gofeed.FeedTypeJSON, format)
 }
 
 func TestDetectUnknown(t *testing.T) {
 	data := `
 	<!DOCTYPE html> <html> </html>
 	`
-	format, _ := DetectFeedFormat(strings.NewReader(data))
-
-	if format != FormatUnknown {
-		t.Errorf(`Wrong format detected: %q instead of %q`, format, FormatUnknown)
-	}
+	format := gofeed.DetectFeedBytes([]byte(data))
+	assert.Equal(t, gofeed.FeedTypeUnknown, format)
 }
 
 func TestDetectJSONWithLargeLeadingWhitespace(t *testing.T) {
@@ -84,11 +66,9 @@ func TestDetectJSONWithLargeLeadingWhitespace(t *testing.T) {
 		"version" : "https://jsonfeed.org/version/1",
 		"title" : "Example with lots of leading whitespace"
 	}`
-	format, _ := DetectFeedFormat(strings.NewReader(data))
 
-	if format != FormatJSON {
-		t.Errorf(`Wrong format detected: %q instead of %q`, format, FormatJSON)
-	}
+	format := gofeed.DetectFeedBytes([]byte(data))
+	assert.Equal(t, gofeed.FeedTypeJSON, format)
 }
 
 func TestDetectJSONWithMixedWhitespace(t *testing.T) {
@@ -97,36 +77,26 @@ func TestDetectJSONWithMixedWhitespace(t *testing.T) {
 		"version" : "https://jsonfeed.org/version/1",
 		"title" : "Example with mixed whitespace"
 	}`
-	format, _ := DetectFeedFormat(strings.NewReader(data))
 
-	if format != FormatJSON {
-		t.Errorf(`Wrong format detected: %q instead of %q`, format, FormatJSON)
-	}
+	format := gofeed.DetectFeedBytes([]byte(data))
+	assert.Equal(t, gofeed.FeedTypeJSON, format)
 }
 
 func TestDetectOnlyWhitespace(t *testing.T) {
 	data := strings.Repeat(" \t\n\r", 10000)
-	format, _ := DetectFeedFormat(strings.NewReader(data))
 
-	if format != FormatUnknown {
-		t.Errorf(`Wrong format detected: %q instead of %q`, format, FormatUnknown)
-	}
+	format := gofeed.DetectFeedBytes([]byte(data))
+	assert.Equal(t, gofeed.FeedTypeUnknown, format)
 }
 
 func TestDetectJSONSmallerThanBuffer(t *testing.T) {
 	data := `{"version":"1"}` // This is only 15 bytes, well below the 32-byte buffer
-	format, _ := DetectFeedFormat(strings.NewReader(data))
-
-	if format != FormatJSON {
-		t.Errorf(`Wrong format detected: %q instead of %q`, format, FormatJSON)
-	}
+	format := gofeed.DetectFeedBytes([]byte(data))
+	assert.Equal(t, gofeed.FeedTypeJSON, format)
 }
 
 func TestDetectJSONWithWhitespaceSmallerThanBuffer(t *testing.T) {
 	data := `  {"title":"test"}  `
-	format, _ := DetectFeedFormat(strings.NewReader(data))
-
-	if format != FormatJSON {
-		t.Errorf(`Wrong format detected: %q instead of %q`, format, FormatJSON)
-	}
+	format := gofeed.DetectFeedBytes([]byte(data))
+	assert.Equal(t, gofeed.FeedTypeJSON, format)
 }

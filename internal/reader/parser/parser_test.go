@@ -4,27 +4,81 @@
 package parser // import "miniflux.app/v2/internal/reader/parser"
 
 import (
+	"bytes"
 	"os"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-func BenchmarkParse(b *testing.B) {
-	testCases := map[string][]string{
-		"large_atom.xml": {"https://dustri.org/b", ""},
-		"large_rss.xml":  {"https://dustri.org/b", ""},
-		"small_atom.xml": {"https://github.com/miniflux/v2/commits/main", ""},
+func BenchmarkParseFeed(b *testing.B) {
+	tests := []struct {
+		name    string
+		baseURL string
+		feed    []byte
+	}{
+		{
+			name:    "large_atom.xml",
+			baseURL: "https://dustri.org/b",
+		},
+		{
+			name:    "large_rss.xml",
+			baseURL: "https://dustri.org/b",
+		},
+		{
+			name:    "small_atom.xml",
+			baseURL: "https://github.com/miniflux/v2/commits/main",
+		},
 	}
-	for filename := range testCases {
-		data, err := os.ReadFile("./testdata/" + filename)
-		if err != nil {
-			b.Fatalf(`Unable to read file %q: %v`, filename, err)
-		}
-		testCases[filename][1] = string(data)
+
+	for i := range tests {
+		tt := &tests[i]
+		data, err := os.ReadFile("testdata/" + tt.name)
+		require.NoError(b, err)
+		tt.feed = data
 	}
+
+	b.ReportAllocs()
 	for b.Loop() {
-		for _, v := range testCases {
-			ParseFeed(v[0], strings.NewReader(v[1]))
+		for i := range tests {
+			tt := &tests[i]
+			ParseFeed(tt.baseURL, bytes.NewReader(tt.feed))
+		}
+	}
+}
+
+func BenchmarkParseBytes(b *testing.B) {
+	tests := []struct {
+		name    string
+		baseURL string
+		feed    []byte
+	}{
+		{
+			name:    "large_atom.xml",
+			baseURL: "https://dustri.org/b",
+		},
+		{
+			name:    "large_rss.xml",
+			baseURL: "https://dustri.org/b",
+		},
+		{
+			name:    "small_atom.xml",
+			baseURL: "https://github.com/miniflux/v2/commits/main",
+		},
+	}
+
+	for i := range tests {
+		tt := &tests[i]
+		data, err := os.ReadFile("testdata/" + tt.name)
+		require.NoError(b, err)
+		tt.feed = data
+	}
+
+	b.ReportAllocs()
+	for b.Loop() {
+		for i := range tests {
+			tt := &tests[i]
+			ParseBytes(tt.baseURL, tt.feed)
 		}
 	}
 }
@@ -81,7 +135,7 @@ func FuzzParse(f *testing.F) {
 {"id": "2","content_text": "a","url": "https://z.org/2"},
 {"id": "1","content_html": "<a","url":"http://z.org/1"}]}`)
 	f.Fuzz(func(t *testing.T, url, data string) {
-		ParseFeed(url, strings.NewReader(data))
+		ParseBytes(url, []byte(data))
 	})
 }
 
@@ -103,7 +157,7 @@ func TestParseAtom03Feed(t *testing.T) {
 		</entry>
 	</feed>`
 
-	feed, err := ParseFeed("https://example.org/", strings.NewReader(data))
+	feed, err := ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Error(err)
 	}
@@ -135,7 +189,7 @@ func TestParseAtom10Feed(t *testing.T) {
 
 	</feed>`
 
-	feed, err := ParseFeed("https://example.org/", strings.NewReader(data))
+	feed, err := ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Error(err)
 	}
@@ -163,7 +217,7 @@ func TestParseAtomFeedWithRelativeURL(t *testing.T) {
 
 	</feed>`
 
-	feed, err := ParseFeed("https://example.org/blog/atom.xml", strings.NewReader(data))
+	feed, err := ParseBytes("https://example.org/blog/atom.xml", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +251,7 @@ func TestParseRSS(t *testing.T) {
 	</channel>
 	</rss>`
 
-	feed, err := ParseFeed("http://liftoff.msfc.nasa.gov/", strings.NewReader(data))
+	feed, err := ParseBytes("http://liftoff.msfc.nasa.gov/", []byte(data))
 	if err != nil {
 		t.Error(err)
 	}
@@ -223,7 +277,7 @@ func TestParseRSSFeedWithRelativeURL(t *testing.T) {
 	</channel>
 	</rss>`
 
-	feed, err := ParseFeed("http://example.org/rss.xml", strings.NewReader(data))
+	feed, err := ParseBytes("http://example.org/rss.xml", []byte(data))
 	if err != nil {
 		t.Error(err)
 	}
@@ -264,7 +318,7 @@ func TestParseRDF(t *testing.T) {
 		  </item>
 		</rdf:RDF>`
 
-	feed, err := ParseFeed("http://example.org/", strings.NewReader(data))
+	feed, err := ParseBytes("http://example.org/", []byte(data))
 	if err != nil {
 		t.Error(err)
 	}
@@ -293,7 +347,7 @@ func TestParseRDFWithRelativeURL(t *testing.T) {
 		  </item>
 		</rdf:RDF>`
 
-	feed, err := ParseFeed("http://example.org/rdf.xml", strings.NewReader(data))
+	feed, err := ParseBytes("http://example.org/rdf.xml", []byte(data))
 	if err != nil {
 		t.Error(err)
 	}
@@ -331,7 +385,7 @@ func TestParseJson(t *testing.T) {
 		]
 	}`
 
-	feed, err := ParseFeed("https://example.org/feed.json", strings.NewReader(data))
+	feed, err := ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Error(err)
 	}
@@ -356,7 +410,7 @@ func TestParseJsonFeedWithRelativeURL(t *testing.T) {
 		]
 	}`
 
-	feed, err := ParseFeed("https://example.org/blog/feed.json", strings.NewReader(data))
+	feed, err := ParseBytes("https://example.org/blog/feed.json", []byte(data))
 	if err != nil {
 		t.Error(err)
 	}
@@ -391,15 +445,45 @@ func TestParseUnknownFeed(t *testing.T) {
 		</html>
 	`
 
-	_, err := ParseFeed("https://example.org/", strings.NewReader(data))
+	_, err := ParseBytes("https://example.org/", []byte(data))
 	if err == nil {
 		t.Error("ParseFeed must returns an error")
 	}
 }
 
 func TestParseEmptyFeed(t *testing.T) {
-	_, err := ParseFeed("", strings.NewReader(""))
+	_, err := ParseBytes("", []byte{})
 	if err == nil {
 		t.Error("ParseFeed must returns an error")
+	}
+}
+
+func TestParseEncodings(t *testing.T) {
+	tests := []struct {
+		name    string
+		wantErr bool
+	}{
+		{name: "encoding_ISO-8859-1"},
+		{name: "encoding_WINDOWS-1251"},
+		{
+			name:    "no_encoding_ISO-8859-1",
+			wantErr: true,
+		},
+		{name: "rdf_UTF8"},
+		{name: "urdu_UTF8"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b, err := os.ReadFile("testdata/" + tt.name + ".xml")
+			require.NoError(t, err)
+
+			_, err = ParseBytes("", b)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+		})
 	}
 }

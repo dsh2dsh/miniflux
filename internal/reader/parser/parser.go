@@ -5,7 +5,11 @@ package parser // import "miniflux.app/v2/internal/reader/parser"
 
 import (
 	"errors"
+	"fmt"
 	"io"
+	"net/url"
+
+	"github.com/dsh2dsh/gofeed/v2"
 
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/atom"
@@ -31,4 +35,30 @@ func ParseFeed(baseURL string, r io.ReadSeeker) (*model.Feed, error) {
 	default:
 		return nil, ErrFeedFormatNotDetected
 	}
+}
+
+func ParseBytes(urlStr string, b []byte) (feed *model.Feed, err error) {
+	feedURL, err := url.Parse(urlStr)
+	if err != nil {
+		return nil, fmt.Errorf("reader/parser: parse feed URL: %w", err)
+	}
+
+	switch gofeed.DetectFeedBytes(b) {
+	case gofeed.FeedTypeAtom:
+		feed, err = parseAtom(feedURL, b)
+	case gofeed.FeedTypeRSS:
+		feed, err = parseRSS(feedURL, b)
+	case gofeed.FeedTypeJSON:
+		feed, err = parseJSON(feedURL, b)
+	default:
+		return nil, ErrFeedFormatNotDetected
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if feed.Title == "" {
+		feed.Title = feed.SiteURL
+	}
+	return feed, nil
 }

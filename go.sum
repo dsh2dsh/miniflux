@@ -21,6 +21,10 @@ github.com/dsh2dsh/bluemonday/v2 v2.0.0 h1:Xfq5poC/ACzy15eLMw1+RBjCNLK3sga+lm4E2
 github.com/dsh2dsh/bluemonday/v2 v2.0.0/go.mod h1:IBQSkLSoPcPefjoTfOONMYaJWubB0Ao/hQydUvuh1MA=
 github.com/dsh2dsh/expx-dotenv v1.4.0 h1:GLDENXzl79jsPLUemIVzSc7SrhJonAM8enTxe60D7ds=
 github.com/dsh2dsh/expx-dotenv v1.4.0/go.mod h1:GBgZKlYrqEnUetmP2NMnKj7lVc1TTQIOV0wQbGQrxmA=
+github.com/dsh2dsh/gofeed/v2 v2.0.0 h1:WJog2/JM8hyG2JbK9iKVp3CO/tl7L61xb9y66Aqr4DA=
+github.com/dsh2dsh/gofeed/v2 v2.0.0/go.mod h1:f+isHA+YjU4mf3syu8nhqbdXj6RUqdYPkhQOEz+CefI=
+github.com/dsh2dsh/goxpp/v2 v2.0.5 h1:RBEy9Hi22rkqbUOBFg+1KxaS3ipgWpHfjdZGqFIAJ4k=
+github.com/dsh2dsh/goxpp/v2 v2.0.5/go.mod h1:6IFiwugLa3KDWCeTiUYMlUnu2UL5Nw7fE+n+MXcm9sM=
 github.com/fxamacker/cbor/v2 v2.9.0 h1:NpKPmjDBgUfBms6tr6JZkTHtfFGcMKsw3eGcmD/sapM=
 github.com/fxamacker/cbor/v2 v2.9.0/go.mod h1:vM4b+DJCtHn+zz7h3FFp/hDAI9WNWCsZj23V5ytsSxQ=
 github.com/gabriel-vasile/mimetype v1.4.10 h1:zyueNbySn/z8mJZHLt6IPw0KoZsiQNszIpU+bX4+ZK0=
