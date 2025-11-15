@@ -406,13 +406,27 @@ func (self *Refresh) IncFeedError(ctx context.Context, err error) error {
 		return fmt.Errorf("reader/handler: fetch user from db: %w: %w", err2, err)
 	}
 
+	if d := config.Opts.PollingErrorRetry(); d > 0 {
+		if config.Opts.PollingErrorLimited(self.feed.ParsingErrorCount + 1) {
+			self.feed.NextCheckAt = time.Now().Add(d)
+			logging.FromContext(ctx).Info("Polling error limit reached (slowmo)",
+				slog.Int("errors", self.feed.ParsingErrorCount+1),
+				slog.Duration("retry", d),
+				slog.Time("next_check_at", self.feed.NextCheckAt))
+		}
+	}
+
 	self.feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
 	if err2 := self.store.IncFeedError(ctx, self.feed); err2 != nil {
 		return fmt.Errorf("reader/handler: inc feed error count: %w: %w", err2, err)
 	}
 
-	if self.feed.ParsingErrorCount >= config.Opts.PollingParsingErrorLimit() {
+	if config.Opts.PollingErrorLimited(self.feed.ParsingErrorCount) {
 		self.notifyFeedError(ctx, user)
+		if d := config.Opts.PollingErrorRetry(); d == 0 {
+			logging.FromContext(ctx).Info("Polling error limit reached (paused)",
+				slog.Int("errors", self.feed.ParsingErrorCount))
+		}
 	}
 	return fmt.Errorf("%w: %w", ErrBadFeed, err)
 }

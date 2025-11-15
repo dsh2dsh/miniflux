@@ -98,7 +98,6 @@ type EnvOptions struct {
 	BatchSize                      int      `env:"BATCH_SIZE" validate:"min=1"`
 	SchedulerRoundRobinMinInterval int      `env:"SCHEDULER_ROUND_ROBIN_MIN_INTERVAL" validate:"min=1"`
 	SchedulerRoundRobinMaxInterval int      `env:"SCHEDULER_ROUND_ROBIN_MAX_INTERVAL" validate:"min=1"`
-	PollingParsingErrorLimit       int      `env:"POLLING_PARSING_ERROR_LIMIT" validate:"min=0"`
 	WorkerPoolSize                 int      `env:"WORKER_POOL_SIZE" validate:"min=1"`
 	CreateAdmin                    bool     `env:"CREATE_ADMIN"`
 	AdminUsername                  string   `env:"ADMIN_USERNAME"`
@@ -153,6 +152,9 @@ type EnvOptions struct {
 	TrustedProxies                 []string `env:"TRUSTED_PROXIES" validate:"dive,required,ip"`
 	Testing                        bool     `env:"TESTING"`
 	Operators                      []string `env:"OPERATORS"`
+
+	PollingErrorLimit int           `env:"POLLING_PARSING_ERROR_LIMIT" validate:"min=0"`
+	PollingErrorRetry time.Duration `env:"POLLING_ERROR_RETRY" validate:"min=0"`
 }
 
 type Log struct {
@@ -190,7 +192,7 @@ func NewOptions() *Options {
 			BatchSize:                      100,
 			SchedulerRoundRobinMinInterval: 60,
 			SchedulerRoundRobinMaxInterval: 1440,
-			PollingParsingErrorLimit:       3,
+			PollingErrorLimit:              3,
 			WorkerPoolSize:                 16,
 			MediaProxyHTTPClientTimeout:    120,
 			MediaProxyMode:                 "http-only",
@@ -488,9 +490,17 @@ func (o *Options) SchedulerRoundRobinMaxInterval() int {
 	return o.env.SchedulerRoundRobinMaxInterval
 }
 
-// PollingParsingErrorLimit returns the limit of errors when to stop polling.
-func (o *Options) PollingParsingErrorLimit() int {
-	return o.env.PollingParsingErrorLimit
+// PollingErrorLimit returns the limit of errors when to stop polling.
+func (o *Options) PollingErrorLimit() int {
+	return o.env.PollingErrorLimit
+}
+
+func (o *Options) PollingErrorLimited(count int) bool {
+	return count >= o.env.PollingErrorLimit
+}
+
+func (o *Options) PollingErrorRetry() time.Duration {
+	return o.env.PollingErrorRetry
 }
 
 // IsOAuth2UserCreationAllowed returns true if user creation is allowed for
@@ -835,7 +845,7 @@ func (o *Options) SortedOptions(redactSecret bool) []Option {
 		"DISABLE_LOCAL_AUTH":                 o.DisableLocalAuth(),
 		"POLLING_FREQUENCY":                  o.env.PollingFrequency,
 		"FORCE_REFRESH_INTERVAL":             o.ForceRefreshInterval(),
-		"POLLING_PARSING_ERROR_LIMIT":        o.PollingParsingErrorLimit(),
+		"POLLING_PARSING_ERROR_LIMIT":        o.PollingErrorLimit(),
 		"MEDIA_PROXY_HTTP_CLIENT_TIMEOUT":    o.env.MediaProxyHTTPClientTimeout,
 		"MEDIA_PROXY_RESOURCE_TYPES":         strings.Join(o.MediaProxyResourceTypes(), ","),
 		"MEDIA_PROXY_MODE":                   o.MediaProxyMode(),

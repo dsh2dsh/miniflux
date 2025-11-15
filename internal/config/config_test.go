@@ -397,7 +397,7 @@ func TestPollingParsingErrorLimit(t *testing.T) {
 	os.Clearenv()
 	t.Setenv("POLLING_PARSING_ERROR_LIMIT", "100")
 	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, 100, opts.PollingParsingErrorLimit())
+	assert.Equal(t, 100, opts.PollingErrorLimit())
 }
 
 func TestOAuth2UserCreationWhenUnset(t *testing.T) {

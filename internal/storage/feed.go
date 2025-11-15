@@ -139,7 +139,7 @@ func (s *Storage) CountAllFeeds(ctx context.Context) (map[string]int64, error) {
 // belong to the given user.
 func (s *Storage) CountUserFeedsWithErrors(ctx context.Context, userID int64,
 ) int {
-	limit := max(1, config.Opts.PollingParsingErrorLimit())
+	limit := max(1, config.Opts.PollingErrorLimit())
 	rows, _ := s.db.Query(ctx, `
 SELECT count(*) FROM feeds WHERE user_id=$1 AND parsing_error_count >= $2`,
 		userID, limit)
@@ -156,7 +156,7 @@ SELECT count(*) FROM feeds WHERE user_id=$1 AND parsing_error_count >= $2`,
 
 // CountAllFeedsWithErrors returns the number of feeds with parsing errors.
 func (s *Storage) CountAllFeedsWithErrors(ctx context.Context) (int, error) {
-	limit := max(1, config.Opts.PollingParsingErrorLimit())
+	limit := max(1, config.Opts.PollingErrorLimit())
 	rows, _ := s.db.Query(ctx,
 		`SELECT count(*) FROM feeds WHERE parsing_error_count >= $1`, limit)
 
