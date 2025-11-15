@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -226,8 +225,7 @@ func (self *Refresh) refreshFeed(ctx context.Context, log *slog.Logger,
 		return &model.FeedRefreshed{NotModified: notModifiedContent}, nil
 	}
 
-	remoteFeed, err := parser.ParseFeed(resp.EffectiveURL(),
-		bytes.NewReader(body.Bytes()))
+	remoteFeed, err := parser.ParseBytes(resp.EffectiveURL(), body.Bytes())
 	body.Free()
 	if err != nil {
 		var lerr *locale.LocalizedErrorWrapper

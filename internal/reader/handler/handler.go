@@ -4,7 +4,6 @@
 package handler // import "miniflux.app/v2/internal/reader/handler"
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"log/slog"
@@ -96,7 +95,7 @@ func CreateFeed(ctx context.Context, store *storage.Storage, userID int64,
 func createFeed(ctx context.Context, store *storage.Storage, userID int64,
 	r *model.FeedCreationRequest, url, etag, lastModified string, body []byte,
 ) (*model.Feed, *locale.LocalizedErrorWrapper) {
-	feed, err := parser.ParseFeed(url, bytes.NewReader(body))
+	feed, err := parser.ParseBytes(url, body)
 	if err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err,
 			"error.unable_to_parse_feed", err)
