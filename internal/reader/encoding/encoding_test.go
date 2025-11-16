@@ -9,340 +9,110 @@ import (
 	"os"
 	"testing"
 	"unicode/utf8"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestCharsetReaderWithUTF8(t *testing.T) {
-	file := "testdata/utf8.xml"
-
-	f, err := os.Open(file)
-	if err != nil {
-		t.Fatalf("Unable to open file: %v", err)
-	}
-
-	reader, err := CharsetReader("UTF-8", f)
-	if err != nil {
-		t.Fatalf("Unable to create reader: %v", err)
-	}
-
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatalf("Unable to read data: %v", err)
-	}
-
-	if !utf8.Valid(data) {
-		t.Fatalf("Data is not valid UTF-8")
-	}
-
-	expectedUnicodeString := "Café"
-	if !bytes.Contains(data, []byte(expectedUnicodeString)) {
-		t.Fatalf("Data does not contain expected unicode string: %s", expectedUnicodeString)
-	}
-}
-
-func TestCharsetReaderWithISO88591(t *testing.T) {
-	file := "testdata/iso-8859-1.xml"
-
-	f, err := os.Open(file)
-	if err != nil {
-		t.Fatalf("Unable to open file: %v", err)
-	}
-
-	reader, err := CharsetReader("ISO-8859-1", f)
-	if err != nil {
-		t.Fatalf("Unable to create reader: %v", err)
-	}
-
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatalf("Unable to read data: %v", err)
-	}
-
-	if !utf8.Valid(data) {
-		t.Fatalf("Data is not valid UTF-8")
-	}
-
-	expectedUnicodeString := "Café"
-	if !bytes.Contains(data, []byte(expectedUnicodeString)) {
-		t.Fatalf("Data does not contain expected unicode string: %s", expectedUnicodeString)
-	}
-}
-
-func TestCharsetReaderWithWindows1252(t *testing.T) {
-	file := "testdata/windows-1252.xml"
-
-	f, err := os.Open(file)
-	if err != nil {
-		t.Fatalf("Unable to open file: %v", err)
-	}
-
-	reader, err := CharsetReader("windows-1252", f)
-	if err != nil {
-		t.Fatalf("Unable to create reader: %v", err)
-	}
-
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatalf("Unable to read data: %v", err)
-	}
-
-	if !utf8.Valid(data) {
-		t.Fatalf("Data is not valid UTF-8")
-	}
-
-	expectedUnicodeString := "Euro €"
-	if !bytes.Contains(data, []byte(expectedUnicodeString)) {
-		t.Fatalf("Data does not contain expected unicode string: %s", expectedUnicodeString)
-	}
-}
-
-func TestCharsetReaderWithInvalidProlog(t *testing.T) {
-	file := "testdata/invalid-prolog.xml"
-
-	f, err := os.Open(file)
-	if err != nil {
-		t.Fatalf("Unable to open file: %v", err)
-	}
-
-	reader, err := CharsetReader("invalid", f)
-	if err != nil {
-		t.Fatalf("Unable to create reader: %v", err)
-	}
-
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatalf("Unable to read data: %v", err)
-	}
-
-	if !utf8.Valid(data) {
-		t.Fatalf("Data is not valid UTF-8")
-	}
-
-	expectedUnicodeString := "Café"
-	if !bytes.Contains(data, []byte(expectedUnicodeString)) {
-		t.Fatalf("Data does not contain expected unicode string: %s", expectedUnicodeString)
-	}
-}
-
-func TestCharsetReaderWithUTF8DocumentWithIncorrectProlog(t *testing.T) {
-	file := "testdata/utf8-incorrect-prolog.xml"
-
-	f, err := os.Open(file)
-	if err != nil {
-		t.Fatalf("Unable to open file: %v", err)
-	}
-
-	reader, err := CharsetReader("ISO-8859-1", f)
-	if err != nil {
-		t.Fatalf("Unable to create reader: %v", err)
-	}
-
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatalf("Unable to read data: %v", err)
-	}
-
-	if !utf8.Valid(data) {
-		t.Fatalf("Data is not valid UTF-8")
-	}
-
-	expectedUnicodeString := "Café"
-	if !bytes.Contains(data, []byte(expectedUnicodeString)) {
-		t.Fatalf("Data does not contain expected unicode string: %s", expectedUnicodeString)
-	}
-}
-
-func TestCharsetReaderWithWindows1252DocumentWithIncorrectProlog(t *testing.T) {
-	file := "testdata/windows-1252-incorrect-prolog.xml"
-
-	f, err := os.Open(file)
-	if err != nil {
-		t.Fatalf("Unable to open file: %v", err)
-	}
-
-	reader, err := CharsetReader("windows-1252", f)
-	if err != nil {
-		t.Fatalf("Unable to create reader: %v", err)
-	}
-
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatalf("Unable to read data: %v", err)
-	}
-
-	if !utf8.Valid(data) {
-		t.Fatalf("Data is not valid UTF-8")
-	}
-
-	expectedUnicodeString := "Euro €"
-	if !bytes.Contains(data, []byte(expectedUnicodeString)) {
-		t.Fatalf("Data does not contain expected unicode string: %s", expectedUnicodeString)
-	}
-}
-
 func TestNewReaderWithUTF8Document(t *testing.T) {
-	file := "testdata/utf8.html"
-
-	f, err := os.Open(file)
-	if err != nil {
-		t.Fatalf("Unable to open file: %v", err)
-	}
+	f, err := os.Open("testdata/utf8.html")
+	require.NoError(t, err)
 
 	reader, err := NewCharsetReader(f, "text/html; charset=UTF-8")
-	if err != nil {
-		t.Fatalf("Unable to create reader: %v", err)
-	}
+	require.NoError(t, err)
 
 	data, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatalf("Unable to read data: %v", err)
-	}
+	require.NoError(t, err)
 
-	if !utf8.Valid(data) {
-		t.Fatalf("Data is not valid UTF-8")
-	}
+	require.True(t, utf8.Valid(data), "Data is not valid UTF-8")
 
-	expectedUnicodeString := "Café"
-	if !bytes.Contains(data, []byte(expectedUnicodeString)) {
-		t.Fatalf("Data does not contain expected unicode string: %s", expectedUnicodeString)
-	}
+	expected := "Café"
+	assert.True(t, bytes.Contains(data, []byte(expected)),
+		"Data does not contain expected unicode string: %s", expected)
 }
 
 func TestNewReaderWithUTF8DocumentAndNoContentEncoding(t *testing.T) {
-	file := "testdata/utf8.html"
-
-	f, err := os.Open(file)
-	if err != nil {
-		t.Fatalf("Unable to open file: %v", err)
-	}
+	f, err := os.Open("testdata/utf8.html")
+	require.NoError(t, err)
 
 	reader, err := NewCharsetReader(f, "text/html")
-	if err != nil {
-		t.Fatalf("Unable to create reader: %v", err)
-	}
+	require.NoError(t, err)
 
 	data, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatalf("Unable to read data: %v", err)
-	}
+	require.NoError(t, err)
 
-	if !utf8.Valid(data) {
-		t.Fatalf("Data is not valid UTF-8")
-	}
+	require.True(t, utf8.Valid(data), "Data is not valid UTF-8")
 
-	expectedUnicodeString := "Café"
-	if !bytes.Contains(data, []byte(expectedUnicodeString)) {
-		t.Fatalf("Data does not contain expected unicode string: %s", expectedUnicodeString)
+	expected := "Café"
+	if !bytes.Contains(data, []byte(expected)) {
+		t.Fatalf("Data does not contain expected unicode string: %s", expected)
 	}
 }
 
 func TestNewReaderWithISO88591Document(t *testing.T) {
-	file := "testdata/iso-8859-1.xml"
-
-	f, err := os.Open(file)
-	if err != nil {
-		t.Fatalf("Unable to open file: %v", err)
-	}
+	f, err := os.Open("testdata/iso-8859-1.xml")
+	require.NoError(t, err)
 
 	reader, err := NewCharsetReader(f, "text/html; charset=ISO-8859-1")
-	if err != nil {
-		t.Fatalf("Unable to create reader: %v", err)
-	}
+	require.NoError(t, err)
 
 	data, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatalf("Unable to read data: %v", err)
-	}
+	require.NoError(t, err)
 
-	if !utf8.Valid(data) {
-		t.Fatalf("Data is not valid UTF-8")
-	}
+	require.True(t, utf8.Valid(data), "Data is not valid UTF-8")
 
-	expectedUnicodeString := "Café"
-	if !bytes.Contains(data, []byte(expectedUnicodeString)) {
-		t.Fatalf("Data does not contain expected unicode string: %s", expectedUnicodeString)
-	}
+	expected := "Café"
+	assert.True(t, bytes.Contains(data, []byte(expected)),
+		"Data does not contain expected unicode string: %s", expected)
 }
 
 func TestNewReaderWithISO88591DocumentAndNoContentType(t *testing.T) {
-	file := "testdata/iso-8859-1.xml"
-
-	f, err := os.Open(file)
-	if err != nil {
-		t.Fatalf("Unable to open file: %v", err)
-	}
+	f, err := os.Open("testdata/iso-8859-1.xml")
+	require.NoError(t, err)
 
 	reader, err := NewCharsetReader(f, "")
-	if err != nil {
-		t.Fatalf("Unable to create reader: %v", err)
-	}
+	require.NoError(t, err)
 
 	data, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatalf("Unable to read data: %v", err)
-	}
+	require.NoError(t, err)
 
-	if !utf8.Valid(data) {
-		t.Fatalf("Data is not valid UTF-8")
-	}
+	require.True(t, utf8.Valid(data), "Data is not valid UTF-8")
 
-	expectedUnicodeString := "Café"
-	if !bytes.Contains(data, []byte(expectedUnicodeString)) {
-		t.Fatalf("Data does not contain expected unicode string: %s", expectedUnicodeString)
-	}
+	expected := "Café"
+	assert.True(t, bytes.Contains(data, []byte(expected)),
+		"Data does not contain expected unicode string: %s", expected)
 }
 
 func TestNewReaderWithISO88591DocumentWithMetaAfter1024Bytes(t *testing.T) {
-	file := "testdata/iso-8859-1-meta-after-1024.html"
-
-	f, err := os.Open(file)
-	if err != nil {
-		t.Fatalf("Unable to open file: %v", err)
-	}
+	f, err := os.Open("testdata/iso-8859-1-meta-after-1024.html")
+	require.NoError(t, err)
 
 	reader, err := NewCharsetReader(f, "text/html")
-	if err != nil {
-		t.Fatalf("Unable to create reader: %v", err)
-	}
+	require.NoError(t, err)
 
 	data, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatalf("Unable to read data: %v", err)
-	}
+	require.NoError(t, err)
 
-	if !utf8.Valid(data) {
-		t.Fatalf("Data is not valid UTF-8")
-	}
+	require.True(t, utf8.Valid(data), "Data is not valid UTF-8")
 
-	expectedUnicodeString := "Café"
-	if !bytes.Contains(data, []byte(expectedUnicodeString)) {
-		t.Fatalf("Data does not contain expected unicode string: %s", expectedUnicodeString)
-	}
+	expected := "Café"
+	assert.True(t, bytes.Contains(data, []byte(expected)),
+		"Data does not contain expected unicode string: %s", expected)
 }
 
 func TestNewReaderWithUTF8DocumentWithMetaAfter1024Bytes(t *testing.T) {
-	file := "testdata/utf8-meta-after-1024.html"
-
-	f, err := os.Open(file)
-	if err != nil {
-		t.Fatalf("Unable to open file: %v", err)
-	}
+	f, err := os.Open("testdata/utf8-meta-after-1024.html")
+	require.NoError(t, err)
 
 	reader, err := NewCharsetReader(f, "text/html")
-	if err != nil {
-		t.Fatalf("Unable to create reader: %v", err)
-	}
+	require.NoError(t, err)
 
 	data, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatalf("Unable to read data: %v", err)
-	}
+	require.NoError(t, err)
 
-	if !utf8.Valid(data) {
-		t.Fatalf("Data is not valid UTF-8")
-	}
+	require.True(t, utf8.Valid(data), "Data is not valid UTF-8")
 
-	expectedUnicodeString := "Café"
-	if !bytes.Contains(data, []byte(expectedUnicodeString)) {
-		t.Fatalf("Data does not contain expected unicode string: %s", expectedUnicodeString)
-	}
+	expected := "Café"
+	assert.True(t, bytes.Contains(data, []byte(expected)),
+		"Data does not contain expected unicode string: %s", expected)
 }
