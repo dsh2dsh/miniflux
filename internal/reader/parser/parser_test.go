@@ -4,48 +4,11 @@
 package parser // import "miniflux.app/v2/internal/reader/parser"
 
 import (
-	"bytes"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
-
-func BenchmarkParseFeed(b *testing.B) {
-	tests := []struct {
-		name    string
-		baseURL string
-		feed    []byte
-	}{
-		{
-			name:    "large_atom.xml",
-			baseURL: "https://dustri.org/b",
-		},
-		{
-			name:    "large_rss.xml",
-			baseURL: "https://dustri.org/b",
-		},
-		{
-			name:    "small_atom.xml",
-			baseURL: "https://github.com/miniflux/v2/commits/main",
-		},
-	}
-
-	for i := range tests {
-		tt := &tests[i]
-		data, err := os.ReadFile("testdata/" + tt.name)
-		require.NoError(b, err)
-		tt.feed = data
-	}
-
-	b.ReportAllocs()
-	for b.Loop() {
-		for i := range tests {
-			tt := &tests[i]
-			ParseFeed(tt.baseURL, bytes.NewReader(tt.feed))
-		}
-	}
-}
 
 func BenchmarkParseBytes(b *testing.B) {
 	tests := []struct {

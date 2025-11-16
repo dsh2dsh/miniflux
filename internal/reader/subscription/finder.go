@@ -11,15 +11,15 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/PuerkitoBio/goquery"
+	"github.com/dsh2dsh/gofeed/v2"
+
 	"miniflux.app/v2/internal/integration/rssbridge"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/encoding"
 	"miniflux.app/v2/internal/reader/fetcher"
-	"miniflux.app/v2/internal/reader/parser"
 	"miniflux.app/v2/internal/urllib"
-
-	"github.com/PuerkitoBio/goquery"
 )
 
 type SubscriptionFinder struct {
@@ -73,10 +73,9 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 	}
 
 	// Step 1) Check if the website URL is already a feed.
-	feedFormat, _ := parser.DetectFeedFormat(bytes.NewReader(body))
-	if feedFormat != parser.FormatUnknown {
+	if ft := gofeed.DetectFeedBytes(body); ft != gofeed.FeedTypeUnknown {
 		f.feedDownloaded = true
-		s := NewSubscription(resp.EffectiveURL(), resp.EffectiveURL(), feedFormat)
+		s := NewSubscription(resp.EffectiveURL(), resp.EffectiveURL())
 		return Subscriptions{s}, nil
 	}
 
@@ -125,10 +124,10 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 }
 
 func (f *SubscriptionFinder) FindSubscriptionsFromWebPage(websiteURL, contentType string, body io.Reader) (Subscriptions, *locale.LocalizedErrorWrapper) {
-	queries := map[string]string{
-		"link[type='application/rss+xml']":                                  parser.FormatRSS,
-		"link[type='application/atom+xml']":                                 parser.FormatAtom,
-		"link[type='application/json'], link[type='application/feed+json']": parser.FormatJSON,
+	queries := [...]string{
+		"link[type='application/rss+xml']",
+		"link[type='application/atom+xml']",
+		"link[type='application/json'], link[type='application/feed+json']",
 	}
 
 	htmlDocumentReader, err := encoding.NewCharsetReader(body, contentType)
@@ -150,10 +149,9 @@ func (f *SubscriptionFinder) FindSubscriptionsFromWebPage(websiteURL, contentTyp
 
 	var subscriptions Subscriptions
 	subscriptionURLs := make(map[string]bool)
-	for query, kind := range queries {
+	for _, query := range queries {
 		doc.Find(query).Each(func(i int, s *goquery.Selection) {
-			subscription := new(Subscription)
-			subscription.Type = kind
+			subscription := NewSubscription("", "")
 
 			if feedURL, exists := s.Attr("href"); exists && feedURL != "" {
 				subscription.URL, err = urllib.AbsoluteURL(websiteURL, feedURL)
@@ -183,16 +181,16 @@ func (f *SubscriptionFinder) FindSubscriptionsFromWebPage(websiteURL, contentTyp
 }
 
 func (f *SubscriptionFinder) FindSubscriptionsFromWellKnownURLs(websiteURL string) (Subscriptions, *locale.LocalizedErrorWrapper) {
-	knownURLs := map[string]string{
-		"atom.xml":     parser.FormatAtom,
-		"feed.atom":    parser.FormatAtom,
-		"feed.xml":     parser.FormatAtom,
-		"feed/":        parser.FormatAtom,
-		"index.rss":    parser.FormatRSS,
-		"index.xml":    parser.FormatRSS,
-		"rss.xml":      parser.FormatRSS,
-		"rss/":         parser.FormatRSS,
-		"rss/feed.xml": parser.FormatRSS,
+	knownURLs := [...]string{
+		"atom.xml",
+		"feed.atom",
+		"feed.xml",
+		"feed/",
+		"index.rss",
+		"index.xml",
+		"rss.xml",
+		"rss/",
+		"rss/feed.xml",
 	}
 
 	websiteURLRoot := urllib.RootURL(websiteURL)
@@ -209,7 +207,7 @@ func (f *SubscriptionFinder) FindSubscriptionsFromWellKnownURLs(websiteURL strin
 
 	var subscriptions Subscriptions
 	for _, baseURL := range baseURLs {
-		for knownURL, kind := range knownURLs {
+		for _, knownURL := range knownURLs {
 			fullURL, err := urllib.AbsoluteURL(baseURL, knownURL)
 			if err != nil {
 				continue
@@ -245,11 +243,7 @@ func (f *SubscriptionFinder) FindSubscriptionsFromWellKnownURLs(websiteURL strin
 				continue
 			}
 
-			subscriptions = append(subscriptions, &Subscription{
-				Type:  kind,
-				Title: fullURL,
-				URL:   fullURL,
-			})
+			subscriptions = append(subscriptions, NewSubscription(fullURL, fullURL))
 		}
 	}
 
@@ -281,11 +275,8 @@ func (f *SubscriptionFinder) FindSubscriptionsFromRSSBridge(websiteURL, rssBridg
 
 	subscriptions := make(Subscriptions, 0, len(bridges))
 	for _, bridge := range bridges {
-		subscriptions = append(subscriptions, &Subscription{
-			Title: bridge.BridgeMeta.Name,
-			URL:   bridge.URL,
-			Type:  parser.FormatAtom,
-		})
+		subscriptions = append(subscriptions, NewSubscription(
+			bridge.BridgeMeta.Name, bridge.URL))
 	}
 
 	return subscriptions, nil
@@ -303,13 +294,13 @@ func (f *SubscriptionFinder) findSubscriptionsFromYouTube(websiteURL string) (Su
 	}
 	if _, channelID, found := strings.Cut(decodedURL.Path, "channel/"); found {
 		feedURL := "https://www.youtube.com/feeds/videos.xml?channel_id=" + channelID
-		return Subscriptions{NewSubscription(decodedURL.String(), feedURL, parser.FormatAtom)}, nil
+		return Subscriptions{NewSubscription(decodedURL.String(), feedURL)}, nil
 	}
 
 	if strings.HasPrefix(decodedURL.Path, "/watch") || strings.HasPrefix(decodedURL.Path, "/playlist") {
 		if playlistID := decodedURL.Query().Get("list"); playlistID != "" {
 			feedURL := "https://www.youtube.com/feeds/videos.xml?playlist_id=" + playlistID
-			return Subscriptions{NewSubscription(decodedURL.String(), feedURL, parser.FormatAtom)}, nil
+			return Subscriptions{NewSubscription(decodedURL.String(), feedURL)}, nil
 		}
 	}
 
