@@ -4,11 +4,15 @@
 package encoding // import "miniflux.app/v2/internal/reader/encoding"
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
+	"unicode/utf8"
 
 	"golang.org/x/net/html/charset"
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/transform"
 )
 
 // NewCharsetReader returns an io.Reader that converts the content of r to
@@ -21,14 +25,37 @@ import (
 // issues. See
 // https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding
 func NewCharsetReader(r io.Reader, contentType string) (io.Reader, error) {
-	reader, err := charset.NewReader(r, contentType)
+	preview := make([]byte, 1024)
+	n, err := io.ReadFull(r, preview)
 	switch {
 	case errors.Is(err, io.EOF):
 		return r, nil
+	case errors.Is(err, io.ErrUnexpectedEOF):
+		preview = preview[:n]
+		r = bytes.NewReader(preview)
 	case err != nil:
-		return nil, fmt.Errorf(
-			"reader/encoding: new charset reader with contentType=%q: %w",
-			contentType, err)
+		return nil, fmt.Errorf("reader/encoding: read preview: %w", err)
+	default:
+		r = io.MultiReader(bytes.NewReader(preview), r)
 	}
-	return reader, nil
+
+	e, name, certain := charset.DetermineEncoding(preview, contentType)
+	if e == encoding.Nop || name == "utf-8" {
+		return r, nil
+	}
+
+	if certain || name != "windows-1252" || !utf8.Valid(preview) {
+		return transform.NewReader(r, e.NewDecoder()), nil
+	}
+
+	b, err := io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"reader/encoding: read all for detecting utf8: %w", err)
+	}
+
+	if utf8.Valid(b) {
+		return bytes.NewReader(b), nil
+	}
+	return transform.NewReader(bytes.NewReader(b), e.NewDecoder()), nil
 }
