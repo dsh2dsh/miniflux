@@ -237,9 +237,7 @@ func TestAddYoutubeVideoFromIdWithCustomEmbedURL(t *testing.T) {
 	os.Clearenv()
 	t.Setenv("YOUTUBE_EMBED_URL_OVERRIDE", "https://invidious.custom/embed/")
 
-	var err error
-	parser := config.NewParser()
-	config.Opts, err = parser.ParseEnvironmentVariables()
+	err := config.Load("")
 	if err != nil {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}

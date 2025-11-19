@@ -16,12 +16,12 @@ func (self *Daemon) runScheduler(ctx context.Context) {
 	slog.Info(`Starting background scheduler...`)
 
 	self.g.Go(func() error {
-		self.feedScheduler(ctx, config.Opts.PollingFrequency())
+		self.feedScheduler(ctx, config.PollingFrequency())
 		return nil
 	})
 
 	self.g.Go(func() error {
-		self.cleanupScheduler(ctx, config.Opts.CleanupFrequencyHours())
+		self.cleanupScheduler(ctx, config.CleanupFrequencyHours())
 		return nil
 	})
 }

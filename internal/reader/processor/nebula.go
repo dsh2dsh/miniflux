@@ -10,7 +10,7 @@ import (
 )
 
 func shouldFetchNebulaWatchTime(entry *model.Entry) bool {
-	if !config.Opts.FetchNebulaWatchTime() {
+	if !config.FetchNebulaWatchTime() {
 		return false
 	}
 

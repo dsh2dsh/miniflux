@@ -30,7 +30,7 @@ func DeleteEntries(ctx context.Context, user *model.User, feed *model.Feed,
 	block = block.WithLogger(log.With(slog.String("filter_action", "block")))
 	keep = keep.WithLogger(log.With(slog.String("filter_action", "allow")))
 
-	maxAge := time.Duration(config.Opts.FilterEntryMaxAgeDays()) * 24 * time.Hour
+	maxAge := time.Duration(config.FilterEntryMaxAgeDays()) * 24 * time.Hour
 	seen := makeUniqEntries(feed)
 
 	feed.Entries = slices.DeleteFunc(feed.Entries,

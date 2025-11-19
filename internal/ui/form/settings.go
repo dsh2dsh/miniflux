@@ -93,7 +93,7 @@ func ExtractMarkAsReadBehavior(behavior MarkReadBehavior) (markReadOnView, markR
 
 // Merge updates the fields of the given user.
 func (s *SettingsForm) Merge(user *model.User) *model.User {
-	if !config.Opts.DisableLocalAuth() {
+	if !config.DisableLocalAuth() {
 		user.Username = s.Username
 	}
 	user.Theme = s.Theme
@@ -133,7 +133,7 @@ func (s *SettingsForm) Merge(user *model.User) *model.User {
 
 // Validate makes sure the form values are valid.
 func (s *SettingsForm) Validate() *locale.LocalizedError {
-	if (s.Username == "" && !config.Opts.DisableLocalAuth()) || s.Theme == "" || s.Language == "" || s.Timezone == "" || s.EntryDirection == "" || s.DisplayMode == "" || s.DefaultHomePage == "" {
+	if (s.Username == "" && !config.DisableLocalAuth()) || s.Theme == "" || s.Language == "" || s.Timezone == "" || s.EntryDirection == "" || s.DisplayMode == "" || s.DefaultHomePage == "" {
 		return locale.NewLocalizedError("error.settings_mandatory_fields")
 	}
 

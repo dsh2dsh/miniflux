@@ -277,7 +277,7 @@ func (u *User) HasSaveEntry() bool {
 }
 
 func (u *User) Operator() bool {
-	return u.IsAdmin || config.Opts.Operator(u.Username)
+	return u.IsAdmin || config.Operator(u.Username)
 }
 
 func (u *User) HasStylesheet() bool {

@@ -406,8 +406,8 @@ func (self *Refresh) IncFeedError(ctx context.Context, err error) error {
 		return fmt.Errorf("reader/handler: fetch user from db: %w: %w", err2, err)
 	}
 
-	if d := config.Opts.PollingErrorRetry(); d > 0 {
-		if config.Opts.PollingErrorLimited(self.feed.ParsingErrorCount + 1) {
+	if d := config.PollingErrorRetry(); d > 0 {
+		if config.PollingErrorLimited(self.feed.ParsingErrorCount + 1) {
 			self.feed.NextCheckAt = time.Now().Add(d)
 			logging.FromContext(ctx).Info("Polling error limit reached (slowmo)",
 				slog.Int("errors", self.feed.ParsingErrorCount+1),
@@ -421,9 +421,9 @@ func (self *Refresh) IncFeedError(ctx context.Context, err error) error {
 		return fmt.Errorf("reader/handler: inc feed error count: %w: %w", err2, err)
 	}
 
-	if config.Opts.PollingErrorLimited(self.feed.ParsingErrorCount) {
+	if config.PollingErrorLimited(self.feed.ParsingErrorCount) {
 		self.notifyFeedError(ctx, user)
-		if d := config.Opts.PollingErrorRetry(); d == 0 {
+		if d := config.PollingErrorRetry(); d == 0 {
 			logging.FromContext(ctx).Info("Polling error limit reached (paused)",
 				slog.Int("errors", self.feed.ParsingErrorCount))
 		}
@@ -474,6 +474,5 @@ func (self *Refresh) render(name string, user *model.User, data map[string]any,
 }
 
 func (self *Refresh) routeURL(name string, args ...any) string {
-	return config.Opts.RootURL() + route.Path(self.templates.Router(),
-		name, args...)
+	return config.RootURL() + route.Path(self.templates.Router(), name, args...)
 }

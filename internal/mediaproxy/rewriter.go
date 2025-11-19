@@ -26,7 +26,7 @@ func RewriteDocumentWithAbsoluteProxyURL(router *mux.ServeMux, htmlDocument stri
 }
 
 func genericProxyRewriter(router *mux.ServeMux, proxifyFunction urlProxyRewriter, htmlDocument string) string {
-	proxyOption := config.Opts.MediaProxyMode()
+	proxyOption := config.MediaProxyMode()
 	if proxyOption == "none" {
 		return htmlDocument
 	}
@@ -36,7 +36,7 @@ func genericProxyRewriter(router *mux.ServeMux, proxifyFunction urlProxyRewriter
 		return htmlDocument
 	}
 
-	for _, mediaType := range config.Opts.MediaProxyResourceTypes() {
+	for _, mediaType := range config.MediaProxyResourceTypes() {
 		switch mediaType {
 		case "image":
 			doc.Find("img, picture source").Each(func(i int, img *goquery.Selection) {
@@ -51,7 +51,7 @@ func genericProxyRewriter(router *mux.ServeMux, proxifyFunction urlProxyRewriter
 				}
 			})
 
-			if !slices.Contains(config.Opts.MediaProxyResourceTypes(), "video") {
+			if !slices.Contains(config.MediaProxyResourceTypes(), "video") {
 				doc.Find("video").Each(func(i int, video *goquery.Selection) {
 					if posterAttrValue, ok := video.Attr("poster"); ok {
 						if shouldProxifyURL(posterAttrValue, proxyOption) {

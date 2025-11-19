@@ -15,7 +15,7 @@ import (
 
 // Parser handles configuration parsing.
 type Parser struct {
-	opts *Options
+	opts *options
 }
 
 // NewParser returns a new Parser.
@@ -23,7 +23,7 @@ func NewParser() *Parser { return &Parser{opts: NewOptions()} }
 
 // ParseEnvironmentVariables loads configuration values from environment
 // variables.
-func (p *Parser) ParseEnvironmentVariables() (*Options, error) {
+func (p *Parser) ParseEnvironmentVariables() (*options, error) {
 	if err := env.Parse(p.env()); err != nil {
 		return nil, fmt.Errorf("config: failed parse env vars: %w", err)
 	} else if err := p.opts.init(); err != nil {
@@ -36,7 +36,7 @@ func (p *Parser) env() *envOptions { return &p.opts.env }
 
 // ParseEnvFile loads configuration values from a local file and from
 // environment variables after that.
-func (p *Parser) ParseEnvFile(filename string) (*Options, error) {
+func (p *Parser) ParseEnvFile(filename string) (*options, error) {
 	envMap, err := godotenv.Read(filename)
 	if err != nil {
 		return nil, fmt.Errorf("config: failed parse %q: %w", filename, err)

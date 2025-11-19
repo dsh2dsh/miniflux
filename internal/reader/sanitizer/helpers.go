@@ -284,7 +284,7 @@ func rewriteYoutube(u *url.URL) bool {
 		return false
 	}
 
-	u2 := *config.Opts.YouTubeEmbedURL()
+	u2 := *config.YouTubeEmbedURL()
 	u2.RawQuery = u.RawQuery
 	*u = *u2.JoinPath(afterEmbed)
 	return true

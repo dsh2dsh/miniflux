@@ -44,9 +44,9 @@ func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
 
 	// Avoid accidental and excessive refreshes.
 	sinceLastRefresh := time.Now().UTC().Unix() - request.LastForceRefresh(r)
-	refreshInterval := int64(config.Opts.ForceRefreshInterval()) * 60
+	refreshInterval := int64(config.ForceRefreshInterval()) * 60
 	if sinceLastRefresh < refreshInterval {
-		time := config.Opts.ForceRefreshInterval()
+		time := config.ForceRefreshInterval()
 		sess.NewFlashErrorMessage(printer.Plural(
 			"alert.too_many_feeds_refresh", time, time))
 		h.redirect(w, r, "feeds")

@@ -279,7 +279,7 @@ func (self *Pool) refreshFeed(job *queueItem) (*model.FeedRefreshed, error) {
 		log.Error("worker: error refreshing feed", slog.Any("error", err))
 	}
 
-	if config.Opts.HasMetricsCollector() {
+	if config.HasMetricsCollector() {
 		status := "success"
 		if err != nil {
 			status = "error"

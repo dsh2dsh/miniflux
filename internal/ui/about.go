@@ -40,7 +40,7 @@ func (h *handler) showAboutPage(w http.ResponseWriter, r *http.Request) {
 
 	v.Set("menu", "settings").
 		Set("version", version.New()).
-		Set("globalConfigOptions", config.Opts.SortedOptions(true)).
+		Set("globalConfigOptions", config.SortedOptions(true)).
 		Set("postgres_version", dbVersion).
 		Set("db_usage", dbSize).
 		Set("go_version", runtime.Version())

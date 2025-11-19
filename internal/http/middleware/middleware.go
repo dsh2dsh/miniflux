@@ -18,17 +18,17 @@ type MiddlewareFunc = mux.MiddlewareFunc
 func ClientIP(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("X-Forwarded-Proto") == "https" {
-			config.Opts.EnableHTTPS()
+			config.EnableHTTPS()
 		}
 
-		if config.Opts.HTTPS() && config.Opts.HasHSTS() {
+		if config.HTTPS() && config.HasHSTS() {
 			w.Header().Set("Strict-Transport-Security", "max-age=31536000")
 		}
 
 		ctx := r.Context()
 		clientIP := request.FindRemoteIP(r)
-		if config.Opts.TrustedProxy(clientIP) {
-			clientIP = request.FindClientIP(r, config.Opts.TrustedProxy)
+		if config.TrustedProxy(clientIP) {
+			clientIP = request.FindClientIP(r, config.TrustedProxy)
 		}
 		next.ServeHTTP(w, r.WithContext(request.WithClientIP(ctx, clientIP)))
 	})
@@ -40,7 +40,7 @@ func Gzip(next http.Handler) http.Handler {
 
 func CrossOriginProtection() MiddlewareFunc {
 	c := http.NewCrossOriginProtection()
-	if err := c.AddTrustedOrigin(config.Opts.RootURL()); err != nil {
+	if err := c.AddTrustedOrigin(config.RootURL()); err != nil {
 		panic(err)
 	}
 	return func(next http.Handler) http.Handler { return c.Handler(next) }

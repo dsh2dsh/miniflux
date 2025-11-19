@@ -50,7 +50,7 @@ func (c *Client) SendMessages(feed *model.Feed, entries model.Entries) error {
 		}
 
 		if c.ntfyInternalLinks {
-			url, err := url.Parse(config.Opts.BaseURL())
+			url, err := url.Parse(config.BaseURL())
 			if err != nil {
 				slog.Error("Unable to parse base URL", slog.Any("error", err))
 			} else {

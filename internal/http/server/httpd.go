@@ -31,12 +31,12 @@ import (
 )
 
 func Listener() (net.Listener, error) {
-	if !config.Opts.HasHTTPService() {
+	if !config.HasHTTPService() {
 		return nil, nil
 	}
 
 	var listener net.Listener
-	listenAddr := config.Opts.ListenAddr()
+	listenAddr := config.ListenAddr()
 
 	switch {
 	case os.Getenv("LISTEN_PID") == strconv.Itoa(os.Getpid()):
@@ -114,14 +114,14 @@ func unlinkStaleUnix(path string) error {
 func StartWebServer(store *storage.Storage, pool *worker.Pool,
 	g *errgroup.Group, listener net.Listener,
 ) *http.Server {
-	certFile := config.Opts.CertFile()
-	keyFile := config.Opts.CertKeyFile()
-	certDomain := config.Opts.CertDomain()
-	listenAddr := config.Opts.ListenAddr()
+	certFile := config.CertFile()
+	keyFile := config.CertKeyFile()
+	certDomain := config.CertDomain()
+	listenAddr := config.ListenAddr()
 	server := &http.Server{
-		ReadTimeout:  config.Opts.HTTPServerTimeout(),
-		WriteTimeout: config.Opts.HTTPServerTimeout(),
-		IdleTimeout:  config.Opts.HTTPServerTimeout(),
+		ReadTimeout:  config.HTTPServerTimeout(),
+		WriteTimeout: config.HTTPServerTimeout(),
+		IdleTimeout:  config.HTTPServerTimeout(),
 		Handler:      setupHandler(store, pool),
 	}
 
@@ -131,10 +131,10 @@ func StartWebServer(store *storage.Storage, pool *worker.Pool,
 	case strings.HasPrefix(listenAddr, "/"):
 		startUnixSocketServer(server, listenAddr, listener, g)
 	case certDomain != "":
-		config.Opts.EnableHTTPS()
+		config.EnableHTTPS()
 		startAutoCertTLSServer(server, certDomain, store, g)
 	case certFile != "" && keyFile != "":
-		config.Opts.EnableHTTPS()
+		config.EnableHTTPS()
 		server.Addr = listenAddr
 		startTLSServer(server, certFile, keyFile, g)
 	default:
@@ -259,22 +259,22 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) http.Handler {
 		HandleFunc("/readyz", readinessProbe)
 
 	m := serveMux
-	if config.Opts.BasePath() != "" {
-		m = serveMux.PrefixGroup(config.Opts.BasePath())
+	if config.BasePath() != "" {
+		m = serveMux.PrefixGroup(config.BasePath())
 	}
 	m.HandleFunc("/healthcheck", readinessProbe)
 	m.HandleFunc("/version", handleVersion)
 
 	m.Use(middleware.Gzip, middleware.RequestId, middleware.ClientIP)
 
-	if config.Opts.HasMetricsCollector() {
+	if config.HasMetricsCollector() {
 		m.Handle("/metrics", metric.Handler(store))
 	}
 
-	if config.Opts.HasMaintenanceMode() {
+	if config.HasMaintenanceMode() {
 		m.Use(func(http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				_, _ = w.Write([]byte(config.Opts.MaintenanceMessage()))
+				_, _ = w.Write([]byte(config.MaintenanceMessage()))
 			})
 		})
 	}

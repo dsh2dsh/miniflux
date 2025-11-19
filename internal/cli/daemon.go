@@ -66,7 +66,7 @@ func (self *Daemon) configure(ctx context.Context) error {
 	self.store = store
 
 	// Run migrations and start the daemon.
-	if config.Opts.RunMigrations() {
+	if config.RunMigrations() {
 		if err := self.store.Migrate(ctx); err != nil {
 			return err
 		}
@@ -76,18 +76,18 @@ func (self *Daemon) configure(ctx context.Context) error {
 		return err
 	}
 
-	if config.Opts.CreateAdmin() {
+	if config.CreateAdmin() {
 		err := createAdminUserFromEnvironmentVariables(ctx, self.store)
 		if err != nil {
 			return err
 		}
 	}
 
-	if config.Opts.HasHTTPClientProxiesConfigured() {
+	if config.HasHTTPClientProxiesConfigured() {
 		slog.Info("Initializing proxy rotation",
-			slog.Int("proxies_count", len(config.Opts.HTTPClientProxies())))
+			slog.Int("proxies_count", len(config.HTTPClientProxies())))
 		rotatorInstance, err := proxyrotator.NewProxyRotator(
-			config.Opts.HTTPClientProxies())
+			config.HTTPClientProxies())
 		if err != nil {
 			return err
 		}
@@ -118,18 +118,18 @@ func (self *Daemon) start(ctx context.Context) error {
 	}
 
 	self.g, ctx = errgroup.WithContext(ctx)
-	self.pool = worker.NewPool(ctx, self.store, config.Opts.WorkerPoolSize())
+	self.pool = worker.NewPool(ctx, self.store, config.WorkerPoolSize())
 	self.g.Go(self.pool.Run)
-	if config.Opts.HasSchedulerService() && !config.Opts.HasMaintenanceMode() {
+	if config.HasSchedulerService() && !config.HasMaintenanceMode() {
 		self.runScheduler(ctx)
 	}
 
-	if config.Opts.HasHTTPService() {
+	if config.HasHTTPService() {
 		self.httpServer = server.StartWebServer(self.store, self.pool,
 			self.g, listener)
 	}
 
-	if config.Opts.HasMetricsCollector() {
+	if config.HasMetricsCollector() {
 		metric.RegisterMetrics(self.store)
 	}
 
@@ -148,7 +148,7 @@ func (self *Daemon) systemdReady(ctx context.Context) error {
 			"unable to send readiness notification to systemd: %w", err)
 	}
 
-	if !config.Opts.HasWatchdog() || !systemd.HasSystemdWatchdog() {
+	if !config.HasWatchdog() || !systemd.HasSystemdWatchdog() {
 		return nil
 	}
 

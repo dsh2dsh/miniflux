@@ -29,8 +29,8 @@ func createAdminUserFromEnvironmentVariables(ctx context.Context,
 	store *storage.Storage,
 ) error {
 	return createAdminUser(ctx, store,
-		config.Opts.AdminUsername(),
-		config.Opts.AdminPassword())
+		config.AdminUsername(),
+		config.AdminPassword())
 }
 
 func createAdminUserFromInteractiveTerminal(ctx context.Context,

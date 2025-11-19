@@ -140,11 +140,11 @@ func (f *Feed) ScheduleNextCheck(refreshDelayInMinutes int) int {
 	//
 	// Use the RSS TTL field, Retry-After, Cache-Control or Expires HTTP headers
 	// if defined.
-	intervalMinutes := max(config.Opts.SchedulerRoundRobinMinInterval(),
+	intervalMinutes := max(config.SchedulerRoundRobinMinInterval(),
 		refreshDelayInMinutes)
 
 	// Limit the max interval value for misconfigured feeds.
-	intervalMinutes = min(config.Opts.SchedulerRoundRobinMaxInterval(),
+	intervalMinutes = min(config.SchedulerRoundRobinMaxInterval(),
 		intervalMinutes)
 
 	f.NextCheckAt = time.Now().Add(time.Minute * time.Duration(intervalMinutes))

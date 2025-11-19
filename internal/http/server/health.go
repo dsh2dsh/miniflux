@@ -24,7 +24,7 @@ func makeReadinessProbe(store *storage.Storage, pool *worker.Pool,
 				http.StatusServiceUnavailable)
 		}
 
-		schedulerFreq := config.Opts.PollingFrequency()
+		schedulerFreq := config.PollingFrequency()
 		if d := pool.SinceSchedulerCompleted(); d > schedulerFreq*2 {
 			http.Error(w, fmt.Sprintf("slow scheduler: %s", d),
 				http.StatusServiceUnavailable)

@@ -297,14 +297,15 @@ func addVideoPlayerIframe(absoluteVideoURL, entryContent string) string {
 
 func addYoutubeVideoRewriteRule(entryURL, entryContent string) string {
 	if videoURL := getYoutubVideoIDFromURL(entryURL); videoURL != "" {
-		return addVideoPlayerIframe(config.Opts.YouTubeEmbedUrlOverride()+videoURL, entryContent)
+		return addVideoPlayerIframe(config.YouTubeEmbedUrlOverride()+videoURL, entryContent)
 	}
 	return entryContent
 }
 
 func addYoutubeVideoUsingInvidiousPlayer(entryURL, entryContent string) string {
 	if videoURL := getYoutubVideoIDFromURL(entryURL); videoURL != "" {
-		return addVideoPlayerIframe(`https://`+config.Opts.InvidiousInstance()+`/embed/`+videoURL, entryContent)
+		return addVideoPlayerIframe(`https://`+config.InvidiousInstance()+
+			`/embed/`+videoURL, entryContent)
 	}
 	return entryContent
 }
@@ -320,7 +321,7 @@ func addYoutubeVideoFromId(entryContent string) string {
 	for _, match := range matches {
 		if len(match) == 2 {
 			videoPlayerHTML.WriteString(buildVideoPlayerIframe(
-				config.Opts.YouTubeEmbedUrlOverride() + match[1]))
+				config.YouTubeEmbedUrlOverride() + match[1]))
 			videoPlayerHTML.WriteString("<br>")
 		}
 	}

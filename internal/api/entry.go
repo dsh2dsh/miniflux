@@ -39,8 +39,8 @@ func (h *handler) getEntryFromBuilder(w http.ResponseWriter, r *http.Request,
 
 	entry.Content = mediaproxy.RewriteDocumentWithAbsoluteProxyURL(h.router,
 		entry.Content)
-	entry.Enclosures().ProxifyEnclosureURL(h.router, config.Opts.MediaProxyMode(),
-		config.Opts.MediaProxyResourceTypes())
+	entry.Enclosures().ProxifyEnclosureURL(h.router, config.MediaProxyMode(),
+		config.MediaProxyResourceTypes())
 	json.OK(w, r, entry)
 }
 

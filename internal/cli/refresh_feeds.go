@@ -34,7 +34,7 @@ func runRefreshFeeds(ctx context.Context, store *storage.Storage) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	pool := worker.NewPool(ctx, store, config.Opts.WorkerPoolSize())
+	pool := worker.NewPool(ctx, store, config.WorkerPoolSize())
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(pool.Run)
 
@@ -52,12 +52,12 @@ func refreshFeeds(ctx context.Context, store *storage.Storage,
 ) bool {
 	// Generate a batch of feeds for any user that has feeds to refresh.
 	batch := store.NewBatchBuilder().
-		WithBatchSize(config.Opts.BatchSize()).
+		WithBatchSize(config.BatchSize()).
 		WithNextCheckExpired().
 		WithoutDisabledFeeds()
 
-	if d := config.Opts.PollingErrorRetry(); d == 0 {
-		batch.WithErrorLimit(config.Opts.PollingErrorLimit())
+	if d := config.PollingErrorRetry(); d == 0 {
+		batch.WithErrorLimit(config.PollingErrorLimit())
 	}
 
 	if jobs, err := batch.FetchJobs(ctx); err != nil {

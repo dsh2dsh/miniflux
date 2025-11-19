@@ -154,7 +154,7 @@ func scrape(ctx context.Context, feed *model.Feed, entry *model.Entry,
 
 	baseURL, content, err := scraper.ScrapeWebsite(ctx, builder, entry.URL,
 		feed.ScraperRules)
-	if config.Opts.HasMetricsCollector() {
+	if config.HasMetricsCollector() {
 		status := "success"
 		if err != nil {
 			status = "error"

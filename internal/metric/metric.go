@@ -77,7 +77,7 @@ func Handler(store *storage.Storage) http.Handler {
 		}
 
 		d := time.Since(lastStorageMetricsAt)
-		fromDB := d >= config.Opts.MetricsRefreshInterval()
+		fromDB := d >= config.MetricsRefreshInterval()
 		log.Debug("Collecting storage metrics",
 			slog.Duration("elapsed", d), slog.Bool("from_db", fromDB))
 		if fromDB {
@@ -100,8 +100,7 @@ func isAllowedToAccessMetricsEndpoint(r *http.Request) bool {
 		slog.String("client_user_agent", r.UserAgent()),
 		slog.String("client_remote_addr", r.RemoteAddr))
 
-	needAuth := config.Opts.MetricsUsername() != "" &&
-		config.Opts.MetricsPassword() != ""
+	needAuth := config.MetricsUsername() != "" && config.MetricsPassword() != ""
 	if needAuth {
 		username, password, authOK := r.BasicAuth()
 		switch {
@@ -111,7 +110,7 @@ func isAllowedToAccessMetricsEndpoint(r *http.Request) bool {
 		case username == "" || password == "":
 			log.Warn("Metrics endpoint accessed with empty username or password")
 			return false
-		case username != config.Opts.MetricsUsername() || password != config.Opts.MetricsPassword():
+		case username != config.MetricsUsername() || password != config.MetricsPassword():
 			log.Warn("Metrics endpoint accessed with invalid username or password")
 			return false
 		}
@@ -124,7 +123,7 @@ func isAllowedToAccessMetricsEndpoint(r *http.Request) bool {
 		return true
 	}
 
-	for _, cidr := range config.Opts.MetricsAllowedNetworks() {
+	for _, cidr := range config.MetricsAllowedNetworks() {
 		_, network, err := net.ParseCIDR(cidr)
 		if err != nil {
 			log.Error("Metrics endpoint accessed with invalid CIDR",

@@ -10,7 +10,7 @@ import (
 )
 
 func shouldFetchOdyseeWatchTime(entry *model.Entry) bool {
-	if !config.Opts.FetchOdyseeWatchTime() {
+	if !config.FetchOdyseeWatchTime() {
 		return false
 	}
 

@@ -19,7 +19,7 @@ func TestNewRequestBuilder(t *testing.T) {
 
 	builder := NewRequestBuilder()
 	require.NotNil(t, builder)
-	assert.Equal(t, config.Opts.HTTPClientTimeout(), builder.clientTimeout)
+	assert.Equal(t, config.HTTPClientTimeout(), builder.clientTimeout)
 	assert.NotNil(t, builder.headers)
 }
 
