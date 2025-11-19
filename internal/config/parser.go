@@ -32,7 +32,7 @@ func (p *Parser) ParseEnvironmentVariables() (*Options, error) {
 	return p.opts, nil
 }
 
-func (p *Parser) env() *EnvOptions { return &p.opts.env }
+func (p *Parser) env() *envOptions { return &p.opts.env }
 
 // ParseEnvFile loads configuration values from a local file and from
 // environment variables after that.

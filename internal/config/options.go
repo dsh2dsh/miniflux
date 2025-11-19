@@ -29,9 +29,9 @@ const (
 var defaultUA = "Miniflux/dsh2dsh-" + version.Version +
 	" (https://github.com/dsh2dsh/miniflux)"
 
-// Option contains a key to value map of a single option. It may be used to
+// envOption contains a key to value map of a single option. It may be used to
 // output debug strings.
-type Option struct {
+type envOption struct {
 	Key   string
 	Value any
 }
@@ -40,7 +40,7 @@ type Option struct {
 type Options struct {
 	HostLimits map[string]HostLimits `yaml:"host_limits" validate:"dive,keys,required,endkeys,required"`
 
-	env EnvOptions
+	env envOptions
 
 	rootURL              string
 	basePath             string
@@ -65,7 +65,7 @@ func (self *HostLimits) withDefaults(connections int64, rate float64,
 	return limits
 }
 
-type EnvOptions struct {
+type envOptions struct {
 	DisableHSTS                    bool     `env:"DISABLE_HSTS"`
 	DisableHttpService             bool     `env:"DISABLE_HTTP_SERVICE"`
 	DisableScheduler               bool     `env:"DISABLE_SCHEDULER_SERVICE"`
@@ -171,7 +171,7 @@ func NewOptions() *Options {
 	return &Options{
 		HostLimits: map[string]HostLimits{},
 
-		env: EnvOptions{
+		env: envOptions{
 			LogFile:                        "stderr",
 			LogFormat:                      "text",
 			LogLevel:                       "info",
@@ -755,7 +755,7 @@ func (o *Options) FindHostLimits(hostname string) (found HostLimits) {
 }
 
 // SortedOptions returns options as a list of key value pairs, sorted by keys.
-func (o *Options) SortedOptions(redactSecret bool) []Option {
+func (o *Options) SortedOptions(redactSecret bool) []envOption {
 	var clientProxyURLRedacted string
 	if o.env.HttpClientProxyURL != nil {
 		if redactSecret {
@@ -867,9 +867,9 @@ func (o *Options) SortedOptions(redactSecret bool) []Option {
 	}
 
 	sortedKeys := slices.Sorted(maps.Keys(keyValues))
-	sortedOptions := make([]Option, len(sortedKeys))
+	sortedOptions := make([]envOption, len(sortedKeys))
 	for i, key := range sortedKeys {
-		sortedOptions[i] = Option{Key: key, Value: keyValues[key]}
+		sortedOptions[i] = envOption{Key: key, Value: keyValues[key]}
 	}
 	return sortedOptions
 }
