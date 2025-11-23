@@ -77,9 +77,10 @@ type Feed struct {
 	ReadCount              int    `json:"-" db:"-"`
 	NumberOfVisibleEntries int    `json:"-" db:"-"`
 
-	removedByAge     int
-	removedByFilters int
-	removedByHash    int
+	filteredByAge    int
+	filteredByRules  int
+	filteredByHash   int
+	filteredByStored int
 }
 
 type FeedExtra struct {
@@ -190,14 +191,17 @@ func (f *Feed) KeepFilterEntryRules() string {
 	return f.Extra.KeepFilterEntryRules
 }
 
-func (f *Feed) IncRemovedByAge()  { f.removedByAge++ }
-func (f *Feed) RemovedByAge() int { return f.removedByAge }
+func (f *Feed) IncFilteredByAge()  { f.filteredByAge++ }
+func (f *Feed) FilteredByAge() int { return f.filteredByAge }
 
-func (f *Feed) IncRemovedByFilters()  { f.removedByFilters++ }
-func (f *Feed) RemovedByFilters() int { return f.removedByFilters }
+func (f *Feed) IncFilteredByRules()  { f.filteredByRules++ }
+func (f *Feed) FilteredByRules() int { return f.filteredByRules }
 
-func (f *Feed) IncRemovedByHash()  { f.removedByHash++ }
-func (f *Feed) RemovedByHash() int { return f.removedByHash }
+func (f *Feed) IncFilteredByHash()  { f.filteredByHash++ }
+func (f *Feed) FilteredByHash() int { return f.filteredByHash }
+
+func (f *Feed) IncFilteredByStored()  { f.filteredByStored++ }
+func (f *Feed) FilteredByStored() int { return f.filteredByStored }
 
 // FeedCreationRequest represents the request to create a feed.
 type FeedCreationRequest struct {
@@ -362,16 +366,15 @@ func (f *FeedModificationRequest) Patch(feed *Feed) {
 type Feeds []*Feed
 
 type FeedRefreshed struct {
-	CreatedEntries Entries
-	UpdatedEntires Entries
+	Created Entries
+	Updated Entries
+	Dedups  int
+	Deleted int
 
-	Dedups  uint64
-	Deleted uint64
-
-	Refreshed   bool
 	NotModified int
 
-	hashes []string
+	remoteEntries int
+	refreshed     bool
 }
 
 func NewFeedRefreshed() *FeedRefreshed { return new(FeedRefreshed) }
@@ -380,19 +383,12 @@ func NewFeedNotModified(v int) *FeedRefreshed {
 	return &FeedRefreshed{NotModified: v}
 }
 
-func (self *FeedRefreshed) WithHashes(hashes []string) *FeedRefreshed {
-	self.hashes = hashes
-	return self
-}
-
-func (self *FeedRefreshed) Hashes() []string { return self.hashes }
-
 func (self *FeedRefreshed) Append(feedID int64, feedEntries []*Entry,
 	storedEntries []Entry,
 ) *FeedRefreshed {
 	storedBy := mapStoredEntries(feedID, storedEntries)
 	if len(storedBy) == 0 {
-		self.CreatedEntries = feedEntries
+		self.Created = feedEntries
 		return self
 	}
 
@@ -401,7 +397,7 @@ func (self *FeedRefreshed) Append(feedID int64, feedEntries []*Entry,
 		switch {
 		case !ok:
 			e.Status = EntryStatusUnread
-			self.CreatedEntries = append(self.CreatedEntries, e)
+			self.Created = append(self.Created, e)
 		case e.FeedID != storedEntry.FeedID:
 			if e.Date.After(storedEntry.Date) {
 				e.Status = EntryStatusUnread
@@ -409,10 +405,10 @@ func (self *FeedRefreshed) Append(feedID int64, feedEntries []*Entry,
 				e.Status = EntryStatusRead
 				self.Dedups++
 			}
-			self.CreatedEntries = append(self.CreatedEntries, e)
+			self.Created = append(self.Created, e)
 		case e.Date.After(storedEntry.Date):
 			e.Status = EntryStatusUnread
-			self.UpdatedEntires = append(self.UpdatedEntires, e)
+			self.Updated = append(self.Updated, e)
 		default:
 			e.Status = storedEntry.Status
 		}
@@ -431,5 +427,14 @@ func mapStoredEntries(feedID int64, entries []Entry) map[string]*Entry {
 	return byHash
 }
 
-func (self *FeedRefreshed) Created() int { return len(self.CreatedEntries) }
-func (self *FeedRefreshed) Updated() int { return len(self.UpdatedEntires) }
+func (self *FeedRefreshed) CreatedLen() int { return len(self.Created) }
+func (self *FeedRefreshed) UpdatedLen() int { return len(self.Updated) }
+
+func (self *FeedRefreshed) WithRefreshed(n int) *FeedRefreshed {
+	self.remoteEntries = n
+	self.refreshed = true
+	return self
+}
+
+func (self *FeedRefreshed) Refreshed() bool    { return self.refreshed }
+func (self *FeedRefreshed) RemoteEntries() int { return self.remoteEntries }

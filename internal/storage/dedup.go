@@ -21,7 +21,7 @@ func NewDedupEntries() *DedupEntries {
 func (self *DedupEntries) Created() uint64 { return self.created }
 
 func (self *DedupEntries) Filter(userID int64, r *model.FeedRefreshed) {
-	if r.Created() == 0 {
+	if r.CreatedLen() == 0 {
 		return
 	}
 	created := self.userHashes(userID).Filter(r)
@@ -50,7 +50,7 @@ func (self *dedupUserEntries) Filter(r *model.FeedRefreshed) uint64 {
 	defer self.mu.Unlock()
 
 	var created uint64
-	for _, e := range r.CreatedEntries.Unread() {
+	for _, e := range r.Created.Unread() {
 		if feedID, ok := self.hashes[e.Hash]; ok && e.FeedID != feedID {
 			e.Status = model.EntryStatusRead
 			r.Dedups++

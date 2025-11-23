@@ -292,28 +292,30 @@ func (self *Pool) refreshFeed(job *queueItem) (*model.FeedRefreshed, error) {
 }
 
 func entriesLogGroup(items []queueItem, dd *storage.DedupEntries) slog.Attr {
-	var deleted, updated, dedups uint64
+	var newEntries, deleted, updated, dedups int
 	for i := range items {
 		item := &items[i]
 		if r := item.refreshed; r != nil {
+			newEntries += r.CreatedLen() + r.UpdatedLen()
 			deleted += r.Deleted
-			updated += uint64(r.Updated())
+			updated += r.UpdatedLen()
 			dedups += r.Dedups
 		}
 	}
 
-	attrs := make([]slog.Attr, 0, 4)
+	attrs := make([]slog.Attr, 0, 5)
+	attrs = append(attrs, slog.Int("new", newEntries))
 	if n := dd.Created(); n != 0 {
 		attrs = append(attrs, slog.Uint64("created", n))
 	}
 	if dedups != 0 {
-		attrs = append(attrs, slog.Uint64("dedups", dedups))
+		attrs = append(attrs, slog.Int("dedups", dedups))
 	}
 	if updated != 0 {
-		attrs = append(attrs, slog.Uint64("updated", updated))
+		attrs = append(attrs, slog.Int("updated", updated))
 	}
 	if deleted != 0 {
-		attrs = append(attrs, slog.Uint64("deleted", deleted))
+		attrs = append(attrs, slog.Int("deleted", deleted))
 	}
 	return slog.GroupAttrs("entries", attrs...)
 }

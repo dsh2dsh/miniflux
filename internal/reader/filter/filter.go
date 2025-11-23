@@ -30,23 +30,26 @@ func DeleteEntries(ctx context.Context, user *model.User, feed *model.Feed,
 	block = block.WithLogger(log.With(slog.String("filter_action", "block")))
 	keep = keep.WithLogger(log.With(slog.String("filter_action", "allow")))
 
-	maxAge := time.Duration(config.FilterEntryMaxAgeDays()) * 24 * time.Hour
+	maxAge := config.FilterEntryMaxAge()
 	seen := makeUniqEntries(feed)
 
-	feed.Entries = slices.DeleteFunc(feed.Entries,
-		func(e *model.Entry) bool {
-			switch {
-			case blockedGlobally(ctx, e, maxAge):
-				feed.IncRemovedByAge()
-				return true
-			case block.Match(e) || !keep.Allow(e):
-				feed.IncRemovedByFilters()
-				return true
-			case !seen.Add(e, log):
-				return true
-			}
-			return false
-		})
+	del := func(e *model.Entry) bool {
+		switch {
+		case entryAged(ctx, e, maxAge):
+			feed.IncFilteredByAge()
+			return true
+		case e.Stored():
+			feed.IncFilteredByStored()
+			return true
+		case block.Match(e) || !keep.Allow(e):
+			feed.IncFilteredByRules()
+			return true
+		case !seen.Add(e, log):
+			return true
+		}
+		return false
+	}
+	feed.Entries = slices.DeleteFunc(feed.Entries, del)
 	return nil
 }
 
@@ -76,23 +79,6 @@ func joinRules(userRules, feedRules string) (*Filter, error) {
 		return nil, fmt.Errorf("bad feed rules: %w", err)
 	}
 	return userFilter.Concat(feedFilter), nil
-}
-
-func blockedGlobally(ctx context.Context, entry *model.Entry,
-	maxAge time.Duration,
-) bool {
-	if maxAge == 0 {
-		return false
-	}
-
-	if entry.Date.Add(maxAge).Before(time.Now()) {
-		logging.FromContext(ctx).Debug("Entry is blocked globally due to max age",
-			slog.String("entry_url", entry.URL),
-			slog.Time("entry_date", entry.Date),
-			slog.Duration("max_age", maxAge))
-		return true
-	}
-	return false
 }
 
 func matchDatePattern(pattern string, entryDate time.Time) bool {

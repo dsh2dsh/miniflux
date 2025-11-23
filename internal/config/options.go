@@ -773,6 +773,10 @@ func WebAuthn() bool { return opts.env.WebAuthn }
 // be retained.
 func FilterEntryMaxAgeDays() int { return opts.env.FilterEntryMaxAgeDays }
 
+func FilterEntryMaxAge() time.Duration {
+	return time.Duration(opts.env.FilterEntryMaxAgeDays) * 24 * time.Hour
+}
+
 func PreferSiteIcon() bool { return opts.env.PreferSiteIcon }
 
 func ConnectionsPerServer() int64 { return opts.env.ConnectionsPerServer }
