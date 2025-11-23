@@ -87,6 +87,9 @@ func init() {
 		SetAttr("loading", "lazy").OnElements("iframe", "img").
 		SetAttr("sandbox", iframeSandbox).OnElements("iframe")
 
+	p.SetAttr("referrerpolicy", "strict-origin-when-cross-origin").
+		OnElements("iframe")
+
 	p.AllowAttrs("hidden").Globally()
 
 	allowMathML(p)
@@ -104,8 +107,7 @@ func init() {
 	p.AllowAttrs("height", "width").Matching(bluemonday.Number).
 		OnElements("iframe", "video")
 
-	p.AllowAttrs("allowfullscreen", "frameborder", "referrerpolicy").
-		OnElements("iframe")
+	p.AllowAttrs("allowfullscreen", "frameborder").OnElements("iframe")
 
 	for _, hostname := range allowIframes {
 		allowedIframe[hostname] = struct{}{}
