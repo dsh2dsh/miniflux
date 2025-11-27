@@ -212,6 +212,10 @@ func (self Entries) RefreshFeed(userID, feedID int64) []string {
 }
 
 func (self Entries) Hashes() []string {
+	if len(self) == 0 {
+		return nil
+	}
+
 	hashes := make([]string, len(self))
 	for i, e := range self {
 		hashes[i] = e.Hash

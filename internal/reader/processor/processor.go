@@ -53,6 +53,8 @@ func (self *FeedProcessor) WithSkipAgedFilter() *FeedProcessor {
 	return self
 }
 
+func (self *FeedProcessor) User() *model.User { return self.user }
+
 func (self *FeedProcessor) ProcessFeedEntries(ctx context.Context, userID int64,
 	force bool,
 ) error {

@@ -57,6 +57,7 @@ type Refresh struct {
 	feedID int64
 	force  bool
 
+	user      *model.User
 	feed      *model.Feed
 	refreshed *model.FeedRefreshed
 }
@@ -316,14 +317,23 @@ func (self *Refresh) processEntries(ctx context.Context, entries model.Entries,
 	filter.DeleteAgedEntries(ctx, self.feed)
 	hashes := self.feed.Entries.Hashes()
 
-	err := processor.New(self.store, self.feed).
-		WithSkipAgedFilter().
-		ProcessFeedEntries(ctx, self.userID, self.force)
-	if errors.Is(err, processor.ErrBadFeed) {
+	if len(hashes) == 0 {
+		logging.FromContext(ctx).Debug(
+			"Skip processing, because all entries too old")
+		return nil, nil
+	}
+
+	p := processor.New(self.store, self.feed).WithSkipAgedFilter()
+	err := p.ProcessFeedEntries(ctx, self.userID, self.force)
+	self.user = p.User()
+	switch {
+	case errors.Is(err, processor.ErrBadFeed):
 		return nil, locale.NewLocalizedErrorWrapper(err,
 			"error.unable_to_parse_feed", err)
+	case err != nil:
+		return nil, err
 	}
-	return hashes, err
+	return hashes, nil
 }
 
 func (self *Refresh) refreshFeedEntries(ctx context.Context,
@@ -355,7 +365,7 @@ func (self *Refresh) pushIntegrations(ctx context.Context,
 		return
 	}
 
-	user, err := self.store.UserByID(ctx, self.userID)
+	user, err := self.getUser(ctx)
 	if err != nil {
 		logging.FromContext(ctx).Error(
 			"Fetching integrations failed; the refresh process will go on, but no integrations will run this time",
@@ -363,6 +373,20 @@ func (self *Refresh) pushIntegrations(ctx context.Context,
 		return
 	}
 	integration.PushEntries(self.feed, entries, user)
+}
+
+func (self *Refresh) getUser(ctx context.Context) (*model.User, error) {
+	if self.user != nil {
+		return self.user, nil
+	}
+
+	user, err := self.store.UserByID(ctx, self.userID)
+	if err != nil {
+		return nil, err
+	}
+
+	self.user = user
+	return user, nil
 }
 
 func (self *Refresh) updateFeed(ctx context.Context) error {
@@ -456,7 +480,7 @@ func (self *Refresh) IncFeedError(ctx context.Context, err error) error {
 		return err
 	}
 
-	user, err2 := self.store.UserByID(ctx, self.userID)
+	user, err2 := self.getUser(ctx)
 	if err2 != nil {
 		return fmt.Errorf("reader/handler: fetch user from db: %w: %w", err2, err)
 	}
