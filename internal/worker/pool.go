@@ -231,15 +231,7 @@ forLoop:
 			break forLoop
 		case job := <-self.queue:
 			self.g.Go(func() error {
-				refreshed, err := self.refreshFeed(job)
-				job.end()
-				log := log.With(slog.Int("job", job.Id()))
-				if err != nil {
-					log.Info("worker: job completed with error", slog.Any("error", err))
-				} else {
-					job.refreshed = refreshed
-					log.Info("worker: job completed")
-				}
+				self.processQueueItem(job)
 				return nil
 			})
 		}
@@ -259,6 +251,20 @@ forLoop:
 		log.Info("worker pool stopped")
 	}
 	return nil
+}
+
+func (self *Pool) processQueueItem(item *queueItem) {
+	refreshed, err := self.refreshFeed(item)
+	item.end()
+
+	log := logging.FromContext(self.ctx).With(slog.Int("job", item.Id()))
+	if err != nil {
+		log.Info("worker: job completed with error", slog.Any("error", err))
+		return
+	}
+
+	item.refreshed = refreshed
+	log.Info("worker: job completed")
 }
 
 func (self *Pool) refreshFeed(job *queueItem) (*model.FeedRefreshed, error) {
