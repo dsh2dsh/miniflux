@@ -58,31 +58,46 @@ func (self *FeedProcessor) User() *model.User { return self.user }
 func (self *FeedProcessor) ProcessFeedEntries(ctx context.Context, userID int64,
 	force bool,
 ) error {
+	self.deleteAgedEntries(ctx)
+
+	if len(self.feed.Entries) == 0 {
+		logging.FromContext(ctx).Debug("FeedProcessor: skip processing",
+			slog.String("reason", "all entries too old"))
+		return nil
+	}
+
+	if err := self.markStoredEntries(ctx); err != nil {
+		logging.FromContext(ctx).Error("Unable mark stored entries",
+			slog.Int("entries", len(self.feed.Entries)),
+			slog.Any("error", err))
+		return fmt.Errorf("reader/processor: mark stored entries: %w", err)
+	}
+
+	if len(self.feed.Entries) == 0 {
+		logging.FromContext(ctx).Debug("FeedProcessor: skip processing",
+			slog.String("reason", "all entries already stored"))
+		return nil
+	}
+
+	if err := self.init(ctx, userID, force); err != nil {
+		return err
+	}
+	return self.process(ctx)
+}
+
+func (self *FeedProcessor) init(ctx context.Context, userID int64, force bool,
+) error {
 	user, err := self.store.UserByID(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("reader/processor: fetch user id=%v: %w", userID, err)
 	}
 
 	self.user, self.force = user, force
-	return self.process(ctx)
+	return nil
 }
 
 func (self *FeedProcessor) process(ctx context.Context) error {
-	self.deleteAgedEntries(ctx)
-
 	log := logging.FromContext(ctx)
-	if len(self.feed.Entries) == 0 {
-		log.Debug("no entries, nothing to process")
-		return nil
-	}
-
-	if err := self.markStoredEntries(ctx); err != nil {
-		log.Error("Unable mark stored entries",
-			slog.Int("entries", len(self.feed.Entries)),
-			slog.Any("error", err))
-		return fmt.Errorf("reader/processor: mark stored entries: %w", err)
-	}
-
 	if err := filter.DeleteEntries(ctx, self.user, self.feed); err != nil {
 		log.Debug("entries filter completed with error", slog.Any("error", err))
 		return fmt.Errorf("%w: delete filtered entries: %w", ErrBadFeed, err)
