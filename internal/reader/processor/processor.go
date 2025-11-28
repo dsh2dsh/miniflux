@@ -35,10 +35,20 @@ type FeedProcessor struct {
 	force bool
 
 	skipAgeFilter bool
+	userByIDFunc  storage.UserByIDFunc
 }
 
-func New(store *storage.Storage, feed *model.Feed) *FeedProcessor {
-	return &FeedProcessor{store: store, feed: feed}
+func New(store *storage.Storage, feed *model.Feed, opts ...Option,
+) *FeedProcessor {
+	self := &FeedProcessor{store: store, feed: feed}
+	for _, fn := range opts {
+		fn(self)
+	}
+
+	if self.userByIDFunc == nil {
+		self.userByIDFunc = store.UserByID
+	}
+	return self
 }
 
 // ProcessFeedEntries downloads original web page for entries and apply filters.
@@ -87,7 +97,7 @@ func (self *FeedProcessor) ProcessFeedEntries(ctx context.Context, userID int64,
 
 func (self *FeedProcessor) init(ctx context.Context, userID int64, force bool,
 ) error {
-	user, err := self.store.UserByID(ctx, userID)
+	user, err := self.userByIDFunc(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("reader/processor: fetch user id=%v: %w", userID, err)
 	}

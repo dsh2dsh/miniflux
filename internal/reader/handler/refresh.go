@@ -43,6 +43,10 @@ func RefreshFeed(ctx context.Context, store *storage.Storage, userID,
 		fn(&r)
 	}
 
+	if r.userByIDFunc == nil {
+		r.userByIDFunc = store.UserByID
+	}
+
 	if err := r.Refresh(ctx); err != nil {
 		return nil, r.IncFeedError(ctx, err)
 	}
@@ -52,6 +56,8 @@ func RefreshFeed(ctx context.Context, store *storage.Storage, userID,
 type Refresh struct {
 	store     *storage.Storage
 	templates *template.Engine
+
+	userByIDFunc storage.UserByIDFunc
 
 	userID int64
 	feedID int64
@@ -323,7 +329,10 @@ func (self *Refresh) processEntries(ctx context.Context, entries model.Entries,
 		return nil, nil
 	}
 
-	p := processor.New(self.store, self.feed).WithSkipAgedFilter()
+	p := processor.New(self.store, self.feed,
+		processor.WithSkipAgedFilter(),
+		processor.WithUserByID(self.userByIDFunc))
+
 	err := p.ProcessFeedEntries(ctx, self.userID, self.force)
 	self.user = p.User()
 	switch {
@@ -365,7 +374,7 @@ func (self *Refresh) pushIntegrations(ctx context.Context,
 		return
 	}
 
-	user, err := self.getUser(ctx)
+	user, err := self.userByID(ctx)
 	if err != nil {
 		logging.FromContext(ctx).Error(
 			"Fetching integrations failed; the refresh process will go on, but no integrations will run this time",
@@ -375,12 +384,12 @@ func (self *Refresh) pushIntegrations(ctx context.Context,
 	integration.PushEntries(self.feed, entries, user)
 }
 
-func (self *Refresh) getUser(ctx context.Context) (*model.User, error) {
+func (self *Refresh) userByID(ctx context.Context) (*model.User, error) {
 	if self.user != nil {
 		return self.user, nil
 	}
 
-	user, err := self.store.UserByID(ctx, self.userID)
+	user, err := self.userByIDFunc(ctx, self.userID)
 	if err != nil {
 		return nil, err
 	}
@@ -480,7 +489,7 @@ func (self *Refresh) IncFeedError(ctx context.Context, err error) error {
 		return err
 	}
 
-	user, err2 := self.getUser(ctx)
+	user, err2 := self.userByID(ctx)
 	if err2 != nil {
 		return fmt.Errorf("reader/handler: fetch user from db: %w: %w", err2, err)
 	}

@@ -57,21 +57,6 @@ type Pool struct {
 	schedulerCompletedAt time.Time
 }
 
-type queueItem struct {
-	*model.Job
-
-	store *storage.Storage
-	ctx   context.Context
-	index int
-	end   func()
-
-	err       error
-	refreshed *model.FeedRefreshed
-	traceStat *storage.TraceStat
-}
-
-func (self *queueItem) Id() int { return self.index + 1 }
-
 func (self *Pool) WithTemplates(templates *template.Engine) *Pool {
 	self.templates = templates
 	return self
@@ -115,9 +100,12 @@ func (self *Pool) Push(ctx context.Context, jobs []model.Job) {
 	log := logging.FromContext(ctx).With(slog.Int("jobs", len(jobs)))
 	log.Info("worker: created a batch of feeds")
 
+	var users userCache
+	users.Init(self.store)
+
 	var wg sync.WaitGroup
 	store := self.store.Copy(storage.WithNewDedup())
-	items := makeItems(ctx, store, jobs, wg.Done)
+	items := makeItems(ctx, store, jobs, &users, wg.Done)
 	startTime := time.Now()
 	wg.Add(len(items))
 
@@ -146,9 +134,12 @@ jobsLoop:
 	log.Info("worker: waiting for batch completion")
 	wg.Wait()
 
+	hit, miss := users.Stats()
 	log = log.With(
 		entriesLogGroup(items, store.DedupEntries()),
 		traceLogGroup(items),
+		slog.Group("user_cache",
+			slog.Uint64("hit", hit), slog.Uint64("miss", miss)),
 		slog.Duration("elapsed", time.Since(startTime)))
 
 	for i := range items {
@@ -162,23 +153,6 @@ jobsLoop:
 
 	self.setErr(nil)
 	log.Info("worker: refreshed a batch of feeds")
-}
-
-func makeItems(ctx context.Context, store *storage.Storage, jobs []model.Job,
-	end func(),
-) []queueItem {
-	items := make([]queueItem, 0, len(jobs))
-	for job := range distributeJobs(jobs) {
-		items = append(items, queueItem{
-			Job: job,
-
-			store: store,
-			ctx:   ctx,
-			index: len(items),
-			end:   end,
-		})
-	}
-	return items
 }
 
 func distributeJobs(jobs []model.Job) iter.Seq[*model.Job] {
@@ -279,7 +253,8 @@ func (self *Pool) refreshFeed(job *queueItem) (*model.FeedRefreshed, error) {
 
 	startTime := time.Now()
 	refreshed, err := handler.RefreshFeed(ctx, job.store, job.UserID, job.FeedID,
-		handler.WithTemplates(self.templates))
+		handler.WithTemplates(self.templates),
+		handler.WithUserByID(job.users.UserByID))
 	if err != nil && !errors.Is(err, handler.ErrBadFeed) {
 		job.err = err
 		log.Error("worker: error refreshing feed", slog.Any("error", err))
