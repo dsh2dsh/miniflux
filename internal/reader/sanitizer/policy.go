@@ -87,8 +87,13 @@ func init() {
 		SetAttr("loading", "lazy").OnElements("iframe", "img").
 		SetAttr("sandbox", iframeSandbox).OnElements("iframe")
 
-	p.SetAttr("referrerpolicy", "strict-origin-when-cross-origin").
-		OnElements("iframe")
+	// Note: the referrerpolicy seems to be required to avoid YouTube error 153
+	// video player configuration error
+	//
+	// See https://developers.google.com/youtube/terms/required-minimum-functionality#embedded-player-api-client-identity
+	p.SetAttrIf("referrerpolicy", "strict-origin-when-cross-origin",
+		bluemonday.DomainIn("youtube.com", "youtube-nocookie.com"),
+	).OnElements("iframe")
 
 	p.AllowAttrs("hidden").Globally()
 
