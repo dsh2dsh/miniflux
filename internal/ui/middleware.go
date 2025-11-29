@@ -93,7 +93,7 @@ func (m *middleware) handleUserSession(next http.Handler, redirect bool,
 func (m *middleware) redirectToLogin(w http.ResponseWriter, r *http.Request) {
 	log := logging.FromContext(r.Context())
 	redirect := r.URL.RequestURI()
-	if bp := config.Opts.BasePath(); bp != "" {
+	if bp := config.BasePath(); bp != "" {
 		redirect = path.Join(bp, redirect)
 	}
 	log.Debug("After login redirect to", slog.String("uri", redirect))
@@ -144,12 +144,12 @@ func contextWithSessionKeys(ctx context.Context, sess *model.Session,
 
 func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if request.IsAuthenticated(r) || config.Opts.AuthProxyHeader() == "" {
+		if request.IsAuthenticated(r) || config.AuthProxyHeader() == "" {
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		username := r.Header.Get(config.Opts.AuthProxyHeader())
+		username := r.Header.Get(config.AuthProxyHeader())
 		if username == "" {
 			next.ServeHTTP(w, r)
 			return
@@ -170,7 +170,7 @@ func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
 		}
 
 		if user == nil {
-			if !config.Opts.IsAuthProxyUserCreationAllowed() {
+			if !config.IsAuthProxyUserCreationAllowed() {
 				log.Debug(
 					"[AuthProxy] User doesn't exist and user creation is not allowed")
 				html.Forbidden(w, r)

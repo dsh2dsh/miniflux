@@ -42,11 +42,11 @@ func newFuncMap(router *mux.ServeMux) *funcMap {
 // parsing.
 func (self *funcMap) Map() template.FuncMap {
 	return template.FuncMap{
-		"baseURL":            config.Opts.BaseURL,
+		"baseURL":            config.BaseURL,
 		"colorScheme":        model.ColorScheme,
 		"contains":           strings.Contains,
 		"dict":               dict,
-		"disableLocalAuth":   config.Opts.DisableLocalAuth,
+		"disableLocalAuth":   config.DisableLocalAuth,
 		"domain":             urllib.Domain,
 		"duration":           duration,
 		"formatFileSize":     formatFileSize[int64],
@@ -54,9 +54,9 @@ func (self *funcMap) Map() template.FuncMap {
 		"icon":               self.icon,
 		"isEmail":            isEmail,
 		"javascript":         self.javascript,
-		"oidcProviderName":   config.Opts.OIDCProviderName,
+		"oidcProviderName":   config.OIDCProviderName,
 		"routeBinaryFile":    self.routeBinaryFile,
-		"rootURL":            config.Opts.RootURL,
+		"rootURL":            config.RootURL,
 		"startsWith":         strings.HasPrefix,
 		"stylesheet":         self.stylesheet,
 		"theme_color":        model.ThemeColor,
@@ -73,12 +73,10 @@ func (self *funcMap) Map() template.FuncMap {
 		"csp": func() *contentSecurityPolicy { return self.csp },
 
 		"hasOAuth2Provider": func(provider string) bool {
-			return config.Opts.OAuth2Provider() == provider
+			return config.OAuth2Provider() == provider
 		},
 
-		"hasAuthProxy": func() bool {
-			return config.Opts.AuthProxyHeader() != ""
-		},
+		"hasAuthProxy": func() bool { return config.AuthProxyHeader() != "" },
 
 		"metaColorScheme": func(theme string) string {
 			colorScheme := model.ColorScheme(theme)
@@ -113,17 +111,15 @@ func (self *funcMap) Map() template.FuncMap {
 		},
 
 		"proxyURL": func(link string) string {
-			mediaProxyMode := config.Opts.MediaProxyMode()
-
+			mediaProxyMode := config.MediaProxyMode()
 			if mediaProxyMode == "all" || (mediaProxyMode != "none" && !urllib.IsHTTPS(link)) {
 				return mediaproxy.ProxifyRelativeURL(self.router, link)
 			}
-
 			return link
 		},
 
 		"mustBeProxyfied": func(mediaType string) bool {
-			return slices.Contains(config.Opts.MediaProxyResourceTypes(), mediaType)
+			return slices.Contains(config.MediaProxyResourceTypes(), mediaType)
 		},
 
 		"replace": func(str, from, to string) string {

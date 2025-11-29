@@ -34,13 +34,11 @@ func runRefreshFeeds(ctx context.Context, store *storage.Storage) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	pool := worker.NewPool(ctx, store, config.Opts.WorkerPoolSize())
+	pool := worker.NewPool(ctx, store, config.WorkerPoolSize())
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(pool.Run)
 
-	refreshFeeds(ctx, store, pool,
-		config.Opts.BatchSize(),
-		config.Opts.PollingParsingErrorLimit())
+	refreshFeeds(ctx, store, pool)
 
 	cancel()
 	if err := g.Wait(); err != nil {
@@ -50,14 +48,17 @@ func runRefreshFeeds(ctx context.Context, store *storage.Storage) error {
 }
 
 func refreshFeeds(ctx context.Context, store *storage.Storage,
-	pool *worker.Pool, batchSize, errorLimit int,
+	pool *worker.Pool,
 ) bool {
 	// Generate a batch of feeds for any user that has feeds to refresh.
 	batch := store.NewBatchBuilder().
-		WithBatchSize(batchSize).
+		WithBatchSize(config.BatchSize()).
 		WithNextCheckExpired().
-		WithoutDisabledFeeds().
-		WithErrorLimit(errorLimit)
+		WithoutDisabledFeeds()
+
+	if d := config.PollingErrorRetry(); d == 0 {
+		batch.WithErrorLimit(config.PollingErrorLimit())
+	}
 
 	if jobs, err := batch.FetchJobs(ctx); err != nil {
 		slog.Error("Unable to fetch jobs from database", slog.Any("error", err))

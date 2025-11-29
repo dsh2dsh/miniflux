@@ -76,9 +76,7 @@ func checkTargetInterval(t *testing.T, feed *Feed, targetInterval int, timeBefor
 func TestFeedScheduleNextCheckRoundRobinDefault(t *testing.T) {
 	os.Clearenv()
 
-	var err error
-	parser := config.NewParser()
-	config.Opts, err = parser.ParseEnvironmentVariables()
+	err := config.Load("")
 	if err != nil {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
@@ -91,16 +89,14 @@ func TestFeedScheduleNextCheckRoundRobinDefault(t *testing.T) {
 		t.Error(`The next_check_at must be set`)
 	}
 
-	targetInterval := config.Opts.SchedulerRoundRobinMinInterval()
+	targetInterval := config.SchedulerRoundRobinMinInterval()
 	checkTargetInterval(t, feed, targetInterval, timeBefore, "TestFeedScheduleNextCheckRoundRobinDefault")
 }
 
 func TestFeedScheduleNextCheckRoundRobinWithRefreshDelayAboveMinInterval(t *testing.T) {
 	os.Clearenv()
 
-	var err error
-	parser := config.NewParser()
-	config.Opts, err = parser.ParseEnvironmentVariables()
+	err := config.Load("")
 	if err != nil {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
@@ -108,22 +104,20 @@ func TestFeedScheduleNextCheckRoundRobinWithRefreshDelayAboveMinInterval(t *test
 	timeBefore := time.Now()
 	feed := &Feed{}
 
-	feed.ScheduleNextCheck(config.Opts.SchedulerRoundRobinMinInterval() + 30)
+	feed.ScheduleNextCheck(config.SchedulerRoundRobinMinInterval() + 30)
 
 	if feed.NextCheckAt.IsZero() {
 		t.Error(`The next_check_at must be set`)
 	}
 
-	expectedInterval := config.Opts.SchedulerRoundRobinMinInterval() + 30
+	expectedInterval := config.SchedulerRoundRobinMinInterval() + 30
 	checkTargetInterval(t, feed, expectedInterval, timeBefore, "TestFeedScheduleNextCheckRoundRobinWithRefreshDelayAboveMinInterval")
 }
 
 func TestFeedScheduleNextCheckRoundRobinWithRefreshDelayBelowMinInterval(t *testing.T) {
 	os.Clearenv()
 
-	var err error
-	parser := config.NewParser()
-	config.Opts, err = parser.ParseEnvironmentVariables()
+	err := config.Load("")
 	if err != nil {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
@@ -131,22 +125,20 @@ func TestFeedScheduleNextCheckRoundRobinWithRefreshDelayBelowMinInterval(t *test
 	timeBefore := time.Now()
 	feed := &Feed{}
 
-	feed.ScheduleNextCheck(config.Opts.SchedulerRoundRobinMinInterval() - 30)
+	feed.ScheduleNextCheck(config.SchedulerRoundRobinMinInterval() - 30)
 
 	if feed.NextCheckAt.IsZero() {
 		t.Error(`The next_check_at must be set`)
 	}
 
-	expectedInterval := config.Opts.SchedulerRoundRobinMinInterval()
+	expectedInterval := config.SchedulerRoundRobinMinInterval()
 	checkTargetInterval(t, feed, expectedInterval, timeBefore, "TestFeedScheduleNextCheckRoundRobinWithRefreshDelayBelowMinInterval")
 }
 
 func TestFeedScheduleNextCheckRoundRobinWithRefreshDelayAboveMaxInterval(t *testing.T) {
 	os.Clearenv()
 
-	var err error
-	parser := config.NewParser()
-	config.Opts, err = parser.ParseEnvironmentVariables()
+	err := config.Load("")
 	if err != nil {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}
@@ -154,13 +146,13 @@ func TestFeedScheduleNextCheckRoundRobinWithRefreshDelayAboveMaxInterval(t *test
 	timeBefore := time.Now()
 	feed := &Feed{}
 
-	feed.ScheduleNextCheck(config.Opts.SchedulerRoundRobinMaxInterval() + 30)
+	feed.ScheduleNextCheck(config.SchedulerRoundRobinMaxInterval() + 30)
 
 	if feed.NextCheckAt.IsZero() {
 		t.Error(`The next_check_at must be set`)
 	}
 
-	expectedInterval := config.Opts.SchedulerRoundRobinMaxInterval()
+	expectedInterval := config.SchedulerRoundRobinMaxInterval()
 	checkTargetInterval(t, feed, expectedInterval, timeBefore, "TestFeedScheduleNextCheckRoundRobinWithRefreshDelayAboveMaxInterval")
 }
 
@@ -170,9 +162,7 @@ func TestFeedScheduleNextCheckRoundRobinMinInterval(t *testing.T) {
 	t.Setenv("POLLING_SCHEDULER", "round_robin")
 	t.Setenv("SCHEDULER_ROUND_ROBIN_MIN_INTERVAL", strconv.Itoa(minInterval))
 
-	var err error
-	parser := config.NewParser()
-	config.Opts, err = parser.ParseEnvironmentVariables()
+	err := config.Load("")
 	if err != nil {
 		t.Fatalf(`Parsing failure: %v`, err)
 	}

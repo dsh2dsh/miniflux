@@ -68,7 +68,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 			NameHandleFunc("/login", h.checkLogin, "checkLogin")
 
 		// WebAuthn flow
-		if config.Opts.WebAuthn() {
+		if config.WebAuthn() {
 			m.NameHandleFunc("/webauthn/login/begin", h.beginLogin,
 				"webauthnLoginBegin")
 			m.NameHandleFunc("/webauthn/login/finish", h.finishLogin,
@@ -82,7 +82,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 	m = m.Group().Use(hmw.WithUserSession(store))
 
 	// OAuth2 flow.
-	if config.Opts.OAuth2Provider() != "" {
+	if config.OAuth2Provider() != "" {
 		m.NameHandleFunc("/oauth2/callback/{provider}", h.oauth2Callback,
 			"oauth2Callback")
 		m.NameHandleFunc("/oauth2/redirect/{provider}", h.oauth2Redirect,
@@ -122,7 +122,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 		m.NameHandleFunc("/feed/{feedID}/entry/{entryID}/download", h.downloadEntry,
 			"downloadEntry")
 
-		if config.Opts.WebAuthn() {
+		if config.WebAuthn() {
 			// WebAuthn flow
 			m.NameHandleFunc("/webauthn/deleteall", h.deleteAllCredentials,
 				"webauthnDeleteAll")
@@ -239,11 +239,11 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 	m.NameHandleFunc("/fetch", h.fetchOPML, "fetchOPML")
 
 	// OAuth2 flow.
-	if config.Opts.OAuth2Provider() != "" {
+	if config.OAuth2Provider() != "" {
 		m.NameHandleFunc("/oauth2/unlink/{provider}", h.oauth2Unlink, "oauth2Unlink")
 	}
 
-	if config.Opts.WebAuthn() {
+	if config.WebAuthn() {
 		// WebAuthn flow
 		m.NameHandleFunc("/webauthn/register/begin", h.beginRegistration,
 			"webauthnRegisterBegin")

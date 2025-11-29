@@ -31,7 +31,7 @@ func New(tpl *template.Engine, r *http.Request, sess *session.Session) *View {
 			"menu":            "",
 			"theme":           theme,
 			"language":        request.UserLanguage(r),
-			"webAuthnEnabled": config.Opts.WebAuthn(),
+			"webAuthnEnabled": config.WebAuthn(),
 		},
 	}
 

@@ -100,6 +100,12 @@ func TestStripTracking(t *testing.T) {
 			expected: "https://example.com/foo.jpg?crop/1420x708/format/webp",
 			baseUrl:  "https://example.com/page",
 		},
+		{
+			name:     "Matomo tracking URL",
+			input:    "https://example.com/?mtm_campaign=2020_august_promo&mtm_source=newsletter&mtm_medium=email&mtm_content=primary-cta",
+			expected: "https://example.com/",
+			baseUrl:  "https://example.com",
+		},
 	}
 
 	for _, tt := range tests {

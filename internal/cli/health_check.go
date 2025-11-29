@@ -35,8 +35,8 @@ $ miniflux healthcheck http://127.0.0.1:8080
 
 func doHealthCheck(healthCheckEndpoint string) error {
 	if healthCheckEndpoint == "auto" {
-		healthCheckEndpoint = "http://" + config.Opts.ListenAddr() +
-			config.Opts.BasePath() + "/healthcheck"
+		healthCheckEndpoint = "http://" + config.ListenAddr() +
+			config.BasePath() + "/healthcheck"
 	}
 
 	slog.Debug("Executing health check request",

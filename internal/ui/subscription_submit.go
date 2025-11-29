@@ -33,7 +33,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 	requestBuilder := fetcher.NewRequestBuilder().
 		WithCustomFeedProxyURL(f.ProxyURL).
 		UseCustomApplicationProxyURL(f.FetchViaProxy).
-		WithUserAgent(f.UserAgent, config.Opts.HTTPClientUserAgent()).
+		WithUserAgent(f.UserAgent, config.HTTPClientUserAgent()).
 		WithCookie(f.Cookie).
 		WithUsernameAndPassword(f.Username, f.Password).
 		IgnoreTLSErrors(f.AllowSelfSignedCertificates).
@@ -156,7 +156,7 @@ func (h *handler) showSubmitSubscriptionError(w http.ResponseWriter,
 
 	v.Set("menu", "feeds").
 		Set("categories", categories).
-		Set("defaultUserAgent", config.Opts.HTTPClientUserAgent()).
-		Set("hasProxyConfigured", config.Opts.HasHTTPClientProxyURLConfigured())
+		Set("defaultUserAgent", config.HTTPClientUserAgent()).
+		Set("hasProxyConfigured", config.HasHTTPClientProxyURLConfigured())
 	renderFunc(v)
 }

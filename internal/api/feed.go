@@ -80,7 +80,7 @@ func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
 	err := h.store.NewBatchBuilder().
 		WithUserID(userID).
 		WithoutDisabledFeeds().
-		WithErrorLimit(config.Opts.PollingParsingErrorLimit()).
+		WithErrorLimit(config.PollingErrorLimit()).
 		ResetNextCheckAt(ctx)
 	if err != nil {
 		json.ServerError(w, r, err)

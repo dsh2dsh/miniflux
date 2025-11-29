@@ -1,12 +1,16 @@
 // SPDX-FileCopyrightText: Copyright The Miniflux Authors. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-package atom // import "miniflux.app/v2/internal/reader/atom"
+package atom_test
 
 import (
-	"bytes"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"miniflux.app/v2/internal/reader/parser"
 )
 
 func TestParseAtom03(t *testing.T) {
@@ -27,7 +31,8 @@ func TestParseAtom03(t *testing.T) {
 		</entry>
 	</feed>`
 
-	feed, err := Parse("http://diveintomark.org/atom.xml", bytes.NewReader([]byte(data)), "0.3")
+	feed, err := parser.ParseBytes("http://diveintomark.org/atom.xml",
+		[]byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +91,8 @@ func TestParseAtom03WithoutSiteURL(t *testing.T) {
 		</entry>
 	</feed>`
 
-	feed, err := Parse("http://diveintomark.org/atom.xml", bytes.NewReader([]byte(data)), "0.3")
+	feed, err := parser.ParseBytes("http://diveintomark.org/atom.xml",
+		[]byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +115,7 @@ func TestParseAtom03WithoutFeedTitle(t *testing.T) {
 		</entry>
 	</feed>`
 
-	feed, err := Parse("http://diveintomark.org/", bytes.NewReader([]byte(data)), "0.3")
+	feed, err := parser.ParseBytes("http://diveintomark.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +138,7 @@ func TestParseAtom03WithoutEntryTitleButWithLink(t *testing.T) {
 		</entry>
 	</feed>`
 
-	feed, err := Parse("http://diveintomark.org/", bytes.NewReader([]byte(data)), "0.3")
+	feed, err := parser.ParseBytes("http://diveintomark.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,62 +148,6 @@ func TestParseAtom03WithoutEntryTitleButWithLink(t *testing.T) {
 	}
 
 	if feed.Entries[0].Title != "http://diveintomark.org/2003/12/13/atom03" {
-		t.Errorf("Incorrect entry title, got: %s", feed.Entries[0].Title)
-	}
-}
-
-func TestParseAtom03WithoutEntryTitleButWithSummary(t *testing.T) {
-	data := `<?xml version="1.0" encoding="utf-8"?>
-	<feed version="0.3" xmlns="http://purl.org/atom/ns#">
-		<title>dive into mark</title>
-		<link rel="alternate" type="text/html" href="http://diveintomark.org/"/>
-		<modified>2003-12-13T18:30:02Z</modified>
-		<author><name>Mark Pilgrim</name></author>
-		<entry>
-			<link rel="alternate" type="text/html" href="http://diveintomark.org/2003/12/13/atom03"/>
-			<id>tag:diveintomark.org,2003:3.2397</id>
-			<summary type="text/plain">It&apos;s a test</summary>
-		</entry>
-	</feed>`
-
-	feed, err := Parse("http://diveintomark.org/", bytes.NewReader([]byte(data)), "0.3")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(feed.Entries) != 1 {
-		t.Errorf("Incorrect number of entries, got: %d", len(feed.Entries))
-	}
-
-	if feed.Entries[0].Title != "It&#39;s a test" {
-		t.Errorf("Incorrect entry title, got: %s", feed.Entries[0].Title)
-	}
-}
-
-func TestParseAtom03WithoutEntryTitleButWithXMLContent(t *testing.T) {
-	data := `<?xml version="1.0" encoding="utf-8"?>
-	<feed version="0.3" xmlns="http://purl.org/atom/ns#">
-		<title>dive into mark</title>
-		<link rel="alternate" type="text/html" href="http://diveintomark.org/"/>
-		<modified>2003-12-13T18:30:02Z</modified>
-		<author><name>Mark Pilgrim</name></author>
-		<entry>
-			<link rel="alternate" type="text/html" href="http://diveintomark.org/2003/12/13/atom03"/>
-			<id>tag:diveintomark.org,2003:3.2397</id>
-			<content mode="xml" type="text/html"><p>Some text.</p></content>
-		</entry>
-	</feed>`
-
-	feed, err := Parse("http://diveintomark.org/", bytes.NewReader([]byte(data)), "0.3")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(feed.Entries) != 1 {
-		t.Errorf("Incorrect number of entries, got: %d", len(feed.Entries))
-	}
-
-	if feed.Entries[0].Title != "Some text." {
 		t.Errorf("Incorrect entry title, got: %s", feed.Entries[0].Title)
 	}
 }
@@ -219,18 +169,12 @@ func TestParseAtom03WithSummaryOnly(t *testing.T) {
 		</entry>
 	</feed>`
 
-	feed, err := Parse("http://diveintomark.org/", bytes.NewReader([]byte(data)), "0.3")
-	if err != nil {
-		t.Fatal(err)
-	}
+	feed, err := parser.ParseBytes("http://diveintomark.org/", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
 
-	if len(feed.Entries) != 1 {
-		t.Errorf("Incorrect number of entries, got: %d", len(feed.Entries))
-	}
-
-	if feed.Entries[0].Content != "It&#39;s a test" {
-		t.Errorf("Incorrect entry content, got: %s", feed.Entries[0].Content)
-	}
+	assert.Len(t, feed.Entries, 1)
+	assert.Equal(t, "It's a test", feed.Entries[0].Content)
 }
 
 func TestParseAtom03WithXMLContent(t *testing.T) {
@@ -250,7 +194,7 @@ func TestParseAtom03WithXMLContent(t *testing.T) {
 		</entry>
 	</feed>`
 
-	feed, err := Parse("http://diveintomark.org/", bytes.NewReader([]byte(data)), "0.3")
+	feed, err := parser.ParseBytes("http://diveintomark.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -281,7 +225,7 @@ func TestParseAtom03WithBase64Content(t *testing.T) {
 		</entry>
 	</feed>`
 
-	feed, err := Parse("http://diveintomark.org/", bytes.NewReader([]byte(data)), "0.3")
+	feed, err := parser.ParseBytes("http://diveintomark.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}

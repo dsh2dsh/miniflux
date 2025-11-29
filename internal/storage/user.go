@@ -18,6 +18,8 @@ import (
 	"miniflux.app/v2/internal/model"
 )
 
+type UserByIDFunc func(ctx context.Context, userID int64) (*model.User, error)
+
 // CountUsers returns the total number of users.
 func (s *Storage) CountUsers(ctx context.Context) (int, error) {
 	rows, _ := s.db.Query(ctx, `SELECT count(*) FROM users`)

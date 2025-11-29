@@ -58,15 +58,14 @@ func (u WebAuthnUser) WebAuthnCredentials() []webauthn.Credential {
 }
 
 func newWebAuthn() (*webauthn.WebAuthn, error) {
-	url, err := url.Parse(config.Opts.BaseURL())
+	url, err := url.Parse(config.BaseURL())
 	if err != nil {
-		return nil, fmt.Errorf("ui: failed parse %q: %w",
-			config.Opts.BaseURL(), err)
+		return nil, fmt.Errorf("ui: failed parse %q: %w", config.BaseURL(), err)
 	}
 	authn, err := webauthn.New(&webauthn.Config{
 		RPDisplayName: "Miniflux",
 		RPID:          url.Hostname(),
-		RPOrigins:     []string{config.Opts.RootURL()},
+		RPOrigins:     []string{config.RootURL()},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("ui: failed create webauthn: %w", err)

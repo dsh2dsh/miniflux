@@ -53,7 +53,7 @@ var configDumpCmd = cobra.Command{
 	Use:   "config-dump",
 	Short: "Print parsed configuration values",
 	Args:  cobra.ExactArgs(0),
-	Run:   func(cmd *cobra.Command, args []string) { fmt.Print(config.Opts) },
+	Run:   func(cmd *cobra.Command, args []string) { fmt.Print(config.String()) },
 }
 
 var migrateCmd = cobra.Command{
@@ -125,7 +125,7 @@ func persistentPreRunE(cmd *cobra.Command, args []string) error {
 	if err := config.LoadYAML(flagConfigYAML, flagConfigFile); err != nil {
 		return err
 	} else if flagDebugMode {
-		config.Opts.SetLogLevel("debug")
+		config.SetLogLevel("debug")
 	}
 
 	closer, err := logger.InitializeDefaultLogger()
@@ -153,15 +153,14 @@ func withStorage(fn func(ctx context.Context, store *storage.Storage) error,
 }
 
 func makeStorage(ctx context.Context) (*storage.Storage, error) {
-	if config.Opts.IsDefaultDatabaseURL() {
+	if config.IsDefaultDatabaseURL() {
 		logging.FromContext(ctx).Info("The default value for DATABASE_URL is used")
 	}
 
-	store, err := storage.New(ctx,
-		config.Opts.DatabaseURL(),
-		config.Opts.DatabaseMaxConns(),
-		config.Opts.DatabaseMinConns(),
-		config.Opts.DatabaseConnectionLifetime())
+	store, err := storage.New(ctx, config.DatabaseURL(),
+		config.DatabaseMaxConns(),
+		config.DatabaseMinConns(),
+		config.DatabaseConnectionLifetime())
 	if err != nil {
 		return nil, err
 	}

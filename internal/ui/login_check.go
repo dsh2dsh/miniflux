@@ -29,7 +29,7 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 		slog.String("user_agent", r.UserAgent()))
 	v := view.New(h.tpl, r, nil)
 
-	if config.Opts.DisableLocalAuth() {
+	if config.DisableLocalAuth() {
 		log.Warn("blocking local auth login attempt, local auth is disabled")
 		html.OK(w, r, v.Render("login"))
 		return

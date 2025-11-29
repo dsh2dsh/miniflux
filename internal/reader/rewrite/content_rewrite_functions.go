@@ -286,7 +286,9 @@ func getYoutubVideoIDFromURL(entryURL string) string {
 }
 
 func buildVideoPlayerIframe(absoluteVideoURL string) string {
-	return `<iframe width="650" height="350" frameborder="0" src="` + absoluteVideoURL + `" allowfullscreen></iframe>`
+	// Note: the referrerpolicy seems to be required to avoid YouTube error 153 video player configuration error
+	// See https://developers.google.com/youtube/terms/required-minimum-functionality#embedded-player-api-client-identity
+	return `<iframe width="650" height="350" frameborder="0" src="` + absoluteVideoURL + `" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`
 }
 
 func addVideoPlayerIframe(absoluteVideoURL, entryContent string) string {
@@ -295,14 +297,15 @@ func addVideoPlayerIframe(absoluteVideoURL, entryContent string) string {
 
 func addYoutubeVideoRewriteRule(entryURL, entryContent string) string {
 	if videoURL := getYoutubVideoIDFromURL(entryURL); videoURL != "" {
-		return addVideoPlayerIframe(config.Opts.YouTubeEmbedUrlOverride()+videoURL, entryContent)
+		return addVideoPlayerIframe(config.YouTubeEmbedUrlOverride()+videoURL, entryContent)
 	}
 	return entryContent
 }
 
 func addYoutubeVideoUsingInvidiousPlayer(entryURL, entryContent string) string {
 	if videoURL := getYoutubVideoIDFromURL(entryURL); videoURL != "" {
-		return addVideoPlayerIframe(`https://`+config.Opts.InvidiousInstance()+`/embed/`+videoURL, entryContent)
+		return addVideoPlayerIframe(`https://`+config.InvidiousInstance()+
+			`/embed/`+videoURL, entryContent)
 	}
 	return entryContent
 }
@@ -313,13 +316,18 @@ func addYoutubeVideoFromId(entryContent string) string {
 	if matches == nil {
 		return entryContent
 	}
-	videoPlayerHTML := ""
+
+	var videoPlayerHTML strings.Builder
 	for _, match := range matches {
 		if len(match) == 2 {
-			videoPlayerHTML += buildVideoPlayerIframe(config.Opts.YouTubeEmbedUrlOverride()+match[1]) + "<br>"
+			videoPlayerHTML.WriteString(buildVideoPlayerIframe(
+				config.YouTubeEmbedUrlOverride() + match[1]))
+			videoPlayerHTML.WriteString("<br>")
 		}
 	}
-	return videoPlayerHTML + entryContent
+
+	videoPlayerHTML.WriteString(entryContent)
+	return videoPlayerHTML.String()
 }
 
 func addInvidiousVideo(entryURL, entryContent string) string {

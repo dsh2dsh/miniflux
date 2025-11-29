@@ -36,10 +36,19 @@
     <h3>{{ t "page.add_feed.choose_feed" }}</h3>
 
     {{ range .subscriptions }}
-        <div class="radio-group">
-            <label title="{{ .URL | safeURL  }}"><input type="radio" name="url" value="{{ .URL | safeURL  }}"> {{ .Title }}</label> ({{ .Type }})
-            <small title="Type = {{ .Type }}"><a href="{{ .URL | safeURL  }}" {{ $.user.TargetBlank }} rel="noopener noreferrer" referrerpolicy="no-referrer">{{ .URL | safeURL  }}</a></small>
-        </div>
+    <div class="radio-group">
+        <label title="{{ .URL | safeURL  }}">
+            <input type="radio" name="url" value="{{ .URL | safeURL  }}">
+            {{ .Title }}
+        </label>
+        |
+        <small title="{{ .Title }}">
+            <a href="{{ .URL | safeURL  }}" {{ $.user.TargetBlank }}
+               rel="noopener noreferrer" referrerpolicy="no-referrer">
+                {{ .URL | safeURL  }}
+            </a>
+        </small>
+    </div>
     {{ end }}
 
     <div class="buttons">

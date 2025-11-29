@@ -36,7 +36,7 @@ func NewRequestDiscovery(d *model.SubscriptionDiscoveryRequest,
 		UseCustomApplicationProxyURL(d.FetchViaProxy).
 		WithCookie(d.Cookie).
 		WithCustomFeedProxyURL(d.ProxyURL).
-		WithUserAgent(d.UserAgent, config.Opts.HTTPClientUserAgent()).
+		WithUserAgent(d.UserAgent, config.HTTPClientUserAgent()).
 		WithUsernameAndPassword(d.Username, d.Password)
 }
 
@@ -47,7 +47,7 @@ func NewRequestFeed(f *model.Feed) *RequestBuilder {
 		UseCustomApplicationProxyURL(f.FetchViaProxy).
 		WithCookie(f.Cookie).
 		WithCustomFeedProxyURL(f.ProxyURL).
-		WithUserAgent(f.UserAgent, config.Opts.HTTPClientUserAgent()).
+		WithUserAgent(f.UserAgent, config.HTTPClientUserAgent()).
 		WithUsernameAndPassword(f.Username, f.Password)
 }
 
@@ -64,7 +64,7 @@ func RequestFeedCreation(r *model.FeedCreationRequest) (*ResponseSemaphore,
 		UseCustomApplicationProxyURL(r.FetchViaProxy).
 		WithCookie(r.Cookie).
 		WithCustomFeedProxyURL(r.ProxyURL).
-		WithUserAgent(r.UserAgent, config.Opts.HTTPClientUserAgent()).
+		WithUserAgent(r.UserAgent, config.HTTPClientUserAgent()).
 		WithUsernameAndPassword(r.Username, r.Password).
 		Request(r.FeedURL)
 }
@@ -87,8 +87,8 @@ type RequestBuilder struct {
 func NewRequestBuilder() *RequestBuilder {
 	return &RequestBuilder{
 		headers:        make(http.Header),
-		clientProxyURL: config.Opts.HTTPClientProxyURL(),
-		clientTimeout:  config.Opts.HTTPClientTimeout(),
+		clientProxyURL: config.HTTPClientProxyURL(),
+		clientTimeout:  config.HTTPClientTimeout(),
 		proxyRotator:   proxyrotator.ProxyRotatorInstance,
 	}
 }

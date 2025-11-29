@@ -13,7 +13,7 @@ import (
 )
 
 func InitializeDefaultLogger() (io.Closer, error) {
-	logs := config.Opts.Logging()
+	logs := config.Logging()
 	closers := make([]io.Closer, len(logs))
 	handlers := make([]slog.Handler, len(logs))
 

@@ -47,7 +47,7 @@ func newResponseSemaphore(r *RequestBuilder, rawURL string,
 		ResponseHandler: &ResponseHandler{
 			httpResponse: resp,
 			clientErr:    err,
-			maxBodySize:  config.Opts.HTTPClientMaxBodySize(),
+			maxBodySize:  config.HTTPClientMaxBodySize(),
 		},
 		release: func() { limits.Release(hostname) },
 	}
@@ -114,7 +114,7 @@ func (self *limitHosts) hostLimit(hostname string) *hostLimit {
 
 	s, ok := self.servers[hostname]
 	if !ok {
-		limits := config.Opts.FindHostLimits(hostname)
+		limits := config.FindHostLimits(hostname)
 		s = NewHostLimit(limits.Connections, limits.Rate)
 		self.servers[hostname] = s
 	}

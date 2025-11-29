@@ -105,24 +105,7 @@ func (s *Storage) GetReadTime(ctx context.Context, feedID int64,
 	return readingTime
 }
 
-// RefreshFeedEntries updates feed entries while refreshing a feed.
-func (s *Storage) RefreshFeedEntries(ctx context.Context, userID, feedID int64,
-	entries model.Entries, updateExisting bool,
-) (*model.FeedRefreshed, error) {
-	refreshed, err := s.StoreFeedEntries(ctx, userID, feedID, entries,
-		updateExisting)
-	if err != nil {
-		return nil, err
-	}
-
-	deleted, err := s.cleanupEntries(ctx, feedID, refreshed.Hashes())
-	if err != nil {
-		return nil, err
-	}
-	refreshed.Deleted = uint64(deleted)
-	return refreshed, nil
-}
-
+// StoreFeedEntries updates feed entries while refreshing a feed.
 func (s *Storage) StoreFeedEntries(ctx context.Context, userID, feedID int64,
 	entries model.Entries, updateExisting bool,
 ) (*model.FeedRefreshed, error) {
@@ -154,17 +137,17 @@ func (s *Storage) refreshEntries(ctx context.Context, tx pgx.Tx, userID,
 	}
 
 	if update {
-		for _, e := range refreshed.UpdatedEntires {
+		for _, e := range refreshed.Updated {
 			if err = s.updateEntry(ctx, tx, e); err != nil {
 				return refreshed, err
 			}
 		}
 	}
 
-	if len(refreshed.CreatedEntries) == 0 {
+	if len(refreshed.Created) == 0 {
 		return refreshed, nil
 	}
-	return refreshed, s.createEntries(ctx, tx, refreshed.CreatedEntries)
+	return refreshed, s.createEntries(ctx, tx, refreshed.Created)
 }
 
 func (s *Storage) knownEntries(ctx context.Context, tx pgx.Tx, userID,
@@ -176,9 +159,7 @@ func (s *Storage) knownEntries(ctx context.Context, tx pgx.Tx, userID,
 		return nil, err
 	}
 
-	refreshed := model.NewFeedRefreshed().WithHashes(hashes)
-	refreshed.Append(feedID, entries, published)
-
+	refreshed := model.NewFeedRefreshed().Append(feedID, entries, published)
 	if dd := s.DedupEntries(); dd != nil {
 		dd.Filter(userID, refreshed)
 	}
@@ -197,11 +178,28 @@ SELECT feed_id, status, hash, published_at
   FROM entries
  WHERE user_id = $1 AND hash = ANY($2)`, userID, hashes)
 
-	entries, err := pgx.CollectRows(rows, pgx.RowToStructByNameLax[model.Entry])
-	if errors.Is(err, pgx.ErrNoRows) {
+	var feedID int64
+	var status, hash string
+	var published time.Time
+	scans := []any{&feedID, &status, &hash, &published}
+	entries := make([]model.Entry, 0, len(hashes))
+
+	_, err := pgx.ForEachRow(rows, scans, func() error {
+		entries = append(entries, model.Entry{
+			FeedID: feedID,
+			Status: status,
+			Hash:   hash,
+			Date:   published,
+		})
+		return nil
+	})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
 		return nil, nil
-	} else if err != nil {
-		return nil, fmt.Errorf("storage: check entries exist: %w", err)
+	case err != nil:
+		return nil, fmt.Errorf(
+			"storage: check published entries for user=%v hashes=%v: %w",
+			userID, len(hashes), err)
 	}
 	return entries, nil
 }
@@ -383,14 +381,14 @@ RETURNING id, created_at, changed_at`,
 	})
 }
 
-// cleanupEntries deletes from the database entries marked as "removed" and not
-// visible anymore in the feed.
-func (s *Storage) cleanupEntries(ctx context.Context, feedID int64,
-	hashes []string,
-) (int64, error) {
+// DeleteUnknownEntries deletes from the database entries marked as "removed"
+// and not visible anymore in the feed.
+func (s *Storage) DeleteUnknownEntries(ctx context.Context, feedID int64,
+	keepHashes []string,
+) (int, error) {
 	var result pgconn.CommandTag
 	var err error
-	if len(hashes) == 0 {
+	if len(keepHashes) == 0 {
 		result, err = s.db.Exec(ctx,
 			`DELETE FROM entries WHERE feed_id = $1 AND status = $2`,
 			feedID, model.EntryStatusRemoved)
@@ -398,12 +396,12 @@ func (s *Storage) cleanupEntries(ctx context.Context, feedID int64,
 		result, err = s.db.Exec(ctx, `
 DELETE FROM entries
  WHERE feed_id = $1 AND status = $2 AND NOT (hash = ANY($3))`,
-			feedID, model.EntryStatusRemoved, hashes)
+			feedID, model.EntryStatusRemoved, keepHashes)
 	}
 	if err != nil {
-		return 0, fmt.Errorf("storage: unable to cleanup entries: %w", err)
+		return 0, fmt.Errorf("storage: delete unknown entries: %w", err)
 	}
-	return result.RowsAffected(), nil
+	return int(result.RowsAffected()), nil
 }
 
 // ArchiveEntries changes the status of entries to "removed" after the given
@@ -647,21 +645,32 @@ UPDATE entries
 
 func (s *Storage) KnownEntryHashes(ctx context.Context, feedID int64,
 	hashes []string,
-) ([]string, error) {
+) ([]model.Entry, error) {
 	if len(hashes) == 0 {
 		return nil, nil
 	}
 
-	rows, _ := s.db.Query(ctx,
-		`SELECT hash FROM entries WHERE feed_id = $1 AND hash = ANY($2)`,
+	rows, _ := s.db.Query(ctx, `
+SELECT hash, published_at
+  FROM entries WHERE feed_id = $1 AND hash = ANY($2)`,
 		feedID, hashes)
-	known, err := pgx.CollectRows(rows, pgx.RowTo[string])
-	if errors.Is(err, pgx.ErrNoRows) {
+
+	var hash string
+	var published time.Time
+	scans := []any{&hash, &published}
+	entries := make([]model.Entry, 0, len(hashes))
+
+	_, err := pgx.ForEachRow(rows, scans, func() error {
+		entries = append(entries, model.Entry{Hash: hash, Date: published})
+		return nil
+	})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
 		return nil, nil
-	} else if err != nil {
+	case err != nil:
 		return nil, fmt.Errorf(
 			"storage: check entries exist: feed=%v hashes=%v: %w",
 			feedID, len(hashes), err)
 	}
-	return known, nil
+	return entries, nil
 }

@@ -33,8 +33,8 @@ var cleanupTasksCmd = cobra.Command{
 
 func runCleanupTasks(ctx context.Context, store *storage.Storage) {
 	removed := store.CleanOldSessions(ctx,
-		config.Opts.CleanupRemoveSessionsDays(),
-		config.Opts.CleanupInactiveSessionsDays())
+		config.CleanupRemoveSessionsDays(),
+		config.CleanupInactiveSessionsDays())
 
 	log := logging.FromContext(ctx)
 	log.Info("Sessions cleanup completed", slog.Int64("removed", removed))
@@ -48,8 +48,8 @@ func runCleanupTasks(ctx context.Context, store *storage.Storage) {
 
 	startTime := time.Now()
 	rows, err := store.ArchiveEntries(ctx, model.EntryStatusRead,
-		config.Opts.CleanupArchiveReadDays(),
-		config.Opts.CleanupArchiveBatchSize())
+		config.CleanupArchiveReadDays(),
+		config.CleanupArchiveBatchSize())
 	if err != nil {
 		log.Error("Unable to archive read entries", slog.Any("error", err))
 	} else {
@@ -57,7 +57,7 @@ func runCleanupTasks(ctx context.Context, store *storage.Storage) {
 			slog.Int64("read_entries_archived", rows),
 			slog.Duration("elapsed", time.Since(startTime)))
 
-		if config.Opts.HasMetricsCollector() {
+		if config.HasMetricsCollector() {
 			metric.ArchiveEntriesDuration.
 				WithLabelValues(model.EntryStatusRead).
 				Observe(time.Since(startTime).Seconds())
@@ -66,8 +66,8 @@ func runCleanupTasks(ctx context.Context, store *storage.Storage) {
 
 	startTime = time.Now()
 	rows, err = store.ArchiveEntries(ctx, model.EntryStatusUnread,
-		config.Opts.CleanupArchiveUnreadDays(),
-		config.Opts.CleanupArchiveBatchSize())
+		config.CleanupArchiveUnreadDays(),
+		config.CleanupArchiveBatchSize())
 	if err != nil {
 		log.Error("Unable to archive unread entries", slog.Any("error", err))
 	} else {
@@ -75,7 +75,7 @@ func runCleanupTasks(ctx context.Context, store *storage.Storage) {
 			slog.Int64("unread_entries_archived", rows),
 			slog.Duration("elapsed", time.Since(startTime)))
 
-		if config.Opts.HasMetricsCollector() {
+		if config.HasMetricsCollector() {
 			metric.ArchiveEntriesDuration.
 				WithLabelValues(model.EntryStatusUnread).
 				Observe(time.Since(startTime).Seconds())

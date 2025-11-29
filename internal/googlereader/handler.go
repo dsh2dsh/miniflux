@@ -580,8 +580,8 @@ func (h *handler) feedIconURL(f *model.Feed) string {
 	if f.Icon == nil || f.Icon.ExternalId() == "" {
 		return ""
 	}
-	return config.Opts.RootURL() + route.Path(
-		h.router, "feedIcon", "externalIconID", f.Icon.ExternalId())
+	return config.RootURL() + route.Path(h.router, "feedIcon", "externalIconID",
+		f.Icon.ExternalId())
 }
 
 func (h *handler) editSubscriptionHandler(w http.ResponseWriter,
@@ -729,8 +729,7 @@ func (h *handler) streamItemContentsHandler(w http.ResponseWriter,
 		Title:     "Reading List",
 		Updated:   time.Now().Unix(),
 		Self: []contentHREF{
-			{HREF: config.Opts.RootURL() +
-				route.Path(h.router, "StreamItemsContents")},
+			{HREF: config.RootURL() + route.Path(h.router, "StreamItemsContents")},
 		},
 		Author: user.Username,
 	}
@@ -764,8 +763,8 @@ func (h *handler) streamItemContentsHandler(w http.ResponseWriter,
 
 		entry.Content = mediaproxy.RewriteDocumentWithAbsoluteProxyURL(
 			h.router, entry.Content)
-		entry.Enclosures().ProxifyEnclosureURL(h.router,
-			config.Opts.MediaProxyMode(), config.Opts.MediaProxyResourceTypes())
+		entry.Enclosures().ProxifyEnclosureURL(h.router, config.MediaProxyMode(),
+			config.MediaProxyResourceTypes())
 
 		items[i] = contentItem{
 			ID:            convertEntryIDToLongFormItemID(entry.ID),

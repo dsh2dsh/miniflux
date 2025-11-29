@@ -31,8 +31,8 @@ func (h *handler) showAddSubscriptionPage(w http.ResponseWriter,
 
 	v.Set("menu", "feeds").
 		Set("categories", categories).
-		Set("defaultUserAgent", config.Opts.HTTPClientUserAgent()).
+		Set("defaultUserAgent", config.HTTPClientUserAgent()).
 		Set("form", &form.SubscriptionForm{CategoryID: 0}).
-		Set("hasProxyConfigured", config.Opts.HasHTTPClientProxyURLConfigured())
+		Set("hasProxyConfigured", config.HasHTTPClientProxyURLConfigured())
 	html.OK(w, r, v.Render("add_subscription"))
 }

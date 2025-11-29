@@ -36,7 +36,7 @@ func PushEntry(feed *model.Feed, entry *model.Entry, botToken, chatID string, to
 	if !disableButtons {
 		var markupRow []*InlineKeyboardButton
 
-		baseURL := config.Opts.BaseURL()
+		baseURL := config.BaseURL()
 		entryPath := "/unread/entry/" + strconv.FormatInt(entry.ID, 10)
 
 		minifluxEntryURL, err := urllib.JoinBaseURLAndPath(baseURL, entryPath)

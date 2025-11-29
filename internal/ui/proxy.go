@@ -51,7 +51,7 @@ func (h *handler) mediaProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mac := hmac.New(sha256.New, config.Opts.MediaProxyPrivateKey())
+	mac := hmac.New(sha256.New, config.MediaProxyPrivateKey())
 	mac.Write(decodedURL)
 	expectedMAC := mac.Sum(nil)
 

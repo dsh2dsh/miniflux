@@ -28,16 +28,16 @@ func New(name, value string) *http.Cookie {
 }
 
 func withExpire(c *http.Cookie) *http.Cookie {
-	ttl := config.Opts.CleanupRemoveSessionsInterval()
+	ttl := config.CleanupRemoveSessionsInterval()
 	if ttl == 0 {
-		ttl = config.Opts.CleanupInactiveSessionsInterval()
+		ttl = config.CleanupInactiveSessionsInterval()
 	}
 	c.Expires = time.Now().Add(ttl)
 	return c
 }
 
 func makeSessionCookie(name, value string) *http.Cookie {
-	path := config.Opts.BasePath()
+	path := config.BasePath()
 	if path == "" {
 		path = "/"
 	}
@@ -46,7 +46,7 @@ func makeSessionCookie(name, value string) *http.Cookie {
 		Name:     name,
 		Value:    value,
 		Path:     path,
-		Secure:   config.Opts.HTTPS(),
+		Secure:   config.HTTPS(),
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	}
@@ -64,7 +64,7 @@ func Expired(name string) *http.Cookie {
 }
 
 func Refresh(w http.ResponseWriter, name, value string) {
-	if config.Opts.CleanupRemoveSessionsInterval() > 0 {
+	if config.CleanupRemoveSessionsInterval() > 0 {
 		return
 	}
 	http.SetCookie(w, New(name, value))

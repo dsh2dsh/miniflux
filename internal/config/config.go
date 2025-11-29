@@ -10,8 +10,8 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
-// Opts holds parsed configuration options.
-var Opts *Options
+// opts holds parsed configuration options.
+var opts *options
 
 // Load loads configuration values from a local file (if filename isn't empty)
 // and from environment variables after that.
@@ -21,10 +21,10 @@ func Load(filename string) error {
 
 func parseEnvFile(cfg *Parser, filename string) (err error) {
 	if filename != "" {
-		Opts, err = cfg.ParseEnvFile(filename)
+		opts, err = cfg.ParseEnvFile(filename)
 		return err
 	}
-	Opts, err = cfg.ParseEnvironmentVariables()
+	opts, err = cfg.ParseEnvironmentVariables()
 	return err
 }
 

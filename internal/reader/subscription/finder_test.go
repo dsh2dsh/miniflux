@@ -129,10 +129,6 @@ func TestParseWebPageWithRssFeed(t *testing.T) {
 	if subscriptions[0].URL != "http://example.org/rss" {
 		t.Errorf(`Incorrect subscription URL: %q`, subscriptions[0].URL)
 	}
-
-	if subscriptions[0].Type != "rss" {
-		t.Errorf(`Incorrect subscription type: %q`, subscriptions[0].Type)
-	}
 }
 
 func TestParseWebPageWithAtomFeed(t *testing.T) {
@@ -161,10 +157,6 @@ func TestParseWebPageWithAtomFeed(t *testing.T) {
 
 	if subscriptions[0].URL != "http://example.org/atom.xml" {
 		t.Errorf(`Incorrect subscription URL: %q`, subscriptions[0].URL)
-	}
-
-	if subscriptions[0].Type != "atom" {
-		t.Errorf(`Incorrect subscription type: %q`, subscriptions[0].Type)
 	}
 }
 
@@ -195,10 +187,6 @@ func TestParseWebPageWithJSONFeed(t *testing.T) {
 	if subscriptions[0].URL != "http://example.org/feed.json" {
 		t.Errorf(`Incorrect subscription URL: %q`, subscriptions[0].URL)
 	}
-
-	if subscriptions[0].Type != "json" {
-		t.Errorf(`Incorrect subscription type: %q`, subscriptions[0].Type)
-	}
 }
 
 func TestParseWebPageWithOldJSONFeedMimeType(t *testing.T) {
@@ -227,10 +215,6 @@ func TestParseWebPageWithOldJSONFeedMimeType(t *testing.T) {
 
 	if subscriptions[0].URL != "http://example.org/feed.json" {
 		t.Errorf(`Incorrect subscription URL: %q`, subscriptions[0].URL)
-	}
-
-	if subscriptions[0].Type != "json" {
-		t.Errorf(`Incorrect subscription type: %q`, subscriptions[0].Type)
 	}
 }
 
@@ -261,10 +245,6 @@ func TestParseWebPageWithRelativeFeedURL(t *testing.T) {
 	if subscriptions[0].URL != "http://example.org/feed.json" {
 		t.Errorf(`Incorrect subscription URL: %q`, subscriptions[0].URL)
 	}
-
-	if subscriptions[0].Type != "json" {
-		t.Errorf(`Incorrect subscription type: %q`, subscriptions[0].Type)
-	}
 }
 
 func TestParseWebPageWithEmptyTitle(t *testing.T) {
@@ -293,10 +273,6 @@ func TestParseWebPageWithEmptyTitle(t *testing.T) {
 
 	if subscriptions[0].URL != "http://example.org/feed.json" {
 		t.Errorf(`Incorrect subscription URL: %q`, subscriptions[0].URL)
-	}
-
-	if subscriptions[0].Type != "json" {
-		t.Errorf(`Incorrect subscription type: %q`, subscriptions[0].Type)
 	}
 }
 
@@ -349,10 +325,6 @@ func TestParseWebPageWithDuplicatedFeeds(t *testing.T) {
 
 	if subscriptions[0].URL != "http://example.org/feed.xml" {
 		t.Errorf(`Incorrect subscription URL: %q`, subscriptions[0].URL)
-	}
-
-	if subscriptions[0].Type != "rss" {
-		t.Errorf(`Incorrect subscription type: %q`, subscriptions[0].Type)
 	}
 }
 

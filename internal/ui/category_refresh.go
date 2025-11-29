@@ -39,10 +39,10 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request,
 	defer sess.Commit(r.Context())
 
 	// Avoid accidental and excessive refreshes.
-	forceRefreshInterval := int64(config.Opts.ForceRefreshInterval()) * 60
+	forceRefreshInterval := int64(config.ForceRefreshInterval()) * 60
 	sinceLastRefresh := time.Now().UTC().Unix() - request.LastForceRefresh(r)
 	if sinceLastRefresh < forceRefreshInterval {
-		time := config.Opts.ForceRefreshInterval()
+		time := config.ForceRefreshInterval()
 		sess.NewFlashErrorMessage(printer.Plural(
 			"alert.too_many_feeds_refresh", time, time))
 		return categoryID

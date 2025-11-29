@@ -128,7 +128,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if user == nil {
-		if !config.Opts.IsOAuth2UserCreationAllowed() {
+		if !config.IsOAuth2UserCreationAllowed() {
 			html.Forbidden(w, r)
 			return
 		}

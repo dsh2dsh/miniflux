@@ -271,6 +271,17 @@ This project is an opinionated fork of Miniflux.
   So anybody, who uses Google Reader API, will see if some feeds require their
   attention.
 
+* Configurable polling interval for feeds, which reached their error limit.
+
+  With configuration like
+
+  ```
+  POLLING_ERROR_RETRY=24h
+  ```
+
+  the scheduler will continue to refresh any feed, which reached their error
+  limit, instead of stop polling it. It'll try to refresh them every `24h`.
+
 ---
 
 Features

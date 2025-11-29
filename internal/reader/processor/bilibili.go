@@ -19,7 +19,7 @@ import (
 var bilibiliVideoIdRegex = regexp.MustCompile(`/video/(?:av(\d+)|BV([a-zA-Z0-9]+))`)
 
 func shouldFetchBilibiliWatchTime(entry *model.Entry) bool {
-	if !config.Opts.FetchBilibiliWatchTime() {
+	if !config.FetchBilibiliWatchTime() {
 		return false
 	}
 	return strings.Contains(entry.URL, "bilibili.com/video/")

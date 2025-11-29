@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -16,6 +15,7 @@ import (
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/fetcher"
+	"miniflux.app/v2/internal/reader/filter"
 	"miniflux.app/v2/internal/reader/icon"
 	"miniflux.app/v2/internal/reader/parser"
 	"miniflux.app/v2/internal/reader/processor"
@@ -43,6 +43,10 @@ func RefreshFeed(ctx context.Context, store *storage.Storage, userID,
 		fn(&r)
 	}
 
+	if r.userByIDFunc == nil {
+		r.userByIDFunc = store.UserByID
+	}
+
 	if err := r.Refresh(ctx); err != nil {
 		return nil, r.IncFeedError(ctx, err)
 	}
@@ -53,10 +57,13 @@ type Refresh struct {
 	store     *storage.Storage
 	templates *template.Engine
 
+	userByIDFunc storage.UserByIDFunc
+
 	userID int64
 	feedID int64
 	force  bool
 
+	user      *model.User
 	feed      *model.Feed
 	refreshed *model.FeedRefreshed
 }
@@ -100,7 +107,7 @@ func (self *Refresh) Refresh(ctx context.Context) error {
 	}
 	log.Debug("feed refreshing completed")
 
-	if !self.feedRefreshed() {
+	if !self.refreshed.Refreshed() {
 		// Last-Modified may be updated even if ETag is not. In this case, per
 		// RFC9111 sections 3.2 and 4.3.4, the stored response must be updated.
 		if resp.LastModified() != "" {
@@ -210,31 +217,71 @@ func (self *Refresh) refreshFeed(ctx context.Context, log *slog.Logger,
 		slog.String("etag_header", self.feed.EtagHeader),
 		slog.String("last_modified_header", self.feed.LastModifiedHeader))
 
-	body := newBodyBuffer()
+	body, err := self.bodyBuffer(resp, log)
 	defer body.Free()
-
-	lerr := resp.WriteBodyTo(body.Buffer)
-	if lerr != nil {
-		log.Warn("Unable to fetch feed body",
-			slog.String("feed_url", self.feed.FeedURL),
-			slog.Any("error", lerr))
-		return nil, lerr
+	if err != nil {
+		return nil, err
 	}
-	resp.Close()
 
 	if !self.feed.ContentChanged(body.Bytes()) && !self.force {
 		return &model.FeedRefreshed{NotModified: notModifiedContent}, nil
 	}
 
-	remoteFeed, err := parser.ParseFeed(resp.EffectiveURL(),
-		bytes.NewReader(body.Bytes()))
+	remoteFeed, err := self.parseFeed(resp.EffectiveURL(), body.Bytes(), log)
 	body.Free()
 	if err != nil {
+		return nil, err
+	}
+
+	self.scheduleNextCheck(resp, remoteFeed, log)
+	remoteEntriesLen := len(remoteFeed.Entries)
+	hashes, err := self.processEntries(ctx, remoteFeed.Entries)
+	if err != nil {
+		return nil, err
+	}
+
+	refreshed, err := self.refreshFeedEntries(ctx, hashes)
+	if err != nil {
+		return nil, err
+	}
+	log.Debug("feed entries refreshed in storage")
+
+	self.pushIntegrations(logging.WithLogger(ctx, log), refreshed.Created)
+
+	self.feed.EtagHeader = resp.ETag()
+	self.feed.LastModifiedHeader = resp.LastModified()
+	if self.force {
+		self.feed.IconURL = remoteFeed.IconURL
+		icon.NewIconChecker(self.store, self.feed).UpdateOrCreateFeedIcon(ctx)
+	}
+	return refreshed.WithRefreshed(remoteEntriesLen), nil
+}
+
+func (self *Refresh) bodyBuffer(resp *fetcher.ResponseSemaphore,
+	log *slog.Logger,
+) (bodyBuffer, error) {
+	body := newBodyBuffer()
+	if err := resp.WriteBodyTo(body.Buffer); err != nil {
+		body.Free()
+		log.Warn("Unable to fetch feed body",
+			slog.String("feed_url", self.feed.FeedURL),
+			slog.Any("error", err))
+		return body, err
+	}
+	resp.Close()
+	return body, nil
+}
+
+func (self *Refresh) parseFeed(feedURL string, body []byte, log *slog.Logger,
+) (*model.Feed, error) {
+	feed, err := parser.ParseBytes(feedURL, body)
+	if err != nil {
 		var lerr *locale.LocalizedErrorWrapper
-		if errors.Is(err, parser.ErrFeedFormatNotDetected) {
+		switch {
+		case errors.Is(err, parser.ErrFeedFormatNotDetected):
 			lerr = locale.NewLocalizedErrorWrapper(err,
 				"error.feed_format_not_detected", err)
-		} else {
+		default:
 			lerr = locale.NewLocalizedErrorWrapper(err, "error.unable_to_parse_feed",
 				err)
 		}
@@ -243,7 +290,12 @@ func (self *Refresh) refreshFeed(ctx context.Context, log *slog.Logger,
 			slog.Any("error", lerr))
 		return nil, lerr
 	}
+	return feed, nil
+}
 
+func (self *Refresh) scheduleNextCheck(resp *fetcher.ResponseSemaphore,
+	remoteFeed *model.Feed, log *slog.Logger,
+) {
 	// Use the RSS TTL value, or the Cache-Control or Expires HTTP headers if
 	// available. Otherwise, we use the default value from the configuration (min
 	// interval parameter).
@@ -263,38 +315,55 @@ func (self *Refresh) refreshFeed(ctx context.Context, log *slog.Logger,
 		slog.Int("refresh_delay_in_minutes", refreshDelay),
 		slog.Int("calculated_next_check_interval_in_minutes", nextCheck),
 		slog.Time("new_next_check_at", self.feed.NextCheckAt))
+}
 
-	self.feed.Entries = remoteFeed.Entries
-	err = processor.ProcessFeedEntries(ctx, self.store, self.feed, self.userID,
-		self.force)
-	if err != nil {
-		if errors.Is(err, processor.ErrBadFeed) {
-			return nil, locale.NewLocalizedErrorWrapper(err,
-				"error.unable_to_parse_feed", err)
-		}
-		return nil, err
+func (self *Refresh) processEntries(ctx context.Context, entries model.Entries,
+) ([]string, error) {
+	self.feed.Entries = entries
+	filter.DeleteAgedEntries(ctx, self.feed)
+	hashes := self.feed.Entries.Hashes()
+
+	if len(hashes) == 0 {
+		logging.FromContext(ctx).Debug(
+			"Skip processing, because all entries too old")
+		return nil, nil
 	}
 
+	p := processor.New(self.store, self.feed,
+		processor.WithSkipAgedFilter(),
+		processor.WithUserByID(self.userByIDFunc))
+
+	err := p.ProcessFeedEntries(ctx, self.userID, self.force)
+	self.user = p.User()
+	switch {
+	case errors.Is(err, processor.ErrBadFeed):
+		return nil, locale.NewLocalizedErrorWrapper(err,
+			"error.unable_to_parse_feed", err)
+	case err != nil:
+		return nil, err
+	}
+	return hashes, nil
+}
+
+func (self *Refresh) refreshFeedEntries(ctx context.Context,
+	keepHashes []string,
+) (*model.FeedRefreshed, error) {
 	// We don't update existing entries when the crawler is enabled (we crawl
 	// only inexisting entries). Unless it is forced to refresh.
 	update := self.force || !self.feed.Crawler
-	refreshed, err := self.store.RefreshFeedEntries(ctx, self.userID, self.feedID,
+
+	refreshed, err := self.store.StoreFeedEntries(ctx, self.userID, self.feedID,
 		self.feed.Entries, update)
 	if err != nil {
 		return nil, fmt.Errorf("reader/handler: store feed entries: %w", err)
 	}
-	log.Debug("feed entries refreshed in storage")
 
-	self.pushIntegrations(logging.WithLogger(ctx, log), refreshed.CreatedEntries)
-
-	self.feed.EtagHeader = resp.ETag()
-	self.feed.LastModifiedHeader = resp.LastModified()
-	if self.force {
-		self.feed.IconURL = remoteFeed.IconURL
-		icon.NewIconChecker(self.store, self.feed).UpdateOrCreateFeedIcon(ctx)
+	deleted, err := self.store.DeleteUnknownEntries(ctx, self.feedID, keepHashes)
+	if err != nil {
+		return nil, fmt.Errorf("reader/handler: delete expired entries: %w", err)
 	}
 
-	refreshed.Refreshed = true
+	refreshed.Deleted = deleted
 	return refreshed, nil
 }
 
@@ -305,7 +374,7 @@ func (self *Refresh) pushIntegrations(ctx context.Context,
 		return
 	}
 
-	user, err := self.store.UserByID(ctx, self.userID)
+	user, err := self.userByID(ctx)
 	if err != nil {
 		logging.FromContext(ctx).Error(
 			"Fetching integrations failed; the refresh process will go on, but no integrations will run this time",
@@ -315,7 +384,19 @@ func (self *Refresh) pushIntegrations(ctx context.Context,
 	integration.PushEntries(self.feed, entries, user)
 }
 
-func (self *Refresh) feedRefreshed() bool { return self.refreshed.Refreshed }
+func (self *Refresh) userByID(ctx context.Context) (*model.User, error) {
+	if self.user != nil {
+		return self.user, nil
+	}
+
+	user, err := self.userByIDFunc(ctx, self.userID)
+	if err != nil {
+		return nil, err
+	}
+
+	self.user = user
+	return user, nil
+}
 
 func (self *Refresh) updateFeed(ctx context.Context) error {
 	if err := self.store.UpdateFeedRuntime(ctx, self.feed); err != nil {
@@ -331,7 +412,7 @@ func (self *Refresh) logFeedRefreshed(ctx context.Context, log *slog.Logger,
 	refreshed := self.refreshed
 
 	switch {
-	case refreshed.Refreshed:
+	case refreshed.Refreshed():
 		msg = "Feed refreshed"
 		log = log.With(
 			slog.Uint64("size", self.feed.Size()),
@@ -364,35 +445,40 @@ func (self *Refresh) logFeedRefreshed(ctx context.Context, log *slog.Logger,
 }
 
 func (self *Refresh) filteredLogGroup() slog.Attr {
-	attrs := make([]slog.Attr, 0, 3)
-	if n := self.feed.RemovedByAge(); n > 0 {
+	attrs := make([]slog.Attr, 0, 4)
+	if n := self.feed.FilteredByAge(); n > 0 {
 		attrs = append(attrs, slog.Int("age", n))
 	}
-	if n := self.feed.RemovedByFilters(); n > 0 {
+	if n := self.feed.FilteredByStored(); n > 0 {
+		attrs = append(attrs, slog.Int("stored", n))
+	}
+	if n := self.feed.FilteredByRules(); n > 0 {
 		attrs = append(attrs, slog.Int("rules", n))
 	}
-	if n := self.feed.RemovedByHash(); n > 0 {
+	if n := self.feed.FilteredByHash(); n > 0 {
 		attrs = append(attrs, slog.Int("hash", n))
 	}
 	return slog.GroupAttrs("filtered", attrs...)
 }
 
 func (self *Refresh) entriesLogGroup(refreshed *model.FeedRefreshed) slog.Attr {
-	attrs := make([]slog.Attr, 0, 5)
+	attrs := make([]slog.Attr, 0, 6)
+	attrs = append(attrs, slog.Int("remote", self.refreshed.RemoteEntries()))
+
 	if n := len(self.feed.Entries); n != 0 {
-		attrs = append(attrs, slog.Int("all", n))
+		attrs = append(attrs, slog.Int("new", n))
 	}
-	if n := refreshed.Updated(); n != 0 {
+	if n := refreshed.UpdatedLen(); n != 0 {
 		attrs = append(attrs, slog.Int("update", n))
 	}
-	if n := refreshed.Created(); n != 0 {
+	if n := refreshed.CreatedLen(); n != 0 {
 		attrs = append(attrs, slog.Int("create", n))
 	}
 	if n := refreshed.Dedups; n > 0 {
-		attrs = append(attrs, slog.Uint64("dedup", n))
+		attrs = append(attrs, slog.Int("dedup", n))
 	}
 	if n := refreshed.Deleted; n > 0 {
-		attrs = append(attrs, slog.Uint64("deleted", n))
+		attrs = append(attrs, slog.Int("deleted", n))
 	}
 	return slog.GroupAttrs("entries", attrs...)
 }
@@ -403,9 +489,19 @@ func (self *Refresh) IncFeedError(ctx context.Context, err error) error {
 		return err
 	}
 
-	user, err2 := self.store.UserByID(ctx, self.userID)
+	user, err2 := self.userByID(ctx)
 	if err2 != nil {
 		return fmt.Errorf("reader/handler: fetch user from db: %w: %w", err2, err)
+	}
+
+	if d := config.PollingErrorRetry(); d > 0 {
+		if config.PollingErrorLimited(self.feed.ParsingErrorCount + 1) {
+			self.feed.NextCheckAt = time.Now().Add(d)
+			logging.FromContext(ctx).Info("Polling error limit reached (slowmo)",
+				slog.Int("errors", self.feed.ParsingErrorCount+1),
+				slog.Duration("retry", d),
+				slog.Time("next_check_at", self.feed.NextCheckAt))
+		}
 	}
 
 	self.feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
@@ -413,8 +509,12 @@ func (self *Refresh) IncFeedError(ctx context.Context, err error) error {
 		return fmt.Errorf("reader/handler: inc feed error count: %w: %w", err2, err)
 	}
 
-	if self.feed.ParsingErrorCount >= config.Opts.PollingParsingErrorLimit() {
+	if config.PollingErrorLimited(self.feed.ParsingErrorCount) {
 		self.notifyFeedError(ctx, user)
+		if d := config.PollingErrorRetry(); d == 0 {
+			logging.FromContext(ctx).Info("Polling error limit reached (paused)",
+				slog.Int("errors", self.feed.ParsingErrorCount))
+		}
 	}
 	return fmt.Errorf("%w: %w", ErrBadFeed, err)
 }
@@ -462,6 +562,5 @@ func (self *Refresh) render(name string, user *model.User, data map[string]any,
 }
 
 func (self *Refresh) routeURL(name string, args ...any) string {
-	return config.Opts.RootURL() + route.Path(self.templates.Router(),
-		name, args...)
+	return config.RootURL() + route.Path(self.templates.Router(), name, args...)
 }

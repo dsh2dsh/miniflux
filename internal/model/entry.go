@@ -205,12 +205,30 @@ func (self Entries) Unread() iter.Seq2[int, *Entry] {
 }
 
 func (self Entries) RefreshFeed(userID, feedID int64) []string {
+	for _, e := range self {
+		e.UserID, e.FeedID, e.Status = userID, feedID, EntryStatusUnread
+	}
+	return self.Hashes()
+}
+
+func (self Entries) Hashes() []string {
+	if len(self) == 0 {
+		return nil
+	}
+
 	hashes := make([]string, len(self))
 	for i, e := range self {
-		e.UserID, e.FeedID, e.Status = userID, feedID, EntryStatusUnread
 		hashes[i] = e.Hash
 	}
 	return hashes
+}
+
+func (self Entries) ByHash() map[string]*Entry {
+	entries := make(map[string]*Entry, len(self))
+	for _, e := range self {
+		entries[e.Hash] = e
+	}
+	return entries
 }
 
 // EntriesStatusUpdateRequest represents a request to change entries status.

@@ -5,67 +5,57 @@ package encoding // import "miniflux.app/v2/internal/reader/encoding"
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"unicode/utf8"
 
 	"golang.org/x/net/html/charset"
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/transform"
 )
 
-// CharsetReader is used when the XML encoding is specified for the input document.
+// NewCharsetReader returns an io.Reader that converts the content of r to
+// UTF-8.
 //
-// The document is converted in UTF-8 only if a different encoding is specified
-// and the document is not already UTF-8.
-//
-// Several edge cases could exists:
-//
-// - Feeds with encoding specified only in Content-Type header and not in XML document
-// - Feeds with encoding specified in both places
-// - Feeds with encoding specified only in XML document and not in HTTP header
-// - Feeds with wrong encoding defined and already in UTF-8
-func CharsetReader(charsetLabel string, input io.Reader) (io.Reader, error) {
-	buffer, err := io.ReadAll(input)
-	if err != nil {
-		return nil, fmt.Errorf(`encoding: unable to read input: %w`, err)
+// Transform document to UTF-8 from the specified encoding in Content-Type
+// header. Note that only the first 1024 bytes are used to detect the
+// encoding. If the <meta charset> tag is not found in the first 1024 bytes,
+// charset.DetermineEncoding returns "windows-1252" resulting in encoding
+// issues. See
+// https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding
+func NewCharsetReader(r io.Reader, contentType string) (io.Reader, error) {
+	preview := make([]byte, 1024)
+	n, err := io.ReadFull(r, preview)
+	switch {
+	case errors.Is(err, io.EOF):
+		return r, nil
+	case errors.Is(err, io.ErrUnexpectedEOF):
+		preview = preview[:n]
+		r = bytes.NewReader(preview)
+	case err != nil:
+		return nil, fmt.Errorf("reader/encoding: read preview: %w", err)
+	default:
+		r = io.MultiReader(bytes.NewReader(preview), r)
 	}
 
-	r := bytes.NewReader(buffer)
-
-	// The document is already UTF-8, do not do anything (avoid double-encoding).
-	// That means the specified encoding in XML prolog is wrong.
-	if utf8.Valid(buffer) {
+	e, name, certain := charset.DetermineEncoding(preview, contentType)
+	if e == encoding.Nop || name == "utf-8" {
 		return r, nil
 	}
 
-	// Transform document to UTF-8 from the specified encoding in XML prolog.
-	reader, err := charset.NewReaderLabel(charsetLabel, r)
+	if certain || name != "windows-1252" || !utf8.Valid(preview) {
+		return transform.NewReader(r, e.NewDecoder()), nil
+	}
+
+	b, err := io.ReadAll(r)
 	if err != nil {
-		return nil, fmt.Errorf("reader/encoding: %w", err)
-	}
-	return reader, nil
-}
-
-// NewCharsetReader returns an io.Reader that converts the content of r to UTF-8.
-func NewCharsetReader(r io.Reader, contentType string) (io.Reader, error) {
-	buffer, err := io.ReadAll(r)
-	if err != nil {
-		return nil, fmt.Errorf(`encoding: unable to read input: %w`, err)
+		return nil, fmt.Errorf(
+			"reader/encoding: read all for detecting utf8: %w", err)
 	}
 
-	internalReader := bytes.NewReader(buffer)
-
-	// The document is already UTF-8, do not do anything.
-	if utf8.Valid(buffer) {
-		return internalReader, nil
+	if utf8.Valid(b) {
+		return bytes.NewReader(b), nil
 	}
-
-	// Transform document to UTF-8 from the specified encoding in Content-Type header.
-	// Note that only the first 1024 bytes are used to detect the encoding.
-	// If the <meta charset> tag is not found in the first 1024 bytes, charset.DetermineEncoding returns "windows-1252" resulting in encoding issues.
-	// See https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding
-	reader, err := charset.NewReader(internalReader, contentType)
-	if err != nil {
-		return nil, fmt.Errorf("reader/encoding: %w", err)
-	}
-	return reader, nil
+	return transform.NewReader(bytes.NewReader(b), e.NewDecoder()), nil
 }

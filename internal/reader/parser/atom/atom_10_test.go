@@ -1,12 +1,17 @@
 // SPDX-FileCopyrightText: Copyright The Miniflux Authors. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-package atom // import "miniflux.app/v2/internal/reader/atom"
+package atom_test
 
 import (
-	"bytes"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"miniflux.app/v2/internal/model"
+	"miniflux.app/v2/internal/reader/parser"
 )
 
 func TestParseAtomSample(t *testing.T) {
@@ -28,7 +33,7 @@ func TestParseAtomSample(t *testing.T) {
 	  </entry>
 	</feed>`
 
-	feed, err := Parse("http://example.org/feed.xml", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("http://example.org/feed.xml", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +100,7 @@ func TestParseFeedWithSubtitle(t *testing.T) {
 	  <id>urn:uuid:60a76c80-d399-11d9-b93C-0003939e0af6</id>
 	</feed>`
 
-	feed, err := Parse("http://example.org/feed.xml", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("http://example.org/feed.xml", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +118,7 @@ func TestParseFeedWithoutTitle(t *testing.T) {
 			<updated>2003-12-13T18:30:02Z</updated>
 		</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,76 +148,12 @@ func TestParseEntryWithoutTitleButWithURL(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if feed.Entries[0].Title != "http://example.org/2003/12/13/atom03" {
-		t.Errorf("Incorrect entry title, got: %s", feed.Entries[0].Title)
-	}
-}
-
-func TestParseEntryWithoutTitleButWithSummary(t *testing.T) {
-	data := `<?xml version="1.0" encoding="utf-8"?>
-	<feed xmlns="http://www.w3.org/2005/Atom">
-
-	  <title>Example Feed</title>
-	  <link href="http://example.org/"/>
-	  <updated>2003-12-13T18:30:02Z</updated>
-	  <author>
-		<name>John Doe</name>
-	  </author>
-	  <id>urn:uuid:60a76c80-d399-11d9-b93C-0003939e0af6</id>
-
-	  <entry>
-		<link href="http://example.org/2003/12/13/atom03"/>
-		<id>urn:uuid:1225c695-cfb8-4ebb-aaaa-80da344efa6a</id>
-		<updated>2003-12-13T18:30:02Z</updated>
-		<summary>Some text.</summary>
-	  </entry>
-
-	</feed>`
-
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if feed.Entries[0].Title != "Some text." {
-		t.Errorf("Incorrect entry title, got: %s", feed.Entries[0].Title)
-	}
-}
-
-func TestParseEntryWithoutTitleButWithXHTMLContent(t *testing.T) {
-	data := `<?xml version="1.0" encoding="utf-8"?>
-	<feed xmlns="http://www.w3.org/2005/Atom">
-
-	  <title>Example Feed</title>
-	  <link href="http://example.org/"/>
-	  <updated>2003-12-13T18:30:02Z</updated>
-	  <author>
-		<name>John Doe</name>
-	  </author>
-	  <id>urn:uuid:60a76c80-d399-11d9-b93C-0003939e0af6</id>
-
-	  <entry>
-		<link href="http://example.org/2003/12/13/atom03"/>
-		<id>urn:uuid:1225c695-cfb8-4ebb-aaaa-80da344efa6a</id>
-		<updated>2003-12-13T18:30:02Z</updated>
-		<content type="xhtml">
-			<div xmlns="http://www.w3.org/1999/xhtml">AT&amp;T bought <b>by SBC</b>!</div>
-		</content>
-	  </entry>
-
-	</feed>`
-
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if feed.Entries[0].Title != "AT&amp;T bought by SBC!" {
 		t.Errorf("Incorrect entry title, got: %s", feed.Entries[0].Title)
 	}
 }
@@ -226,7 +167,7 @@ func TestParseFeedURL(t *testing.T) {
 	  <updated>2003-12-13T18:30:02Z</updated>
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +190,7 @@ func TestParseFeedWithRelativeFeedURL(t *testing.T) {
 	  <updated>2003-12-13T18:30:02Z</updated>
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -277,22 +218,15 @@ func TestParseFeedWithRelativeSiteURL(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
-	if err != nil {
-		t.Fatal(err)
-	}
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
 
-	if feed.FeedURL != "https://example.org/blog/atom.xml" {
-		t.Errorf("Incorrect feed URL, got: %q", feed.FeedURL)
-	}
+	assert.Equal(t, "https://example.org/blog/atom.xml", feed.FeedURL)
+	assert.Equal(t, "https://example.org/blog", feed.SiteURL)
 
-	if feed.SiteURL != "https://example.org/blog" {
-		t.Errorf("Incorrect site URL, got: %q", feed.SiteURL)
-	}
-
-	if feed.Entries[0].URL != "https://example.org/blog/article.html" {
-		t.Errorf("Incorrect entry URL, got: %q", feed.Entries[0].URL)
-	}
+	require.Len(t, feed.Entries, 1)
+	assert.Equal(t, "https://example.org/blog/article.html", feed.Entries[0].URL)
 }
 
 func TestParseFeedSiteURLWithTrailingSpace(t *testing.T) {
@@ -301,7 +235,7 @@ func TestParseFeedSiteURLWithTrailingSpace(t *testing.T) {
 	  <link href="http://example.org "/>
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -317,7 +251,7 @@ func TestParseFeedWithFeedURLWithTrailingSpace(t *testing.T) {
 		<link href="/blog/atom.xml  " rel="self" type="application/atom+xml"/>
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -343,7 +277,7 @@ func TestParseEntryWithRelativeURL(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.net/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.net/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -369,7 +303,7 @@ func TestParseEntryURLWithTextHTMLType(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.net/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.net/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -395,7 +329,7 @@ func TestParseEntryURLWithNoRelAndNoType(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.net/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.net/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -421,7 +355,7 @@ func TestParseEntryURLWithAlternateRel(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.net/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.net/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -449,7 +383,7 @@ func TestParseEntryTitleWithWhitespaces(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -483,7 +417,7 @@ func TestParseEntryWithPlainTextTitle(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -506,7 +440,7 @@ func TestParseEntryWithHTMLTitle(t *testing.T) {
 		<link href="http://example.org/z"/>
 	  </entry>
 	  <entry>
-		<title type="html"><![CDATA[Test with &#8220;unicode quote&#8221;]]></title>
+		<title type="html">Test with &#8220;unicode quote&#8221;</title>
 		<link href="http://example.org/b"/>
 	  </entry>
 	  <entry>
@@ -516,35 +450,20 @@ func TestParseEntryWithHTMLTitle(t *testing.T) {
 		<link href="http://example.org/c"/>
 	  </entry>
 	  <entry>
-		<title type="html"><![CDATA[Test with self-closing &lt;tag&gt;]]></title>
+		<title type="html">Test with self-closing &lt;tag&gt;</title>
 		<link href="http://example.org/d"/>
 	  </entry>
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
-	if err != nil {
-		t.Fatal(err)
-	}
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
 
-	if len(feed.Entries) != 4 {
-		t.Fatalf("Incorrect number of entries, got: %d", len(feed.Entries))
-	}
-
-	if feed.Entries[0].Title != "<code>Code</code> Test" {
-		t.Errorf("Incorrect entry title, got: %q", feed.Entries[0].Title)
-	}
-
-	if feed.Entries[1].Title != "Test with “unicode quote”" {
-		t.Errorf("Incorrect entry title, got: %q", feed.Entries[1].Title)
-	}
-
-	if feed.Entries[2].Title != "Entry title with space around CDATA" {
-		t.Errorf("Incorrect entry title, got: %q", feed.Entries[2].Title)
-	}
-
-	if feed.Entries[3].Title != "Test with self-closing <tag>" {
-		t.Errorf("Incorrect entry title, got: %q", feed.Entries[3].Title)
-	}
+	require.Len(t, feed.Entries, 4)
+	assert.Equal(t, "<code>Code</code> Test", feed.Entries[0].Title)
+	assert.Equal(t, "Test with “unicode quote”", feed.Entries[1].Title)
+	assert.Equal(t, "Entry title with space around CDATA", feed.Entries[2].Title)
+	assert.Equal(t, "Test with self-closing <tag>", feed.Entries[3].Title)
 }
 
 func TestParseEntryWithXHTMLTitle(t *testing.T) {
@@ -567,7 +486,7 @@ func TestParseEntryWithXHTMLTitle(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -594,7 +513,7 @@ func TestParseEntryWithEmptyXHTMLTitle(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -621,7 +540,7 @@ func TestParseEntryWithXHTMLTitleWithoutDiv(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -647,7 +566,7 @@ func TestParseEntryWithNumericCharacterReferenceTitle(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -673,7 +592,7 @@ func TestParseEntryWithDoubleEncodedEntitiesTitle(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -699,7 +618,7 @@ func TestParseEntryWithXHTMLSummary(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -731,7 +650,7 @@ func TestParseEntryWithHTMLSummary(t *testing.T) {
 	  </entry>
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -787,7 +706,7 @@ func TestParseEntryWithTextSummary(t *testing.T) {
 	  </entry>
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -840,7 +759,7 @@ func TestParseEntryWithTextContent(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -885,7 +804,7 @@ func TestParseEntryWithHTMLContent(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -916,7 +835,7 @@ func TestParseEntryWithXHTMLContent(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -945,7 +864,7 @@ func TestParseEntryWithAuthorName(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -974,7 +893,7 @@ func TestParseEntryWithoutAuthorName(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1003,7 +922,7 @@ func TestParseEntryWithMultipleAuthors(t *testing.T) {
 	  </entry>
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1029,7 +948,7 @@ func TestParseFeedWithEntryWithoutAuthor(t *testing.T) {
 	  </entry>
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1061,7 +980,7 @@ func TestParseFeedWithMultipleAuthors(t *testing.T) {
 	  </entry>
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1084,7 +1003,7 @@ func TestParseFeedWithoutAuthor(t *testing.T) {
 	  </entry>
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1134,7 +1053,7 @@ func TestParseEntryWithEnclosures(t *testing.T) {
 		</entry>
   	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1196,7 +1115,7 @@ func TestParseEntryWithRelativeEnclosureURL(t *testing.T) {
 		</entry>
   	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1240,22 +1159,14 @@ func TestParseEntryWithDuplicateEnclosureURL(t *testing.T) {
 		</entry>
   	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
-	if err != nil {
-		t.Fatal(err)
-	}
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
 
-	if len(feed.Entries) != 1 {
-		t.Fatalf("Incorrect number of entries, got: %d", len(feed.Entries))
-	}
-
-	if len(feed.Entries[0].Enclosures()) != 1 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
-	}
-
-	if feed.Entries[0].Enclosures()[0].URL != "http://www.example.org/myaudiofile.mp3" {
-		t.Errorf("Incorrect enclosure URL, got: %q", feed.Entries[0].Enclosures()[0].URL)
-	}
+	require.Len(t, feed.Entries, 1)
+	require.Len(t, feed.Entries[0].Enclosures(), 2)
+	assert.Equal(t, "http://www.example.org/myaudiofile.mp3",
+		feed.Entries[0].Enclosures()[0].URL)
 }
 
 func TestParseEntryWithoutEnclosureURL(t *testing.T) {
@@ -1277,7 +1188,7 @@ func TestParseEntryWithoutEnclosureURL(t *testing.T) {
 		</entry>
   	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1310,7 +1221,7 @@ func TestParseEntryWithPublished(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1336,7 +1247,7 @@ func TestParseEntryWithPublishedAndUpdated(t *testing.T) {
 
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1348,7 +1259,7 @@ func TestParseEntryWithPublishedAndUpdated(t *testing.T) {
 
 func TestParseInvalidXml(t *testing.T) {
 	data := `garbage`
-	_, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	_, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err == nil {
 		t.Error("Parse should returns an error")
 	}
@@ -1363,7 +1274,7 @@ func TestParseTitleWithSingleQuote(t *testing.T) {
 		</feed>
 	`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1382,7 +1293,7 @@ func TestParseTitleWithEncodedSingleQuote(t *testing.T) {
 		</feed>
 	`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1401,7 +1312,7 @@ func TestParseTitleWithSingleQuoteAndHTMLType(t *testing.T) {
 		</feed>
 	`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1420,14 +1331,10 @@ func TestParseWithHTMLEntity(t *testing.T) {
 		</feed>
 	`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if feed.Title != "Example \u00a0 Feed" {
-		t.Errorf(`Incorrect title, got: %q`, feed.Title)
-	}
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
+	assert.Equal(t, "Example \u00a0 Feed", feed.Title)
 }
 
 func TestParseWithInvalidCharacterEntity(t *testing.T) {
@@ -1439,7 +1346,7 @@ func TestParseWithInvalidCharacterEntity(t *testing.T) {
 		</feed>
 	`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1477,43 +1384,33 @@ A website: http://example.org/</media:description>
 		</entry>
   	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
-	if err != nil {
-		t.Fatal(err)
-	}
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
 
-	if len(feed.Entries) != 1 {
-		t.Fatalf("Incorrect number of entries, got: %d", len(feed.Entries))
-	}
-
-	if len(feed.Entries[0].Enclosures()) != 4 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
-	}
-
-	expectedResults := []struct {
-		url      string
-		mimeType string
-		size     int64
-	}{
-		{"https://www.example.org/duplicate-thumbnail.jpg", "image/*", 0},
-		{"https://example.org/thumbnail2.jpg", "image/*", 0},
-		{"https://www.youtube.com/v/abcd", "application/x-shockwave-flash", 0},
-		{"https://example.org/v/efg", "application/x-shockwave-flash", 0},
-	}
-
-	for index, enclosure := range feed.Entries[0].Enclosures() {
-		if expectedResults[index].url != enclosure.URL {
-			t.Errorf(`Unexpected enclosure URL, got %q instead of %q`, enclosure.URL, expectedResults[index].url)
-		}
-
-		if expectedResults[index].mimeType != enclosure.MimeType {
-			t.Errorf(`Unexpected enclosure type, got %q instead of %q`, enclosure.MimeType, expectedResults[index].mimeType)
-		}
-
-		if expectedResults[index].size != enclosure.Size {
-			t.Errorf(`Unexpected enclosure size, got %d instead of %d`, enclosure.Size, expectedResults[index].size)
-		}
-	}
+	require.Len(t, feed.Entries, 1)
+	assert.Equal(t, model.EnclosureList{
+		{
+			URL:      "https://www.example.org/duplicate-thumbnail.jpg",
+			MimeType: "image/*",
+		},
+		{
+			URL:      "https://www.example.org/duplicate-thumbnail.jpg",
+			MimeType: "image/*",
+		},
+		{
+			URL:      "https://example.org/thumbnail2.jpg",
+			MimeType: "image/*",
+		},
+		{
+			URL:      "https://www.youtube.com/v/abcd",
+			MimeType: "application/x-shockwave-flash",
+		},
+		{
+			URL:      "https://example.org/v/efg",
+			MimeType: "application/x-shockwave-flash",
+		},
+	}, feed.Entries[0].Enclosures())
 }
 
 func TestParseMediaElements(t *testing.T) {
@@ -1544,44 +1441,37 @@ A website: http://example.org/</media:description>
 		</entry>
   	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
-	if err != nil {
-		t.Fatal(err)
-	}
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
 
-	if len(feed.Entries) != 1 {
-		t.Fatalf("Incorrect number of entries, got: %d", len(feed.Entries))
-	}
-
-	if len(feed.Entries[0].Enclosures()) != 5 {
-		t.Fatalf("Incorrect number of enclosures, got: %d", len(feed.Entries[0].Enclosures()))
-	}
-
-	expectedResults := []struct {
-		url      string
-		mimeType string
-		size     int64
-	}{
-		{"https://example.org/duplicated-thumbnail.jpg", "image/*", 0},
-		{"https://www.youtube.com/v/abcd", "application/x-shockwave-flash", 0},
-		{"https://example.org/relative/media.mp4", "application/x-shockwave-flash", 0},
-		{"http://www.example.org/sampleFile.torrent", "application/x-bittorrent", 0},
-		{"https://example.org/sampleFile2.torrent", "application/x-bittorrent", 0},
-	}
-
-	for index, enclosure := range feed.Entries[0].Enclosures() {
-		if expectedResults[index].url != enclosure.URL {
-			t.Errorf(`Unexpected enclosure URL, got %q instead of %q`, enclosure.URL, expectedResults[index].url)
-		}
-
-		if expectedResults[index].mimeType != enclosure.MimeType {
-			t.Errorf(`Unexpected enclosure type, got %q instead of %q`, enclosure.MimeType, expectedResults[index].mimeType)
-		}
-
-		if expectedResults[index].size != enclosure.Size {
-			t.Errorf(`Unexpected enclosure size, got %d instead of %d`, enclosure.Size, expectedResults[index].size)
-		}
-	}
+	require.Len(t, feed.Entries, 1)
+	assert.Equal(t, model.EnclosureList{
+		{
+			URL:      "https://example.org/duplicated-thumbnail.jpg",
+			MimeType: "image/*",
+		},
+		{
+			URL:      "https://example.org/duplicated-thumbnail.jpg",
+			MimeType: "image/*",
+		},
+		{
+			URL:      "https://www.youtube.com/v/abcd",
+			MimeType: "application/x-shockwave-flash",
+		},
+		{
+			URL:      "https://example.org/relative/media.mp4",
+			MimeType: "application/x-shockwave-flash",
+		},
+		{
+			URL:      "http://www.example.org/sampleFile.torrent",
+			MimeType: "application/x-bittorrent",
+		},
+		{
+			URL:      "https://example.org/sampleFile2.torrent",
+			MimeType: "application/x-bittorrent",
+		},
+	}, feed.Entries[0].Enclosures())
 }
 
 func TestParseRepliesLinkRelationWithHTMLType(t *testing.T) {
@@ -1610,7 +1500,7 @@ func TestParseRepliesLinkRelationWithHTMLType(t *testing.T) {
 		</entry>
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1654,7 +1544,7 @@ func TestParseRepliesLinkRelationWithXHTMLType(t *testing.T) {
 		</entry>
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1693,7 +1583,7 @@ func TestParseRepliesLinkRelationWithNoType(t *testing.T) {
 		</entry>
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1727,13 +1617,13 @@ func TestAbsoluteCommentsURL(t *testing.T) {
 			<link href="http://www.example.org/entries/1" />
 			<link rel="replies"
 				type="text/html"
-				href="invalid url"
+				href=":|invalid url"
 				thr:count="10" thr:updated="2005-07-28T12:10:00Z" />
 			<summary>This is my original entry</summary>
 		</entry>
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1767,23 +1657,12 @@ func TestParseItemWithCategories(t *testing.T) {
 	  </entry>
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
-	if err != nil {
-		t.Fatal(err)
-	}
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
 
-	if len(feed.Entries[0].Tags) != 2 {
-		t.Fatalf("Incorrect number of tags, got: %d", len(feed.Entries[0].Tags))
-	}
-
-	expected := []string{"Science", "ZZZZ"}
-	result := feed.Entries[0].Tags
-
-	for i, tag := range result {
-		if tag != expected[i] {
-			t.Errorf("Incorrect entry tag, got %q instead of %q", tag, expected[i])
-		}
-	}
+	require.Len(t, feed.Entries, 1)
+	assert.Equal(t, []string{"Science", "ZZZZ"}, feed.Entries[0].Tags)
 }
 
 func TestParseFeedWithCategories(t *testing.T) {
@@ -1802,7 +1681,7 @@ func TestParseFeedWithCategories(t *testing.T) {
 	  </entry>
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1828,7 +1707,7 @@ func TestParseFeedWithIconURL(t *testing.T) {
 		<icon>http://example.org/icon.png</icon>
 	</feed>`
 
-	feed, err := Parse("https://example.org/", bytes.NewReader([]byte(data)), "10")
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}

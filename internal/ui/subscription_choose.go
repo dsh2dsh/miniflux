@@ -77,6 +77,6 @@ func (h *handler) showCreateFeedError(w http.ResponseWriter, r *http.Request,
 
 	v.Set("menu", "feeds").
 		Set("categories", categories).
-		Set("defaultUserAgent", config.Opts.HTTPClientUserAgent())
+		Set("defaultUserAgent", config.HTTPClientUserAgent())
 	renderFunc(v)
 }

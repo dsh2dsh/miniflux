@@ -33,7 +33,7 @@ func (c *IconChecker) fetchAndStoreIcon(ctx context.Context) {
 		slog.String("feed_icon_url", c.feed.IconURL))
 
 	iconFinder, err := NewIconFinder(fetcher.NewRequestFeed(c.feed),
-		c.feed.SiteURL, c.feed.IconURL, config.Opts.PreferSiteIcon())
+		c.feed.SiteURL, c.feed.IconURL, config.PreferSiteIcon())
 	if err != nil {
 		log.Debug("Unable to find feed icon", slog.Any("error", err))
 		return

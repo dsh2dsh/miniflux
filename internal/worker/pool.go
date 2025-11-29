@@ -57,21 +57,6 @@ type Pool struct {
 	schedulerCompletedAt time.Time
 }
 
-type queueItem struct {
-	*model.Job
-
-	store *storage.Storage
-	ctx   context.Context
-	index int
-	end   func()
-
-	err       error
-	refreshed *model.FeedRefreshed
-	traceStat *storage.TraceStat
-}
-
-func (self *queueItem) Id() int { return self.index + 1 }
-
 func (self *Pool) WithTemplates(templates *template.Engine) *Pool {
 	self.templates = templates
 	return self
@@ -115,9 +100,12 @@ func (self *Pool) Push(ctx context.Context, jobs []model.Job) {
 	log := logging.FromContext(ctx).With(slog.Int("jobs", len(jobs)))
 	log.Info("worker: created a batch of feeds")
 
+	var users userCache
+	users.Init(self.store)
+
 	var wg sync.WaitGroup
 	store := self.store.Copy(storage.WithNewDedup())
-	items := makeItems(ctx, store, jobs, wg.Done)
+	items := makeItems(ctx, store, jobs, &users, wg.Done)
 	startTime := time.Now()
 	wg.Add(len(items))
 
@@ -146,9 +134,12 @@ jobsLoop:
 	log.Info("worker: waiting for batch completion")
 	wg.Wait()
 
+	hit, miss := users.Stats()
 	log = log.With(
 		entriesLogGroup(items, store.DedupEntries()),
 		traceLogGroup(items),
+		slog.Group("user_cache",
+			slog.Uint64("hit", hit), slog.Uint64("miss", miss)),
 		slog.Duration("elapsed", time.Since(startTime)))
 
 	for i := range items {
@@ -162,23 +153,6 @@ jobsLoop:
 
 	self.setErr(nil)
 	log.Info("worker: refreshed a batch of feeds")
-}
-
-func makeItems(ctx context.Context, store *storage.Storage, jobs []model.Job,
-	end func(),
-) []queueItem {
-	items := make([]queueItem, 0, len(jobs))
-	for job := range distributeJobs(jobs) {
-		items = append(items, queueItem{
-			Job: job,
-
-			store: store,
-			ctx:   ctx,
-			index: len(items),
-			end:   end,
-		})
-	}
-	return items
 }
 
 func distributeJobs(jobs []model.Job) iter.Seq[*model.Job] {
@@ -231,15 +205,7 @@ forLoop:
 			break forLoop
 		case job := <-self.queue:
 			self.g.Go(func() error {
-				refreshed, err := self.refreshFeed(job)
-				job.end()
-				log := log.With(slog.Int("job", job.Id()))
-				if err != nil {
-					log.Info("worker: job completed with error", slog.Any("error", err))
-				} else {
-					job.refreshed = refreshed
-					log.Info("worker: job completed")
-				}
+				self.processQueueItem(job)
 				return nil
 			})
 		}
@@ -261,6 +227,20 @@ forLoop:
 	return nil
 }
 
+func (self *Pool) processQueueItem(item *queueItem) {
+	refreshed, err := self.refreshFeed(item)
+	item.end()
+
+	log := logging.FromContext(self.ctx).With(slog.Int("job", item.Id()))
+	if err != nil {
+		log.Info("worker: job completed with error", slog.Any("error", err))
+		return
+	}
+
+	item.refreshed = refreshed
+	log.Info("worker: job completed")
+}
+
 func (self *Pool) refreshFeed(job *queueItem) (*model.FeedRefreshed, error) {
 	ctx := job.ctx
 	log := logging.FromContext(ctx).With(slog.Int("job", job.Id()))
@@ -273,13 +253,14 @@ func (self *Pool) refreshFeed(job *queueItem) (*model.FeedRefreshed, error) {
 
 	startTime := time.Now()
 	refreshed, err := handler.RefreshFeed(ctx, job.store, job.UserID, job.FeedID,
-		handler.WithTemplates(self.templates))
+		handler.WithTemplates(self.templates),
+		handler.WithUserByID(job.users.UserByID))
 	if err != nil && !errors.Is(err, handler.ErrBadFeed) {
 		job.err = err
 		log.Error("worker: error refreshing feed", slog.Any("error", err))
 	}
 
-	if config.Opts.HasMetricsCollector() {
+	if config.HasMetricsCollector() {
 		status := "success"
 		if err != nil {
 			status = "error"
@@ -292,28 +273,30 @@ func (self *Pool) refreshFeed(job *queueItem) (*model.FeedRefreshed, error) {
 }
 
 func entriesLogGroup(items []queueItem, dd *storage.DedupEntries) slog.Attr {
-	var deleted, updated, dedups uint64
+	var newEntries, deleted, updated, dedups int
 	for i := range items {
 		item := &items[i]
 		if r := item.refreshed; r != nil {
+			newEntries += r.CreatedLen() + r.UpdatedLen()
 			deleted += r.Deleted
-			updated += uint64(r.Updated())
+			updated += r.UpdatedLen()
 			dedups += r.Dedups
 		}
 	}
 
-	attrs := make([]slog.Attr, 0, 4)
+	attrs := make([]slog.Attr, 0, 5)
+	attrs = append(attrs, slog.Int("new", newEntries))
 	if n := dd.Created(); n != 0 {
 		attrs = append(attrs, slog.Uint64("created", n))
 	}
 	if dedups != 0 {
-		attrs = append(attrs, slog.Uint64("dedups", dedups))
+		attrs = append(attrs, slog.Int("dedups", dedups))
 	}
 	if updated != 0 {
-		attrs = append(attrs, slog.Uint64("updated", updated))
+		attrs = append(attrs, slog.Int("updated", updated))
 	}
 	if deleted != 0 {
-		attrs = append(attrs, slog.Uint64("deleted", deleted))
+		attrs = append(attrs, slog.Int("deleted", deleted))
 	}
 	return slog.GroupAttrs("entries", attrs...)
 }

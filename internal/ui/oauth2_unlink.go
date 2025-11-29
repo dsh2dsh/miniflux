@@ -19,7 +19,7 @@ func (h *handler) oauth2Unlink(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logging.FromContext(ctx)
 
-	if config.Opts.DisableLocalAuth() {
+	if config.DisableLocalAuth() {
 		log.Warn("blocking oauth2 unlink attempt, local auth is disabled",
 			slog.String("user_agent", r.UserAgent()))
 		h.redirect(w, r, "login")

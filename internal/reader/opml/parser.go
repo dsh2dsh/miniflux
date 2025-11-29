@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 
-	"miniflux.app/v2/internal/reader/encoding"
+	"golang.org/x/net/html/charset"
 )
 
 // parse reads an OPML file and returns a list of subscription.
@@ -17,7 +17,7 @@ func parse(data io.Reader) ([]subcription, error) {
 	decoder := xml.NewDecoder(data)
 	decoder.Entity = xml.HTMLEntity
 	decoder.Strict = false
-	decoder.CharsetReader = encoding.CharsetReader
+	decoder.CharsetReader = charset.NewReaderLabel
 
 	err := decoder.Decode(opmlDocument)
 	if err != nil {

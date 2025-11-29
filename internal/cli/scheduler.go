@@ -16,22 +16,17 @@ func (self *Daemon) runScheduler(ctx context.Context) {
 	slog.Info(`Starting background scheduler...`)
 
 	self.g.Go(func() error {
-		self.feedScheduler(ctx,
-			config.Opts.PollingFrequency(),
-			config.Opts.BatchSize(),
-			config.Opts.PollingParsingErrorLimit())
+		self.feedScheduler(ctx, config.PollingFrequency())
 		return nil
 	})
 
 	self.g.Go(func() error {
-		self.cleanupScheduler(ctx, config.Opts.CleanupFrequencyHours())
+		self.cleanupScheduler(ctx, config.CleanupFrequencyHours())
 		return nil
 	})
 }
 
-func (self *Daemon) feedScheduler(ctx context.Context, d time.Duration,
-	batchSize, errorLimit int,
-) {
+func (self *Daemon) feedScheduler(ctx context.Context, d time.Duration) {
 	slog.Info("feed scheduler started", slog.Duration("freq", d))
 
 	timer := time.NewTimer(d)
@@ -45,8 +40,7 @@ forLoop:
 		case <-timer.C:
 			slog.Info("feed scheduler got tick")
 			for {
-				hasJobs := refreshFeeds(ctx, self.store, self.pool, batchSize,
-					errorLimit)
+				hasJobs := refreshFeeds(ctx, self.store, self.pool)
 				if !hasJobs {
 					slog.Info("scheduler: no jobs is a good news")
 					break
@@ -56,7 +50,7 @@ forLoop:
 			}
 		case <-self.pool.WakeupSignal():
 			slog.Info("feed scheduler got wakeup signal")
-			refreshFeeds(ctx, self.store, self.pool, batchSize, errorLimit)
+			refreshFeeds(ctx, self.store, self.pool)
 		}
 		fetcher.ExpireHostLimits(d)
 		timer.Reset(d)

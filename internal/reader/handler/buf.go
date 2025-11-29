@@ -24,7 +24,7 @@ func (self *bodyBuffer) Free() {
 		return
 	}
 
-	if self.Len() < int(config.Opts.HTTPClientMaxBodySize()) {
+	if self.Len() < int(config.HTTPClientMaxBodySize()) {
 		self.Reset()
 		bufPool.Put(self.Buffer)
 	}

@@ -39,8 +39,8 @@ func (h *handler) getEntryFromBuilder(w http.ResponseWriter, r *http.Request,
 
 	entry.Content = mediaproxy.RewriteDocumentWithAbsoluteProxyURL(h.router,
 		entry.Content)
-	entry.Enclosures().ProxifyEnclosureURL(h.router, config.Opts.MediaProxyMode(),
-		config.Opts.MediaProxyResourceTypes())
+	entry.Enclosures().ProxifyEnclosureURL(h.router, config.MediaProxyMode(),
+		config.MediaProxyResourceTypes())
 	json.OK(w, r, entry)
 }
 
@@ -324,15 +324,13 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 			json.ServerError(w, r, err)
 			return
 		}
-
-		json.OK(w, r, map[string]any{
-			"content": mediaproxy.RewriteDocumentWithRelativeProxyURL(h.router,
-				entry.Content),
-			"reading_time": entry.ReadingTime,
-		})
-		return
 	}
-	json.OK(w, r, map[string]string{"content": entry.Content})
+
+	json.OK(w, r, map[string]any{
+		"content": mediaproxy.RewriteDocumentWithAbsoluteProxyURL(h.router,
+			entry.Content),
+		"reading_time": entry.ReadingTime,
+	})
 }
 
 func (h *handler) flushHistory(w http.ResponseWriter, r *http.Request) {

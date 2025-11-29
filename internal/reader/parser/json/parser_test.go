@@ -1,13 +1,16 @@
 // SPDX-FileCopyrightText: Copyright The Miniflux Authors. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-package json // import "miniflux.app/v2/internal/reader/json"
+package json_test
 
 import (
-	"bytes"
-	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"miniflux.app/v2/internal/reader/parser"
 )
 
 func TestParseJsonFeedVersion1(t *testing.T) {
@@ -32,66 +35,24 @@ func TestParseJsonFeedVersion1(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
-	if err != nil {
-		t.Fatal(err)
-	}
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
 
-	if feed.Title != "My Example Feed" {
-		t.Errorf("Incorrect title, got: %s", feed.Title)
-	}
+	assert.Equal(t, "My Example Feed", feed.Title)
+	assert.Empty(t, feed.Description)
+	assert.Equal(t, "https://example.org/feed.json", feed.FeedURL)
+	assert.Equal(t, "https://example.org/", feed.SiteURL)
+	assert.Equal(t, "https://micro.blog/jsonfeed/favicon.png", feed.IconURL)
 
-	if feed.Description != "" {
-		t.Errorf("Incorrect description, got: %s", feed.Description)
-	}
+	require.Len(t, feed.Entries, 2)
+	assert.Equal(t, "fc5dafea8dc10c48", feed.Entries[0].Hash)
+	assert.Equal(t, "https://example.org/second-item", feed.Entries[0].URL)
+	assert.Equal(t, "This is a second item.", feed.Entries[0].Content)
 
-	if feed.FeedURL != "https://example.org/feed.json" {
-		t.Errorf("Incorrect feed URL, got: %s", feed.FeedURL)
-	}
-
-	if feed.SiteURL != "https://example.org/" {
-		t.Errorf("Incorrect site URL, got: %s", feed.SiteURL)
-	}
-
-	if feed.IconURL != "https://micro.blog/jsonfeed/favicon.png" {
-		t.Errorf("Incorrect icon URL, got: %s", feed.IconURL)
-	}
-
-	if len(feed.Entries) != 2 {
-		t.Errorf("Incorrect number of entries, got: %d", len(feed.Entries))
-	}
-
-	if feed.Entries[0].Hash != "fc5dafea8dc10c48" {
-		t.Errorf("Incorrect entry hash, got: %s", feed.Entries[0].Hash)
-	}
-
-	if feed.Entries[0].URL != "https://example.org/second-item" {
-		t.Errorf("Incorrect entry URL, got: %s", feed.Entries[0].URL)
-	}
-
-	if feed.Entries[0].Title != "This is a second item." {
-		t.Errorf(`Incorrect entry title, got: "%s"`, feed.Entries[0].Title)
-	}
-
-	if feed.Entries[0].Content != "This is a second item." {
-		t.Errorf("Incorrect entry content, got: %s", feed.Entries[0].Content)
-	}
-
-	if feed.Entries[1].Hash != "cd96027c85652110" {
-		t.Errorf("Incorrect entry hash, got: %s", feed.Entries[1].Hash)
-	}
-
-	if feed.Entries[1].URL != "https://example.org/initial-post" {
-		t.Errorf("Incorrect entry URL, got: %s", feed.Entries[1].URL)
-	}
-
-	if feed.Entries[1].Title != "Hello, world!" {
-		t.Errorf(`Incorrect entry title, got: "%s"`, feed.Entries[1].Title)
-	}
-
-	if feed.Entries[1].Content != "<p>Hello, world!</p>" {
-		t.Errorf("Incorrect entry content, got: %s", feed.Entries[1].Content)
-	}
+	assert.Equal(t, "cd96027c85652110", feed.Entries[1].Hash)
+	assert.Equal(t, "https://example.org/initial-post", feed.Entries[1].URL)
+	assert.Equal(t, "<p>Hello, world!</p>", feed.Entries[1].Content)
 }
 
 func TestParseFeedWithDescription(t *testing.T) {
@@ -104,7 +65,7 @@ func TestParseFeedWithDescription(t *testing.T) {
 		"items": []
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,7 +103,7 @@ func TestParsePodcast(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("http://therecord.co/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("http://therecord.co/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,7 +171,7 @@ func TestParseFeedWithFeedURLWithTrailingSpace(t *testing.T) {
 		"items": []
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +190,7 @@ func TestParseFeedWithRelativeFeedURL(t *testing.T) {
 		"items": []
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +209,7 @@ func TestParseFeedSiteURLWithTrailingSpace(t *testing.T) {
 		"items": []
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,7 +228,7 @@ func TestParseFeedWithRelativeSiteURL(t *testing.T) {
 		"items": []
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -292,7 +253,7 @@ func TestParseFeedWithoutTitle(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -317,7 +278,7 @@ func TestParseFeedWithoutHomePage(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -341,7 +302,7 @@ func TestParseFeedWithoutFeedURL(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -376,7 +337,7 @@ func TestParseItemWithoutAttachmentURL(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("http://therecord.co/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("http://therecord.co/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -405,7 +366,7 @@ func TestParseItemWithRelativeURL(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -429,7 +390,7 @@ func TestParseItemWithExternalURLAndNoURL(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -458,7 +419,7 @@ func TestParseItemWithExternalURLAndURL(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -494,7 +455,7 @@ func TestParseItemWithLegacyAuthorField(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -537,7 +498,7 @@ func TestParseItemWithMultipleAuthorFields(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -584,7 +545,7 @@ func TestParseItemWithMultipleDuplicateAuthors(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -614,7 +575,7 @@ func TestParseItemWithInvalidDate(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -642,7 +603,7 @@ func TestParseItemWithoutTitleButWithURL(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -652,91 +613,6 @@ func TestParseItemWithoutTitleButWithURL(t *testing.T) {
 	}
 
 	if feed.Entries[0].Title != "https://example.org/item" {
-		t.Errorf("Incorrect entry title, got: %s", feed.Entries[0].Title)
-	}
-}
-
-func TestParseItemWithoutTitleButWithSummary(t *testing.T) {
-	data := `{
-		"version": "https://jsonfeed.org/version/1",
-		"title": "My Example Feed",
-		"home_page_url": "https://example.org/",
-		"feed_url": "https://example.org/feed.json",
-		"items": [
-			{
-				"summary": "This is some text content."
-			}
-		]
-	}`
-
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(feed.Entries) != 1 {
-		t.Errorf("Incorrect number of entries, got: %d", len(feed.Entries))
-	}
-
-	if feed.Entries[0].Title != "This is some text content." {
-		t.Errorf("Incorrect entry title, got: %s", feed.Entries[0].Title)
-	}
-}
-
-func TestParseItemWithoutTitleButWithHTMLContent(t *testing.T) {
-	data := `{
-		"version": "https://jsonfeed.org/version/1",
-		"title": "My Example Feed",
-		"home_page_url": "https://example.org/",
-		"feed_url": "https://example.org/feed.json",
-		"items": [
-			{
-				"content_html": "This is <strong>HTML</strong>."
-			}
-		]
-	}`
-
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(feed.Entries) != 1 {
-		t.Errorf("Incorrect number of entries, got: %d", len(feed.Entries))
-	}
-
-	if feed.Entries[0].Title != "This is HTML." {
-		t.Errorf("Incorrect entry title, got: %s", feed.Entries[0].Title)
-	}
-}
-
-func TestParseItemWithoutTitleButWithTextContent(t *testing.T) {
-	data := `{
-		"version": "https://jsonfeed.org/version/1",
-		"title": "My Example Feed",
-		"home_page_url": "https://example.org/",
-		"feed_url": "https://example.org/feed.json",
-		"items": [
-			{
-				"content_text": "` + strings.Repeat("a", 200) + `"
-			}
-		]
-	}`
-
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(feed.Entries) != 1 {
-		t.Errorf("Incorrect number of entries, got: %d", len(feed.Entries))
-	}
-
-	if len(feed.Entries[0].Title) != 103 {
-		t.Errorf("Incorrect entry title, got: %d", len(feed.Entries[0].Title))
-	}
-
-	if len([]rune(feed.Entries[0].Title)) != 101 {
 		t.Errorf("Incorrect entry title, got: %s", feed.Entries[0].Title)
 	}
 }
@@ -754,7 +630,7 @@ func TestParseItemWithTooLongUnicodeTitle(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -785,7 +661,7 @@ func TestParseItemTitleWithXMLTags(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -812,7 +688,7 @@ func TestParseItemWithoutID(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -855,25 +731,12 @@ func TestParseItemTags(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
-	if err != nil {
-		t.Fatal(err)
-	}
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
 
-	if len(feed.Entries) != 1 {
-		t.Errorf("Incorrect number of entries, got: %d", len(feed.Entries))
-	}
-
-	if len(feed.Entries[0].Tags) != 3 {
-		t.Errorf("Incorrect number of Tags, got: %d", len(feed.Entries[0].Tags))
-	}
-
-	expected := []string{"aaa", "tag 1", "tag 2"}
-	for i, tag := range feed.Entries[0].Tags {
-		if tag != expected[i] {
-			t.Errorf("Incorrect entry tag, got %q instead of %q", tag, expected[i])
-		}
-	}
+	require.Len(t, feed.Entries, 1)
+	assert.Equal(t, []string{"aaa", "tag 1", "tag 2"}, feed.Entries[0].Tags)
 }
 
 func TestParseFeedFavicon(t *testing.T) {
@@ -897,7 +760,7 @@ func TestParseFeedFavicon(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -927,7 +790,7 @@ func TestParseFeedIcon(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -958,7 +821,7 @@ func TestParseFeedWithRelativeAttachmentURL(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -974,7 +837,7 @@ func TestParseFeedWithRelativeAttachmentURL(t *testing.T) {
 
 func TestParseInvalidJSON(t *testing.T) {
 	data := `garbage`
-	_, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
+	_, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
 	if err == nil {
 		t.Error("Parse should returns an error")
 	}

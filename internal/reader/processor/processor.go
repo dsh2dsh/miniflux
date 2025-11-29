@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	"miniflux.app/v2/internal/config"
@@ -27,64 +28,125 @@ import (
 
 var ErrBadFeed = errors.New("reader/processor: bad feed")
 
+type FeedProcessor struct {
+	store *storage.Storage
+	feed  *model.Feed
+	user  *model.User
+	force bool
+
+	skipAgeFilter bool
+	userByIDFunc  storage.UserByIDFunc
+}
+
+func New(store *storage.Storage, feed *model.Feed, opts ...Option,
+) *FeedProcessor {
+	self := &FeedProcessor{store: store, feed: feed}
+	for _, fn := range opts {
+		fn(self)
+	}
+
+	if self.userByIDFunc == nil {
+		self.userByIDFunc = store.UserByID
+	}
+	return self
+}
+
 // ProcessFeedEntries downloads original web page for entries and apply filters.
 func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 	feed *model.Feed, userID int64, force bool,
 ) error {
-	log := logging.FromContext(ctx)
-	user, err := store.UserByID(ctx, userID)
-	if err != nil {
-		log.Error(err.Error(), slog.Int64("user_id", userID))
-		return fmt.Errorf("reader/processor: fetch user id=%v: %w",
-			userID, err)
+	return New(store, feed).ProcessFeedEntries(ctx, userID, force)
+}
+
+func (self *FeedProcessor) WithSkipAgedFilter() *FeedProcessor {
+	self.skipAgeFilter = true
+	return self
+}
+
+func (self *FeedProcessor) User() *model.User { return self.user }
+
+func (self *FeedProcessor) ProcessFeedEntries(ctx context.Context, userID int64,
+	force bool,
+) error {
+	self.deleteAgedEntries(ctx)
+
+	if len(self.feed.Entries) == 0 {
+		logging.FromContext(ctx).Debug("FeedProcessor: skip processing",
+			slog.String("reason", "all entries too old"))
+		return nil
 	}
 
-	if err := filter.DeleteEntries(ctx, user, feed); err != nil {
+	if err := self.markStoredEntries(ctx); err != nil {
+		logging.FromContext(ctx).Error("Unable mark stored entries",
+			slog.Int("entries", len(self.feed.Entries)),
+			slog.Any("error", err))
+		return fmt.Errorf("reader/processor: mark stored entries: %w", err)
+	}
+
+	if len(self.feed.Entries) == 0 {
+		logging.FromContext(ctx).Debug("FeedProcessor: skip processing",
+			slog.String("reason", "all entries already stored"))
+		return nil
+	}
+
+	if err := self.init(ctx, userID, force); err != nil {
+		return err
+	}
+	return self.process(ctx)
+}
+
+func (self *FeedProcessor) init(ctx context.Context, userID int64, force bool,
+) error {
+	user, err := self.userByIDFunc(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("reader/processor: fetch user id=%v: %w", userID, err)
+	}
+
+	self.user, self.force = user, force
+	return nil
+}
+
+func (self *FeedProcessor) process(ctx context.Context) error {
+	log := logging.FromContext(ctx)
+	if err := filter.DeleteEntries(ctx, self.user, self.feed); err != nil {
 		log.Debug("entries filter completed with error", slog.Any("error", err))
 		return fmt.Errorf("%w: delete filtered entries: %w", ErrBadFeed, err)
-	} else if len(feed.Entries) == 0 {
+	} else if len(self.feed.Entries) == 0 {
 		log.Debug("all entries deleted, nothing left")
 		return nil
 	}
-	log.Debug("process filtered entries", slog.Int("entries", len(feed.Entries)))
+	log.Debug("process filtered entries",
+		slog.Int("entries", len(self.feed.Entries)))
 
 	// process older entries first
-	slices.Reverse(feed.Entries)
-
-	if feed.Crawler && !force {
-		if err := markStoredEntries(ctx, store, feed); err != nil {
-			log.Error(err.Error(), slog.Int("entries", len(feed.Entries)))
-			return fmt.Errorf(
-				"internal/reader/processor: find known feed entries: %w", err)
-		}
-	}
+	slices.Reverse(self.feed.Entries)
 
 	// The errors are handled in RemoveTrackingParameters.
-	feedURL, _ := url.Parse(feed.FeedURL)
-	siteURL, _ := url.Parse(feed.SiteURL)
+	feedURL, _ := url.Parse(self.feed.FeedURL)
+	siteURL, _ := url.Parse(self.feed.SiteURL)
 
-	for _, entry := range feed.Entries {
+	for _, entry := range self.feed.Entries {
 		log := log.With(
-			slog.Int64("user_id", user.ID),
+			slog.Int64("user_id", self.user.ID),
 			slog.GroupAttrs("entry",
 				slog.Bool("stored", entry.Stored()),
 				slog.String("hash", entry.Hash),
 				slog.String("url", entry.URL),
 				slog.String("title", entry.Title)),
 			slog.GroupAttrs("feed",
-				slog.Int64("id", feed.ID),
-				slog.String("url", feed.FeedURL)))
+				slog.Int64("id", self.feed.ID),
+				slog.String("url", self.feed.FeedURL)))
 		log.Debug("Processing entry")
 
 		removeTracking(feedURL, siteURL, entry)
-		rewrite.RewriteEntryURL(ctx, feed, entry)
+		rewrite.RewriteEntryURL(ctx, self.feed, entry)
 
 		var pageURL string
-		if feed.Crawler && (force || !entry.Stored()) {
-			log := log.With(slog.Bool("force_refresh", force))
+		if self.feed.Crawler && (self.force || !entry.Stored()) {
+			log := log.With(slog.Bool("force_refresh", self.force))
 			log.Debug("Scraping entry")
 
-			scrapedURL, _, err := scrape(ctx, feed, entry)
+			scrapedURL, _, err := self.Scrape(ctx, entry)
 			if err != nil {
 				log.Warn("Unable scrape entry", slog.Any("error", err))
 				return fmt.Errorf("%w: scrape entry: %w", ErrBadFeed, err)
@@ -93,43 +155,46 @@ func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
 			}
 		}
 
-		rewrite.ApplyContentRewriteRules(entry, feed.RewriteRules)
+		rewrite.ApplyContentRewriteRules(entry, self.feed.RewriteRules)
 		// The sanitizer should always run at the end of the process to make sure
 		// unsafe HTML is filtered out.
-		entry.Title = sanitizer.StripTags(entry.Title)
-		if err := sanitizeEntry(entry, pageURL); err != nil {
+		if err := self.sanitizeEntry(entry, pageURL); err != nil {
 			return fmt.Errorf("%w: %w", ErrBadFeed, err)
 		}
-		updateEntryReadingTime(ctx, store, feed, entry, !entry.Stored(), user)
+		updateEntryReadingTime(ctx, self.store, self.feed, entry, !entry.Stored(),
+			self.user)
 	}
 
-	if user.ShowReadingTime && shouldFetchYouTubeWatchTimeInBulk() {
-		fetchYouTubeWatchTimeInBulk(feed.Entries)
+	if self.user.ShowReadingTime && shouldFetchYouTubeWatchTimeInBulk() {
+		fetchYouTubeWatchTimeInBulk(self.feed.Entries)
 	}
 	return nil
 }
 
-func markStoredEntries(ctx context.Context, store *storage.Storage,
-	feed *model.Feed,
-) error {
-	if len(feed.Entries) == 0 {
+func (self *FeedProcessor) deleteAgedEntries(ctx context.Context) {
+	if !self.skipAgeFilter {
+		filter.DeleteAgedEntries(ctx, self.feed)
+	}
+}
+
+func (self *FeedProcessor) markStoredEntries(ctx context.Context) error {
+	if len(self.feed.Entries) == 0 {
 		return nil
 	}
 
-	entries := make(map[string]*model.Entry, len(feed.Entries))
-	hashes := make([]string, len(feed.Entries))
-	for i, e := range feed.Entries {
-		entries[e.Hash] = e
-		hashes[i] = e.Hash
-	}
-
-	knownHashes, err := store.KnownEntryHashes(ctx, feed.ID, hashes)
+	storedEntries, err := self.store.KnownEntryHashes(ctx, self.feed.ID,
+		self.feed.Entries.Hashes())
 	if err != nil {
 		return fmt.Errorf("fetch list of known entry hashes: %w", err)
 	}
 
-	for _, hash := range knownHashes {
-		entries[hash].MarkStored()
+	entries := self.feed.Entries.ByHash()
+	for i := range storedEntries {
+		stored := &storedEntries[i]
+		e := entries[stored.Hash]
+		if !e.Date.After(stored.Date) {
+			e.MarkStored()
+		}
 	}
 	return nil
 }
@@ -143,17 +208,17 @@ func removeTracking(feedURL, siteURL *url.URL, entry *model.Entry) {
 	entry.URL = u.String()
 }
 
-func scrape(ctx context.Context, feed *model.Feed, entry *model.Entry,
+func (self *FeedProcessor) Scrape(ctx context.Context, entry *model.Entry,
 ) (string, string, error) {
 	startTime := time.Now()
-	builder := fetcher.NewRequestFeed(feed).WithContext(ctx)
+	builder := fetcher.NewRequestFeed(self.feed).WithContext(ctx)
 
 	logging.FromContext(ctx).Info("Fetch original content",
 		slog.String("url", entry.URL))
 
 	baseURL, content, err := scraper.ScrapeWebsite(ctx, builder, entry.URL,
-		feed.ScraperRules)
-	if config.Opts.HasMetricsCollector() {
+		self.feed.ScraperRules)
+	if config.HasMetricsCollector() {
 		status := "success"
 		if err != nil {
 			status = "error"
@@ -173,6 +238,38 @@ func scrape(ctx context.Context, feed *model.Feed, entry *model.Entry,
 	return baseURL, content, nil
 }
 
+func (self *FeedProcessor) sanitizeEntry(entry *model.Entry, pageURL string) error {
+	if pageURL == "" {
+		pageURL = entry.URL
+	}
+	u, err := url.Parse(pageURL)
+	if err != nil {
+		return fmt.Errorf("reader/processor: parse entry URL: %w", err)
+	}
+
+	entry.Title = sanitizeTitle(entry, self.feed)
+	entry.Content = sanitizer.SanitizeContent(entry.Content, u)
+	return nil
+}
+
+func sanitizeTitle(entry *model.Entry, feed *model.Feed) string {
+	if entry.Title != "" {
+		return sanitizer.StripTags(entry.Title)
+	}
+
+	title := strings.TrimSpace(sanitizer.StripTags(entry.Content))
+	if title == "" {
+		return feed.SiteURL
+	}
+
+	const maxLen = 100
+	title = strings.Join(strings.Fields(title), " ")
+	if runes := []rune(title); len(runes) > maxLen {
+		return strings.TrimSpace(string(runes[:maxLen])) + "…"
+	}
+	return title
+}
+
 // ProcessEntryWebPage downloads the entry web page and apply rewrite rules.
 func ProcessEntryWebPage(ctx context.Context, feed *model.Feed,
 	entry *model.Entry, user *model.User,
@@ -183,13 +280,18 @@ func ProcessEntryWebPage(ctx context.Context, feed *model.Feed,
 	removeTracking(feedURL, siteURL, entry)
 	rewrite.RewriteEntryURL(ctx, feed, entry)
 
-	pageURL, content, err := scrape(ctx, feed, entry)
+	p := FeedProcessor{
+		feed: feed,
+		user: user,
+	}
+
+	pageURL, content, err := p.Scrape(ctx, entry)
 	if err != nil || content == "" {
 		return err
 	}
 
 	rewrite.ApplyContentRewriteRules(entry, entry.Feed.RewriteRules)
-	if err := sanitizeEntry(entry, pageURL); err != nil {
+	if err := p.sanitizeEntry(entry, pageURL); err != nil {
 		return err
 	}
 
@@ -197,19 +299,5 @@ func ProcessEntryWebPage(ctx context.Context, feed *model.Feed,
 		entry.ReadingTime = readingtime.EstimateReadingTime(entry.Content,
 			user.DefaultReadingSpeed, user.CJKReadingSpeed)
 	}
-	return nil
-}
-
-func sanitizeEntry(entry *model.Entry, pageURL string) error {
-	if pageURL == "" {
-		pageURL = entry.URL
-	}
-
-	u, err := url.Parse(pageURL)
-	if err != nil {
-		return fmt.Errorf("parse entry URL: %w", err)
-	}
-
-	entry.Content = sanitizer.SanitizeContent(entry.Content, u)
 	return nil
 }

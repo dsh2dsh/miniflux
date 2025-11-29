@@ -33,6 +33,7 @@ linters:
     - "gocritic"
     - "makezero"
     - "misspell"
+    - "modernize"
     - "nilnesserr"
     - "nolintlint"
     - "perfsprint"

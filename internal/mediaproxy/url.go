@@ -19,11 +19,11 @@ func ProxifyRelativeURL(router *mux.ServeMux, mediaURL string) string {
 		return ""
 	}
 
-	if customProxyURL := config.Opts.MediaCustomProxyURL(); customProxyURL != nil {
+	if customProxyURL := config.MediaCustomProxyURL(); customProxyURL != nil {
 		return proxifyURLWithCustomProxy(mediaURL, customProxyURL)
 	}
 
-	mac := hmac.New(sha256.New, config.Opts.MediaProxyPrivateKey())
+	mac := hmac.New(sha256.New, config.MediaProxyPrivateKey())
 	mac.Write([]byte(mediaURL))
 	digest := mac.Sum(nil)
 	return route.Path(router, "proxy", "encodedDigest", base64.URLEncoding.EncodeToString(digest), "encodedURL", base64.URLEncoding.EncodeToString([]byte(mediaURL)))
@@ -34,13 +34,13 @@ func ProxifyAbsoluteURL(router *mux.ServeMux, mediaURL string) string {
 		return ""
 	}
 
-	if customProxyURL := config.Opts.MediaCustomProxyURL(); customProxyURL != nil {
+	if customProxyURL := config.MediaCustomProxyURL(); customProxyURL != nil {
 		return proxifyURLWithCustomProxy(mediaURL, customProxyURL)
 	}
 
 	// Note that the proxyified URL is relative to the root URL.
 	proxifiedUrl := ProxifyRelativeURL(router, mediaURL)
-	absoluteURL, err := url.JoinPath(config.Opts.RootURL(), proxifiedUrl)
+	absoluteURL, err := url.JoinPath(config.RootURL(), proxifiedUrl)
 	if err != nil {
 		return mediaURL
 	}

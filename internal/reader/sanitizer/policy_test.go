@@ -259,17 +259,22 @@ func TestSanitizeContent(t *testing.T) {
 		{
 			name:     "invidious iframe",
 			input:    `<iframe src="https://yewtu.be/watch?v=video_id"></iframe>`,
-			expected: `<iframe src="https://yewtu.be/watch?v=video_id" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>`,
+			expected: `<iframe src="https://yewtu.be/watch?v=video_id" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin"></iframe>`,
 		},
 		{
 			name:     "custom youtube embed url",
 			input:    `<iframe src="https://www.invidious.custom/embed/1234"></iframe>`,
-			expected: `<iframe src="https://www.invidious.custom/embed/1234" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>`,
+			expected: `<iframe src="https://www.invidious.custom/embed/1234" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin"></iframe>`,
 		},
 		{
 			name:     "iframe with child elements",
 			input:    `<iframe src="https://www.youtube.com/"><p>test</p></iframe>`,
-			expected: `<iframe src="https://www.youtube.com/" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>`,
+			expected: `<iframe src="https://www.youtube.com/" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin"></iframe>`,
+		},
+		{
+			name:     "iframe with referrer policy",
+			input:    `<iframe src="https://www.youtube.com/embed/test123" referrerpolicy="strict-origin-when-cross-origin"></iframe>`,
+			expected: `<iframe src="https://www.invidious.custom/embed/test123" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin"></iframe>`,
 		},
 		{
 			name:     "link with target",
@@ -444,37 +449,37 @@ func TestSanitizeContent(t *testing.T) {
 		{
 			name:     "replace youtube",
 			input:    `<iframe src="http://www.youtube.com/embed/test123?version=3&#038;rel=1&#038;fs=1&#038;autohide=2&#038;showsearch=0&#038;showinfo=1&#038;iv_load_policy=1&#038;wmode=transparent"></iframe>`,
-			expected: `<iframe src="https://www.invidious.custom/embed/test123?version=3&amp;rel=1&amp;fs=1&amp;autohide=2&amp;showsearch=0&amp;showinfo=1&amp;iv_load_policy=1&amp;wmode=transparent" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>`,
+			expected: `<iframe src="https://www.invidious.custom/embed/test123?version=3&amp;rel=1&amp;fs=1&amp;autohide=2&amp;showsearch=0&amp;showinfo=1&amp;iv_load_policy=1&amp;wmode=transparent" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin"></iframe>`,
 		},
 		{
 			name:     "replace secure youtube",
 			input:    `<iframe src="https://www.youtube.com/embed/test123"></iframe>`,
-			expected: `<iframe src="https://www.invidious.custom/embed/test123" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>`,
+			expected: `<iframe src="https://www.invidious.custom/embed/test123" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin"></iframe>`,
 		},
 		{
 			name:     "replace secure youtube with params",
 			input:    `<iframe src="https://www.youtube.com/embed/test123?rel=0&amp;controls=0"></iframe>`,
-			expected: `<iframe src="https://www.invidious.custom/embed/test123?rel=0&amp;controls=0" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>`,
+			expected: `<iframe src="https://www.invidious.custom/embed/test123?rel=0&amp;controls=0" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin"></iframe>`,
 		},
 		{
 			name:     "replace youtube already replaced",
 			input:    `<iframe src="https://www.invidious.custom/embed/test123?rel=0&amp;controls=0" sandbox="allow-scripts allow-same-origin"></iframe>`,
-			expected: `<iframe src="https://www.invidious.custom/embed/test123?rel=0&amp;controls=0" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>`,
+			expected: `<iframe src="https://www.invidious.custom/embed/test123?rel=0&amp;controls=0" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin"></iframe>`,
 		},
 		{
 			name:     "replace protocol relative youtube",
 			input:    `<iframe src="//www.youtube.com/embed/Bf2W84jrGqs" width="560" height="314" allowfullscreen="allowfullscreen"></iframe>`,
-			expected: `<iframe src="https://www.invidious.custom/embed/Bf2W84jrGqs" width="560" height="314" allowfullscreen="allowfullscreen" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>`,
+			expected: `<iframe src="https://www.invidious.custom/embed/Bf2W84jrGqs" width="560" height="314" allowfullscreen="allowfullscreen" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin"></iframe>`,
 		},
 		{
 			name:     "vimeo with query",
 			input:    `<iframe src="https://player.vimeo.com/video/123456?title=0&amp;byline=0"></iframe>`,
-			expected: `<iframe src="https://player.vimeo.com/video/123456?title=0&amp;byline=0&amp;dnt=1" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>`,
+			expected: `<iframe src="https://player.vimeo.com/video/123456?title=0&amp;byline=0&amp;dnt=1" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin"></iframe>`,
 		},
 		{
 			name:     "vimeo without query",
 			input:    `<iframe src="https://player.vimeo.com/video/123456"></iframe>`,
-			expected: `<iframe src="https://player.vimeo.com/video/123456?dnt=1" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>`,
+			expected: `<iframe src="https://player.vimeo.com/video/123456?dnt=1" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin"></iframe>`,
 		},
 		{
 			name:     "replace noscript",
