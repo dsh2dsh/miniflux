@@ -48,6 +48,7 @@ type Integration struct {
 	LinktacoTags                     string `json:"linktaco_tags,omitempty"`
 	LinktacoVisibility               string `json:"linktaco_visibility,omitempty"`
 	LinkwardenAPIKey                 string `json:"linkwarden_api_key,omitempty"`
+	LinkwardenCollectionID           *int64 `json:"linkwarden_collection_id,omitempty"`
 	LinkwardenEnabled                bool   `json:"linkwarden_enabled,omitempty"`
 	LinkwardenURL                    string `json:"linkwarden_url,omitempty"`
 	MatrixBotChatID                  string `json:"matrix_bot_chat_id,omitempty"`
