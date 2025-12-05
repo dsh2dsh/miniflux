@@ -227,10 +227,12 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 		"removeSession")
 
 	// API Keys pages.
-	m.NameHandleFunc("/keys", h.showAPIKeysPage, "apiKeys")
-	m.NameHandleFunc("/keys/{keyID}/delete", h.deleteAPIKey, "deleteAPIKey")
-	m.NameHandleFunc("/keys/create", h.showCreateAPIKeyPage, "createAPIKey")
-	m.NameHandleFunc("/keys/save", h.saveAPIKey, "saveAPIKey")
+	if config.HasAPI() {
+		m.NameHandleFunc("/keys", h.showAPIKeysPage, "apiKeys")
+		m.NameHandleFunc("/keys/{keyID}/delete", h.deleteAPIKey, "deleteAPIKey")
+		m.NameHandleFunc("/keys/create", h.showCreateAPIKeyPage, "createAPIKey")
+		m.NameHandleFunc("/keys/save", h.saveAPIKey, "saveAPIKey")
+	}
 
 	// OPML pages.
 	m.NameHandleFunc("/export", h.exportFeeds, "export")

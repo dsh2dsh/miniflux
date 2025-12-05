@@ -63,6 +63,7 @@ func (self *HostLimits) withDefaults(connections int64, rate float64,
 }
 
 type envOptions struct {
+	DisableAPI                     bool     `env:"DISABLE_API"`
 	DisableHSTS                    bool     `env:"DISABLE_HSTS"`
 	DisableHttpService             bool     `env:"DISABLE_HTTP_SERVICE"`
 	DisableScheduler               bool     `env:"DISABLE_SCHEDULER_SERVICE"`
@@ -382,6 +383,7 @@ func (o *options) sortedOptions(redactSecret bool) []Option {
 		"DATABASE_MAX_CONNS":                 o.env.DatabaseMaxConns,
 		"DATABASE_MIN_CONNS":                 o.env.DatabaseMinConns,
 		"DATABASE_URL":                       secretValue(o.env.DatabaseURL, redactSecret),
+		"DISABLE_API":                        o.env.DisableAPI,
 		"DISABLE_HSTS":                       o.env.DisableHSTS,
 		"DISABLE_HTTP_SERVICE":               o.env.DisableHttpService,
 		"DISABLE_SCHEDULER_SERVICE":          o.env.DisableScheduler,
@@ -624,6 +626,8 @@ func OAuth2Provider() string { return opts.env.Oauth2Provider }
 // DisableLocalAUth returns true if the local user database should not be used
 // to authenticate users.
 func DisableLocalAuth() bool { return opts.env.DisableLocalAuth }
+
+func HasAPI() bool { return !opts.env.DisableAPI }
 
 // HasHSTS returns true if HTTP Strict Transport Security is enabled.
 func HasHSTS() bool { return !opts.env.DisableHSTS }

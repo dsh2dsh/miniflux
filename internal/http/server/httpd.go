@@ -283,7 +283,9 @@ func setupHandler(store *storage.Storage, pool *worker.Pool) http.Handler {
 
 	fever.Serve(m, store)
 	googlereader.Serve(m, store)
-	api.Serve(m, store, pool)
+	if config.HasAPI() {
+		api.Serve(m, store, pool)
+	}
 	ui.Serve(m, store, pool)
 	return serveMux
 }

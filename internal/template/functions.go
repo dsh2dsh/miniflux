@@ -43,6 +43,7 @@ func newFuncMap(router *mux.ServeMux) *funcMap {
 func (self *funcMap) Map() template.FuncMap {
 	return template.FuncMap{
 		"baseURL":            config.BaseURL,
+		"apiEnabled":         config.HasAPI,
 		"colorScheme":        model.ColorScheme,
 		"contains":           strings.Contains,
 		"dict":               dict,
