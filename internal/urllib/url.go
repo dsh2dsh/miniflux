@@ -107,8 +107,7 @@ func Domain(websiteURL string) string {
 	if err != nil {
 		return websiteURL
 	}
-
-	return parsedURL.Host
+	return parsedURL.Hostname()
 }
 
 // DomainWithoutWWW returns only the domain part of the given URL, with the "www." prefix removed if present.

@@ -15,21 +15,6 @@ import (
 	"miniflux.app/v2/internal/model"
 )
 
-func TestParseRules(t *testing.T) {
-	rulesText := `add_dynamic_image,replace("article/(.*).svg"|"article/$1.png"),remove(".spam, .ads:not(.keep)")`
-	expected := []rule{
-		{name: "add_dynamic_image"},
-		{name: "replace", args: []string{"article/(.*).svg", "article/$1.png"}},
-		{name: "remove", args: []string{".spam, .ads:not(.keep)"}},
-	}
-
-	actual := parseRules(rulesText)
-
-	if !reflect.DeepEqual(expected, actual) {
-		t.Errorf(`Parsed rules do not match expected rules: got %v instead of %v`, actual, expected)
-	}
-}
-
 func TestReplaceTextLinks(t *testing.T) {
 	scenarios := map[string]string{
 		`This is a link to example.org`:                                              `This is a link to example.org`,
@@ -61,7 +46,7 @@ func TestRewriteWithNoMatchingRule(t *testing.T) {
 		Title:   `A title`,
 		Content: `Some text.`,
 	}
-	ApplyContentRewriteRules(testEntry, ``)
+	ApplyContentRewriteRules(t.Context(), testEntry, ``)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -81,7 +66,7 @@ func TestRewriteYoutubeVideoLink(t *testing.T) {
 		Title:   `A title`,
 		Content: `Video Description`,
 	}
-	ApplyContentRewriteRules(testEntry, ``)
+	ApplyContentRewriteRules(t.Context(), testEntry, ``)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -101,7 +86,7 @@ func TestRewriteYoutubeShortLink(t *testing.T) {
 		Title:   `A title`,
 		Content: `Video Description`,
 	}
-	ApplyContentRewriteRules(testEntry, ``)
+	ApplyContentRewriteRules(t.Context(), testEntry, ``)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -121,7 +106,7 @@ func TestRewriteIncorrectYoutubeLink(t *testing.T) {
 		Title:   `A title`,
 		Content: `Video Description`,
 	}
-	ApplyContentRewriteRules(testEntry, ``)
+	ApplyContentRewriteRules(t.Context(), testEntry, ``)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -147,7 +132,7 @@ func TestRewriteYoutubeLinkAndCustomEmbedURL(t *testing.T) {
 		Title:   `A title`,
 		Content: `Video Description`,
 	}
-	ApplyContentRewriteRules(testEntry, ``)
+	ApplyContentRewriteRules(t.Context(), testEntry, ``)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -167,7 +152,7 @@ func TestRewriteYoutubeVideoLinkUsingInvidious(t *testing.T) {
 		Content: `Video Description`,
 	}
 
-	ApplyContentRewriteRules(testEntry, `add_youtube_video_using_invidious_player`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `add_youtube_video_using_invidious_player`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -187,7 +172,7 @@ func TestRewriteYoutubeShortLinkUsingInvidious(t *testing.T) {
 		Content: `Video Description`,
 	}
 
-	ApplyContentRewriteRules(testEntry, `add_youtube_video_using_invidious_player`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `add_youtube_video_using_invidious_player`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -334,7 +319,7 @@ func TestRewriteWithInexistingCustomRule(t *testing.T) {
 		Title:   `A title`,
 		Content: `Video Description`,
 	}
-	ApplyContentRewriteRules(testEntry, `some rule`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `some rule`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -352,7 +337,7 @@ func TestRewriteWithXkcdLink(t *testing.T) {
 		Title:   `A title`,
 		Content: `<img src="https://imgs.xkcd.com/comics/thermostat.png" title="Your problem is so terrible, I worry that, if I help you, I risk drawing the attention of whatever god of technology inflicted it on you." alt="Your problem is so terrible, I worry that, if I help you, I risk drawing the attention of whatever god of technology inflicted it on you." />`,
 	}
-	ApplyContentRewriteRules(testEntry, ``)
+	ApplyContentRewriteRules(t.Context(), testEntry, ``)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -370,7 +355,7 @@ func TestRewriteWithXkcdLinkHtmlInjection(t *testing.T) {
 		Title:   `A title`,
 		Content: `<img src="https://imgs.xkcd.com/comics/thermostat.png" title="<foo>" alt="<foo>" />`,
 	}
-	ApplyContentRewriteRules(testEntry, ``)
+	ApplyContentRewriteRules(t.Context(), testEntry, ``)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -388,7 +373,7 @@ func TestRewriteWithXkcdLinkAndImageNoTitle(t *testing.T) {
 		Title:   `A title`,
 		Content: `<img src="https://imgs.xkcd.com/comics/thermostat.png" alt="Your problem is so terrible, I worry that, if I help you, I risk drawing the attention of whatever god of technology inflicted it on you." />`,
 	}
-	ApplyContentRewriteRules(testEntry, ``)
+	ApplyContentRewriteRules(t.Context(), testEntry, ``)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -406,7 +391,7 @@ func TestRewriteWithXkcdLinkAndNoImage(t *testing.T) {
 		Title:   `A title`,
 		Content: `test`,
 	}
-	ApplyContentRewriteRules(testEntry, ``)
+	ApplyContentRewriteRules(t.Context(), testEntry, ``)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -424,7 +409,7 @@ func TestRewriteWithXkcdAndNoImage(t *testing.T) {
 		Title:   `A title`,
 		Content: `test`,
 	}
-	ApplyContentRewriteRules(testEntry, ``)
+	ApplyContentRewriteRules(t.Context(), testEntry, ``)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -442,7 +427,7 @@ func TestRewriteMailtoLink(t *testing.T) {
 		Title:   `A title`,
 		Content: `<a href="mailto:ryan@qwantz.com?subject=blah%20blah">contact</a>`,
 	}
-	ApplyContentRewriteRules(testEntry, ``)
+	ApplyContentRewriteRules(t.Context(), testEntry, ``)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -460,7 +445,7 @@ func TestRewriteWithPDFLink(t *testing.T) {
 		Title:   `A title`,
 		Content: `test`,
 	}
-	ApplyContentRewriteRules(testEntry, ``)
+	ApplyContentRewriteRules(t.Context(), testEntry, ``)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -478,7 +463,7 @@ func TestRewriteWithNoLazyImage(t *testing.T) {
 		Title:   `A title`,
 		Content: `<img src="https://example.org/image.jpg" alt="Image"><noscript><p>Some text</p></noscript>`,
 	}
-	ApplyContentRewriteRules(testEntry, "add_dynamic_image")
+	ApplyContentRewriteRules(t.Context(), testEntry, "add_dynamic_image")
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -496,7 +481,7 @@ func TestRewriteWithLazyImage(t *testing.T) {
 		Title:   `A title`,
 		Content: `<img src="" data-url="https://example.org/image.jpg" alt="Image"><noscript><img src="https://example.org/fallback.jpg" alt="Fallback"></noscript>`,
 	}
-	ApplyContentRewriteRules(testEntry, "add_dynamic_image")
+	ApplyContentRewriteRules(t.Context(), testEntry, "add_dynamic_image")
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -514,7 +499,7 @@ func TestRewriteWithLazyDivImage(t *testing.T) {
 		Title:   `A title`,
 		Content: `<div data-url="https://example.org/image.jpg" alt="Image"></div><noscript><img src="https://example.org/fallback.jpg" alt="Fallback"></noscript>`,
 	}
-	ApplyContentRewriteRules(testEntry, "add_dynamic_image")
+	ApplyContentRewriteRules(t.Context(), testEntry, "add_dynamic_image")
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -532,7 +517,7 @@ func TestRewriteWithUnknownLazyNoScriptImage(t *testing.T) {
 		Title:   `A title`,
 		Content: `<img src="" data-non-candidate="https://example.org/image.jpg" alt="Image"><noscript><img src="https://example.org/fallback.jpg" alt="Fallback"></noscript>`,
 	}
-	ApplyContentRewriteRules(testEntry, "add_dynamic_image")
+	ApplyContentRewriteRules(t.Context(), testEntry, "add_dynamic_image")
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -550,7 +535,7 @@ func TestRewriteWithLazySrcset(t *testing.T) {
 		Title:   `A title`,
 		Content: `<img srcset="" data-srcset="https://example.org/image.jpg" alt="Image">`,
 	}
-	ApplyContentRewriteRules(testEntry, "add_dynamic_image")
+	ApplyContentRewriteRules(t.Context(), testEntry, "add_dynamic_image")
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -568,7 +553,7 @@ func TestRewriteWithImageAndLazySrcset(t *testing.T) {
 		Title:   `A title`,
 		Content: `<img src="meow" srcset="" data-srcset="https://example.org/image.jpg" alt="Image">`,
 	}
-	ApplyContentRewriteRules(testEntry, "add_dynamic_image")
+	ApplyContentRewriteRules(t.Context(), testEntry, "add_dynamic_image")
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -586,7 +571,7 @@ func TestRewriteWithNoLazyIframe(t *testing.T) {
 		Title:   `A title`,
 		Content: `<iframe src="https://example.org/embed" allowfullscreen></iframe>`,
 	}
-	ApplyContentRewriteRules(testEntry, "add_dynamic_iframe")
+	ApplyContentRewriteRules(t.Context(), testEntry, "add_dynamic_iframe")
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -604,7 +589,7 @@ func TestRewriteWithLazyIframe(t *testing.T) {
 		Title:   `A title`,
 		Content: `<iframe data-src="https://example.org/embed" allowfullscreen></iframe>`,
 	}
-	ApplyContentRewriteRules(testEntry, "add_dynamic_iframe")
+	ApplyContentRewriteRules(t.Context(), testEntry, "add_dynamic_iframe")
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -622,7 +607,7 @@ func TestRewriteWithLazyIframeAndSrc(t *testing.T) {
 		Title:   `A title`,
 		Content: `<iframe src="about:blank" data-src="https://example.org/embed" allowfullscreen></iframe>`,
 	}
-	ApplyContentRewriteRules(testEntry, "add_dynamic_iframe")
+	ApplyContentRewriteRules(t.Context(), testEntry, "add_dynamic_iframe")
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -640,7 +625,7 @@ func TestNewLineRewriteRule(t *testing.T) {
 		Title:   `A title`,
 		Content: "A\nB\nC",
 	}
-	ApplyContentRewriteRules(testEntry, "nl2br")
+	ApplyContentRewriteRules(t.Context(), testEntry, "nl2br")
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -658,7 +643,7 @@ func TestConvertTextLinkRewriteRule(t *testing.T) {
 		Title:   `A title`,
 		Content: `Test: http://example.org/a/b`,
 	}
-	ApplyContentRewriteRules(testEntry, "convert_text_link")
+	ApplyContentRewriteRules(t.Context(), testEntry, "convert_text_link")
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -694,7 +679,7 @@ func TestMediumImage(t *testing.T) {
 		</figure>
 		`,
 	}
-	ApplyContentRewriteRules(testEntry, "fix_medium_images")
+	ApplyContentRewriteRules(t.Context(), testEntry, "fix_medium_images")
 	testEntry.Content = strings.TrimSpace(testEntry.Content)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
@@ -713,7 +698,7 @@ func TestRewriteNoScriptImageWithoutNoScriptTag(t *testing.T) {
 		Title:   `A title`,
 		Content: `<figure><img src="https://developer.mozilla.org/static/img/favicon144.png" alt="The beautiful MDN logo."><figcaption>MDN Logo</figcaption></figure>`,
 	}
-	ApplyContentRewriteRules(testEntry, "use_noscript_figure_images")
+	ApplyContentRewriteRules(t.Context(), testEntry, "use_noscript_figure_images")
 	testEntry.Content = strings.TrimSpace(testEntry.Content)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
@@ -732,7 +717,7 @@ func TestRewriteNoScriptImageWithNoScriptTag(t *testing.T) {
 		Title:   `A title`,
 		Content: `<figure><img src="https://developer.mozilla.org/static/img/favicon144.png" alt="The beautiful MDN logo."><noscript><img src="http://example.org/logo.svg"></noscript><figcaption>MDN Logo</figcaption></figure>`,
 	}
-	ApplyContentRewriteRules(testEntry, "use_noscript_figure_images")
+	ApplyContentRewriteRules(t.Context(), testEntry, "use_noscript_figure_images")
 	testEntry.Content = strings.TrimSpace(testEntry.Content)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
@@ -751,7 +736,7 @@ func TestRewriteReplaceCustom(t *testing.T) {
 		Title:   `A title`,
 		Content: `<img src="http://example.org/logo.svg"><img src="https://example.org/article/picture.svg">`,
 	}
-	ApplyContentRewriteRules(testEntry, `replace("article/(.*).svg"|"article/$1.png")`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `replace("article/(.*).svg"|"article/$1.png")`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -769,7 +754,7 @@ func TestRewriteReplaceTitleCustom(t *testing.T) {
 		Title:   `A title`,
 		Content: `The replace_title rewrite rule should not modify the content.`,
 	}
-	ApplyContentRewriteRules(testEntry, `replace_title("(?i)^a\\s*ti"|"Ouch, a this")`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `replace_title("(?i)^a\\s*ti"|"Ouch, a this")`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -787,7 +772,7 @@ func TestRewriteRemoveCustom(t *testing.T) {
 		Title:   `A title`,
 		Content: `<div>Lorem Ipsum <span class="spam">I dont want to see this</span><span class="ads keep">Super important info</span></div>`,
 	}
-	ApplyContentRewriteRules(testEntry, `remove(".spam, .ads:not(.keep)")`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `remove(".spam, .ads:not(.keep)")`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -805,7 +790,7 @@ func TestRewriteRemoveQuotedSelector(t *testing.T) {
 		Title:   `A title`,
 		Content: `<div>Lorem Ipsum<img alt="LINUX KERNEL" src="/assets/categories/linuxkernel.webp" width="100" height="100"></div>`,
 	}
-	ApplyContentRewriteRules(testEntry, `remove("img[src^='/assets/categories/']")`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `remove("img[src^='/assets/categories/']")`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -823,7 +808,7 @@ func TestRewriteAddCastopodEpisode(t *testing.T) {
 		Title:   `A title`,
 		Content: `Episode Description`,
 	}
-	ApplyContentRewriteRules(testEntry, `add_castopod_episode`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `add_castopod_episode`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -841,7 +826,7 @@ func TestRewriteBase64Decode(t *testing.T) {
 		Title:   `A title`,
 		Content: `VGhpcyBpcyBzb21lIGJhc2U2NCBlbmNvZGVkIGNvbnRlbnQ=`,
 	}
-	ApplyContentRewriteRules(testEntry, `base64_decode`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `base64_decode`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -859,7 +844,7 @@ func TestRewriteBase64DecodeInHTML(t *testing.T) {
 		Title:   `A title`,
 		Content: `<div>Lorem Ipsum not valid base64<span class="base64">VGhpcyBpcyBzb21lIGJhc2U2NCBlbmNvZGVkIGNvbnRlbnQ=</span></div>`,
 	}
-	ApplyContentRewriteRules(testEntry, `base64_decode`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `base64_decode`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -877,7 +862,7 @@ func TestRewriteBase64DecodeArgs(t *testing.T) {
 		Title:   `A title`,
 		Content: `<div>Lorem Ipsum<span class="base64">VGhpcyBpcyBzb21lIGJhc2U2NCBlbmNvZGVkIGNvbnRlbnQ=</span></div>`,
 	}
-	ApplyContentRewriteRules(testEntry, `base64_decode(".base64")`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `base64_decode(".base64")`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -895,7 +880,7 @@ func TestRewriteRemoveTables(t *testing.T) {
 		Title:   `A title`,
 		Content: `<table class="container"><tbody><tr><td><p>Test</p><table class="row"><tbody><tr><td><p>Hello World!</p></td><td><p>Test</p></td></tr></tbody></table></td></tr></tbody></table>`,
 	}
-	ApplyContentRewriteRules(testEntry, `remove_tables`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `remove_tables`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -913,7 +898,7 @@ func TestRemoveClickbait(t *testing.T) {
 		Title:   `THIS IS AMAZING`,
 		Content: `Some description`,
 	}
-	ApplyContentRewriteRules(testEntry, `remove_clickbait`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `remove_clickbait`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -938,7 +923,7 @@ func TestAddHackerNewsLinksUsingHack(t *testing.T) {
 		<p>Points: 23</p>
 		<p># Comments: 38</p>`,
 	}
-	ApplyContentRewriteRules(testEntry, `add_hn_links_using_hack`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `add_hn_links_using_hack`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -963,7 +948,7 @@ func TestAddHackerNewsLinksUsingOpener(t *testing.T) {
 		<p>Points: 23</p>
 		<p># Comments: 38</p>`,
 	}
-	ApplyContentRewriteRules(testEntry, `add_hn_links_using_opener`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `add_hn_links_using_opener`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -997,7 +982,7 @@ func TestAddImageTitle(t *testing.T) {
 		<figure><img src="pif" alt="pouf"/><figcaption><p>;&amp;quot;onerror=alert(1) a=;&amp;quot;</p></figcaption></figure>
 		`,
 	}
-	ApplyContentRewriteRules(testEntry, `add_image_title`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `add_image_title`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -1031,7 +1016,7 @@ func TestFixGhostCard(t *testing.T) {
 		Title:   `A title`,
 		Content: `<a href="https://example.org/article">Example Article - Example</a>`,
 	}
-	ApplyContentRewriteRules(testEntry, `fix_ghost_cards`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `fix_ghost_cards`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -1050,7 +1035,7 @@ func TestFixGhostCardNoCard(t *testing.T) {
 		Title:   `A title`,
 		Content: `<a href="https://example.org/article">Example Article - Example</a>`,
 	}
-	ApplyContentRewriteRules(testEntry, `fix_ghost_cards`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `fix_ghost_cards`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -1073,7 +1058,7 @@ func TestFixGhostCardInvalidCard(t *testing.T) {
 			<a href="https://example.org/article">This card does not have the required fields</a>
 		</figure>`,
 	}
-	ApplyContentRewriteRules(testEntry, `fix_ghost_cards`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `fix_ghost_cards`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -1102,7 +1087,7 @@ func TestFixGhostCardMissingAuthor(t *testing.T) {
 		Title:   `A title`,
 		Content: `<a href="https://example.org/article">Example Article</a>`,
 	}
-	ApplyContentRewriteRules(testEntry, `fix_ghost_cards`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `fix_ghost_cards`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -1136,7 +1121,7 @@ func TestFixGhostCardDuplicatedAuthor(t *testing.T) {
 		Title:   `A title`,
 		Content: `<a href="https://example.org/article">Example Article - Example</a>`,
 	}
-	ApplyContentRewriteRules(testEntry, `fix_ghost_cards`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `fix_ghost_cards`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -1186,7 +1171,7 @@ func TestFixGhostCardMultiple(t *testing.T) {
 		Title:   `A title`,
 		Content: `<ul><li><a href="https://example.org/article1">Example Article 1 - Example</a></li><li><a href="https://example.org/article2">Example Article 2 - Example</a></li></ul>`,
 	}
-	ApplyContentRewriteRules(testEntry, `fix_ghost_cards`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `fix_ghost_cards`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -1239,7 +1224,7 @@ func TestFixGhostCardMultipleSplit(t *testing.T) {
 		<p>This separates the two cards</p>
 		<a href="https://example.org/article2">Example Article 2 - Example</a>`,
 	}
-	ApplyContentRewriteRules(testEntry, `fix_ghost_cards`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `fix_ghost_cards`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -1289,7 +1274,7 @@ func TestStripImageQueryParams(t *testing.T) {
 			<img src="https://example.org/normal1.jpg?width=600&amp;quality=high" alt="Normal 2"/>
 		</article>`,
 	}
-	ApplyContentRewriteRules(testEntry, `remove_img_blur_params`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `remove_img_blur_params`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -1312,7 +1297,7 @@ func TestStripImageQueryParamsNoChanges(t *testing.T) {
 		<div>Just some text content</div>
 		<a href="https://example.org">A link</a>`,
 	}
-	ApplyContentRewriteRules(testEntry, `remove_img_blur_params`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `remove_img_blur_params`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -1360,7 +1345,7 @@ func TestStripImageQueryParamsEdgeCases(t *testing.T) {
 		<img src="https://example.org/clean.jpg" alt="Clean image"/>
 		`,
 	}
-	ApplyContentRewriteRules(testEntry, `remove_img_blur_params`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `remove_img_blur_params`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -1394,7 +1379,7 @@ func TestStripImageQueryParamsSimple(t *testing.T) {
 		<img src="https://example.org/test4.jpg" alt="No params at all"/>
 		`,
 	}
-	ApplyContentRewriteRules(testEntry, `remove_img_blur_params`)
+	ApplyContentRewriteRules(t.Context(), testEntry, `remove_img_blur_params`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)

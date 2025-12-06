@@ -4,44 +4,36 @@
 package rewrite // import "miniflux.app/v2/internal/reader/rewrite"
 
 import (
-	"net/url"
 	"strings"
+
+	"miniflux.app/v2/internal/urllib"
 )
 
-// GetRefererForURL returns the referer for the given URL if it exists, otherwise an empty string.
+var domainReferrers = map[string]string{
+	"appinn.com":           "https://appinn.com",
+	"bjp.org.cn":           "https://bjp.org.cn",
+	"cdnfile.sspai.com":    "https://sspai.com",
+	"cdninstagram.com":     "https://www.instagram.com",
+	"f.video.weibocdn.com": "https://weibo.com",
+	"i.pximg.net":          "https://www.pixiv.net",
+	"img.hellogithub.com":  "https://hellogithub.com",
+	"moyu.im":              "https://i.jandan.net",
+	"sinaimg.cn":           "https://weibo.com",
+	"www.parkablogs.com":   "https://www.parkablogs.com",
+}
+
+// GetRefererForURL returns the referer for the given URL if it exists,
+// otherwise an empty string.
 func GetRefererForURL(u string) string {
-	parsedUrl, err := url.Parse(u)
-	if err != nil {
-		return ""
+	hostname := urllib.Domain(u)
+	for {
+		if s, ok := domainReferrers[hostname]; ok {
+			return s
+		}
+		_, domain, ok := strings.Cut(hostname, ".")
+		if !ok {
+			return ""
+		}
+		hostname = domain
 	}
-
-	switch parsedUrl.Hostname() {
-	case "appinn.com":
-		return "https://appinn.com"
-	case "bjp.org.cn":
-		return "https://bjp.org.cn"
-	case "cdnfile.sspai.com":
-		return "https://sspai.com"
-	case "f.video.weibocdn.com":
-		return "https://weibo.com"
-	case "i.pximg.net":
-		return "https://www.pixiv.net"
-	case "img.hellogithub.com":
-		return "https://hellogithub.com"
-	case "moyu.im":
-		return "https://i.jandan.net"
-	case "www.parkablogs.com":
-		return "https://www.parkablogs.com"
-	}
-
-	switch {
-	case strings.HasSuffix(parsedUrl.Hostname(), ".cdninstagram.com"):
-		return "https://www.instagram.com"
-	case strings.HasSuffix(parsedUrl.Hostname(), ".moyu.im"):
-		return "https://i.jandan.net"
-	case strings.HasSuffix(parsedUrl.Hostname(), ".sinaimg.cn"):
-		return "https://weibo.com"
-	}
-
-	return ""
 }

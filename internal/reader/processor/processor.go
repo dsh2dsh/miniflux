@@ -125,6 +125,8 @@ func (self *FeedProcessor) process(ctx context.Context) error {
 	feedURL, _ := url.Parse(self.feed.FeedURL)
 	siteURL, _ := url.Parse(self.feed.SiteURL)
 
+	contentRewrite := rewrite.NewContentRewrite(self.feed.RewriteRules)
+
 	for _, entry := range self.feed.Entries {
 		log := log.With(
 			slog.Int64("user_id", self.user.ID),
@@ -155,7 +157,7 @@ func (self *FeedProcessor) process(ctx context.Context) error {
 			}
 		}
 
-		rewrite.ApplyContentRewriteRules(entry, self.feed.RewriteRules)
+		contentRewrite.Apply(ctx, entry)
 		// The sanitizer should always run at the end of the process to make sure
 		// unsafe HTML is filtered out.
 		if err := self.sanitizeEntry(entry, pageURL); err != nil {
@@ -290,7 +292,7 @@ func ProcessEntryWebPage(ctx context.Context, feed *model.Feed,
 		return err
 	}
 
-	rewrite.ApplyContentRewriteRules(entry, entry.Feed.RewriteRules)
+	rewrite.ApplyContentRewriteRules(ctx, entry, entry.Feed.RewriteRules)
 	if err := p.sanitizeEntry(entry, pageURL); err != nil {
 		return err
 	}
