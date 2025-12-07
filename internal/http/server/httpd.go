@@ -22,9 +22,9 @@ import (
 	"miniflux.app/v2/internal/fever"
 	"miniflux.app/v2/internal/googlereader"
 	"miniflux.app/v2/internal/http/middleware"
-	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/metric"
 	"miniflux.app/v2/internal/storage"
+	"miniflux.app/v2/internal/template"
 	"miniflux.app/v2/internal/ui"
 	"miniflux.app/v2/internal/version"
 	"miniflux.app/v2/internal/worker"
@@ -112,7 +112,7 @@ func unlinkStaleUnix(path string) error {
 }
 
 func StartWebServer(store *storage.Storage, pool *worker.Pool,
-	g *errgroup.Group, listener net.Listener,
+	templates *template.Engine, g *errgroup.Group, listener net.Listener,
 ) *http.Server {
 	certFile := config.CertFile()
 	keyFile := config.CertKeyFile()
@@ -122,7 +122,7 @@ func StartWebServer(store *storage.Storage, pool *worker.Pool,
 		ReadTimeout:  config.HTTPServerTimeout(),
 		WriteTimeout: config.HTTPServerTimeout(),
 		IdleTimeout:  config.HTTPServerTimeout(),
-		Handler:      setupHandler(store, pool),
+		Handler:      setupHandler(store, pool, templates),
 	}
 
 	switch {
@@ -247,8 +247,10 @@ func startHTTPServer(server *http.Server, g *errgroup.Group) {
 	})
 }
 
-func setupHandler(store *storage.Storage, pool *worker.Pool) http.Handler {
-	serveMux := mux.New()
+func setupHandler(store *storage.Storage, pool *worker.Pool,
+	templates *template.Engine,
+) http.Handler {
+	serveMux := templates.Router()
 
 	// These routes do not take the base path into consideration and are always
 	// available at the root of the server.

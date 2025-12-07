@@ -16,11 +16,13 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/server"
 	"miniflux.app/v2/internal/metric"
 	"miniflux.app/v2/internal/proxyrotator"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/systemd"
+	"miniflux.app/v2/internal/template"
 	"miniflux.app/v2/internal/ui/static"
 	"miniflux.app/v2/internal/worker"
 )
@@ -32,6 +34,7 @@ type Daemon struct {
 	g          *errgroup.Group
 	httpServer *http.Server
 	pool       *worker.Pool
+	templates  *template.Engine
 }
 
 func (self *Daemon) Run() error {
@@ -93,7 +96,21 @@ func (self *Daemon) configure(ctx context.Context) error {
 		}
 		proxyrotator.ProxyRotatorInstance = rotatorInstance
 	}
+
+	templates, err := compileTemplates()
+	if err != nil {
+		return err
+	}
+	self.templates = templates
 	return generateBundles(ctx)
+}
+
+func compileTemplates() (*template.Engine, error) {
+	templates := template.NewEngine(mux.New())
+	if err := templates.ParseTemplates(); err != nil {
+		return nil, err
+	}
+	return templates, nil
 }
 
 func generateBundles(ctx context.Context) error {
@@ -118,7 +135,7 @@ func (self *Daemon) start(ctx context.Context) error {
 	}
 
 	self.g, ctx = errgroup.WithContext(ctx)
-	self.pool = worker.NewPool(ctx, self.store, config.WorkerPoolSize())
+	self.pool = worker.NewPool(ctx, self.store, self.templates)
 	self.g.Go(self.pool.Run)
 	if config.HasSchedulerService() && !config.HasMaintenanceMode() {
 		self.runScheduler(ctx)
@@ -126,7 +143,7 @@ func (self *Daemon) start(ctx context.Context) error {
 
 	if config.HasHTTPService() {
 		self.httpServer = server.StartWebServer(self.store, self.pool,
-			self.g, listener)
+			self.templates, self.g, listener)
 	}
 
 	if config.HasMetricsCollector() {

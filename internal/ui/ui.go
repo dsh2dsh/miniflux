@@ -36,7 +36,6 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
 	if err := templateEngine.ParseTemplates(); err != nil {
 		panic(err)
 	}
-	pool.WithTemplates(templateEngine)
 
 	secureCookie := securecookie.New()
 	h := &handler{

@@ -27,6 +27,11 @@ var refreshFeedsCmd = cobra.Command{
 }
 
 func runRefreshFeeds(ctx context.Context, store *storage.Storage) error {
+	templates, err := compileTemplates()
+	if err != nil {
+		return err
+	}
+
 	if err := store.SchemaUpToDate(ctx); err != nil {
 		return err
 	}
@@ -34,7 +39,7 @@ func runRefreshFeeds(ctx context.Context, store *storage.Storage) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	pool := worker.NewPool(ctx, store, config.WorkerPoolSize())
+	pool := worker.NewPool(ctx, store, templates)
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(pool.Run)
 

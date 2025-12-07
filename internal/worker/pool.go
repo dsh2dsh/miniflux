@@ -27,16 +27,19 @@ import (
 )
 
 // NewPool creates a pool of background workers.
-func NewPool(ctx context.Context, store *storage.Storage, n int) *Pool {
+func NewPool(ctx context.Context, store *storage.Storage,
+	templates *template.Engine,
+) *Pool {
 	self := &Pool{
-		ctx:      ctx,
-		queue:    make(chan *queueItem),
-		store:    store,
-		wakeupCh: make(chan struct{}, 1),
+		ctx:       ctx,
+		queue:     make(chan *queueItem),
+		store:     store,
+		templates: templates,
+		wakeupCh:  make(chan struct{}, 1),
 
 		schedulerCompletedAt: time.Now(),
 	}
-	self.g.SetLimit(n)
+	self.g.SetLimit(config.WorkerPoolSize())
 	return self
 }
 
@@ -55,11 +58,6 @@ type Pool struct {
 	err error
 
 	schedulerCompletedAt time.Time
-}
-
-func (self *Pool) WithTemplates(templates *template.Engine) *Pool {
-	self.templates = templates
-	return self
 }
 
 func (self *Pool) Wakeup() {
