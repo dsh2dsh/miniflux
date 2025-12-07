@@ -21,10 +21,6 @@ const (
 	DefaultFeedSortingDirection = "desc"
 )
 
-func NewFeed() *Feed {
-	return &Feed{Category: &Category{}, Icon: &FeedIcon{}}
-}
-
 // Feed represents a feed in the application.
 type Feed struct {
 	ID                          int64       `json:"id" db:"id"`

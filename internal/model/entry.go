@@ -55,14 +55,6 @@ type EntryExtra struct {
 	Enclosures EnclosureList `json:"enclosures,omitempty"`
 }
 
-func NewEntry() *Entry {
-	return &Entry{
-		Date: time.Now(),
-		Feed: NewFeed(),
-		Tags: []string{},
-	}
-}
-
 // ShouldMarkAsReadOnView Return whether the entry should be marked as viewed
 // considering all user settings and entry state.
 func (e *Entry) ShouldMarkAsReadOnView(user *User) bool {

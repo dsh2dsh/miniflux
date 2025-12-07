@@ -538,7 +538,7 @@ func (self *Refresh) notifyFeedError(ctx context.Context, user *model.User) {
 }
 
 func (self *Refresh) feedParsingError(user *model.User) *model.Entry {
-	entry := model.NewEntry()
+	entry := &model.Entry{Date: time.Now(), Feed: self.feed}
 
 	// There is a problem with this feed: %d errors
 	printer := locale.NewPrinter(user.Language)

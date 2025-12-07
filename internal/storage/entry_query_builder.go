@@ -345,7 +345,15 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 		var iconHash pgtype.Text
 		var tz string
 
-		entry := model.NewEntry()
+		entry := &model.Entry{
+			Date: time.Now(),
+			Feed: &model.Feed{
+				Category: &model.Category{},
+				Icon:     &model.FeedIcon{},
+			},
+			Tags: []string{},
+		}
+
 		dest = append(dest,
 			&entry.ID,
 			&entry.UserID,

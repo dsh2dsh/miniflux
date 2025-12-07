@@ -109,7 +109,7 @@ func (self *atomFeed) entry(item *atom.Entry) *model.Entry {
 	p := atomEntry{
 		atom:    item,
 		siteURL: self.parsedSiteURL,
-		entry:   model.NewEntry(),
+		entry:   &model.Entry{Date: time.Now(), Feed: self.feed},
 	}
 
 	entry := p.Parse()

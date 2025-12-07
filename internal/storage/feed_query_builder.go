@@ -186,7 +186,7 @@ WHERE `+f.buildCondition()+" "+f.buildSorting(), f.args...)
 		var iconHash pgtype.Text
 		var tz string
 
-		feed := model.NewFeed()
+		feed := &model.Feed{Category: &model.Category{}, Icon: &model.FeedIcon{}}
 		err := rows.Scan(
 			&feed.ID,
 			&feed.FeedURL,
