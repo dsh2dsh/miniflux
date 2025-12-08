@@ -11,19 +11,19 @@ import (
 )
 
 func TestGetPredefinedRules(t *testing.T) {
-	if getPredefinedScraperRules("http://www.phoronix.com/") == "" {
+	if domainRules("www.phoronix.com") == "" {
 		t.Error("Unable to find rule for phoronix.com")
 	}
 
-	if getPredefinedScraperRules("https://www.linux.com/") == "" {
+	if domainRules("www.linux.com") == "" {
 		t.Error("Unable to find rule for linux.com")
 	}
 
-	if getPredefinedScraperRules("https://linux.com/") == "" {
+	if domainRules("linux.com") == "" {
 		t.Error("Unable to find rule for linux.com")
 	}
 
-	if getPredefinedScraperRules("https://example.org/") != "" {
+	if domainRules("example.org") != "" {
 		t.Error("A rule not defined should not return anything")
 	}
 }
@@ -42,7 +42,7 @@ func TestWhitelistedContentTypes(t *testing.T) {
 	}
 
 	for inputValue, expectedResult := range scenarios {
-		actualResult := isAllowedContentType(inputValue)
+		actualResult := allowedContentType(inputValue)
 		if actualResult != expectedResult {
 			t.Errorf(`Unexpected result for content type whitelist, got "%v" instead of "%v"`, actualResult, expectedResult)
 		}

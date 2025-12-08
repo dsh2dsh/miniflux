@@ -3,6 +3,8 @@
 
 package scraper // import "miniflux.app/v2/internal/reader/scraper"
 
+import "strings"
+
 // List of predefined scraper rules (alphabetically sorted)
 // domain => CSS selectors
 var predefinedRules = map[string]string{
@@ -56,4 +58,17 @@ var predefinedRules = map[string]string{
 	"wired.com":            "main figure, article",
 	"zeit.de":              ".summary, .article-body",
 	"zdnet.com":            "div.storyBody",
+}
+
+func domainRules(hostname string) string {
+	for {
+		if rules, ok := predefinedRules[hostname]; ok {
+			return rules
+		}
+		_, domain, ok := strings.Cut(hostname, ".")
+		if !ok {
+			return ""
+		}
+		hostname = domain
+	}
 }

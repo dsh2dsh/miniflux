@@ -21,31 +21,28 @@ import (
 	"miniflux.app/v2/internal/urllib"
 )
 
-func ScrapeWebsite(ctx context.Context, requestBuilder *fetcher.RequestBuilder,
-	pageURL, rules string,
+func ScrapeWebsite(ctx context.Context, rb *fetcher.RequestBuilder, pageURL,
+	rules string,
 ) (string, string, error) {
-	resp, err := requestBuilder.Request(pageURL)
+	resp, err := rb.Request(pageURL)
 	if err != nil {
 		return "", "", fmt.Errorf("reader/scraper: scrape website: %w", err)
 	}
 	defer resp.Close()
 
-	log := logging.FromContext(ctx)
 	if lerr := resp.LocalizedError(); lerr != nil {
-		log.Warn("Unable to scrape website",
-			slog.String("url", pageURL),
-			slog.Any("error", lerr))
+		logging.FromContext(ctx).Warn("Unable to scrape website",
+			slog.String("url", pageURL), slog.Any("error", lerr))
 		return "", "", lerr
 	}
 
-	if !isAllowedContentType(resp.ContentType()) {
+	if !allowedContentType(resp.ContentType()) {
 		return "", "", fmt.Errorf(
-			"reader/scraper: this resource is not a HTML document (%s)",
+			"reader/scraper: this resource is not a HTML document: %q",
 			resp.ContentType())
 	}
 
-	r, err := encoding.NewCharsetReader(resp.Body(),
-		resp.ContentType())
+	r, err := encoding.NewCharsetReader(resp.Body(), resp.ContentType())
 	if err != nil {
 		return "", "", fmt.Errorf(
 			"reader/scraper: unable to read HTML document with charset reader: %w",
@@ -53,11 +50,12 @@ func ScrapeWebsite(ctx context.Context, requestBuilder *fetcher.RequestBuilder,
 	}
 
 	// The entry URL could redirect somewhere else.
-	sameSite := urllib.Domain(pageURL) == urllib.Domain(resp.EffectiveURL())
+	hostname := urllib.Domain(resp.EffectiveURL())
 	if rules == "" {
-		rules = getPredefinedScraperRules(resp.EffectiveURL())
+		rules = domainRules(hostname)
 	}
 
+	sameSite := hostname == urllib.Domain(pageURL)
 	if sameSite && rules != "" {
 		return extractCustom(ctx, r, resp.URL(), rules)
 	}
@@ -126,16 +124,7 @@ func findContentUsingCustomRules(page io.Reader, rules string) (baseURL, extract
 	return baseURL, extractedContent, nil
 }
 
-func getPredefinedScraperRules(websiteURL string) string {
-	urlDomain := urllib.DomainWithoutWWW(websiteURL)
-
-	if rules, ok := predefinedRules[urlDomain]; ok {
-		return rules
-	}
-	return ""
-}
-
-func isAllowedContentType(contentType string) bool {
+func allowedContentType(contentType string) bool {
 	contentType = strings.ToLower(contentType)
 	return strings.HasPrefix(contentType, "text/html") ||
 		strings.HasPrefix(contentType, "application/xhtml+xml")
