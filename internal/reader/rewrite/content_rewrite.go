@@ -15,11 +15,12 @@ import (
 	"miniflux.app/v2/internal/urllib"
 )
 
-func ApplyContentRewriteRules(ctx context.Context, entry *model.Entry,
-	userRules string,
-) {
-	contentRules := ContentRewrite{rules: parseRules(userRules)}
-	contentRules.Apply(ctx, entry)
+type ContentRewrite struct {
+	rules []rule
+}
+
+func NewContentRewrite(userRules string) *ContentRewrite {
+	return &ContentRewrite{rules: parseRules(userRules)}
 }
 
 func parseRules(s string) []rule {
@@ -42,14 +43,6 @@ func parseRules(s string) []rule {
 			return rules
 		}
 	}
-}
-
-type ContentRewrite struct {
-	rules []rule
-}
-
-func NewContentRewrite(userRules string) *ContentRewrite {
-	return &ContentRewrite{rules: parseRules(userRules)}
 }
 
 func (self *ContentRewrite) Apply(ctx context.Context, entry *model.Entry) {

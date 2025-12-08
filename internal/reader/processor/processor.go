@@ -282,17 +282,12 @@ func ProcessEntryWebPage(ctx context.Context, feed *model.Feed,
 	removeTracking(feedURL, siteURL, entry)
 	rewrite.RewriteEntryURL(ctx, feed, entry)
 
-	p := FeedProcessor{
-		feed: feed,
-		user: user,
-	}
-
+	p := FeedProcessor{feed: feed, user: user}
 	pageURL, content, err := p.Scrape(ctx, entry)
 	if err != nil || content == "" {
 		return err
 	}
 
-	rewrite.ApplyContentRewriteRules(ctx, entry, entry.Feed.RewriteRules)
 	if err := p.sanitizeEntry(entry, pageURL); err != nil {
 		return err
 	}
