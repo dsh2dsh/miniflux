@@ -4,6 +4,7 @@
 package scraper // import "miniflux.app/v2/internal/reader/scraper"
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -11,8 +12,8 @@ import (
 	"net/url"
 	"strings"
 
+	"codeberg.org/readeck/go-readability/v2"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/go-shiori/go-readability"
 
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/reader/encoding"
@@ -90,9 +91,17 @@ func extractReadability(ctx context.Context, r io.Reader, u *url.URL) (string, s
 	article, err := readability.FromReader(r, u)
 	if err != nil {
 		return "", "", fmt.Errorf(
-			"reader/scraper: extracting readable content: %w", err)
+			"reader/scraper: extract readable content: %w", err)
+	} else if article.Node == nil {
+		return pageURL, "", nil
 	}
-	return pageURL, article.Content, nil
+
+	var content bytes.Buffer
+	if err := article.RenderHTML(&content); err != nil {
+		return "", "", fmt.Errorf(
+			"reader/scraper: render readable content: %w", err)
+	}
+	return pageURL, content.String(), nil
 }
 
 func findContentUsingCustomRules(page io.Reader, rules string) (baseURL, extractedContent string, err error) {

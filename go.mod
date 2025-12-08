@@ -3,6 +3,7 @@ module miniflux.app/v2
 go 1.25
 
 require (
+	codeberg.org/readeck/go-readability/v2 v2.1.0
 	github.com/PuerkitoBio/goquery v1.11.0
 	github.com/caarlos0/env/v11 v11.3.1
 	github.com/cespare/xxhash/v2 v2.3.0
@@ -11,7 +12,6 @@ require (
 	github.com/dsh2dsh/expx-dotenv v1.4.0
 	github.com/dsh2dsh/gofeed/v2 v2.1.0
 	github.com/go-playground/validator/v10 v10.28.0
-	github.com/go-shiori/go-readability v0.0.0-20251205110129-5db1dc9836f0
 	github.com/go-webauthn/webauthn v0.15.0
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/joho/godotenv v1.5.1
