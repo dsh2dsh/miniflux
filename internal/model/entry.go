@@ -48,7 +48,7 @@ type Entry struct {
 	Tags        []string   `json:"tags" db:"tags"`
 	Extra       EntryExtra `json:"extra,omitzero" db:"extra"`
 
-	markStored bool
+	stored bool
 }
 
 type EntryExtra struct {
@@ -104,8 +104,8 @@ func (e *Entry) SetCommentsURL(rawURL string) (err error) {
 	return nil
 }
 
-func (e *Entry) MarkStored()  { e.markStored = true }
-func (e *Entry) Stored() bool { return e.markStored }
+func (e *Entry) MarkStored()  { e.stored = true }
+func (e *Entry) Stored() bool { return e.stored }
 
 func (e *Entry) Enclosures() EnclosureList { return e.Extra.Enclosures }
 

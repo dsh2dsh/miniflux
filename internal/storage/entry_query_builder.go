@@ -425,6 +425,7 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 		entry.Feed.UserID = entry.UserID
 		entry.Feed.Icon.FeedID = entry.FeedID
 		entry.Feed.Category.UserID = entry.UserID
+		entry.MarkStored()
 
 		entries = append(entries, entry)
 		entryMap[entry.ID] = entry

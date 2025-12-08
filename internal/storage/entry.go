@@ -185,12 +185,14 @@ SELECT feed_id, status, hash, published_at
 	entries := make([]model.Entry, 0, len(hashes))
 
 	_, err := pgx.ForEachRow(rows, scans, func() error {
-		entries = append(entries, model.Entry{
+		entry := model.Entry{
 			FeedID: feedID,
 			Status: status,
 			Hash:   hash,
 			Date:   published,
-		})
+		}
+		entry.MarkStored()
+		entries = append(entries, entry)
 		return nil
 	})
 	switch {
@@ -316,6 +318,7 @@ SELECT id, hash, created_at, changed_at
 		e.ID = id
 		e.CreatedAt = createdAt
 		e.ChangedAt = changedAt
+		e.MarkStored()
 		return nil
 	})
 	if err != nil {
@@ -377,6 +380,7 @@ RETURNING id, created_at, changed_at`,
 			return fmt.Errorf("queued create entry %q (feed #%d): %w",
 				e.URL, e.FeedID, err)
 		}
+		e.MarkStored()
 		return nil
 	})
 }
