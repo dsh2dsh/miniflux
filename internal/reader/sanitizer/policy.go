@@ -84,8 +84,10 @@ func init() {
 	p.AllowAttrs("id").DeleteFromGlobally()
 
 	p.SetAttr("controls", "controls").OnElements("audio", "video").
-		SetAttr("loading", "lazy").OnElements("iframe", "img").
-		SetAttr("sandbox", iframeSandbox).OnElements("iframe")
+		SetAttr("loading", "lazy").OnElements("iframe", "img")
+
+	p.SetAttr("sandbox", iframeSandbox).OnElements("iframe")
+	p.SetAttr("credentialless", "").OnElements("iframe")
 
 	// Note: the referrerpolicy seems to be required to avoid YouTube error 153
 	// video player configuration error
