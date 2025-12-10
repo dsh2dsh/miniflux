@@ -429,12 +429,8 @@ func TestProxyWithImageDataURL(t *testing.T) {
 	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<img src="data:image/gif;base64,test">`
-	expected := `<img src="data:image/gif;base64,test"/>`
 	output := RewriteDocumentWithRelativeProxyURL(r, input)
-
-	if expected != output {
-		t.Errorf(`Not expected output: got %s`, output)
-	}
+	assert.Equal(t, input, output)
 }
 
 func TestProxyWithImageSourceDataURL(t *testing.T) {

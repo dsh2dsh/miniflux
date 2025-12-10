@@ -15,6 +15,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/dsh2dsh/gofeed/v2/atom"
+
 	"miniflux.app/v2/internal/logging"
 )
 
@@ -48,6 +50,7 @@ type Entry struct {
 	Tags        []string   `json:"tags" db:"tags"`
 	Extra       EntryExtra `json:"extra,omitzero" db:"extra"`
 
+	atom   *atom.Entry
 	stored bool
 }
 
@@ -55,18 +58,25 @@ type EntryExtra struct {
 	Enclosures EnclosureList `json:"enclosures,omitempty"`
 }
 
+func (self *Entry) WithAtom(atom *atom.Entry) *Entry {
+	self.atom = atom
+	return self
+}
+
+func (self *Entry) Atom() *atom.Entry { return self.atom }
+
 // ShouldMarkAsReadOnView Return whether the entry should be marked as viewed
 // considering all user settings and entry state.
-func (e *Entry) ShouldMarkAsReadOnView(user *User) bool {
+func (self *Entry) ShouldMarkAsReadOnView(user *User) bool {
 	// Already read, no need to mark as read again. Removed entries are not marked
 	// as read
-	if e.Status != EntryStatusUnread {
+	if self.Status != EntryStatusUnread {
 		return false
 	}
 
 	// There is an enclosure, markAsRead will happen at enclosure completion time,
 	// no need to mark as read on view
-	if user.MarkReadOnMediaPlayerCompletion && e.Enclosures().ContainsAudioOrVideo() {
+	if user.MarkReadOnMediaPlayerCompletion && self.Enclosures().ContainsAudioOrVideo() {
 		return false
 	}
 
@@ -74,19 +84,19 @@ func (e *Entry) ShouldMarkAsReadOnView(user *User) bool {
 	return user.MarkReadOnView
 }
 
-func (e *Entry) SetCommentsURL(rawURL string) (err error) {
+func (self *Entry) SetCommentsURL(rawURL string) (err error) {
 	rawURL = strings.TrimSpace(rawURL)
 	if rawURL == "" {
-		e.CommentsURL = rawURL
+		self.CommentsURL = rawURL
 		return nil
 	}
 
 	var u *url.URL
 	switch {
 	case path.IsAbs(rawURL):
-		u, err = url.Parse(e.URL)
+		u, err = url.Parse(self.URL)
 		if err != nil {
-			return fmt.Errorf("model: parse entry url %q: %w", e.URL, err)
+			return fmt.Errorf("model: parse entry url %q: %w", self.URL, err)
 		}
 		u = u.JoinPath(rawURL)
 	default:
@@ -100,24 +110,24 @@ func (e *Entry) SetCommentsURL(rawURL string) (err error) {
 	if strings.HasSuffix(rawURL, "/") && !strings.HasSuffix(u.Path, "/") {
 		u.Path += "/"
 	}
-	e.CommentsURL = u.String()
+	self.CommentsURL = u.String()
 	return nil
 }
 
-func (e *Entry) MarkStored()  { e.stored = true }
-func (e *Entry) Stored() bool { return e.stored }
+func (self *Entry) MarkStored()  { self.stored = true }
+func (self *Entry) Stored() bool { return self.stored }
 
-func (e *Entry) Enclosures() EnclosureList { return e.Extra.Enclosures }
+func (self *Entry) Enclosures() EnclosureList { return self.Extra.Enclosures }
 
-func (e *Entry) AppendEnclosures(encList EnclosureList) {
+func (self *Entry) AppendEnclosures(encList EnclosureList) {
 	if len(encList) == 0 {
 		return
 	}
-	if e.Extra.Enclosures == nil {
-		e.Extra.Enclosures = encList
+	if self.Extra.Enclosures == nil {
+		self.Extra.Enclosures = encList
 		return
 	}
-	e.Extra.Enclosures = append(e.Extra.Enclosures, encList...)
+	self.Extra.Enclosures = append(self.Extra.Enclosures, encList...)
 }
 
 // Entries represents a list of entries.

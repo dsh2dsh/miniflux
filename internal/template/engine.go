@@ -15,6 +15,8 @@ import (
 	"miniflux.app/v2/internal/locale"
 )
 
+type HTML = template.HTML
+
 //go:embed templates/common/*.html templates/common/*.svg
 var commonTemplateFiles embed.FS
 

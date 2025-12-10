@@ -29,6 +29,7 @@ import (
 	mff "miniflux.app/v2/internal/reader/handler"
 	mfs "miniflux.app/v2/internal/reader/subscription"
 	"miniflux.app/v2/internal/storage"
+	"miniflux.app/v2/internal/template"
 	"miniflux.app/v2/internal/validator"
 )
 
@@ -38,8 +39,9 @@ const (
 )
 
 type handler struct {
-	store  *storage.Storage
-	router *mux.ServeMux
+	store     *storage.Storage
+	router    *mux.ServeMux
+	templates *template.Engine
 }
 
 var (
@@ -49,8 +51,8 @@ var (
 )
 
 // Serve handles Google Reader API calls.
-func Serve(m *mux.ServeMux, store *storage.Storage) {
-	h := &handler{store: store, router: m}
+func Serve(m *mux.ServeMux, store *storage.Storage, t *template.Engine) {
+	h := &handler{store: store, router: m, templates: t}
 	m.HandleFunc(LoginPath, h.clientLogin)
 
 	m = m.PrefixGroup(PathPrefix).
@@ -428,7 +430,7 @@ func (h *handler) quickAddHandler(w http.ResponseWriter, r *http.Request) {
 
 	toSubscribe := Stream{FeedStream, subscriptions[0].URL}
 	category := Stream{NoStream, ""}
-	feed, err := subscribe(ctx, toSubscribe, category, "", h.store, user.ID)
+	feed, err := h.subscribe(ctx, toSubscribe, category, "", user.ID)
 	if err != nil {
 		json.ServerError(w, r, err)
 		return
@@ -473,10 +475,10 @@ func getOrCreateCategory(ctx context.Context, streamCategory Stream,
 	return category, nil
 }
 
-func subscribe(ctx context.Context, newFeed, category Stream, title string,
-	store *storage.Storage, userID int64,
+func (h *handler) subscribe(ctx context.Context, newFeed, category Stream, title string,
+	userID int64,
 ) (*model.Feed, error) {
-	destCategory, err := getOrCreateCategory(ctx, category, store, userID)
+	destCategory, err := getOrCreateCategory(ctx, category, h.store, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -485,12 +487,13 @@ func subscribe(ctx context.Context, newFeed, category Stream, title string,
 		FeedURL:    newFeed.ID,
 		CategoryID: destCategory.ID,
 	}
-	lerr := validator.ValidateFeedCreation(ctx, store, userID, &createRequest)
+	lerr := validator.ValidateFeedCreation(ctx, h.store, userID, &createRequest)
 	if lerr != nil {
 		return nil, lerr.Error()
 	}
 
-	feed, lwerr := mff.CreateFeed(ctx, store, userID, &createRequest)
+	feed, lwerr := mff.New(h.store, userID, h.templates).FromRequest(ctx,
+		&createRequest)
 	if lwerr != nil {
 		return nil, lwerr
 	}
@@ -500,7 +503,7 @@ func subscribe(ctx context.Context, newFeed, category Stream, title string,
 			Title: &title,
 		}
 		modifyRequest.Patch(feed)
-		if err := store.UpdateFeed(ctx, feed); err != nil {
+		if err := h.store.UpdateFeed(ctx, feed); err != nil {
 			return nil, err
 		}
 	}
@@ -619,7 +622,7 @@ func (h *handler) editSubscriptionHandler(w http.ResponseWriter,
 
 	switch action {
 	case "subscribe":
-		_, err := subscribe(ctx, streamIds[0], newLabel, title, h.store, userID)
+		_, err := h.subscribe(ctx, streamIds[0], newLabel, title, userID)
 		if err != nil {
 			json.ServerError(w, r, err)
 			return

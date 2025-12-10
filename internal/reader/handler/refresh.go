@@ -329,7 +329,7 @@ func (self *Refresh) processEntries(ctx context.Context, entries model.Entries,
 		return nil, nil
 	}
 
-	p := processor.New(self.store, self.feed,
+	p := processor.New(self.store, self.feed, self.templates,
 		processor.WithSkipAgedFilter(),
 		processor.WithUserByID(self.userByIDFunc))
 

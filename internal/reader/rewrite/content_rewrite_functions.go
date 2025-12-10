@@ -293,13 +293,6 @@ func addVideoPlayerIframe(absoluteVideoURL, entryContent string) string {
 	return buildVideoPlayerIframe(absoluteVideoURL) + `<br>` + entryContent
 }
 
-func addYoutubeVideoRewriteRule(entryURL, entryContent string) string {
-	if videoURL := getYoutubVideoIDFromURL(entryURL); videoURL != "" {
-		return addVideoPlayerIframe(config.YouTubeEmbedUrlOverride()+videoURL, entryContent)
-	}
-	return entryContent
-}
-
 func addYoutubeVideoUsingInvidiousPlayer(entryURL, entryContent string) string {
 	if videoURL := getYoutubVideoIDFromURL(entryURL); videoURL != "" {
 		return addVideoPlayerIframe(`https://`+config.InvidiousInstance()+

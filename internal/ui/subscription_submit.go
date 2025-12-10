@@ -64,8 +64,8 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 		})
 
 	case n == 1 && finder.IsFeedAlreadyDownloaded():
-		feed, lerr := feedHandler.CreateFeedFromSubscriptionDiscovery(ctx, h.store,
-			user.ID,
+		feed, lerr := feedHandler.New(h.store, user.ID, h.tpl).FromDiscovery(
+			ctx,
 			&model.FeedCreationRequestFromSubscriptionDiscovery{
 				Content:      finder.FeedResponseInfo().Content,
 				ETag:         finder.FeedResponseInfo().ETag,
@@ -100,7 +100,8 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 		h.redirect(w, r, "feedEntries", "feedID", feed.ID)
 
 	case n == 1 && !finder.IsFeedAlreadyDownloaded():
-		feed, lerr := feedHandler.CreateFeed(ctx, h.store, user.ID,
+		feed, lerr := feedHandler.New(h.store, user.ID, h.tpl).FromRequest(
+			ctx,
 			&model.FeedCreationRequest{
 				CategoryID:                  f.CategoryID,
 				FeedURL:                     subscriptions[0].URL,

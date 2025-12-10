@@ -117,7 +117,7 @@ func (self *atomFeed) entry(item *atom.Entry) *model.Entry {
 	entry.Tags = self.entryTags(entry)
 	entry.URL = self.entryURL(entry)
 	entry.Title = self.entryTitle(entry)
-	return entry
+	return entry.WithAtom(item)
 }
 
 func (self *atomFeed) entryAuthor(entry *model.Entry) string {

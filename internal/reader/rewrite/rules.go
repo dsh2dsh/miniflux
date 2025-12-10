@@ -1,13 +1,11 @@
 package rewrite
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"strconv"
 	"strings"
 
-	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 )
 
@@ -36,33 +34,26 @@ func (self *rule) String() string {
 	return sb.String()
 }
 
-func (self *rule) applyReplaceContent(ctx context.Context, entry *model.Entry) {
+func (self *rule) applyReplaceContent(log *slog.Logger, entry *model.Entry) {
 	// Format: replace("search-term"|"replace-term")
 	if len(self.args) < 2 {
-		logging.FromContext(ctx).Warn(
-			"Cannot find search and replace terms for replace rule",
-			slog.Any("rule", self),
-			slog.String("entry_url", entry.URL),
-		)
+		log.Warn("Cannot find search and replace terms for replace rule")
 	}
 	entry.Content = replaceCustom(entry.Content, self.args[0], self.args[1])
 }
 
-func (self *rule) applyReplaceTitle(ctx context.Context, entry *model.Entry) {
+func (self *rule) applyReplaceTitle(log *slog.Logger, entry *model.Entry) {
 	// Format: replace_title("search-term"|"replace-term")
 	if len(self.args) < 2 {
-		logging.FromContext(ctx).Warn(
-			"Cannot find search and replace terms for replace_title rule",
-			slog.Any("rule", self), slog.String("entry_url", entry.URL))
+		log.Warn("Cannot find search and replace terms for replace_title rule")
 	}
 	entry.Title = replaceCustom(entry.Title, self.args[0], self.args[1])
 }
 
-func (self *rule) applyRemove(ctx context.Context, entry *model.Entry) {
+func (self *rule) applyRemove(log *slog.Logger, entry *model.Entry) {
 	// Format: remove("#selector > .element, .another")
 	if len(self.args) == 0 {
-		logging.FromContext(ctx).Warn("Cannot find selector for remove rule",
-			slog.Any("rule", self), slog.String("entry_url", entry.URL))
+		log.Warn("Cannot find selector for remove rule")
 		return
 	}
 	entry.Content = removeCustom(entry.Content, self.args[0])

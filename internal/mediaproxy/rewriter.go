@@ -25,7 +25,9 @@ func RewriteDocumentWithAbsoluteProxyURL(router *mux.ServeMux, htmlDocument stri
 	return genericProxyRewriter(router, ProxifyAbsoluteURL, htmlDocument)
 }
 
-func genericProxyRewriter(router *mux.ServeMux, proxifyFunction urlProxyRewriter, htmlDocument string) string {
+func genericProxyRewriter(router *mux.ServeMux,
+	proxifyFunction urlProxyRewriter, htmlDocument string,
+) string {
 	proxyOption := config.MediaProxyMode()
 	if proxyOption == "none" {
 		return htmlDocument
@@ -36,6 +38,7 @@ func genericProxyRewriter(router *mux.ServeMux, proxifyFunction urlProxyRewriter
 		return htmlDocument
 	}
 
+	var modified bool
 	for _, mediaType := range config.MediaProxyResourceTypes() {
 		switch mediaType {
 		case "image":
@@ -43,11 +46,13 @@ func genericProxyRewriter(router *mux.ServeMux, proxifyFunction urlProxyRewriter
 				if srcAttrValue, ok := img.Attr("src"); ok {
 					if shouldProxifyURL(srcAttrValue, proxyOption) {
 						img.SetAttr("src", proxifyFunction(router, srcAttrValue))
+						modified = true
 					}
 				}
 
 				if srcsetAttrValue, ok := img.Attr("srcset"); ok {
 					proxifySourceSet(img, router, proxifyFunction, proxyOption, srcsetAttrValue)
+					modified = true
 				}
 			})
 
@@ -56,6 +61,7 @@ func genericProxyRewriter(router *mux.ServeMux, proxifyFunction urlProxyRewriter
 					if posterAttrValue, ok := video.Attr("poster"); ok {
 						if shouldProxifyURL(posterAttrValue, proxyOption) {
 							video.SetAttr("poster", proxifyFunction(router, posterAttrValue))
+							modified = true
 						}
 					}
 				})
@@ -66,6 +72,7 @@ func genericProxyRewriter(router *mux.ServeMux, proxifyFunction urlProxyRewriter
 				if srcAttrValue, ok := audio.Attr("src"); ok {
 					if shouldProxifyURL(srcAttrValue, proxyOption) {
 						audio.SetAttr("src", proxifyFunction(router, srcAttrValue))
+						modified = true
 					}
 				}
 			})
@@ -75,23 +82,33 @@ func genericProxyRewriter(router *mux.ServeMux, proxifyFunction urlProxyRewriter
 				if srcAttrValue, ok := video.Attr("src"); ok {
 					if shouldProxifyURL(srcAttrValue, proxyOption) {
 						video.SetAttr("src", proxifyFunction(router, srcAttrValue))
+						modified = true
 					}
 				}
 
 				if posterAttrValue, ok := video.Attr("poster"); ok {
 					if shouldProxifyURL(posterAttrValue, proxyOption) {
 						video.SetAttr("poster", proxifyFunction(router, posterAttrValue))
+						modified = true
 					}
 				}
 			})
 		}
 	}
 
-	output, err := doc.FindMatcher(goquery.Single("body")).Html()
-	if err != nil {
+	if !modified {
 		return htmlDocument
 	}
 
+	body := doc.FindMatcher(goquery.Single("body"))
+	if body.Length() == 0 {
+		body = doc.Selection
+	}
+
+	output, err := body.Html()
+	if err != nil {
+		return htmlDocument
+	}
 	return output
 }
 

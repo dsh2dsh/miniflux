@@ -16,6 +16,7 @@ import (
 	"miniflux.app/v2/internal/reader/parser"
 	"miniflux.app/v2/internal/reader/processor"
 	"miniflux.app/v2/internal/storage"
+	"miniflux.app/v2/internal/template"
 )
 
 var (
@@ -24,41 +25,50 @@ var (
 	ErrDuplicatedFeed   = errors.New("fetcher: duplicated feed")
 )
 
-func CreateFeedFromSubscriptionDiscovery(ctx context.Context,
-	store *storage.Storage, userID int64,
+type Create struct {
+	store     *storage.Storage
+	userID    int64
+	templates *template.Engine
+}
+
+func New(store *storage.Storage, userID int64, t *template.Engine) *Create {
+	return &Create{store: store, userID: userID, templates: t}
+}
+
+func (self *Create) FromDiscovery(ctx context.Context,
 	r *model.FeedCreationRequestFromSubscriptionDiscovery,
 ) (*model.Feed, *locale.LocalizedErrorWrapper) {
 	log := logging.FromContext(ctx).With(
-		slog.Int64("user_id", userID),
+		slog.Int64("user_id", self.userID),
 		slog.String("feed_url", r.FeedURL),
 		slog.String("proxy_url", r.ProxyURL))
 	log.Debug("Begin feed creation process from subscription discovery")
 
-	if !store.CategoryIDExists(ctx, userID, r.CategoryID) {
+	if !self.store.CategoryIDExists(ctx, self.userID, r.CategoryID) {
 		return nil, locale.NewLocalizedErrorWrapper(ErrCategoryNotFound,
 			"error.category_not_found")
 	}
 
-	if store.FeedURLExists(ctx, userID, r.FeedURL) {
+	if self.store.FeedURLExists(ctx, self.userID, r.FeedURL) {
 		return nil, locale.NewLocalizedErrorWrapper(ErrDuplicatedFeed,
 			"error.duplicated_feed")
 	}
 
-	return createFeed(logging.WithLogger(ctx, log), store, userID,
-		&r.FeedCreationRequest, r.FeedURL, r.ETag, r.LastModified, r.Content)
+	return self.createFeed(logging.WithLogger(ctx, log), &r.FeedCreationRequest,
+		r.FeedURL, r.ETag, r.LastModified, r.Content)
 }
 
 // CreateFeed fetch, parse and store a new feed.
-func CreateFeed(ctx context.Context, store *storage.Storage, userID int64,
+func (self *Create) FromRequest(ctx context.Context,
 	r *model.FeedCreationRequest,
 ) (*model.Feed, *locale.LocalizedErrorWrapper) {
 	log := logging.FromContext(ctx).With(
-		slog.Int64("user_id", userID),
+		slog.Int64("user_id", self.userID),
 		slog.String("feed_url", r.FeedURL),
 		slog.String("proxy_url", r.ProxyURL))
 	log.Debug("Begin feed creation process")
 
-	if !store.CategoryIDExists(ctx, userID, r.CategoryID) {
+	if !self.store.CategoryIDExists(ctx, self.userID, r.CategoryID) {
 		return nil, locale.NewLocalizedErrorWrapper(ErrCategoryNotFound,
 			"error.category_not_found")
 	}
@@ -76,7 +86,7 @@ func CreateFeed(ctx context.Context, store *storage.Storage, userID int64,
 		return nil, lerr
 	}
 
-	if store.FeedURLExists(ctx, userID, resp.EffectiveURL()) {
+	if self.store.FeedURLExists(ctx, self.userID, resp.EffectiveURL()) {
 		return nil, locale.NewLocalizedErrorWrapper(ErrDuplicatedFeed,
 			"error.duplicated_feed")
 	}
@@ -88,11 +98,11 @@ func CreateFeed(ctx context.Context, store *storage.Storage, userID int64,
 	}
 	resp.Close()
 
-	return createFeed(logging.WithLogger(ctx, log), store, userID, r,
-		resp.EffectiveURL(), resp.ETag(), resp.LastModified(), body)
+	return self.createFeed(logging.WithLogger(ctx, log), r, resp.EffectiveURL(),
+		resp.ETag(), resp.LastModified(), body)
 }
 
-func createFeed(ctx context.Context, store *storage.Storage, userID int64,
+func (self *Create) createFeed(ctx context.Context,
 	r *model.FeedCreationRequest, url, etag, lastModified string, body []byte,
 ) (*model.Feed, *locale.LocalizedErrorWrapper) {
 	feed, err := parser.ParseBytes(url, body)
@@ -101,7 +111,7 @@ func createFeed(ctx context.Context, store *storage.Storage, userID int64,
 			"error.unable_to_parse_feed", err)
 	}
 
-	feed.UserID = userID
+	feed.UserID = self.userID
 	feed.UserAgent = r.UserAgent
 	feed.Cookie = r.Cookie
 	feed.Username = r.Username
@@ -126,16 +136,17 @@ func createFeed(ctx context.Context, store *storage.Storage, userID int64,
 	feed.ContentChanged(body)
 	feed.CheckedNow()
 
-	err = processor.ProcessFeedEntries(ctx, store, feed, userID, true)
+	err = processor.New(self.store, feed, self.templates).
+		ProcessFeedEntries(ctx, self.userID, true)
 	if err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err, "", err)
 	}
 
-	if err := store.CreateFeed(ctx, feed); err != nil {
+	if err := self.store.CreateFeed(ctx, feed); err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err, "", err)
 	}
 	logging.FromContext(ctx).Debug("Created feed")
 
-	icon.NewIconChecker(store, feed).UpdateOrCreateFeedIcon(ctx)
+	icon.NewIconChecker(self.store, feed).UpdateOrCreateFeedIcon(ctx)
 	return feed, nil
 }

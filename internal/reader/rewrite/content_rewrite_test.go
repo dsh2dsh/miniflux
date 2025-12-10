@@ -4,16 +4,114 @@
 package rewrite // import "miniflux.app/v2/internal/reader/rewrite"
 
 import (
+	"log/slog"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/dsh2dsh/gofeed/v2/atom"
+	"github.com/dsh2dsh/gofeed/v2/ext"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 
 	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/model"
+	"miniflux.app/v2/internal/template"
 )
+
+type RewriteTestSuite struct {
+	suite.Suite
+
+	templates *template.Engine
+	user      *model.User
+}
+
+func (self *RewriteTestSuite) withConfig(envs map[string]string) {
+	self.T().Helper()
+	for k, v := range envs {
+		self.T().Setenv(k, v)
+	}
+	self.Require().NoError(config.Load(""))
+}
+
+func (self *RewriteTestSuite) apply(entry *model.Entry) *ContentRewrite {
+	self.T().Helper()
+
+	contentRewrite := NewContentRewrite("", self.user, self.templates)
+	contentRewrite.Apply(self.T().Context(), entry)
+	return contentRewrite
+}
+
+func (self *RewriteTestSuite) TestRewriteYoutubeVideoLink() {
+	self.withConfig(nil)
+
+	const initialContent = "foo bar baz"
+	testEntry := model.Entry{
+		URL:     "https://www.youtube.com/watch?v=1234",
+		Content: initialContent,
+	}
+
+	contentRewrite := self.apply(withYoutubeAtom(&testEntry, "1234",
+		"Video & Description"))
+	self.True(contentRewrite.Sanitized())
+
+	content := testEntry.Content
+	self.NotContains(content, initialContent)
+
+	self.Contains(content,
+		`<iframe src="https://www.youtube-nocookie.com/embed/1234"`)
+	self.Contains(content, `loading="lazy"`)
+	self.Contains(content, `referrerpolicy="strict-origin-when-cross-origin"`)
+	self.Contains(content,
+		`<pre class="description">Video &amp; Description</pre>`)
+}
+
+func withYoutubeAtom(entry *model.Entry, videoId, descr string,
+) *model.Entry {
+	return entry.WithAtom(&atom.Entry{
+		Youtube: &ext.Youtube{VideoId: videoId},
+		Media: &ext.Media{
+			Groups: []ext.MediaGroup{
+				{Descriptions: []ext.MediaDescription{{Text: descr}}},
+			},
+		},
+	})
+}
+
+func (self *RewriteTestSuite) TestRewriteYoutubeLinkAndCustomEmbedURL() {
+	self.withConfig(map[string]string{
+		"YOUTUBE_EMBED_URL_OVERRIDE": "https://invidious.custom/embed/",
+	})
+
+	testEntry := model.Entry{
+		URL: "https://www.youtube.com/watch?v=1234",
+	}
+
+	contentRewrite := self.apply(withYoutubeAtom(&testEntry, "1234", ""))
+	self.True(contentRewrite.Sanitized())
+
+	content := testEntry.Content
+	self.NotContains(content, `</pre>`)
+	self.Contains(content, `<iframe src="https://invidious.custom/embed/1234"`)
+	self.Contains(content, `loading="lazy"`)
+	self.Contains(content, `referrerpolicy="strict-origin-when-cross-origin"`)
+}
+
+func TestRewriteSuite(t *testing.T) {
+	if testing.Verbose() {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
+
+	templates := template.NewEngine(mux.New())
+	require.NoError(t, templates.ParseTemplates())
+
+	suite.Run(t, &RewriteTestSuite{
+		templates: templates,
+		user:      &model.User{Language: "en_US"},
+	})
+}
 
 func TestReplaceTextLinks(t *testing.T) {
 	scenarios := map[string]string{
@@ -61,46 +159,6 @@ func applyContentRewriteRules(t *testing.T, entry *model.Entry,
 	contentRules.Apply(t.Context(), entry)
 }
 
-func TestRewriteYoutubeVideoLink(t *testing.T) {
-	config.Load("")
-
-	controlEntry := &model.Entry{
-		URL:     "https://www.youtube.com/watch?v=1234",
-		Title:   `A title`,
-		Content: `<iframe width="650" height="350" frameborder="0" src="https://www.youtube-nocookie.com/embed/1234" allowfullscreen></iframe><br>Video Description`,
-	}
-	testEntry := &model.Entry{
-		URL:     "https://www.youtube.com/watch?v=1234",
-		Title:   `A title`,
-		Content: `Video Description`,
-	}
-	applyContentRewriteRules(t, testEntry, ``)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
-}
-
-func TestRewriteYoutubeShortLink(t *testing.T) {
-	config.Load("")
-
-	controlEntry := &model.Entry{
-		URL:     "https://www.youtube.com/shorts/1LUWKWZkPjo",
-		Title:   `A title`,
-		Content: `<iframe width="650" height="350" frameborder="0" src="https://www.youtube-nocookie.com/embed/1LUWKWZkPjo" allowfullscreen></iframe><br>Video Description`,
-	}
-	testEntry := &model.Entry{
-		URL:     "https://www.youtube.com/shorts/1LUWKWZkPjo",
-		Title:   `A title`,
-		Content: `Video Description`,
-	}
-	applyContentRewriteRules(t, testEntry, ``)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
-}
-
 func TestRewriteIncorrectYoutubeLink(t *testing.T) {
 	config.Load("")
 
@@ -111,32 +169,6 @@ func TestRewriteIncorrectYoutubeLink(t *testing.T) {
 	}
 	testEntry := &model.Entry{
 		URL:     "https://www.youtube.com/some-page",
-		Title:   `A title`,
-		Content: `Video Description`,
-	}
-	applyContentRewriteRules(t, testEntry, ``)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
-}
-
-func TestRewriteYoutubeLinkAndCustomEmbedURL(t *testing.T) {
-	os.Clearenv()
-	t.Setenv("YOUTUBE_EMBED_URL_OVERRIDE", "https://invidious.custom/embed/")
-
-	err := config.Load("")
-	if err != nil {
-		t.Fatalf(`Parsing failure: %v`, err)
-	}
-
-	controlEntry := &model.Entry{
-		URL:     "https://www.youtube.com/watch?v=1234",
-		Title:   `A title`,
-		Content: `<iframe width="650" height="350" frameborder="0" src="https://invidious.custom/embed/1234" allowfullscreen></iframe><br>Video Description`,
-	}
-	testEntry := &model.Entry{
-		URL:     "https://www.youtube.com/watch?v=1234",
 		Title:   `A title`,
 		Content: `Video Description`,
 	}

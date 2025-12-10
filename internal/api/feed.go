@@ -46,8 +46,8 @@ func (h *handler) createFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	feed, localizedError := feedHandler.CreateFeed(ctx,
-		h.store, userID, &createRequest)
+	feed, localizedError := feedHandler.New(h.store, userID, h.templates).
+		FromRequest(ctx, &createRequest)
 	if localizedError != nil {
 		json.ServerError(w, r, localizedError)
 		return

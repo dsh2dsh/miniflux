@@ -24,6 +24,7 @@ import (
 	"miniflux.app/v2/internal/reader/sanitizer"
 	"miniflux.app/v2/internal/reader/scraper"
 	"miniflux.app/v2/internal/storage"
+	"miniflux.app/v2/internal/template"
 )
 
 var ErrBadFeed = errors.New("reader/processor: bad feed")
@@ -36,11 +37,13 @@ type FeedProcessor struct {
 
 	skipAgeFilter bool
 	userByIDFunc  storage.UserByIDFunc
+	templates     *template.Engine
 }
 
-func New(store *storage.Storage, feed *model.Feed, opts ...Option,
+func New(store *storage.Storage, feed *model.Feed, t *template.Engine,
+	opts ...Option,
 ) *FeedProcessor {
-	self := &FeedProcessor{store: store, feed: feed}
+	self := &FeedProcessor{store: store, feed: feed, templates: t}
 	for _, fn := range opts {
 		fn(self)
 	}
@@ -51,13 +54,6 @@ func New(store *storage.Storage, feed *model.Feed, opts ...Option,
 	return self
 }
 
-// ProcessFeedEntries downloads original web page for entries and apply filters.
-func ProcessFeedEntries(ctx context.Context, store *storage.Storage,
-	feed *model.Feed, userID int64, force bool,
-) error {
-	return New(store, feed).ProcessFeedEntries(ctx, userID, force)
-}
-
 func (self *FeedProcessor) WithSkipAgedFilter() *FeedProcessor {
 	self.skipAgeFilter = true
 	return self
@@ -65,6 +61,7 @@ func (self *FeedProcessor) WithSkipAgedFilter() *FeedProcessor {
 
 func (self *FeedProcessor) User() *model.User { return self.user }
 
+// ProcessFeedEntries downloads original web page for entries and apply filters.
 func (self *FeedProcessor) ProcessFeedEntries(ctx context.Context, userID int64,
 	force bool,
 ) error {
@@ -125,7 +122,8 @@ func (self *FeedProcessor) process(ctx context.Context) error {
 	feedURL, _ := url.Parse(self.feed.FeedURL)
 	siteURL, _ := url.Parse(self.feed.SiteURL)
 
-	contentRewrite := rewrite.NewContentRewrite(self.feed.RewriteRules)
+	contentRewrite := rewrite.NewContentRewrite(self.feed.RewriteRules,
+		self.user, self.templates)
 
 	for _, entry := range self.feed.Entries {
 		log := log.With(
@@ -160,7 +158,8 @@ func (self *FeedProcessor) process(ctx context.Context) error {
 		contentRewrite.Apply(ctx, entry)
 		// The sanitizer should always run at the end of the process to make sure
 		// unsafe HTML is filtered out.
-		if err := self.sanitizeEntry(entry, pageURL); err != nil {
+		err := self.sanitizeEntry(entry, pageURL, contentRewrite.Sanitized())
+		if err != nil {
 			return fmt.Errorf("%w: %w", ErrBadFeed, err)
 		}
 		updateEntryReadingTime(ctx, self.store, self.feed, entry, !entry.Stored(),
@@ -240,16 +239,23 @@ func (self *FeedProcessor) Scrape(ctx context.Context, entry *model.Entry,
 	return baseURL, content, nil
 }
 
-func (self *FeedProcessor) sanitizeEntry(entry *model.Entry, pageURL string) error {
+func (self *FeedProcessor) sanitizeEntry(entry *model.Entry, pageURL string,
+	contentSanitized bool,
+) error {
+	entry.Title = sanitizeTitle(entry, self.feed)
+	if contentSanitized {
+		return nil
+	}
+
 	if pageURL == "" {
 		pageURL = entry.URL
 	}
+
 	u, err := url.Parse(pageURL)
 	if err != nil {
 		return fmt.Errorf("reader/processor: parse entry URL: %w", err)
 	}
 
-	entry.Title = sanitizeTitle(entry, self.feed)
 	entry.Content = sanitizer.SanitizeContent(entry.Content, u)
 	return nil
 }
@@ -288,7 +294,7 @@ func ProcessEntryWebPage(ctx context.Context, feed *model.Feed,
 		return err
 	}
 
-	if err := p.sanitizeEntry(entry, pageURL); err != nil {
+	if err := p.sanitizeEntry(entry, pageURL, false); err != nil {
 		return err
 	}
 

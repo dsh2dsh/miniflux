@@ -29,7 +29,8 @@ func (h *handler) showChooseSubscriptionPage(w http.ResponseWriter,
 	}
 
 	userID := request.UserID(r)
-	feed, lerr := feedHandler.CreateFeed(r.Context(), h.store, userID,
+	feed, lerr := feedHandler.New(h.store, userID, h.tpl).FromRequest(
+		r.Context(),
 		&model.FeedCreationRequest{
 			CategoryID:                  f.CategoryID,
 			FeedURL:                     f.URL,

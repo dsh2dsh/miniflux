@@ -1260,6 +1260,15 @@ article.category-has-unread {
     border-color: var(--entry-content-code-border-color);
 }
 
+.entry-content pre.description {
+    color: inherit;
+    background: inherit;
+    border: inherit;
+    margin-top: 1em;
+    padding: 0;
+    white-space: pre-wrap;
+}
+
 .entry-content table {
     max-width: 100%;
 }

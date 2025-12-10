@@ -10,6 +10,7 @@ import (
 	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/storage"
+	"miniflux.app/v2/internal/template"
 	"miniflux.app/v2/internal/version"
 	"miniflux.app/v2/internal/worker"
 )
@@ -17,17 +18,26 @@ import (
 const PathPrefix = "/v1"
 
 type handler struct {
-	store  *storage.Storage
-	pool   *worker.Pool
-	router *mux.ServeMux
+	store     *storage.Storage
+	pool      *worker.Pool
+	router    *mux.ServeMux
+	templates *template.Engine
 }
 
 // Serve declares API routes for the application.
-func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
+func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
+	t *template.Engine,
+) {
 	m = m.PrefixGroup(PathPrefix)
 	m.Use(WithKeyAuth(store), WithBasicAuth(store), CORS, requestUser)
 
-	handler := &handler{store: store, pool: pool, router: m}
+	handler := &handler{
+		store:     store,
+		pool:      pool,
+		router:    m,
+		templates: t,
+	}
+
 	m.HandleFunc("POST /users", handler.createUser).
 		HandleFunc("GET /users", handler.users).
 		HandleFunc("GET /users/{userID}", handler.userByID).

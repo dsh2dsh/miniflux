@@ -10,17 +10,25 @@ import (
 	"strings"
 	"text/scanner"
 
+	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
+	"miniflux.app/v2/internal/reader/sanitizer"
+	"miniflux.app/v2/internal/template"
 	"miniflux.app/v2/internal/urllib"
 )
 
 type ContentRewrite struct {
-	rules []rule
+	rules     []rule
+	templates *template.Engine
+	user      *model.User
+
+	sanitized bool
 }
 
-func NewContentRewrite(userRules string) *ContentRewrite {
-	return &ContentRewrite{rules: parseRules(userRules)}
+func NewContentRewrite(userRules string, u *model.User, t *template.Engine,
+) *ContentRewrite {
+	return &ContentRewrite{rules: parseRules(userRules), user: u, templates: t}
 }
 
 func parseRules(s string) []rule {
@@ -45,15 +53,18 @@ func parseRules(s string) []rule {
 	}
 }
 
+func (self *ContentRewrite) Sanitized() bool { return self.sanitized }
+
 func (self *ContentRewrite) Apply(ctx context.Context, entry *model.Entry) {
 	rules := self.rules
 	if len(rules) == 0 {
 		rules = findDomainRule(urllib.Domain(entry.URL))
 	}
 
-	logging.FromContext(ctx).Debug("Applying rewrite rules",
+	logging.FromContext(ctx).Debug("Applying content rewrite rules",
 		slog.Any("rules", rules), slog.String("entry_url", entry.URL))
 
+	self.sanitized = false
 	for _, r := range rules {
 		self.applyRule(ctx, entry, r)
 	}
@@ -63,6 +74,11 @@ func (self *ContentRewrite) Apply(ctx context.Context, entry *model.Entry) {
 func (self *ContentRewrite) applyRule(ctx context.Context, entry *model.Entry,
 	r rule,
 ) {
+	log := logging.FromContext(ctx).With(
+		slog.Group("rule", slog.String("name", r.name), slog.Any("args", r.args)),
+		slog.String("entry_url", entry.URL))
+	log.Debug("Applying content rewrite rule")
+
 	switch r.name {
 	case "add_image_title":
 		entry.Content = addImageTitle(entry.Content)
@@ -73,7 +89,7 @@ func (self *ContentRewrite) applyRule(ctx context.Context, entry *model.Entry,
 	case "add_dynamic_iframe":
 		entry.Content = addDynamicIframe(entry.Content)
 	case "add_youtube_video":
-		entry.Content = addYoutubeVideoRewriteRule(entry.URL, entry.Content)
+		self.youtubeIframe(log, entry)
 	case "add_invidious_video":
 		entry.Content = addInvidiousVideo(entry.URL, entry.Content)
 	case "add_youtube_video_using_invidious_player":
@@ -91,11 +107,11 @@ func (self *ContentRewrite) applyRule(ctx context.Context, entry *model.Entry,
 	case "use_noscript_figure_images":
 		entry.Content = useNoScriptImages(entry.Content)
 	case "replace":
-		r.applyReplaceContent(ctx, entry)
+		r.applyReplaceContent(log, entry)
 	case "replace_title":
-		r.applyReplaceTitle(ctx, entry)
+		r.applyReplaceTitle(log, entry)
 	case "remove":
-		r.applyRemove(ctx, entry)
+		r.applyRemove(log, entry)
 	case "add_castopod_episode":
 		entry.Content = addCastopodEpisode(entry.URL, entry.Content)
 	case "base64_decode":
@@ -113,4 +129,48 @@ func (self *ContentRewrite) applyRule(ctx context.Context, entry *model.Entry,
 	case "remove_img_blur_params":
 		entry.Content = removeImgBlurParams(entry.Content)
 	}
+}
+
+func (self *ContentRewrite) youtubeIframe(log *slog.Logger, entry *model.Entry,
+) {
+	videoId, descr := youtubeVideo(entry)
+	if videoId == "" {
+		log.Warn("Cannot find Youtube video id for add_youtube_video rule")
+		return
+	}
+
+	iframe := config.YouTubeEmbedUrlOverride() + videoId
+	log.Debug("render youtube.html for add_youtube_video rule",
+		slog.Bool("description", descr != ""),
+		slog.String("iframe", iframe))
+
+	entry.Content = self.render("youtube.html", map[string]any{
+		"iframeSrc":   iframe,
+		"description": template.HTML(descr),
+	})
+	self.sanitized = true
+}
+
+func youtubeVideo(entry *model.Entry) (videoId, descr string) {
+	atom := entry.Atom()
+	if atom == nil || atom.Youtube == nil {
+		return videoId, descr
+	}
+	videoId = atom.Youtube.VideoId
+
+	media := atom.Media
+	if media == nil || len(media.Groups) == 0 {
+		return videoId, descr
+	}
+
+	mg := &media.Groups[0]
+	if len(mg.Descriptions) != 0 {
+		descr = sanitizer.StripTags(mg.Descriptions[0].Text)
+	}
+	return videoId, descr
+}
+
+func (self *ContentRewrite) render(name string, data map[string]any) string {
+	data["language"] = self.user.Language
+	return string(self.templates.Render(name, data))
 }

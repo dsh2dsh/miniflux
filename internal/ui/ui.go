@@ -31,17 +31,14 @@ type handler struct {
 }
 
 // Serve declares all routes for the user interface.
-func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool) {
-	templateEngine := template.NewEngine(m)
-	if err := templateEngine.ParseTemplates(); err != nil {
-		panic(err)
-	}
-
+func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
+	templates *template.Engine,
+) {
 	secureCookie := securecookie.New()
 	h := &handler{
 		router: m,
 		store:  store,
-		tpl:    templateEngine,
+		tpl:    templates,
 		pool:   pool,
 
 		secureCookie: secureCookie,
