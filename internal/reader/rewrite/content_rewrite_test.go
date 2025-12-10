@@ -60,10 +60,10 @@ func (self *RewriteTestSuite) TestRewriteYoutubeVideoLink() {
 	content := testEntry.Content
 	self.NotContains(content, initialContent)
 
-	self.Contains(content,
-		`<iframe src="https://www.youtube-nocookie.com/embed/1234"`)
+	self.Contains(content, `src="https://www.youtube-nocookie.com/embed/1234"`)
 	self.Contains(content, `loading="lazy"`)
 	self.Contains(content, `referrerpolicy="strict-origin-when-cross-origin"`)
+	self.Contains(content, `credentialless`)
 	self.Contains(content,
 		`<pre class="description">Video &amp; Description</pre>`)
 }
@@ -94,9 +94,10 @@ func (self *RewriteTestSuite) TestRewriteYoutubeLinkAndCustomEmbedURL() {
 
 	content := testEntry.Content
 	self.NotContains(content, `</pre>`)
-	self.Contains(content, `<iframe src="https://invidious.custom/embed/1234"`)
+	self.Contains(content, `src="https://invidious.custom/embed/1234"`)
 	self.Contains(content, `loading="lazy"`)
 	self.Contains(content, `referrerpolicy="strict-origin-when-cross-origin"`)
+	self.Contains(content, `credentialless`)
 }
 
 func TestRewriteSuite(t *testing.T) {
