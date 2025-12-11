@@ -74,7 +74,10 @@ func withYoutubeAtom(entry *model.Entry, videoId, descr string,
 		Youtube: &ext.Youtube{VideoId: videoId},
 		Media: &ext.Media{
 			Groups: []ext.MediaGroup{
-				{Descriptions: []ext.MediaDescription{{Text: descr}}},
+				{
+					Contents:     []ext.MediaContent{{Width: 640, Height: 390}},
+					Descriptions: []ext.MediaDescription{{Text: descr}},
+				},
 			},
 		},
 	})

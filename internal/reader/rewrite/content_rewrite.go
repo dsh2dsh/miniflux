@@ -133,41 +133,54 @@ func (self *ContentRewrite) applyRule(ctx context.Context, entry *model.Entry,
 
 func (self *ContentRewrite) youtubeIframe(log *slog.Logger, entry *model.Entry,
 ) {
-	videoId, descr := youtubeVideo(entry)
-	if videoId == "" {
+	yt := youtubeVideo(entry)
+	if yt.VideoId == "" {
 		log.Warn("Cannot find Youtube video id for add_youtube_video rule")
 		return
 	}
 
-	iframe := config.YouTubeEmbedUrlOverride() + videoId
+	iframe := config.YouTubeEmbedUrlOverride() + yt.VideoId
 	log.Debug("render youtube.html for add_youtube_video rule",
-		slog.Bool("description", descr != ""),
+		slog.Bool("description", yt.Description != ""),
 		slog.String("iframe", iframe))
 
 	entry.Content = self.render("youtube.html", map[string]any{
 		"iframeSrc":   iframe,
-		"description": template.HTML(descr),
+		"width":       yt.Width,
+		"height":      yt.Height,
+		"description": template.HTML(yt.Description),
 	})
 	self.sanitized = true
 }
 
-func youtubeVideo(entry *model.Entry) (videoId, descr string) {
+type youtubeContent struct {
+	Width, Height int
+	VideoId       string
+	Description   string
+}
+
+func youtubeVideo(entry *model.Entry) (c youtubeContent) {
 	atom := entry.Atom()
 	if atom == nil || atom.Youtube == nil {
-		return videoId, descr
+		return c
 	}
-	videoId = atom.Youtube.VideoId
+	c.VideoId = atom.Youtube.VideoId
 
 	media := atom.Media
 	if media == nil || len(media.Groups) == 0 {
-		return videoId, descr
+		return c
 	}
 
 	mg := &media.Groups[0]
-	if len(mg.Descriptions) != 0 {
-		descr = sanitizer.StripTags(mg.Descriptions[0].Text)
+	if len(mg.Contents) != 0 {
+		c.Width = mg.Contents[0].Width
+		c.Height = mg.Contents[0].Height
 	}
-	return videoId, descr
+
+	if len(mg.Descriptions) != 0 {
+		c.Description = sanitizer.StripTags(mg.Descriptions[0].Text)
+	}
+	return c
 }
 
 func (self *ContentRewrite) render(name string, data map[string]any) string {
