@@ -282,6 +282,20 @@ This project is an opinionated fork of Miniflux.
   the scheduler will continue to refresh any feed, which reached their error
   limit, instead of stop polling it. It'll try to refresh them every `24h`.
 
+* New content rewrite rule: `html_unescape`.
+
+  This rules converts double encoded content like
+
+  ```html
+  &lt;small&gt;Dec &lt;var data-var=&#039;date&#039;&gt; 3&lt;/var&gt;, &lt;var data-var=&#039;time&#039;&gt;02:59:00&lt;/var&gt; GMT+0&lt;/small&gt;
+  ```
+
+  to
+
+  ```html
+  <small>Dec <var data-var='date'> 3</var>, <var data-var='time'>02:59:00</var> GMT+0</small>
+  ```
+
 ---
 
 Features

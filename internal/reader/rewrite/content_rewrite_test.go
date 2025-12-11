@@ -36,10 +36,11 @@ func (self *RewriteTestSuite) withConfig(envs map[string]string) {
 	self.Require().NoError(config.Load(""))
 }
 
-func (self *RewriteTestSuite) apply(entry *model.Entry) *ContentRewrite {
+func (self *RewriteTestSuite) apply(entry *model.Entry, rules string,
+) *ContentRewrite {
 	self.T().Helper()
 
-	contentRewrite := NewContentRewrite("", self.user, self.templates)
+	contentRewrite := NewContentRewrite(rules, self.user, self.templates)
 	contentRewrite.Apply(self.T().Context(), entry)
 	return contentRewrite
 }
@@ -54,7 +55,7 @@ func (self *RewriteTestSuite) TestRewriteYoutubeVideoLink() {
 	}
 
 	contentRewrite := self.apply(withYoutubeAtom(&testEntry, "1234",
-		"Video & Description"))
+		"Video & Description"), "")
 	self.True(contentRewrite.Sanitized())
 
 	content := testEntry.Content
@@ -92,7 +93,7 @@ func (self *RewriteTestSuite) TestRewriteYoutubeLinkAndCustomEmbedURL() {
 		URL: "https://www.youtube.com/watch?v=1234",
 	}
 
-	contentRewrite := self.apply(withYoutubeAtom(&testEntry, "1234", ""))
+	contentRewrite := self.apply(withYoutubeAtom(&testEntry, "1234", ""), "")
 	self.True(contentRewrite.Sanitized())
 
 	content := testEntry.Content
@@ -101,6 +102,36 @@ func (self *RewriteTestSuite) TestRewriteYoutubeLinkAndCustomEmbedURL() {
 	self.Contains(content, `loading="lazy"`)
 	self.Contains(content, `referrerpolicy="strict-origin-when-cross-origin"`)
 	self.Contains(content, `credentialless`)
+}
+
+func (self *RewriteTestSuite) TestHTMLUnescapeRule() {
+	entry := model.Entry{
+		Content: `
+<p><strong>Type:</strong> Incident</p>
+<p><strong>Duration:</strong> 1 hour and 16 minutes</p>
+<p><strong>Affected Components:</strong> </p>
+&lt;p&gt;&lt;small&gt;Dec &lt;var data-var=&#039;date&#039;&gt; 3&lt;/var&gt;, &lt;var data-var=&#039;time&#039;&gt;02:59:00&lt;/var&gt; GMT+0&lt;/small&gt;&lt;br&gt;&lt;strong&gt;Investigating&lt;/strong&gt; -
+There is an internal forwarding issue affecting email sending. We are currently investigating..&lt;/p&gt;
+&lt;p&gt;&lt;small&gt;Dec &lt;var data-var=&#039;date&#039;&gt; 3&lt;/var&gt;, &lt;var data-var=&#039;time&#039;&gt;03:49:30&lt;/var&gt; GMT+0&lt;/small&gt;&lt;br&gt;&lt;strong&gt;Monitoring&lt;/strong&gt; -
+Email sending has resumed for affected users. We are actively monitoring this service for any further issues..&lt;/p&gt;
+&lt;p&gt;&lt;small&gt;Dec &lt;var data-var=&#039;date&#039;&gt; 3&lt;/var&gt;, &lt;var data-var=&#039;time&#039;&gt;04:14:35&lt;/var&gt; GMT+0&lt;/small&gt;&lt;br&gt;&lt;strong&gt;Resolved&lt;/strong&gt; -
+This incident has been resolved. No mail has been lost, and we don&#039;t anticipate further issues..&lt;/p&gt;`,
+	}
+
+	contentRewrite := self.apply(&entry, "html_unescape")
+	self.False(contentRewrite.Sanitized())
+
+	expected := `
+<p><strong>Type:</strong> Incident</p>
+<p><strong>Duration:</strong> 1 hour and 16 minutes</p>
+<p><strong>Affected Components:</strong> </p>
+<p><small>Dec <var data-var='date'> 3</var>, <var data-var='time'>02:59:00</var> GMT+0</small><br><strong>Investigating</strong> -
+There is an internal forwarding issue affecting email sending. We are currently investigating..</p>
+<p><small>Dec <var data-var='date'> 3</var>, <var data-var='time'>03:49:30</var> GMT+0</small><br><strong>Monitoring</strong> -
+Email sending has resumed for affected users. We are actively monitoring this service for any further issues..</p>
+<p><small>Dec <var data-var='date'> 3</var>, <var data-var='time'>04:14:35</var> GMT+0</small><br><strong>Resolved</strong> -
+This incident has been resolved. No mail has been lost, and we don't anticipate further issues..</p>`
+	self.Equal(expected, entry.Content)
 }
 
 func TestRewriteSuite(t *testing.T) {

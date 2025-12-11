@@ -5,6 +5,7 @@ package rewrite // import "miniflux.app/v2/internal/reader/rewrite"
 
 import (
 	"context"
+	"html"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -128,7 +129,16 @@ func (self *ContentRewrite) applyRule(ctx context.Context, entry *model.Entry,
 		entry.Content = fixGhostCards(entry.Content)
 	case "remove_img_blur_params":
 		entry.Content = removeImgBlurParams(entry.Content)
+	case "html_unescape":
+		self.unsafeContent(entry, html.UnescapeString)
 	}
+}
+
+func (self *ContentRewrite) unsafeContent(entry *model.Entry,
+	fn func(string) string,
+) {
+	entry.Content = fn(entry.Content)
+	self.sanitized = false
 }
 
 func (self *ContentRewrite) youtubeIframe(log *slog.Logger, entry *model.Entry,
