@@ -423,15 +423,11 @@ func TestParseEmptyFeed(t *testing.T) {
 
 func TestParseEncodings(t *testing.T) {
 	tests := []struct {
-		name    string
-		wantErr bool
+		name string
 	}{
 		{name: "encoding_ISO-8859-1"},
 		{name: "encoding_WINDOWS-1251"},
-		{
-			name:    "no_encoding_ISO-8859-1",
-			wantErr: true,
-		},
+		{name: "no_encoding_ISO-8859-1"},
 		{name: "rdf_UTF8"},
 		{name: "urdu_UTF8"},
 	}
@@ -442,10 +438,6 @@ func TestParseEncodings(t *testing.T) {
 			require.NoError(t, err)
 
 			_, err = ParseBytes("", b)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
 			require.NoError(t, err)
 		})
 	}
