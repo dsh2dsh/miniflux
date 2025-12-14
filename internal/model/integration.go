@@ -93,6 +93,7 @@ type Integration struct {
 	ReadeckEnabled                   bool   `json:"readeck_enabled,omitempty"`
 	ReadeckLabels                    string `json:"readeck_labels,omitempty"`
 	ReadeckOnlyURL                   bool   `json:"readeck_only_url,omitempty"`
+	ReadeckPushEnabled               bool   `json:"readeck_push_enabled,omitempty"`
 	ReadeckURL                       string `json:"readeck_url,omitempty"`
 	ReadwiseAPIKey                   string `json:"readwise_api_key,omitempty"`
 	ReadwiseEnabled                  bool   `json:"readwise_enabled,omitempty"`

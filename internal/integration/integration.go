@@ -684,4 +684,30 @@ func PushEntries(feed *model.Feed, entries model.Entries, user *model.User) {
 			}
 		}
 	}
+
+	// Push each new entry to Readeck when push is enabled
+	if userIntegrations.ReadeckPushEnabled {
+		client := readeck.NewClient(
+			userIntegrations.ReadeckURL,
+			userIntegrations.ReadeckAPIKey,
+			userIntegrations.ReadeckLabels,
+			userIntegrations.ReadeckOnlyURL,
+		)
+		for _, entry := range entries {
+			slog.Debug("Sending a new entry to Readeck",
+				slog.Int64("user_id", user.ID),
+				slog.Int64("entry_id", entry.ID),
+				slog.String("entry_url", entry.URL),
+			)
+
+			if err := client.CreateBookmark(entry.URL, entry.Title, entry.Content); err != nil {
+				slog.Error("Unable to send entry to Readeck",
+					slog.Int64("user_id", user.ID),
+					slog.Int64("entry_id", entry.ID),
+					slog.String("entry_url", entry.URL),
+					slog.Any("error", err),
+				)
+			}
+		}
+	}
 }

@@ -88,6 +88,7 @@ func (h *handler) showIntegrationPage(w http.ResponseWriter, r *http.Request) {
 		ReadeckAPIKey:                    i.ReadeckAPIKey,
 		ReadeckLabels:                    i.ReadeckLabels,
 		ReadeckOnlyURL:                   i.ReadeckOnlyURL,
+		ReadeckPushEnabled:               i.ReadeckPushEnabled,
 		ShioriEnabled:                    i.ShioriEnabled,
 		ShioriURL:                        i.ShioriURL,
 		ShioriUsername:                   i.ShioriUsername,
