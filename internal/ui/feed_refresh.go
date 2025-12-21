@@ -22,7 +22,7 @@ func (h *handler) refreshFeed(w http.ResponseWriter, r *http.Request) {
 	feedID := request.RouteInt64Param(r, "feedID")
 	force := request.QueryBoolParam(r, "forceRefresh", false)
 
-	_, err := feedHandler.RefreshFeed(ctx, h.store, userID, feedID,
+	_, err := feedHandler.RefreshFeed(ctx, h.store, h.tpl, userID, feedID,
 		feedHandler.WithForceUpdate(force))
 	if err != nil {
 		slog.Warn("Unable to refresh feed",

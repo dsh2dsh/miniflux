@@ -250,9 +250,8 @@ func (self *Pool) refreshFeed(job *queueItem) (*model.FeedRefreshed, error) {
 	log.Debug("worker: job received")
 
 	startTime := time.Now()
-	refreshed, err := handler.RefreshFeed(ctx, job.store, job.UserID, job.FeedID,
-		handler.WithTemplates(self.templates),
-		handler.WithUserByID(job.users.UserByID))
+	refreshed, err := handler.RefreshFeed(ctx, job.store, self.templates,
+		job.UserID, job.FeedID, handler.WithUserByID(job.users.UserByID))
 	if err != nil && !errors.Is(err, handler.ErrBadFeed) {
 		job.err = err
 		log.Error("worker: error refreshing feed", slog.Any("error", err))

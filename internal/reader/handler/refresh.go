@@ -30,13 +30,14 @@ const (
 
 var ErrBadFeed = errors.New("reader/handler: bad feed")
 
-func RefreshFeed(ctx context.Context, store *storage.Storage, userID,
-	feedID int64, opts ...Option,
+func RefreshFeed(ctx context.Context, store *storage.Storage,
+	templates *template.Engine, userID, feedID int64, opts ...Option,
 ) (*model.FeedRefreshed, error) {
 	r := Refresh{
-		store:  store,
-		userID: userID,
-		feedID: feedID,
+		store:     store,
+		templates: templates,
+		userID:    userID,
+		feedID:    feedID,
 	}
 
 	for _, fn := range opts {
