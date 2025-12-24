@@ -4,7 +4,6 @@
 package mediaproxy // import "miniflux.app/v2/internal/mediaproxy"
 
 import (
-	"slices"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -17,20 +16,36 @@ import (
 
 type urlProxyRewriter func(router *mux.ServeMux, url string) string
 
-func RewriteDocumentWithRelativeProxyURL(router *mux.ServeMux, htmlDocument string) string {
-	return genericProxyRewriter(router, ProxifyRelativeURL, htmlDocument)
-}
-
-func RewriteDocumentWithAbsoluteProxyURL(router *mux.ServeMux, htmlDocument string) string {
-	return genericProxyRewriter(router, ProxifyAbsoluteURL, htmlDocument)
-}
-
-func genericProxyRewriter(router *mux.ServeMux,
-	proxifyFunction urlProxyRewriter, htmlDocument string,
+func RewriteDocumentWithRelativeProxyURL(m *mux.ServeMux, htmlDocument string,
 ) string {
-	proxyOption := config.MediaProxyMode()
-	if proxyOption == "none" {
+	return genericProxyRewriter(m, ProxifyRelativeURL, htmlDocument)
+}
+
+func RewriteDocumentWithAbsoluteProxyURL(m *mux.ServeMux, htmlDocument string,
+) string {
+	return genericProxyRewriter(m, ProxifyAbsoluteURL, htmlDocument)
+}
+
+func genericProxyRewriter(m *mux.ServeMux, proxifyURL urlProxyRewriter,
+	htmlDocument string,
+) string {
+	proxyMode := config.MediaProxyMode()
+	if proxyMode == "none" {
 		return htmlDocument
+	}
+
+	var mediaTypes struct {
+		audio, image, video bool
+	}
+	for _, mediaType := range config.MediaProxyResourceTypes() {
+		switch mediaType {
+		case "audio":
+			mediaTypes.audio = true
+		case "image":
+			mediaTypes.image = true
+		case "video":
+			mediaTypes.video = true
+		}
 	}
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlDocument))
@@ -39,61 +54,61 @@ func genericProxyRewriter(router *mux.ServeMux,
 	}
 
 	var modified bool
-	for _, mediaType := range config.MediaProxyResourceTypes() {
-		switch mediaType {
-		case "image":
-			doc.Find("img, picture source").Each(func(i int, img *goquery.Selection) {
-				if srcAttrValue, ok := img.Attr("src"); ok {
-					if shouldProxifyURL(srcAttrValue, proxyOption) {
-						img.SetAttr("src", proxifyFunction(router, srcAttrValue))
-						modified = true
-					}
-				}
 
-				if srcsetAttrValue, ok := img.Attr("srcset"); ok {
-					proxifySourceSet(img, router, proxifyFunction, proxyOption, srcsetAttrValue)
+	if mediaTypes.audio {
+		doc.Find("audio, audio source").Each(func(i int, audio *goquery.Selection) {
+			if srcAttrValue, ok := audio.Attr("src"); ok {
+				if shouldProxifyURL(srcAttrValue, proxyMode) {
+					audio.SetAttr("src", proxifyURL(m, srcAttrValue))
 					modified = true
 				}
-			})
+			}
+		})
+	}
 
-			if !slices.Contains(config.MediaProxyResourceTypes(), "video") {
-				doc.Find("video").Each(func(i int, video *goquery.Selection) {
-					if posterAttrValue, ok := video.Attr("poster"); ok {
-						if shouldProxifyURL(posterAttrValue, proxyOption) {
-							video.SetAttr("poster", proxifyFunction(router, posterAttrValue))
-							modified = true
-						}
-					}
-				})
+	if mediaTypes.image {
+		doc.Find("img, picture source").Each(func(i int, img *goquery.Selection) {
+			if srcAttrValue, ok := img.Attr("src"); ok {
+				if shouldProxifyURL(srcAttrValue, proxyMode) {
+					img.SetAttr("src", proxifyURL(m, srcAttrValue))
+					modified = true
+				}
 			}
 
-		case "audio":
-			doc.Find("audio, audio source").Each(func(i int, audio *goquery.Selection) {
-				if srcAttrValue, ok := audio.Attr("src"); ok {
-					if shouldProxifyURL(srcAttrValue, proxyOption) {
-						audio.SetAttr("src", proxifyFunction(router, srcAttrValue))
-						modified = true
-					}
-				}
-			})
+			if srcsetAttrValue, ok := img.Attr("srcset"); ok {
+				proxifySourceSet(img, m, proxifyURL, proxyMode, srcsetAttrValue)
+				modified = true
+			}
+		})
 
-		case "video":
-			doc.Find("video, video source").Each(func(i int, video *goquery.Selection) {
-				if srcAttrValue, ok := video.Attr("src"); ok {
-					if shouldProxifyURL(srcAttrValue, proxyOption) {
-						video.SetAttr("src", proxifyFunction(router, srcAttrValue))
-						modified = true
-					}
-				}
-
+		if !mediaTypes.video {
+			doc.Find("video").Each(func(i int, video *goquery.Selection) {
 				if posterAttrValue, ok := video.Attr("poster"); ok {
-					if shouldProxifyURL(posterAttrValue, proxyOption) {
-						video.SetAttr("poster", proxifyFunction(router, posterAttrValue))
+					if shouldProxifyURL(posterAttrValue, proxyMode) {
+						video.SetAttr("poster", proxifyURL(m, posterAttrValue))
 						modified = true
 					}
 				}
 			})
 		}
+	}
+
+	if mediaTypes.video {
+		doc.Find("video, video source").Each(func(i int, video *goquery.Selection) {
+			if srcAttrValue, ok := video.Attr("src"); ok {
+				if shouldProxifyURL(srcAttrValue, proxyMode) {
+					video.SetAttr("src", proxifyURL(m, srcAttrValue))
+					modified = true
+				}
+			}
+
+			if posterAttrValue, ok := video.Attr("poster"); ok {
+				if shouldProxifyURL(posterAttrValue, proxyMode) {
+					video.SetAttr("poster", proxifyURL(m, posterAttrValue))
+					modified = true
+				}
+			}
+		})
 	}
 
 	if !modified {
