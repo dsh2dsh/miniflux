@@ -4,6 +4,7 @@
 package mediaproxy // import "miniflux.app/v2/internal/mediaproxy"
 
 import (
+	_ "embed"
 	"net/http"
 	"os"
 	"testing"
@@ -14,6 +15,26 @@ import (
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/mux"
 )
+
+//go:embed testdata/miniflux_wikipedia.html
+var wikipediaHTML string
+
+func BenchmarkProxy(b *testing.B) {
+	b.Setenv("MEDIA_PROXY_MODE", "all")
+	b.Setenv("MEDIA_PROXY_RESOURCE_TYPES", "image")
+	b.Setenv("MEDIA_PROXY_PRIVATE_KEY", "test")
+
+	require.NoError(b, config.Load(""))
+
+	m := mux.New()
+	m.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}",
+		func(http.ResponseWriter, *http.Request) {}, "proxy")
+
+	b.ReportAllocs()
+	for b.Loop() {
+		RewriteDocumentWithRelativeProxyURL(m, wikipediaHTML)
+	}
+}
 
 func TestProxyFilterWithHttpDefault(t *testing.T) {
 	os.Clearenv()
