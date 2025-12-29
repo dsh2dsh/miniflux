@@ -395,7 +395,7 @@ func TestProxyFilterWithPictureSource(t *testing.T) {
 		func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<picture><source srcset="http://website/folder/image2.png 656w,   http://website/folder/image3.png 360w, https://website/some,image.png 2x"></picture>`
-	expected := `<picture><source srcset="/proxy/aY5Hb4urDnUCly2vTJ7ExQeeaVS-52O7kjUr2v9VrAs=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlMi5wbmc= 656w, /proxy/QgAmrJWiAud_nNAsz3F8OTxaIofwAiO36EDzH_YfMzo=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlMy5wbmc= 360w, /proxy/nOQOuf9YIgO9CONNsdpu_tFqEDEUg8_yyUBiOk8fN3U=/aHR0cHM6Ly93ZWJzaXRlL3NvbWU=, /proxy/yAhlhlUws4L6V9EyKI-xY1tQ0_7hoB_uTDTABbzkH74=/aW1hZ2UucG5n 2x"/></picture>`
+	expected := `<picture><source srcset="/proxy/aY5Hb4urDnUCly2vTJ7ExQeeaVS-52O7kjUr2v9VrAs=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlMi5wbmc= 656w, /proxy/QgAmrJWiAud_nNAsz3F8OTxaIofwAiO36EDzH_YfMzo=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlMy5wbmc= 360w, /proxy/ZIw0hv8WhSTls5aSqhnFaCXlUrKIqTnBRaY0-NaLnds=/aHR0cHM6Ly93ZWJzaXRlL3NvbWUsaW1hZ2UucG5n 2x"/></picture>`
 	assert.Equal(t, expected, RewriteDocumentWithRelativeProxyURL(r, input))
 }
 
@@ -411,7 +411,7 @@ func TestProxyFilterOnlyNonHTTPWithPictureSource(t *testing.T) {
 		func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<picture><source srcset="http://website/folder/image2.png 656w, https://website/some,image.png 2x"></picture>`
-	expected := `<picture><source srcset="/proxy/aY5Hb4urDnUCly2vTJ7ExQeeaVS-52O7kjUr2v9VrAs=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlMi5wbmc= 656w, https://website/some, /proxy/yAhlhlUws4L6V9EyKI-xY1tQ0_7hoB_uTDTABbzkH74=/aW1hZ2UucG5n 2x"/></picture>`
+	expected := `<picture><source srcset="/proxy/aY5Hb4urDnUCly2vTJ7ExQeeaVS-52O7kjUr2v9VrAs=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlMi5wbmc= 656w, https://website/some,image.png 2x"/></picture>`
 	assert.Equal(t, expected, RewriteDocumentWithRelativeProxyURL(r, input))
 }
 
@@ -442,7 +442,7 @@ func TestProxyWithImageSourceDataURL(t *testing.T) {
 		func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<picture><source srcset="data:image/gif;base64,test"/></picture>`
-	expected := `<picture><source srcset="data:image/gif;base64, /proxy/iM0hCLU0fZc885zfkFPX3UJwSHbYyam9ji0WglnT3fc=/dGVzdA=="/></picture>`
+	expected := `<picture><source srcset="data:image/gif;base64,test"/></picture>`
 	assert.Equal(t, expected, RewriteDocumentWithRelativeProxyURL(r, input))
 }
 
