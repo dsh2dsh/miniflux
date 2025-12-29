@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"miniflux.app/v2/internal/locale"
+	"miniflux.app/v2/internal/logging"
 )
 
 type ResponseHandler struct {
@@ -161,7 +162,8 @@ func BodyClose(r io.ReadCloser) {
 }
 
 func (r *ResponseHandler) getReader(maxBodySize int64) io.ReadCloser {
-	slog.Debug("Request response",
+	logging.FromContext(r.httpResponse.Request.Context()).Debug(
+		"Request response",
 		slog.String("effective_url", r.EffectiveURL()),
 		slog.String("content_length", r.httpResponse.Header.Get("Content-Length")),
 		slog.String("content_encoding",

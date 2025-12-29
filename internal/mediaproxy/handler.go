@@ -105,7 +105,7 @@ func Serve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	resp, err := rb.Request(mediaURL)
+	resp, err := rb.RequestWithContext(r.Context(), mediaURL)
 	if err != nil {
 		log.Error("MediaProxy: Unable to initialize HTTP client",
 			slog.Any("error", err))
