@@ -29,6 +29,11 @@ import (
 
 var ErrBadFeed = errors.New("reader/processor: bad feed")
 
+func UpdateEntry(user *model.User, entry *model.Entry) error {
+	p := FeedProcessor{feed: entry.Feed, user: user}
+	return p.UpdateEntry(entry, entry.URL)
+}
+
 type FeedProcessor struct {
 	store *storage.Storage
 	feed  *model.Feed
@@ -239,6 +244,19 @@ func (self *FeedProcessor) Scrape(ctx context.Context, entry *model.Entry,
 	return baseURL, content, nil
 }
 
+func (self *FeedProcessor) UpdateEntry(entry *model.Entry, pageURL string,
+) error {
+	if err := self.sanitizeEntry(entry, pageURL, false); err != nil {
+		return err
+	}
+
+	if self.user.ShowReadingTime {
+		entry.ReadingTime = readingtime.EstimateReadingTime(entry.Content,
+			self.user.DefaultReadingSpeed, self.user.CJKReadingSpeed)
+	}
+	return nil
+}
+
 func (self *FeedProcessor) sanitizeEntry(entry *model.Entry, pageURL string,
 	contentSanitized bool,
 ) error {
@@ -293,14 +311,5 @@ func ProcessEntryWebPage(ctx context.Context, feed *model.Feed,
 	if err != nil || content == "" {
 		return err
 	}
-
-	if err := p.sanitizeEntry(entry, pageURL, false); err != nil {
-		return err
-	}
-
-	if user.ShowReadingTime {
-		entry.ReadingTime = readingtime.EstimateReadingTime(entry.Content,
-			user.DefaultReadingSpeed, user.CJKReadingSpeed)
-	}
-	return nil
+	return p.UpdateEntry(entry, pageURL)
 }

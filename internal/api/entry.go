@@ -19,7 +19,6 @@ import (
 	"miniflux.app/v2/internal/mediaproxy"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/processor"
-	"miniflux.app/v2/internal/reader/readingtime"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/validator"
 )
@@ -269,10 +268,9 @@ func (h *handler) updateEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	updateRequest.Patch(entry)
-	user := request.User(r)
-	if user.ShowReadingTime {
-		entry.ReadingTime = readingtime.EstimateReadingTime(entry.Content,
-			user.DefaultReadingSpeed, user.CJKReadingSpeed)
+	if err := processor.UpdateEntry(request.User(r), entry); err != nil {
+		json.ServerError(w, r, err)
+		return
 	}
 
 	err = h.store.UpdateEntryTitleAndContent(ctx, entry)
