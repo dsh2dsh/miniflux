@@ -29,7 +29,7 @@ func (h *handler) inlineEntry(w http.ResponseWriter, r *http.Request) {
 
 	content := mediaproxy.RewriteDocumentWithRelativeProxyURL(
 		h.router, entry.Content)
-	entry.Enclosures().ProxifyEnclosureURL(h.router)
+	mediaproxy.ProxifyEnclosures(h.router, entry.Enclosures())
 
 	v := view.New(h.tpl, r, nil).
 		Set("entry", entry).

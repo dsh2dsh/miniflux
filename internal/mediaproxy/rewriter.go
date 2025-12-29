@@ -17,6 +17,7 @@ import (
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/route"
+	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/sanitizer"
 )
 
@@ -34,7 +35,14 @@ func RewriteDocumentWithAbsoluteProxyURL(m *mux.ServeMux, content string,
 	return p.WithAbsoluteProxy().Proxify(content)
 }
 
-func ProxifyAbsoluteURL(m *mux.ServeMux, mimeType, mediaURL string) string {
+func ProxifyEnclosures(m *mux.ServeMux, enclosures []model.Enclosure) {
+	for i := range enclosures {
+		e := &enclosures[i]
+		e.URL = proxifyAbsoluteURL(m, e.MimeType, e.URL)
+	}
+}
+
+func proxifyAbsoluteURL(m *mux.ServeMux, mimeType, mediaURL string) string {
 	if mediaURL == "" {
 		return mediaURL
 	}

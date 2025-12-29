@@ -14,6 +14,7 @@ import (
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/mux"
+	"miniflux.app/v2/internal/model"
 )
 
 //go:embed testdata/miniflux_wikipedia.html
@@ -635,8 +636,236 @@ func TestProxifyAbsoluteURL(t *testing.T) {
 			t.Setenv("MEDIA_PROXY_RESOURCE_TYPES", tt.mediaProxyResourceTypes)
 			require.NoError(t, config.Load(""))
 
-			result := ProxifyAbsoluteURL(m, tt.mediaMimeType, tt.mediaURL)
+			result := proxifyAbsoluteURL(m, tt.mediaMimeType, tt.mediaURL)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestProxifyEnclosures_urls(t *testing.T) {
+	tests := []struct {
+		name                    string
+		url                     string
+		mimeType                string
+		mediaProxyOption        string
+		mediaProxyResourceTypes string
+		expectedURLChanged      bool
+	}{
+		{
+			name:                    "HTTP URL with audio type - proxy mode all",
+			url:                     "http://example.com/audio.mp3",
+			mimeType:                "audio/mpeg",
+			mediaProxyOption:        "all",
+			mediaProxyResourceTypes: "audio,video",
+			expectedURLChanged:      true,
+		},
+		{
+			name:                    "HTTPS URL with video type - proxy mode all",
+			url:                     "https://example.com/video.mp4",
+			mimeType:                "video/mp4",
+			mediaProxyOption:        "all",
+			mediaProxyResourceTypes: "audio,video",
+			expectedURLChanged:      true,
+		},
+		{
+			name:                    "HTTP URL with video type - proxy mode http-only",
+			url:                     "http://example.com/video.mp4",
+			mimeType:                "video/mp4",
+			mediaProxyOption:        "http-only",
+			mediaProxyResourceTypes: "audio,video",
+			expectedURLChanged:      true,
+		},
+		{
+			name:                    "HTTPS URL with video type - proxy mode http-only",
+			url:                     "https://example.com/video.mp4",
+			mimeType:                "video/mp4",
+			mediaProxyOption:        "http-only",
+			mediaProxyResourceTypes: "audio,video",
+		},
+		{
+			name:                    "HTTP URL with image type - not in resource types",
+			url:                     "http://example.com/image.jpg",
+			mimeType:                "image/jpeg",
+			mediaProxyOption:        "all",
+			mediaProxyResourceTypes: "audio,video",
+		},
+		{
+			name:                    "HTTP URL with image type - in resource types",
+			url:                     "http://example.com/image.jpg",
+			mimeType:                "image/jpeg",
+			mediaProxyOption:        "all",
+			mediaProxyResourceTypes: "audio,video,image",
+			expectedURLChanged:      true,
+		},
+		{
+			name:                    "HTTP URL - proxy mode none",
+			url:                     "http://example.com/audio.mp3",
+			mimeType:                "audio/mpeg",
+			mediaProxyOption:        "none",
+			mediaProxyResourceTypes: "audio,video",
+		},
+		{
+			name:                    "Empty URL",
+			url:                     "",
+			mimeType:                "audio/mpeg",
+			mediaProxyOption:        "all",
+			mediaProxyResourceTypes: "audio,video",
+		},
+		{
+			name:                    "Non-media MIME type",
+			url:                     "http://example.com/doc.pdf",
+			mimeType:                "application/pdf",
+			mediaProxyOption:        "all",
+			mediaProxyResourceTypes: "audio,video",
+		},
+	}
+
+	router := mux.New()
+	router.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}",
+		func(w http.ResponseWriter, r *http.Request) {}, "proxy")
+
+	os.Clearenv()
+	t.Setenv("BASE_URL", "http://localhost")
+	t.Setenv("MEDIA_PROXY_PRIVATE_KEY", "test-private-key")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("MEDIA_PROXY_MODE", tt.mediaProxyOption)
+			t.Setenv("MEDIA_PROXY_RESOURCE_TYPES", tt.mediaProxyResourceTypes)
+			require.NoError(t, config.Load(""))
+
+			enclosures := []model.Enclosure{{
+				URL:      tt.url,
+				MimeType: tt.mimeType,
+			}}
+
+			originalURL := enclosures[0].URL
+
+			// Call the method
+			ProxifyEnclosures(router, enclosures)
+
+			// Check if URL changed as expected
+			if !tt.expectedURLChanged {
+				assert.Equal(t, originalURL, enclosures[0].URL)
+				return
+			}
+
+			// If URL should have changed, verify it's not empty
+			assert.NotEmpty(t, enclosures[0].URL)
+			assert.NotEqual(t, originalURL, enclosures[0].URL)
+		})
+	}
+}
+
+func TestProxifyEnclosures_list(t *testing.T) {
+	// Initialize config for testing
+	os.Clearenv()
+	t.Setenv("BASE_URL", "http://localhost")
+	t.Setenv("MEDIA_PROXY_PRIVATE_KEY", "test-private-key")
+
+	router := mux.New()
+	router.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}",
+		func(w http.ResponseWriter, r *http.Request) {}, "proxy")
+
+	tests := []struct {
+		name                    string
+		enclosures              []model.Enclosure
+		mediaProxyOption        string
+		mediaProxyResourceTypes string
+		expectedChangedCount    int
+	}{
+		{
+			name: "Mixed enclosures with all proxy mode",
+			enclosures: []model.Enclosure{
+				{URL: "http://example.com/audio.mp3", MimeType: "audio/mpeg"},
+				{URL: "https://example.com/video.mp4", MimeType: "video/mp4"},
+				{URL: "http://example.com/image.jpg", MimeType: "image/jpeg"},
+				{URL: "http://example.com/doc.pdf", MimeType: "application/pdf"},
+			},
+			mediaProxyOption:        "all",
+			mediaProxyResourceTypes: "audio,video",
+			expectedChangedCount:    2, // audio and video should be proxified
+		},
+		{
+			name: "Mixed enclosures with http-only proxy mode",
+			enclosures: []model.Enclosure{
+				{URL: "http://example.com/audio.mp3", MimeType: "audio/mpeg"},
+				{URL: "https://example.com/video.mp4", MimeType: "video/mp4"},
+				{URL: "http://example.com/video2.mp4", MimeType: "video/mp4"},
+			},
+			mediaProxyOption:        "http-only",
+			mediaProxyResourceTypes: "audio,video",
+			expectedChangedCount:    2, // only HTTP URLs should be proxified
+		},
+		{
+			name: "No media types in resource list",
+			enclosures: []model.Enclosure{
+				{URL: "http://example.com/audio.mp3", MimeType: "audio/mpeg"},
+				{URL: "http://example.com/video.mp4", MimeType: "video/mp4"},
+			},
+			mediaProxyOption:        "all",
+			mediaProxyResourceTypes: "image",
+			expectedChangedCount:    0, // no matching resource types
+		},
+		{
+			name: "Proxy mode none",
+			enclosures: []model.Enclosure{
+				{URL: "http://example.com/audio.mp3", MimeType: "audio/mpeg"},
+				{URL: "http://example.com/video.mp4", MimeType: "video/mp4"},
+			},
+			mediaProxyOption:        "none",
+			mediaProxyResourceTypes: "audio,video",
+			expectedChangedCount:    0,
+		},
+		{
+			name:                    "Empty enclosure list",
+			enclosures:              []model.Enclosure{},
+			mediaProxyOption:        "all",
+			mediaProxyResourceTypes: "audio,video",
+			expectedChangedCount:    0,
+		},
+		{
+			name: "Enclosures with empty URLs",
+			enclosures: []model.Enclosure{
+				{URL: "", MimeType: "audio/mpeg"},
+				{URL: "http://example.com/video.mp4", MimeType: "video/mp4"},
+			},
+			mediaProxyOption:        "all",
+			mediaProxyResourceTypes: "audio,video",
+			expectedChangedCount:    1, // only the non-empty URL should be processed
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("MEDIA_PROXY_MODE", tt.mediaProxyOption)
+			t.Setenv("MEDIA_PROXY_RESOURCE_TYPES", tt.mediaProxyResourceTypes)
+			require.NoError(t, config.Load(""))
+
+			// Store original URLs
+			originalURLs := make([]string, len(tt.enclosures))
+			for i, enclosure := range tt.enclosures {
+				originalURLs[i] = enclosure.URL
+			}
+
+			// Call the method
+			ProxifyEnclosures(router, tt.enclosures)
+
+			// Count how many URLs actually changed
+			changedCount := 0
+			for i, enclosure := range tt.enclosures {
+				if enclosure.URL != originalURLs[i] {
+					changedCount++
+					// Verify that changed URLs are not empty (unless they were empty originally)
+					if originalURLs[i] != "" && enclosure.URL == "" {
+						t.Errorf("Enclosure %d: ProxifyEnclosureURL resulted in empty URL", i)
+					}
+				}
+			}
+
+			if changedCount != tt.expectedChangedCount {
+				t.Errorf("ProxifyEnclosureURL() changed %d URLs, want %d", changedCount, tt.expectedChangedCount)
+			}
 		})
 	}
 }
