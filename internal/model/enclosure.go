@@ -51,10 +51,8 @@ func (e *Enclosure) IsImage() bool {
 }
 
 // ProxifyEnclosureURL modifies the enclosure URL to use the media proxy if necessary.
-func (e *Enclosure) ProxifyEnclosureURL(router *mux.ServeMux, mediaProxyOption string, mediaProxyResourceTypes []string) {
-	if mediaproxy.ShouldProxifyURLWithMimeType(e.URL, e.MimeType, mediaProxyOption, mediaProxyResourceTypes) {
-		e.URL = mediaproxy.ProxifyAbsoluteURL(router, e.URL)
-	}
+func (e *Enclosure) ProxifyEnclosureURL(router *mux.ServeMux) {
+	e.URL = mediaproxy.ProxifyAbsoluteURL(router, e.MimeType, e.URL)
 }
 
 // EnclosureList represents a list of attachments.
@@ -83,9 +81,8 @@ func (el EnclosureList) ContainsAudioOrVideo() bool {
 	return false
 }
 
-func (el EnclosureList) ProxifyEnclosureURL(router *mux.ServeMux, mediaProxyOption string, mediaProxyResourceTypes []string) {
+func (el EnclosureList) ProxifyEnclosureURL(router *mux.ServeMux) {
 	for i := range el {
-		enclosure := &el[i]
-		enclosure.ProxifyEnclosureURL(router, mediaProxyOption, mediaProxyResourceTypes)
+		el[i].ProxifyEnclosureURL(router)
 	}
 }

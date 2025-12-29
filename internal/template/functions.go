@@ -10,7 +10,6 @@ import (
 	"math"
 	"net/mail"
 	"net/url"
-	"slices"
 	"strings"
 	"time"
 
@@ -19,7 +18,6 @@ import (
 	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
-	"miniflux.app/v2/internal/mediaproxy"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/timezone"
 	"miniflux.app/v2/internal/ui/static"
@@ -105,22 +103,6 @@ func (self *funcMap) Map() template.FuncMap {
 
 		"safeHTML": func(str string) template.HTML {
 			return template.HTML(str)
-		},
-
-		"proxyFilter": func(data string) string {
-			return mediaproxy.RewriteDocumentWithRelativeProxyURL(self.router, data)
-		},
-
-		"proxyURL": func(link string) string {
-			mediaProxyMode := config.MediaProxyMode()
-			if mediaProxyMode == "all" || (mediaProxyMode != "none" && !urllib.IsHTTPS(link)) {
-				return mediaproxy.ProxifyRelativeURL(self.router, link)
-			}
-			return link
-		},
-
-		"mustBeProxyfied": func(mediaType string) bool {
-			return slices.Contains(config.MediaProxyResourceTypes(), mediaType)
 		},
 
 		"replace": func(str, from, to string) string {

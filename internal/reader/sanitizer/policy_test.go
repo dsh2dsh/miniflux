@@ -92,81 +92,81 @@ func TestSanitizeContent(t *testing.T) {
 		{
 			name:     "valid input",
 			input:    `<p>This is a <strong>text</strong> with an image: <img src="http://example.org/" alt="Test" loading="lazy">.</p>`,
-			expected: `<p>This is a <strong>text</strong> with an image: <img src="http://example.org/" alt="Test" loading="lazy">.</p>`,
+			expected: `<p>This is a <strong>text</strong> with an image: <img src="http://example.org/" alt="Test" loading="lazy"/>.</p>`,
 		},
 		{
 			name:     "with html and body",
 			input:    `<html><head></head><body><p>This is a <strong>text</strong> with an image: <img src="http://example.org/" alt="Test" loading="lazy">.</p></body></html>`,
-			expected: `<p>This is a <strong>text</strong> with an image: <img src="http://example.org/" alt="Test" loading="lazy">.</p>`,
+			expected: `<p>This is a <strong>text</strong> with an image: <img src="http://example.org/" alt="Test" loading="lazy"/>.</p>`,
 		},
 		{
 			name:     "incorrect width and height",
 			input:    `<img src="https://example.org/image.png" width="10px" height="20px">`,
-			expected: `<img src="https://example.org/image.png" loading="lazy">`,
+			expected: `<img src="https://example.org/image.png" loading="lazy"/>`,
 		},
 		{
 			name:     "incorrect width",
 			input:    `<img src="https://example.org/image.png" width="10px" height="20">`,
-			expected: `<img src="https://example.org/image.png" height="20" loading="lazy">`,
+			expected: `<img src="https://example.org/image.png" height="20" loading="lazy"/>`,
 		},
 		{
 			name:     "empty width and height",
 			input:    `<img src="https://example.org/image.png" width="" height="">`,
-			expected: `<img src="https://example.org/image.png" loading="lazy">`,
+			expected: `<img src="https://example.org/image.png" loading="lazy"/>`,
 		},
 		{
 			name:     "incorrect height",
 			input:    `<img src="https://example.org/image.png" width="10" height="20px">`,
-			expected: `<img src="https://example.org/image.png" width="10" loading="lazy">`,
+			expected: `<img src="https://example.org/image.png" width="10" loading="lazy"/>`,
 		},
 		{
 			name:     "negative width",
 			input:    `<img src="https://example.org/image.png" width="-10" height="20">`,
-			expected: `<img src="https://example.org/image.png" height="20" loading="lazy">`,
+			expected: `<img src="https://example.org/image.png" height="20" loading="lazy"/>`,
 		},
 		{
 			name:     "negative height",
 			input:    `<img src="https://example.org/image.png" width="10" height="-20">`,
-			expected: `<img src="https://example.org/image.png" width="10" loading="lazy">`,
+			expected: `<img src="https://example.org/image.png" width="10" loading="lazy"/>`,
 		},
 		{
 			name:  "img with text data url",
-			input: `<img src="data:text/plain;base64,SGVsbG8sIFdvcmxkIQ==" alt="Example">`,
+			input: `<img src="data:text/plain;base64,SGVsbG8sIFdvcmxkIQ==" alt="Example"/>`,
 		},
 		{
 			name:     "img with data url",
 			input:    `<img src="data:image/gif;base64,test" alt="Example">`,
-			expected: `<img src="data:image/gif;base64,test" alt="Example" loading="lazy">`,
+			expected: `<img src="data:image/gif;base64,test" alt="Example" loading="lazy"/>`,
 		},
 		{
 			name:     "srcset",
 			input:    `<img srcset="example-320w.jpg, example-480w.jpg 1.5x, example-640w.jpg 2x, example-640w.jpg 640w" src="example-640w.jpg" alt="Example">`,
-			expected: `<img srcset="https://example.org/example-320w.jpg, https://example.org/example-480w.jpg 1.5x, https://example.org/example-640w.jpg 2x, https://example.org/example-640w.jpg 640w" src="https://example.org/example-640w.jpg" alt="Example" loading="lazy">`,
+			expected: `<img srcset="https://example.org/example-320w.jpg, https://example.org/example-480w.jpg 1.5x, https://example.org/example-640w.jpg 2x, https://example.org/example-640w.jpg 640w" src="https://example.org/example-640w.jpg" alt="Example" loading="lazy"/>`,
 		},
 		{
 			name:     "invalid srcset",
 			input:    `<img srcset="://example.com/example-320w.jpg" src="example-640w.jpg" alt="Example">`,
-			expected: `<img src="https://example.org/example-640w.jpg" alt="Example" loading="lazy">`,
+			expected: `<img src="https://example.org/example-640w.jpg" alt="Example" loading="lazy"/>`,
 		},
 		{
 			name:     "srcset and no src",
 			input:    `<img srcset="example-320w.jpg, example-480w.jpg 1.5x,   example-640w.jpg 2x, example-640w.jpg 640w" alt="Example">`,
-			expected: `<img srcset="https://example.org/example-320w.jpg, https://example.org/example-480w.jpg 1.5x, https://example.org/example-640w.jpg 2x, https://example.org/example-640w.jpg 640w" alt="Example" loading="lazy">`,
+			expected: `<img srcset="https://example.org/example-320w.jpg, https://example.org/example-480w.jpg 1.5x, https://example.org/example-640w.jpg 2x, https://example.org/example-640w.jpg 640w" alt="Example" loading="lazy"/>`,
 		},
 		{
 			name:     "fetchpriority high",
 			input:    `<img src="https://example.org/image.png" fetchpriority="high">`,
-			expected: `<img src="https://example.org/image.png" fetchpriority="high" loading="lazy">`,
+			expected: `<img src="https://example.org/image.png" fetchpriority="high" loading="lazy"/>`,
 		},
 		{
 			name:     "fetchpriority low",
 			input:    `<img src="https://example.org/image.png" fetchpriority="low">`,
-			expected: `<img src="https://example.org/image.png" fetchpriority="low" loading="lazy">`,
+			expected: `<img src="https://example.org/image.png" fetchpriority="low" loading="lazy"/>`,
 		},
 		{
 			name:     "invalid fetchpriority",
 			input:    `<img src="https://example.org/image.png" fetchpriority="invalid">`,
-			expected: `<img src="https://example.org/image.png" loading="lazy">`,
+			expected: `<img src="https://example.org/image.png" loading="lazy"/>`,
 		},
 		{
 			name:     "non img with fetchpriority",
@@ -176,17 +176,17 @@ func TestSanitizeContent(t *testing.T) {
 		{
 			name:     "decoding sync",
 			input:    `<img src="https://example.org/image.png" decoding="sync">`,
-			expected: `<img src="https://example.org/image.png" decoding="sync" loading="lazy">`,
+			expected: `<img src="https://example.org/image.png" decoding="sync" loading="lazy"/>`,
 		},
 		{
 			name:     "decoding async",
 			input:    `<img src="https://example.org/image.png" decoding="async">`,
-			expected: `<img src="https://example.org/image.png" decoding="async" loading="lazy">`,
+			expected: `<img src="https://example.org/image.png" decoding="async" loading="lazy"/>`,
 		},
 		{
 			name:     "invalid decoding",
 			input:    `<img src="https://example.org/image.png" decoding="invalid">`,
-			expected: `<img src="https://example.org/image.png" loading="lazy">`,
+			expected: `<img src="https://example.org/image.png" loading="lazy"/>`,
 		},
 		{
 			name:     "non img with decoding",
@@ -196,17 +196,17 @@ func TestSanitizeContent(t *testing.T) {
 		{
 			name:     "source with srcset and media",
 			input:    `<picture><source media="(min-width: 800px)" srcset="elva-800w.jpg"></picture>`,
-			expected: `<picture><source media="(min-width: 800px)" srcset="https://example.org/elva-800w.jpg"></picture>`,
+			expected: `<picture><source media="(min-width: 800px)" srcset="https://example.org/elva-800w.jpg"/></picture>`,
 		},
 		{
 			name:     "medium img with srcset",
 			input:    `<img alt="Image for post" class="t u v ef aj" src="https://miro.medium.com/max/5460/1*aJ9JibWDqO81qMfNtqgqrw.jpeg" srcset="https://miro.medium.com/max/552/1*aJ9JibWDqO81qMfNtqgqrw.jpeg 276w, https://miro.medium.com/max/1000/1*aJ9JibWDqO81qMfNtqgqrw.jpeg 500w" sizes="500px" width="2730" height="3407">`,
-			expected: `<img alt="Image for post" src="https://miro.medium.com/max/5460/1*aJ9JibWDqO81qMfNtqgqrw.jpeg" srcset="https://miro.medium.com/max/552/1*aJ9JibWDqO81qMfNtqgqrw.jpeg 276w, https://miro.medium.com/max/1000/1*aJ9JibWDqO81qMfNtqgqrw.jpeg 500w" sizes="500px" width="2730" height="3407" loading="lazy">`,
+			expected: `<img alt="Image for post" src="https://miro.medium.com/max/5460/1*aJ9JibWDqO81qMfNtqgqrw.jpeg" srcset="https://miro.medium.com/max/552/1*aJ9JibWDqO81qMfNtqgqrw.jpeg 276w, https://miro.medium.com/max/1000/1*aJ9JibWDqO81qMfNtqgqrw.jpeg 500w" sizes="500px" width="2730" height="3407" loading="lazy"/>`,
 		},
 		{
 			name:     "self closing tags",
 			input:    `<p>This <br> is a <strong>text</strong> <br/>with an image: <img src="http://example.org/" alt="Test" loading="lazy"/>.</p>`,
-			expected: `<p>This <br> is a <strong>text</strong> <br/>with an image: <img src="http://example.org/" alt="Test" loading="lazy"/>.</p>`,
+			expected: `<p>This <br/> is a <strong>text</strong> <br/>with an image: <img src="http://example.org/" alt="Test" loading="lazy"/>.</p>`,
 		},
 		{
 			name:     "table",
@@ -236,7 +236,7 @@ func TestSanitizeContent(t *testing.T) {
 		{
 			name:     "audio and source",
 			input:    `<p>My music <audio controls="controls"><source src="foo.wav" type="audio/wav"></audio>.</p>`,
-			expected: `<p>My music <audio controls="controls"><source src="https://example.org/foo.wav" type="audio/wav"></audio>.</p>`,
+			expected: `<p>My music <audio controls="controls"><source src="https://example.org/foo.wav" type="audio/wav"/></audio>.</p>`,
 		},
 		{
 			name:     "unknown tag",
@@ -424,7 +424,7 @@ func TestSanitizeContent(t *testing.T) {
 		{
 			name:     "img src with trackers",
 			input:    `<p>This image has trackers <img src="https://example.org/?id=123&utm_source=newsletter&utm_medium=email&fbclid=abc123"></p>`,
-			expected: `<p>This image has trackers <img src="https://example.org/?id=123" loading="lazy"></p>`,
+			expected: `<p>This image has trackers <img src="https://example.org/?id=123" loading="lazy"/></p>`,
 		},
 		{
 			name:     "pixel tracker 0x0",
@@ -444,7 +444,7 @@ func TestSanitizeContent(t *testing.T) {
 		{
 			name:     "espace attributes",
 			input:    `<source sizes="<b>test</b>" src="https://example.org/image.jpg">test</source>`,
-			expected: `<source sizes="&lt;b&gt;test&lt;/b&gt;" src="https://example.org/image.jpg">test</source>`,
+			expected: `<source sizes="&lt;b&gt;test&lt;/b&gt;" src="https://example.org/image.jpg"/>test`,
 		},
 		{
 			name:     "replace youtube",

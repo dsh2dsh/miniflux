@@ -39,6 +39,7 @@ type options struct {
 
 	env envOptions
 
+	root                 *url.URL
 	rootURL              string
 	basePath             string
 	mediaProxyPrivateKey []byte
@@ -233,8 +234,15 @@ func (o *options) init() (err error) {
 	}
 	o.makeTrustedProxies()
 
-	o.env.BaseURL, o.rootURL, o.basePath, err = parseBaseURL(o.env.BaseURL)
-	return err
+	o.env.BaseURL, o.root, err = parseBaseURL(o.env.BaseURL)
+	if err != nil {
+		return err
+	}
+
+	o.basePath = o.root.EscapedPath()
+	o.root.Path = ""
+	o.rootURL = o.root.String()
+	return nil
 }
 
 func (o *options) validate() error {
@@ -331,6 +339,28 @@ func (o *options) makeTrustedProxies() {
 	for _, ip := range o.env.TrustedProxies {
 		o.trustedProxies[ip] = struct{}{}
 	}
+}
+
+func parseBaseURL(value string) (string, *url.URL, error) {
+	if value == "" {
+		value = defaultBaseURL
+	}
+
+	if value[len(value)-1:] == "/" {
+		value = value[:len(value)-1]
+	}
+
+	u, err := url.Parse(value)
+	if err != nil {
+		return "", nil, fmt.Errorf("config: invalid BASE_URL: %w", err)
+	}
+
+	scheme := strings.ToLower(u.Scheme)
+	if scheme != "https" && scheme != "http" {
+		return "", nil, errors.New(
+			"config: invalid BASE_URL: scheme must be http or https")
+	}
+	return value, u, nil
 }
 
 func (o *options) sortedOptions(redactSecret bool) []Option {
@@ -500,6 +530,8 @@ func RootURL() string { return opts.rootURL }
 
 // BasePath returns the application base path according to the base URL.
 func BasePath() string { return opts.basePath }
+
+func Root() *url.URL { return opts.root }
 
 // IsDefaultDatabaseURL returns true if the default database URL is used.
 func IsDefaultDatabaseURL() bool {

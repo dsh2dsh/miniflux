@@ -23,7 +23,6 @@ func BenchmarkProxy(b *testing.B) {
 	b.Setenv("MEDIA_PROXY_MODE", "all")
 	b.Setenv("MEDIA_PROXY_RESOURCE_TYPES", "image")
 	b.Setenv("MEDIA_PROXY_PRIVATE_KEY", "test")
-
 	require.NoError(b, config.Load(""))
 
 	m := mux.New()
@@ -372,22 +371,15 @@ func TestProxyFilterWithEmptySrcset(t *testing.T) {
 	t.Setenv("MEDIA_PROXY_MODE", "all")
 	t.Setenv("MEDIA_PROXY_RESOURCE_TYPES", "image")
 	t.Setenv("MEDIA_PROXY_PRIVATE_KEY", "test")
-
-	err := config.Load("")
-	if err != nil {
-		t.Fatalf(`Parsing failure: %v`, err)
-	}
+	require.NoError(t, config.Load(""))
 
 	r := mux.New()
-	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}",
+		func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<p><img src="http://website/folder/image.png" srcset="" alt="test"></p>`
-	expected := `<p><img src="/proxy/okK5PsdNY8F082UMQEAbLPeUFfbe2WnNfInNmR9T4WA=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlLnBuZw==" srcset="" alt="test"/></p>`
-	output := RewriteDocumentWithRelativeProxyURL(r, input)
-
-	if expected != output {
-		t.Errorf(`Not expected output: got %s`, output)
-	}
+	expected := `<p><img src="/proxy/okK5PsdNY8F082UMQEAbLPeUFfbe2WnNfInNmR9T4WA=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlLnBuZw==" alt="test"/></p>`
+	assert.Equal(t, expected, RewriteDocumentWithRelativeProxyURL(r, input))
 }
 
 func TestProxyFilterWithPictureSource(t *testing.T) {
@@ -395,22 +387,15 @@ func TestProxyFilterWithPictureSource(t *testing.T) {
 	t.Setenv("MEDIA_PROXY_MODE", "all")
 	t.Setenv("MEDIA_PROXY_RESOURCE_TYPES", "image")
 	t.Setenv("MEDIA_PROXY_PRIVATE_KEY", "test")
-
-	err := config.Load("")
-	if err != nil {
-		t.Fatalf(`Parsing failure: %v`, err)
-	}
+	require.NoError(t, config.Load(""))
 
 	r := mux.New()
-	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}",
+		func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<picture><source srcset="http://website/folder/image2.png 656w,   http://website/folder/image3.png 360w, https://website/some,image.png 2x"></picture>`
-	expected := `<picture><source srcset="/proxy/aY5Hb4urDnUCly2vTJ7ExQeeaVS-52O7kjUr2v9VrAs=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlMi5wbmc= 656w, /proxy/QgAmrJWiAud_nNAsz3F8OTxaIofwAiO36EDzH_YfMzo=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlMy5wbmc= 360w, /proxy/ZIw0hv8WhSTls5aSqhnFaCXlUrKIqTnBRaY0-NaLnds=/aHR0cHM6Ly93ZWJzaXRlL3NvbWUsaW1hZ2UucG5n 2x"/></picture>`
-	output := RewriteDocumentWithRelativeProxyURL(r, input)
-
-	if expected != output {
-		t.Errorf(`Not expected output: got %s`, output)
-	}
+	expected := `<picture><source srcset="/proxy/aY5Hb4urDnUCly2vTJ7ExQeeaVS-52O7kjUr2v9VrAs=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlMi5wbmc= 656w, /proxy/QgAmrJWiAud_nNAsz3F8OTxaIofwAiO36EDzH_YfMzo=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlMy5wbmc= 360w, /proxy/nOQOuf9YIgO9CONNsdpu_tFqEDEUg8_yyUBiOk8fN3U=/aHR0cHM6Ly93ZWJzaXRlL3NvbWU=, /proxy/yAhlhlUws4L6V9EyKI-xY1tQ0_7hoB_uTDTABbzkH74=/aW1hZ2UucG5n 2x"/></picture>`
+	assert.Equal(t, expected, RewriteDocumentWithRelativeProxyURL(r, input))
 }
 
 func TestProxyFilterOnlyNonHTTPWithPictureSource(t *testing.T) {
@@ -418,38 +403,28 @@ func TestProxyFilterOnlyNonHTTPWithPictureSource(t *testing.T) {
 	t.Setenv("MEDIA_PROXY_MODE", "http-only")
 	t.Setenv("MEDIA_PROXY_RESOURCE_TYPES", "image")
 	t.Setenv("MEDIA_PROXY_PRIVATE_KEY", "test")
-
-	err := config.Load("")
-	if err != nil {
-		t.Fatalf(`Parsing failure: %v`, err)
-	}
+	require.NoError(t, config.Load(""))
 
 	r := mux.New()
-	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}",
+		func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<picture><source srcset="http://website/folder/image2.png 656w, https://website/some,image.png 2x"></picture>`
-	expected := `<picture><source srcset="/proxy/aY5Hb4urDnUCly2vTJ7ExQeeaVS-52O7kjUr2v9VrAs=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlMi5wbmc= 656w, https://website/some,image.png 2x"/></picture>`
-	output := RewriteDocumentWithRelativeProxyURL(r, input)
-
-	if expected != output {
-		t.Errorf(`Not expected output: got %s`, output)
-	}
+	expected := `<picture><source srcset="/proxy/aY5Hb4urDnUCly2vTJ7ExQeeaVS-52O7kjUr2v9VrAs=/aHR0cDovL3dlYnNpdGUvZm9sZGVyL2ltYWdlMi5wbmc= 656w, https://website/some, /proxy/yAhlhlUws4L6V9EyKI-xY1tQ0_7hoB_uTDTABbzkH74=/aW1hZ2UucG5n 2x"/></picture>`
+	assert.Equal(t, expected, RewriteDocumentWithRelativeProxyURL(r, input))
 }
 
 func TestProxyWithImageDataURL(t *testing.T) {
 	os.Clearenv()
 	t.Setenv("MEDIA_PROXY_MODE", "all")
 	t.Setenv("MEDIA_PROXY_RESOURCE_TYPES", "image")
-
-	err := config.Load("")
-	if err != nil {
-		t.Fatalf(`Parsing failure: %v`, err)
-	}
+	require.NoError(t, config.Load(""))
 
 	r := mux.New()
-	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}",
+		func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
-	input := `<img src="data:image/gif;base64,test">`
+	input := `<img src="data:image/gif;base64,test"/>`
 	output := RewriteDocumentWithRelativeProxyURL(r, input)
 	assert.Equal(t, input, output)
 }
@@ -458,22 +433,16 @@ func TestProxyWithImageSourceDataURL(t *testing.T) {
 	os.Clearenv()
 	t.Setenv("MEDIA_PROXY_MODE", "all")
 	t.Setenv("MEDIA_PROXY_RESOURCE_TYPES", "image")
-
-	err := config.Load("")
-	if err != nil {
-		t.Fatalf(`Parsing failure: %v`, err)
-	}
+	t.Setenv("MEDIA_PROXY_PRIVATE_KEY", "test")
+	require.NoError(t, config.Load(""))
 
 	r := mux.New()
-	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}",
+		func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<picture><source srcset="data:image/gif;base64,test"/></picture>`
-	expected := `<picture><source srcset="data:image/gif;base64,test"/></picture>`
-	output := RewriteDocumentWithRelativeProxyURL(r, input)
-
-	if expected != output {
-		t.Errorf(`Not expected output: got %s`, output)
-	}
+	expected := `<picture><source srcset="data:image/gif;base64, /proxy/iM0hCLU0fZc885zfkFPX3UJwSHbYyam9ji0WglnT3fc=/dGVzdA=="/></picture>`
+	assert.Equal(t, expected, RewriteDocumentWithRelativeProxyURL(r, input))
 }
 
 func TestProxyFilterWithVideo(t *testing.T) {
@@ -481,22 +450,15 @@ func TestProxyFilterWithVideo(t *testing.T) {
 	t.Setenv("MEDIA_PROXY_MODE", "all")
 	t.Setenv("MEDIA_PROXY_RESOURCE_TYPES", "video")
 	t.Setenv("MEDIA_PROXY_PRIVATE_KEY", "test")
-
-	err := config.Load("")
-	if err != nil {
-		t.Fatalf(`Parsing failure: %v`, err)
-	}
+	require.NoError(t, config.Load(""))
 
 	r := mux.New()
-	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}",
+		func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<video poster="https://example.com/img.png" src="https://example.com/video.mp4"></video>`
-	expected := `<video poster="/proxy/aDFfroYL57q5XsojIzATT6OYUCkuVSPXYJQAVrotnLw=/aHR0cHM6Ly9leGFtcGxlLmNvbS9pbWcucG5n" src="/proxy/0y3LR8zlx8S8qJkj1qWFOO6x3a-5yf2gLWjGIJV5yyc=/aHR0cHM6Ly9leGFtcGxlLmNvbS92aWRlby5tcDQ="></video>`
-	output := RewriteDocumentWithRelativeProxyURL(r, input)
-
-	if expected != output {
-		t.Errorf(`Not expected output: got %s`, output)
-	}
+	expected := `<video poster="https://example.com/img.png" src="/proxy/0y3LR8zlx8S8qJkj1qWFOO6x3a-5yf2gLWjGIJV5yyc=/aHR0cHM6Ly9leGFtcGxlLmNvbS92aWRlby5tcDQ="></video>`
+	assert.Equal(t, expected, RewriteDocumentWithRelativeProxyURL(r, input))
 }
 
 func TestProxyFilterVideoPoster(t *testing.T) {
@@ -504,22 +466,15 @@ func TestProxyFilterVideoPoster(t *testing.T) {
 	t.Setenv("MEDIA_PROXY_MODE", "all")
 	t.Setenv("MEDIA_PROXY_RESOURCE_TYPES", "image")
 	t.Setenv("MEDIA_PROXY_PRIVATE_KEY", "test")
-
-	err := config.Load("")
-	if err != nil {
-		t.Fatalf(`Parsing failure: %v`, err)
-	}
+	require.NoError(t, config.Load(""))
 
 	r := mux.New()
-	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", func(w http.ResponseWriter, r *http.Request) {}, "proxy")
+	r.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}",
+		func(w http.ResponseWriter, r *http.Request) {}, "proxy")
 
 	input := `<video poster="https://example.com/img.png" src="https://example.com/video.mp4"></video>`
 	expected := `<video poster="/proxy/aDFfroYL57q5XsojIzATT6OYUCkuVSPXYJQAVrotnLw=/aHR0cHM6Ly9leGFtcGxlLmNvbS9pbWcucG5n" src="https://example.com/video.mp4"></video>`
-	output := RewriteDocumentWithRelativeProxyURL(r, input)
-
-	if expected != output {
-		t.Errorf(`Not expected output: got %s`, output)
-	}
+	assert.Equal(t, expected, RewriteDocumentWithRelativeProxyURL(r, input))
 }
 
 func TestProxyFilterVideoPosterOnce(t *testing.T) {
@@ -545,144 +500,143 @@ func TestProxyFilterVideoPosterOnce(t *testing.T) {
 	}
 }
 
-func TestShouldProxifyURLWithMimeType(t *testing.T) {
-	testCases := []struct {
+func TestProxifyAbsoluteURL(t *testing.T) {
+	tests := []struct {
 		name                    string
 		mediaURL                string
 		mediaMimeType           string
 		mediaProxyOption        string
-		mediaProxyResourceTypes []string
-		expected                bool
+		mediaProxyResourceTypes string
+		expected                string
 	}{
 		{
 			name:                    "Empty URL should not be proxified",
 			mediaURL:                "",
 			mediaMimeType:           "image/jpeg",
 			mediaProxyOption:        "all",
-			mediaProxyResourceTypes: []string{"image"},
-			expected:                false,
+			mediaProxyResourceTypes: "image",
 		},
 		{
 			name:                    "Data URL should not be proxified",
 			mediaURL:                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==",
 			mediaMimeType:           "image/png",
 			mediaProxyOption:        "all",
-			mediaProxyResourceTypes: []string{"image"},
-			expected:                false,
+			mediaProxyResourceTypes: "image",
+			expected:                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==",
 		},
 		{
 			name:                    "HTTP URL with all mode and matching MIME type should be proxified",
 			mediaURL:                "http://example.com/image.jpg",
 			mediaMimeType:           "image/jpeg",
 			mediaProxyOption:        "all",
-			mediaProxyResourceTypes: []string{"image"},
-			expected:                true,
+			mediaProxyResourceTypes: "image",
+			expected:                "http://localhost/proxy/_rzaC4Dl22I2O1tEhyYF6Aaj9Bkd3fC4plmB4JP9I5c=/aHR0cDovL2V4YW1wbGUuY29tL2ltYWdlLmpwZw==",
 		},
 		{
 			name:                    "HTTPS URL with all mode and matching MIME type should be proxified",
 			mediaURL:                "https://example.com/image.jpg",
 			mediaMimeType:           "image/jpeg",
 			mediaProxyOption:        "all",
-			mediaProxyResourceTypes: []string{"image"},
-			expected:                true,
+			mediaProxyResourceTypes: "image",
+			expected:                "http://localhost/proxy/KwOr2nVplyXP97zKHxFaouUuMkOjIf7DiLy8lcBmNao=/aHR0cHM6Ly9leGFtcGxlLmNvbS9pbWFnZS5qcGc=",
 		},
 		{
 			name:                    "HTTP URL with http-only mode and matching MIME type should be proxified",
 			mediaURL:                "http://example.com/image.jpg",
 			mediaMimeType:           "image/jpeg",
 			mediaProxyOption:        "http-only",
-			mediaProxyResourceTypes: []string{"image"},
-			expected:                true,
+			mediaProxyResourceTypes: "image",
+			expected:                "http://localhost/proxy/_rzaC4Dl22I2O1tEhyYF6Aaj9Bkd3fC4plmB4JP9I5c=/aHR0cDovL2V4YW1wbGUuY29tL2ltYWdlLmpwZw==",
 		},
 		{
 			name:                    "HTTPS URL with http-only mode should not be proxified",
 			mediaURL:                "https://example.com/image.jpg",
 			mediaMimeType:           "image/jpeg",
 			mediaProxyOption:        "http-only",
-			mediaProxyResourceTypes: []string{"image"},
-			expected:                false,
+			mediaProxyResourceTypes: "image",
+			expected:                "https://example.com/image.jpg",
 		},
 		{
 			name:                    "URL with none mode should not be proxified",
 			mediaURL:                "http://example.com/image.jpg",
 			mediaMimeType:           "image/jpeg",
 			mediaProxyOption:        "none",
-			mediaProxyResourceTypes: []string{"image"},
-			expected:                false,
+			mediaProxyResourceTypes: "image",
+			expected:                "http://example.com/image.jpg",
 		},
 		{
 			name:                    "URL with matching MIME type should be proxified",
 			mediaURL:                "http://example.com/video.mp4",
 			mediaMimeType:           "video/mp4",
 			mediaProxyOption:        "all",
-			mediaProxyResourceTypes: []string{"video"},
-			expected:                true,
+			mediaProxyResourceTypes: "video",
+			expected:                "http://localhost/proxy/GdyLH_DE6rY0UA03nvvKFeqNTfR5zi9de73dHIeZvok=/aHR0cDovL2V4YW1wbGUuY29tL3ZpZGVvLm1wNA==",
 		},
 		{
 			name:                    "URL with non-matching MIME type should not be proxified",
 			mediaURL:                "http://example.com/video.mp4",
 			mediaMimeType:           "video/mp4",
 			mediaProxyOption:        "all",
-			mediaProxyResourceTypes: []string{"image"},
-			expected:                false,
+			mediaProxyResourceTypes: "image",
+			expected:                "http://example.com/video.mp4",
 		},
 		{
 			name:                    "URL with multiple resource types and matching MIME type should be proxified",
 			mediaURL:                "http://example.com/audio.mp3",
 			mediaMimeType:           "audio/mp3",
 			mediaProxyOption:        "all",
-			mediaProxyResourceTypes: []string{"image", "audio", "video"},
-			expected:                true,
+			mediaProxyResourceTypes: "image,audio,video",
+			expected:                "http://localhost/proxy/gh3uo3dUkPvaPew0199KILUsFSIv8Ju06k45Q06L2Tw=/aHR0cDovL2V4YW1wbGUuY29tL2F1ZGlvLm1wMw==",
 		},
 		{
 			name:                    "URL with multiple resource types but non-matching MIME type should not be proxified",
 			mediaURL:                "http://example.com/document.pdf",
 			mediaMimeType:           "application/pdf",
 			mediaProxyOption:        "all",
-			mediaProxyResourceTypes: []string{"image", "audio", "video"},
-			expected:                false,
-		},
-		{
-			name:                    "URL with empty resource types should not be proxified",
-			mediaURL:                "http://example.com/image.jpg",
-			mediaMimeType:           "image/jpeg",
-			mediaProxyOption:        "all",
-			mediaProxyResourceTypes: []string{},
-			expected:                false,
+			mediaProxyResourceTypes: "image,audio,video",
+			expected:                "http://example.com/document.pdf",
 		},
 		{
 			name:                    "URL with partial MIME type match should be proxified",
 			mediaURL:                "http://example.com/image.jpg",
 			mediaMimeType:           "image/jpeg",
 			mediaProxyOption:        "all",
-			mediaProxyResourceTypes: []string{"image"},
-			expected:                true,
+			mediaProxyResourceTypes: "image",
+			expected:                "http://localhost/proxy/_rzaC4Dl22I2O1tEhyYF6Aaj9Bkd3fC4plmB4JP9I5c=/aHR0cDovL2V4YW1wbGUuY29tL2ltYWdlLmpwZw==",
 		},
 		{
 			name:                    "URL with audio MIME type and audio resource type should be proxified",
 			mediaURL:                "http://example.com/song.ogg",
 			mediaMimeType:           "audio/ogg",
 			mediaProxyOption:        "all",
-			mediaProxyResourceTypes: []string{"audio"},
-			expected:                true,
+			mediaProxyResourceTypes: "audio",
+			expected:                "http://localhost/proxy/Y-pNt-d5MBktNwED8_Oe9xNv06toNjE_duGoR9L63VA=/aHR0cDovL2V4YW1wbGUuY29tL3Nvbmcub2dn",
 		},
 		{
 			name:                    "URL with video MIME type and video resource type should be proxified",
 			mediaURL:                "http://example.com/movie.webm",
 			mediaMimeType:           "video/webm",
 			mediaProxyOption:        "all",
-			mediaProxyResourceTypes: []string{"video"},
-			expected:                true,
+			mediaProxyResourceTypes: "video",
+			expected:                "http://localhost/proxy/KKBj8WuwPUGtqUzfHGr1u3AFluy419BTmH-53ui6atU=/aHR0cDovL2V4YW1wbGUuY29tL21vdmllLndlYm0=",
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result := ShouldProxifyURLWithMimeType(tc.mediaURL, tc.mediaMimeType, tc.mediaProxyOption, tc.mediaProxyResourceTypes)
-			if result != tc.expected {
-				t.Errorf("Expected %v, got %v for URL: %s, MIME type: %s, proxy option: %s, resource types: %v",
-					tc.expected, result, tc.mediaURL, tc.mediaMimeType, tc.mediaProxyOption, tc.mediaProxyResourceTypes)
-			}
+	os.Clearenv()
+	t.Setenv("MEDIA_PROXY_PRIVATE_KEY", "test")
+
+	m := mux.New()
+	m.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}",
+		func(w http.ResponseWriter, r *http.Request) {}, "proxy")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("MEDIA_PROXY_MODE", tt.mediaProxyOption)
+			t.Setenv("MEDIA_PROXY_RESOURCE_TYPES", tt.mediaProxyResourceTypes)
+			require.NoError(t, config.Load(""))
+
+			result := ProxifyAbsoluteURL(m, tt.mediaMimeType, tt.mediaURL)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }

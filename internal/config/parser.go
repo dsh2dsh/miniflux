@@ -4,10 +4,7 @@
 package config // import "miniflux.app/v2/internal/config"
 
 import (
-	"errors"
 	"fmt"
-	"net/url"
-	"strings"
 
 	"github.com/caarlos0/env/v11"
 	"github.com/joho/godotenv"
@@ -47,28 +44,4 @@ func (p *Parser) ParseEnvFile(filename string) (*options, error) {
 		return nil, fmt.Errorf("config: failed parse %q: %w", filename, err)
 	}
 	return p.ParseEnvironmentVariables()
-}
-
-func parseBaseURL(value string) (string, string, string, error) {
-	if value == "" {
-		return defaultBaseURL, defaultBaseURL, "", nil
-	}
-
-	if value[len(value)-1:] == "/" {
-		value = value[:len(value)-1]
-	}
-
-	parsedURL, err := url.Parse(value)
-	if err != nil {
-		return "", "", "", fmt.Errorf("config: invalid BASE_URL: %w", err)
-	}
-
-	scheme := strings.ToLower(parsedURL.Scheme)
-	if scheme != "https" && scheme != "http" {
-		return "", "", "", errors.New("config: invalid BASE_URL: scheme must be http or https")
-	}
-
-	basePath := parsedURL.Path
-	parsedURL.Path = ""
-	return value, parsedURL.String(), basePath, nil
 }

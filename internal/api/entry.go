@@ -13,7 +13,6 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/integration"
@@ -39,8 +38,7 @@ func (h *handler) getEntryFromBuilder(w http.ResponseWriter, r *http.Request,
 
 	entry.Content = mediaproxy.RewriteDocumentWithAbsoluteProxyURL(h.router,
 		entry.Content)
-	entry.Enclosures().ProxifyEnclosureURL(h.router, config.MediaProxyMode(),
-		config.MediaProxyResourceTypes())
+	entry.Enclosures().ProxifyEnclosureURL(h.router)
 	json.OK(w, r, entry)
 }
 

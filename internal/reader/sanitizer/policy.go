@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/dsh2dsh/bluemonday/v2"
-	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 
 	"miniflux.app/v2/internal/config"
@@ -69,6 +68,7 @@ var (
 	}
 
 	contentPolicy = bluemonday.UGCPolicy()
+	openPolicy    = bluemonday.OpenPolicy().AllowUnsafe(false)
 	titlePolicy   = bluemonday.StrictPolicy()
 
 	allowedIframe = make(map[string]struct{})
@@ -150,11 +150,13 @@ func (self *rewritePolicy) Sanitize(s string) string {
 }
 
 func (self *rewritePolicy) init() *rewritePolicy {
-	self.p.RewriteTokenURL(self.rewriteURL)
+	self.p.WithRewriteURL(self.rewriteURL)
 	return self
 }
 
-func (self *rewritePolicy) rewriteURL(t *html.Token, u *url.URL) *url.URL {
+func (self *rewritePolicy) rewriteURL(t *bluemonday.Token, attr string,
+	u *url.URL,
+) *url.URL {
 	switch t.DataAtom {
 	case atom.Iframe:
 		return self.allowIframe(u)
@@ -186,7 +188,8 @@ func (self *rewritePolicy) allowIframe(u *url.URL) *url.URL {
 		return u
 	}
 
-	if s := config.InvidiousInstance(); s != "" && strings.TrimPrefix(s, "www.") == domain {
+	if s := config.InvidiousInstance(); s != "" &&
+		strings.TrimPrefix(s, "www.") == domain {
 		return u
 	}
 
@@ -205,4 +208,11 @@ func rewriteIframeSrc(u *url.URL) bool {
 		return rewriteVimeo(u)
 	}
 	return false
+}
+
+func Proxify(s string,
+	rewriter func(t *bluemonday.Token, attr string, u *url.URL) *url.URL,
+) string {
+	p := *openPolicy
+	return p.WithRewriteURL(rewriter).Sanitize(s)
 }

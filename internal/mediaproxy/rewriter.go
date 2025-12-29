@@ -4,169 +4,186 @@
 package mediaproxy // import "miniflux.app/v2/internal/mediaproxy"
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
+	"net/url"
+	"slices"
 	"strings"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/dsh2dsh/bluemonday/v2"
+	"golang.org/x/net/html/atom"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/mux"
-	"miniflux.app/v2/internal/urllib"
+	"miniflux.app/v2/internal/http/route"
+	"miniflux.app/v2/internal/reader/sanitizer"
 )
 
-type urlProxyRewriter func(router *mux.ServeMux, url string) string
+var relRoot = url.URL{Path: "/"}
 
-func RewriteDocumentWithRelativeProxyURL(m *mux.ServeMux, htmlDocument string,
+func RewriteDocumentWithRelativeProxyURL(m *mux.ServeMux, content string,
 ) string {
-	return genericProxyRewriter(m, ProxifyRelativeURL, htmlDocument)
+	p := proxyRewriter{m: m}
+	return p.Proxify(content)
 }
 
-func RewriteDocumentWithAbsoluteProxyURL(m *mux.ServeMux, htmlDocument string,
+func RewriteDocumentWithAbsoluteProxyURL(m *mux.ServeMux, content string,
 ) string {
-	return genericProxyRewriter(m, ProxifyAbsoluteURL, htmlDocument)
+	p := proxyRewriter{m: m}
+	return p.WithAbsoluteProxy().Proxify(content)
 }
 
-func genericProxyRewriter(m *mux.ServeMux, proxifyURL urlProxyRewriter,
-	htmlDocument string,
-) string {
-	proxyMode := config.MediaProxyMode()
-	if proxyMode == "none" {
-		return htmlDocument
+func ProxifyAbsoluteURL(m *mux.ServeMux, mimeType, mediaURL string) string {
+	if mediaURL == "" {
+		return mediaURL
 	}
 
-	var mediaTypes struct {
-		audio, image, video bool
+	u, err := url.Parse(mediaURL)
+	if err != nil {
+		return mediaURL
 	}
-	for _, mediaType := range config.MediaProxyResourceTypes() {
-		switch mediaType {
+
+	p := proxyRewriter{m: m}
+	if !p.ShouldProxifyScheme(u.Scheme) {
+		return mediaURL
+	}
+
+	i := slices.IndexFunc(config.MediaProxyResourceTypes(),
+		func(mediaType string) bool {
+			return strings.HasPrefix(mimeType, mediaType+"/")
+		})
+	if i == -1 {
+		return mediaURL
+	}
+
+	u = p.WithAbsoluteProxy().proxify(u)
+	if u == nil {
+		return mediaURL
+	}
+	return u.String()
+}
+
+type proxyRewriter struct {
+	m *mux.ServeMux
+
+	absProxy bool
+
+	mode  string
+	audio bool
+	image bool
+	video bool
+}
+
+func New(m *mux.ServeMux) *proxyRewriter {
+	return &proxyRewriter{m: m}
+}
+
+func (self *proxyRewriter) WithAbsoluteProxy() *proxyRewriter {
+	self.absProxy = true
+	return self
+}
+
+func (self *proxyRewriter) Proxify(content string) string {
+	if !self.mediaTypes() {
+		return content
+	}
+	return sanitizer.Proxify(content, self.RewriteURL)
+}
+
+func (self *proxyRewriter) mediaTypes() (ok bool) {
+	self.mode = config.MediaProxyMode()
+	if self.mode == "none" {
+		return false
+	}
+
+	for _, s := range config.MediaProxyResourceTypes() {
+		switch s {
 		case "audio":
-			mediaTypes.audio = true
+			self.audio = true
+			ok = true
 		case "image":
-			mediaTypes.image = true
+			self.image = true
+			ok = true
 		case "video":
-			mediaTypes.video = true
+			self.video = true
+			ok = true
 		}
 	}
-
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlDocument))
-	if err != nil {
-		return htmlDocument
-	}
-
-	var modified bool
-
-	if mediaTypes.audio {
-		doc.Find("audio, audio source").Each(func(i int, audio *goquery.Selection) {
-			if srcAttrValue, ok := audio.Attr("src"); ok {
-				if shouldProxifyURL(srcAttrValue, proxyMode) {
-					audio.SetAttr("src", proxifyURL(m, srcAttrValue))
-					modified = true
-				}
-			}
-		})
-	}
-
-	if mediaTypes.image {
-		doc.Find("img, picture source").Each(func(i int, img *goquery.Selection) {
-			if srcAttrValue, ok := img.Attr("src"); ok {
-				if shouldProxifyURL(srcAttrValue, proxyMode) {
-					img.SetAttr("src", proxifyURL(m, srcAttrValue))
-					modified = true
-				}
-			}
-
-			if srcsetAttrValue, ok := img.Attr("srcset"); ok {
-				proxifySourceSet(img, m, proxifyURL, proxyMode, srcsetAttrValue)
-				modified = true
-			}
-		})
-
-		if !mediaTypes.video {
-			doc.Find("video").Each(func(i int, video *goquery.Selection) {
-				if posterAttrValue, ok := video.Attr("poster"); ok {
-					if shouldProxifyURL(posterAttrValue, proxyMode) {
-						video.SetAttr("poster", proxifyURL(m, posterAttrValue))
-						modified = true
-					}
-				}
-			})
-		}
-	}
-
-	if mediaTypes.video {
-		doc.Find("video, video source").Each(func(i int, video *goquery.Selection) {
-			if srcAttrValue, ok := video.Attr("src"); ok {
-				if shouldProxifyURL(srcAttrValue, proxyMode) {
-					video.SetAttr("src", proxifyURL(m, srcAttrValue))
-					modified = true
-				}
-			}
-
-			if posterAttrValue, ok := video.Attr("poster"); ok {
-				if shouldProxifyURL(posterAttrValue, proxyMode) {
-					video.SetAttr("poster", proxifyURL(m, posterAttrValue))
-					modified = true
-				}
-			}
-		})
-	}
-
-	if !modified {
-		return htmlDocument
-	}
-
-	body := doc.FindMatcher(goquery.Single("body"))
-	if body.Length() == 0 {
-		body = doc.Selection
-	}
-
-	output, err := body.Html()
-	if err != nil {
-		return htmlDocument
-	}
-	return output
+	return ok
 }
 
-func proxifySourceSet(element *goquery.Selection, router *mux.ServeMux,
-	proxifyFunction urlProxyRewriter, proxyOption, srcset string,
-) {
-	images := bluemonday.ParseSrcSetAttribute(srcset)
-	for i := range images {
-		image := &images[i]
-		if shouldProxifyURL(image.ImageURL, proxyOption) {
-			image.ImageURL = proxifyFunction(router, image.ImageURL)
-		}
+func (self *proxyRewriter) RewriteURL(t *bluemonday.Token, attr string,
+	u *url.URL,
+) *url.URL {
+	if !self.shouldProxify(t, attr, u) {
+		return u
 	}
-	element.SetAttr("srcset", images.String())
+	return self.proxify(u)
 }
 
-// shouldProxifyURL checks if the media URL should be proxified based on the media proxy option and URL scheme.
-func shouldProxifyURL(mediaURL, mediaProxyOption string) bool {
+func (self *proxyRewriter) shouldProxify(t *bluemonday.Token, attr string,
+	u *url.URL,
+) bool {
+	var ok bool
+	switch t.DataAtom {
+	case atom.Audio:
+		ok = self.audio
+	case atom.Img:
+		ok = self.image
+
+	case atom.Video:
+		switch attr {
+		case "poster":
+			ok = self.image
+		default:
+			ok = self.video
+		}
+
+	case atom.Source:
+		switch t.ParentAtom() {
+		case atom.Audio:
+			ok = self.audio
+		case atom.Img, atom.Picture:
+			ok = self.image
+		case atom.Video:
+			ok = self.video
+		}
+	}
+	return ok && self.schemeOk(u.Scheme)
+}
+
+func (self *proxyRewriter) schemeOk(scheme string) bool {
 	switch {
-	case mediaURL == "":
+	case strings.EqualFold(scheme, "data"):
 		return false
-	case strings.HasPrefix(mediaURL, "data:"):
-		return false
-	case mediaProxyOption == "all":
+	case self.mode == "all":
 		return true
-	case mediaProxyOption != "none" && !urllib.IsHTTPS(mediaURL):
-		return true
-	default:
-		return false
 	}
+	return self.mode != "none" && !strings.EqualFold(scheme, "https")
 }
 
-// ShouldProxifyURLWithMimeType checks if the media URL should be proxified based on the media proxy option, URL scheme, and MIME type.
-func ShouldProxifyURLWithMimeType(mediaURL, mediaMimeType, mediaProxyOption string, mediaProxyResourceTypes []string) bool {
-	if !shouldProxifyURL(mediaURL, mediaProxyOption) {
-		return false
+func (self *proxyRewriter) proxify(u *url.URL) *url.URL {
+	urlBytes := []byte(u.String())
+	if customProxy := config.MediaCustomProxyURL(); customProxy != nil {
+		return customProxy.JoinPath(
+			base64.URLEncoding.EncodeToString(urlBytes))
 	}
 
-	for _, mediaType := range mediaProxyResourceTypes {
-		if strings.HasPrefix(mediaMimeType, mediaType+"/") {
-			return true
-		}
-	}
+	mac := hmac.New(sha256.New, config.MediaProxyPrivateKey())
+	mac.Write(urlBytes)
+	digest := mac.Sum(nil)
 
-	return false
+	proxyPath := route.Path(self.m, "proxy",
+		"encodedDigest", base64.URLEncoding.EncodeToString(digest),
+		"encodedURL", base64.URLEncoding.EncodeToString(urlBytes))
+
+	if self.absProxy {
+		return config.Root().JoinPath(proxyPath)
+	}
+	return relRoot.JoinPath(proxyPath)
+}
+
+func (self *proxyRewriter) ShouldProxifyScheme(scheme string) bool {
+	return self.mediaTypes() && self.schemeOk(scheme)
 }
