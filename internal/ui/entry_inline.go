@@ -11,6 +11,7 @@ import (
 	"miniflux.app/v2/internal/mediaproxy"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/processor"
+	"miniflux.app/v2/internal/reader/sanitizer"
 	"miniflux.app/v2/internal/ui/view"
 )
 
@@ -67,19 +68,16 @@ func (h *handler) downloadEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx = r.Context()
-	err := processor.ProcessEntryWebPage(ctx, feed, entry, user)
+	err := processor.ProcessEntryWebPage(r.Context(), feed, entry, user,
+		sanitizer.WithRewriteURL(mediaproxy.New(h.router).RewriteURL))
 	if err != nil {
 		html.ServerError(w, r, err)
 		return
 	}
 
-	content := mediaproxy.RewriteDocumentWithRelativeProxyURL(
-		h.router, entry.Content)
-
 	v := view.New(h.tpl, r, nil).
 		Set("entry", entry).
-		Set("safeContent", template.HTML(content)).
+		Set("safeContent", template.HTML(entry.Content)).
 		Set("user", request.User(r))
 	html.OK(w, r, v.Render("entry_download"))
 }

@@ -129,18 +129,20 @@ func StripTags(s string) string {
 	return titlePolicy.Sanitize(s)
 }
 
-func SanitizeContent(s string, pageURL *url.URL) string {
+func SanitizeContent(s string, pageURL *url.URL, opts ...Option) string {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return s
 	}
 
 	p := rewritePolicy{p: *contentPolicy, pageURL: pageURL}
-	p.init()
+	p.init(opts...)
 	return p.Sanitize(s)
 }
 
 type rewritePolicy struct {
+	c Config
+
 	p       bluemonday.Policy
 	pageURL *url.URL
 }
@@ -149,19 +151,34 @@ func (self *rewritePolicy) Sanitize(s string) string {
 	return self.p.Sanitize(s)
 }
 
-func (self *rewritePolicy) init() *rewritePolicy {
-	self.p.WithRewriteURL(self.rewriteURL)
+func (self *rewritePolicy) init(opts ...Option) *rewritePolicy {
+	for _, fn := range opts {
+		fn(&self.c)
+	}
+	self.p.WithRewriteURL(self.chainRewriteURL)
 	return self
 }
 
-func (self *rewritePolicy) rewriteURL(t *bluemonday.Token, attr string,
+func (self *rewritePolicy) chainRewriteURL(t *bluemonday.Token, attr string,
 	u *url.URL,
+) *url.URL {
+	if u = self.rewriteURL(t, attr, u); u == nil {
+		return u
+	}
+
+	if self.c.RewriteURL == nil {
+		return u
+	}
+	return self.c.RewriteURL(t, attr, u)
+}
+
+func (self *rewritePolicy) rewriteURL(t *bluemonday.Token, _ string, u *url.URL,
 ) *url.URL {
 	switch t.DataAtom {
 	case atom.Iframe:
 		return self.allowIframe(u)
 	case atom.Img:
-		if pixelTracker(t.Attr) {
+		if pixelTracker(t) {
 			return nil
 		}
 	}

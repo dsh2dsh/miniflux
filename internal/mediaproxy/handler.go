@@ -22,6 +22,21 @@ import (
 	"miniflux.app/v2/internal/reader/rewrite"
 )
 
+var proxyRequestHeaders = [...]string{
+	"Accept",
+	"Accept-Encoding",
+	"Range",
+	"User-Agent",
+}
+
+var proxyResponseHeaders = [...]string{
+	"Accept-Ranges",
+	"Content-Encoding",
+	"Content-Length",
+	"Content-Range",
+	"Content-Type",
+}
+
 func Serve(w http.ResponseWriter, r *http.Request) {
 	// If we receive a "If-None-Match" header, we assume the media is already
 	// stored in browser cache.
@@ -84,10 +99,7 @@ func Serve(w http.ResponseWriter, r *http.Request) {
 		rb.WithHeader("Referer", referer)
 	}
 
-	forwardHeaders := [...]string{
-		"Range", "Accept", "Accept-Encoding", "User-Agent",
-	}
-	for _, name := range forwardHeaders {
+	for _, name := range proxyRequestHeaders {
 		if s := r.Header.Get(name); s != "" {
 			rb.WithHeader(name, s)
 		}
@@ -134,11 +146,7 @@ func Serve(w http.ResponseWriter, r *http.Request) {
 			b.WithHeader("Content-Disposition", `inline; filename="`+filename+`"`)
 		}
 
-		forwardHeaders := [...]string{
-			"Content-Encoding", "Content-Type", "Content-Length", "Accept-Ranges",
-			"Content-Range",
-		}
-		for _, name := range forwardHeaders {
+		for _, name := range proxyResponseHeaders {
 			if s := resp.Header(name); s != "" {
 				b.WithHeader(name, s)
 			}

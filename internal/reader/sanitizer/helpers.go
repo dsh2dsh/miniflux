@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/dsh2dsh/bluemonday/v2"
-	"golang.org/x/net/html"
 
 	"miniflux.app/v2/internal/config"
 )
@@ -249,19 +248,14 @@ func blockedURL(u *url.URL) bool {
 	return false
 }
 
-func pixelTracker(attrs []html.Attribute) bool {
-	var height, width bool
-	for _, attr := range attrs {
-		if attr.Val == "0" || attr.Val == "1" {
-			switch attr.Key {
-			case "height":
-				height = true
-			case "width":
-				width = true
-			}
-		}
+func pixelTracker(t *bluemonday.Token) bool {
+	h := t.Ref("height")
+	if h == nil || (h.Val != "0" && h.Val != "1") {
+		return false
 	}
-	return height && width
+
+	w := t.Ref("width")
+	return w != nil && (w.Val == "0" || w.Val == "1")
 }
 
 func rewriteVimeo(u *url.URL) bool {

@@ -245,8 +245,10 @@ func (self *FeedProcessor) Scrape(ctx context.Context, entry *model.Entry,
 }
 
 func (self *FeedProcessor) UpdateEntry(entry *model.Entry, pageURL string,
+	opts ...sanitizer.Option,
 ) error {
-	if err := self.sanitizeEntry(entry, pageURL, false); err != nil {
+	err := self.sanitizeEntry(entry, pageURL, false, opts...)
+	if err != nil {
 		return err
 	}
 
@@ -258,10 +260,10 @@ func (self *FeedProcessor) UpdateEntry(entry *model.Entry, pageURL string,
 }
 
 func (self *FeedProcessor) sanitizeEntry(entry *model.Entry, pageURL string,
-	contentSanitized bool,
+	contentClear bool, opts ...sanitizer.Option,
 ) error {
 	entry.Title = sanitizeTitle(entry, self.feed)
-	if contentSanitized {
+	if contentClear {
 		return nil
 	}
 
@@ -274,7 +276,7 @@ func (self *FeedProcessor) sanitizeEntry(entry *model.Entry, pageURL string,
 		return fmt.Errorf("reader/processor: parse entry URL: %w", err)
 	}
 
-	entry.Content = sanitizer.SanitizeContent(entry.Content, u)
+	entry.Content = sanitizer.SanitizeContent(entry.Content, u, opts...)
 	return nil
 }
 
@@ -298,7 +300,7 @@ func sanitizeTitle(entry *model.Entry, feed *model.Feed) string {
 
 // ProcessEntryWebPage downloads the entry web page and apply rewrite rules.
 func ProcessEntryWebPage(ctx context.Context, feed *model.Feed,
-	entry *model.Entry, user *model.User,
+	entry *model.Entry, user *model.User, opts ...sanitizer.Option,
 ) error {
 	// The errors are handled in RemoveTrackingParameters.
 	feedURL, _ := url.Parse(feed.FeedURL)
@@ -311,5 +313,5 @@ func ProcessEntryWebPage(ctx context.Context, feed *model.Feed,
 	if err != nil || content == "" {
 		return err
 	}
-	return p.UpdateEntry(entry, pageURL)
+	return p.UpdateEntry(entry, pageURL, opts...)
 }

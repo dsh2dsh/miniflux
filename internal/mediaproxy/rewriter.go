@@ -84,7 +84,13 @@ type proxyRewriter struct {
 }
 
 func New(m *mux.ServeMux) *proxyRewriter {
-	return &proxyRewriter{m: m}
+	self := &proxyRewriter{m: m}
+	return self.init()
+}
+
+func (self *proxyRewriter) init() *proxyRewriter {
+	self.mediaTypes()
+	return self
 }
 
 func (self *proxyRewriter) WithAbsoluteProxy() *proxyRewriter {
