@@ -1,7 +1,4 @@
-// SPDX-FileCopyrightText: Copyright The Miniflux Authors. All rights reserved.
-// SPDX-License-Identifier: Apache-2.0
-
-package ui // import "miniflux.app/v2/internal/ui"
+package mediaproxy
 
 import (
 	"crypto/hmac"
@@ -20,11 +17,12 @@ import (
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/reader/rewrite"
 )
 
-func (h *handler) mediaProxy(w http.ResponseWriter, r *http.Request) {
+func Serve(w http.ResponseWriter, r *http.Request) {
 	// If we receive a "If-None-Match" header, we assume the media is already
 	// stored in browser cache.
 	if r.Header.Get("If-None-Match") != "" {
@@ -60,50 +58,44 @@ func (h *handler) mediaProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parsedMediaURL, err := url.Parse(string(decodedURL))
+	u, err := url.Parse(string(decodedURL))
 	if err != nil {
 		html.BadRequest(w, r, errors.New("invalid URL provided"))
 		return
 	}
 
-	if parsedMediaURL.Scheme != "http" && parsedMediaURL.Scheme != "https" {
-		html.BadRequest(w, r, errors.New("invalid URL provided"))
-		return
-	}
-
-	if parsedMediaURL.Host == "" {
-		html.BadRequest(w, r, errors.New("invalid URL provided"))
-		return
-	}
-
-	if !parsedMediaURL.IsAbs() {
+	switch {
+	case u.Scheme != "http" && u.Scheme != "https":
+		fallthrough
+	case u.Hostname() == "":
+		fallthrough
+	case !u.IsAbs():
 		html.BadRequest(w, r, errors.New("invalid URL provided"))
 		return
 	}
 
 	mediaURL := string(decodedURL)
-	slog.Debug("MediaProxy: Fetching remote resource",
-		slog.String("media_url", mediaURL),
-	)
+	log := logging.FromContext(r.Context()).With(
+		slog.String("media_url", mediaURL))
+	log.Debug("MediaProxy: Fetching remote resource")
 
-	requestBuilder := fetcher.NewRequestBuilder()
+	rb := fetcher.NewRequestBuilder()
 	if referer := rewrite.GetRefererForURL(mediaURL); referer != "" {
-		requestBuilder.WithHeader("Referer", referer)
+		rb.WithHeader("Referer", referer)
 	}
 
-	forwardedRequestHeader := [...]string{
+	forwardHeaders := [...]string{
 		"Range", "Accept", "Accept-Encoding", "User-Agent",
 	}
-	for _, requestHeaderName := range forwardedRequestHeader {
-		if r.Header.Get(requestHeaderName) != "" {
-			requestBuilder.WithHeader(requestHeaderName, r.Header.Get(requestHeaderName))
+	for _, name := range forwardHeaders {
+		if s := r.Header.Get(name); s != "" {
+			rb.WithHeader(name, s)
 		}
 	}
 
-	resp, err := requestBuilder.Request(mediaURL)
+	resp, err := rb.Request(mediaURL)
 	if err != nil {
-		slog.Error("MediaProxy: Unable to initialize HTTP client",
-			slog.String("media_url", mediaURL),
+		log.Error("MediaProxy: Unable to initialize HTTP client",
 			slog.Any("error", err))
 		http.Error(w, http.StatusText(http.StatusInternalServerError),
 			http.StatusInternalServerError)
@@ -111,23 +103,22 @@ func (h *handler) mediaProxy(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Close()
 
-	if resp.StatusCode() == http.StatusRequestedRangeNotSatisfiable {
-		slog.Warn(
-			"MediaProxy: "+http.StatusText(http.StatusRequestedRangeNotSatisfiable),
-			slog.String("media_url", mediaURL),
-			slog.Int("status_code", resp.StatusCode()))
+	switch statusCode := resp.StatusCode(); statusCode {
+	case http.StatusRequestedRangeNotSatisfiable:
+		log.Warn("MediaProxy: "+http.StatusText(statusCode),
+			slog.Int("status_code", statusCode))
 		html.RequestedRangeNotSatisfiable(w, r, resp.Header("Content-Range"))
 		return
-	}
-	if resp.StatusCode() != http.StatusOK && resp.StatusCode() != http.StatusPartialContent {
-		slog.Warn("MediaProxy: Unexpected response status code",
-			slog.String("media_url", mediaURL),
-			slog.Int("status_code", resp.StatusCode()))
+
+	case http.StatusOK, http.StatusPartialContent:
+	// everything is OK, do nothing
+
+	default:
+		log.Warn("MediaProxy: Unexpected response status code",
+			slog.Int("status_code", statusCode))
 
 		// Forward the status code from the origin.
-		http.Error(w,
-			"Origin status code is "+strconv.Itoa(resp.StatusCode()),
-			resp.StatusCode())
+		http.Error(w, "Origin status code is "+strconv.Itoa(statusCode), statusCode)
 		return
 	}
 
@@ -139,19 +130,20 @@ func (h *handler) mediaProxy(w http.ResponseWriter, r *http.Request) {
 			response.ContentSecurityPolicyForUntrustedContent)
 		b.WithHeader("Content-Type", resp.Header("Content-Type"))
 
-		if filename := path.Base(parsedMediaURL.Path); filename != "" {
+		if filename := path.Base(u.EscapedPath()); filename != "" {
 			b.WithHeader("Content-Disposition", `inline; filename="`+filename+`"`)
 		}
 
-		forwardedResponseHeader := [...]string{
+		forwardHeaders := [...]string{
 			"Content-Encoding", "Content-Type", "Content-Length", "Accept-Ranges",
 			"Content-Range",
 		}
-		for _, responseHeaderName := range forwardedResponseHeader {
-			if resp.Header(responseHeaderName) != "" {
-				b.WithHeader(responseHeaderName, resp.Header(responseHeaderName))
+		for _, name := range forwardHeaders {
+			if s := resp.Header(name); s != "" {
+				b.WithHeader(name, s)
 			}
 		}
+
 		b.WithBody(resp.Body())
 		b.WithoutCompression()
 		b.Write()

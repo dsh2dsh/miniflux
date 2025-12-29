@@ -16,6 +16,7 @@ import (
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/http/securecookie"
 	"miniflux.app/v2/internal/logging"
+	"miniflux.app/v2/internal/mediaproxy"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/template"
 	"miniflux.app/v2/internal/worker"
@@ -71,7 +72,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 				"webauthnLoginFinish")
 		}
 
-		m.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", h.mediaProxy,
+		m.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", mediaproxy.Serve,
 			"proxy")
 	})
 
