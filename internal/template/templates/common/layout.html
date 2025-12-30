@@ -42,7 +42,6 @@
             src="{{ javascript "app" }}">
     </script>
 
-    {{ $cspNonce := nonce }}
     {{ if .user }}
     {{   if .user.HasStylesheet }}
     <link rel="stylesheet" nonce="{{ csp.Nonce }}" type="text/css"
@@ -55,6 +54,7 @@
     {{   end }}
     {{ end }}
 </head>
+
 <body
   data-color-scheme="{{ colorScheme .theme }}"
   data-service-worker-url="{{ javascript "service-worker" }}"
