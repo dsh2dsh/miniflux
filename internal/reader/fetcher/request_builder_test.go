@@ -4,8 +4,10 @@
 package fetcher // import "miniflux.app/v2/internal/reader/fetcher"
 
 import (
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -340,4 +342,88 @@ func TestRequestBuilder_InvalidURL(t *testing.T) {
 	_, err := builder.Request(":|invalid-url")
 	t.Log(err)
 	require.Error(t, err)
+}
+
+func TestDenyDialToPrivate(t *testing.T) {
+	tests := []struct {
+		name    string
+		address string
+		allow   bool
+	}{
+		{
+			name:    "private IPv4",
+			address: "192.168.1.10:8000",
+		},
+		{
+			name:    "loopback IPv4",
+			address: "127.0.0.1:8000",
+		},
+		{
+			name:    "link-local IPv4",
+			address: "169.254.42.1:8000",
+		},
+		{
+			name:    "multicast IPv4",
+			address: "224.0.0.1:8000",
+		},
+		{
+			name:    "unspecified IPv6",
+			address: "[::]:8000",
+		},
+		{
+			name:    "loopback IPv6",
+			address: "[::1]:8000",
+		},
+		{
+			name:    "multicast IPv6",
+			address: "[ff02::1]:8000",
+		},
+		{
+			name:    "public IPv4",
+			address: "93.184.216.34:8000",
+			allow:   true,
+		},
+		{
+			name:    "public IPv6",
+			address: "[2001:4860:4860::8888]:8000",
+			allow:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.allow {
+				require.NoError(t, denyDialToPrivate("", tt.address, nil))
+				return
+			}
+			require.ErrorIs(t, denyDialToPrivate("", tt.address, nil),
+				errDialToPrivate)
+		})
+	}
+}
+
+func TestRequestBuilder_WithDenyPrivateNets(t *testing.T) {
+	if testing.Verbose() {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
+
+	os.Clearenv()
+	require.NoError(t, config.Load(""))
+
+	server := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+	t.Cleanup(server.Close)
+
+	rb := NewRequestBuilder()
+	resp, err := rb.WithDenyPrivateNets(true).Request(server.URL)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.ErrorIs(t, resp.Err(), errDialToPrivate)
+
+	resp, err = rb.WithDenyPrivateNets(false).Request(server.URL)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode())
+	resp.Close()
 }

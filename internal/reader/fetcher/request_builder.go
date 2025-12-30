@@ -7,13 +7,16 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"slices"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/klauspost/compress/gzhttp"
@@ -27,6 +30,8 @@ import (
 const (
 	defaultAcceptHeader = "application/xml, application/atom+xml, application/rss+xml, application/rdf+xml, application/feed+json, text/html, */*;q=0.9"
 )
+
+var errDialToPrivate = errors.New("reader/fetcher: protect private network")
 
 func NewRequestDiscovery(d *model.SubscriptionDiscoveryRequest,
 ) *RequestBuilder {
@@ -80,6 +85,7 @@ type RequestBuilder struct {
 	disableHTTP2     bool
 	proxyRotator     *proxyrotator.ProxyRotator
 	feedProxyURL     string
+	denyPrivateNets  bool
 
 	customizedClient bool
 }
@@ -187,6 +193,12 @@ func (r *RequestBuilder) IgnoreTLSErrors(value bool) *RequestBuilder {
 	return r
 }
 
+func (r *RequestBuilder) WithDenyPrivateNets(value bool) *RequestBuilder {
+	r.denyPrivateNets = value
+	r.customizedClient = value
+	return r
+}
+
 func (r *RequestBuilder) execute(requestURL string) (*http.Response,
 	error,
 ) {
@@ -282,6 +294,9 @@ func withoutRedirects(*http.Request, []*http.Request) error {
 
 func (r *RequestBuilder) transport(proxyURL *url.URL) http.RoundTripper {
 	dialer := &net.Dialer{Timeout: r.Timeout()}
+	if r.denyPrivateNets {
+		dialer.Control = denyDialToPrivate
+	}
 
 	transport := &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
@@ -312,6 +327,30 @@ func (r *RequestBuilder) transport(proxyURL *url.URL) http.RoundTripper {
 		transport.Proxy = http.ProxyURL(proxyURL)
 	}
 	return gzhttp.Transport(transport)
+}
+
+func denyDialToPrivate(network, address string, _ syscall.RawConn) error {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return fmt.Errorf("%w: split %q: %w", errDialToPrivate, address, err)
+	}
+
+	addr, err := netip.ParseAddr(host)
+	if err != nil {
+		return fmt.Errorf("%w: parse %q: %w", errDialToPrivate, address, err)
+	}
+
+	private := addr.IsLinkLocalMulticast() ||
+		addr.IsLinkLocalUnicast() ||
+		addr.IsLoopback() ||
+		addr.IsMulticast() ||
+		addr.IsPrivate() ||
+		addr.IsUnspecified()
+
+	if private {
+		return fmt.Errorf("%w: access denied: %s", errDialToPrivate, address)
+	}
+	return nil
 }
 
 func (r *RequestBuilder) tlsConfig() *tls.Config {

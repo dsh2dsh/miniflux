@@ -92,9 +92,12 @@ func Serve(w http.ResponseWriter, r *http.Request) {
 	mediaURL := string(decodedURL)
 	log := logging.FromContext(r.Context()).With(
 		slog.String("media_url", mediaURL))
-	log.Debug("MediaProxy: Fetching remote resource")
+	log.Debug("MediaProxy: Fetching remote resource",
+		slog.Bool("private_nets", config.MediaProxyAllowPrivateNetworks()))
 
-	rb := fetcher.NewRequestBuilder()
+	rb := fetcher.NewRequestBuilder().
+		WithDenyPrivateNets(!config.MediaProxyAllowPrivateNetworks())
+
 	if referer := rewrite.GetRefererForURL(mediaURL); referer != "" {
 		rb.WithHeader("Referer", referer)
 	}

@@ -916,6 +916,32 @@ func TestTrustedProxies(t *testing.T) {
 	assert.Contains(t, opts.trustedProxies, "127.0.0.2")
 }
 
+func TestIconFetchAllowPrivateNetworks(t *testing.T) {
+	assert.False(t, IconFetchAllowPrivateNetworks())
+
+	os.Clearenv()
+	t.Setenv("ICON_FETCH_ALLOW_PRIVATE_NETWORKS", "1")
+	require.NoError(t, Load(""))
+	assert.True(t, IconFetchAllowPrivateNetworks())
+
+	t.Setenv("ICON_FETCH_ALLOW_PRIVATE_NETWORKS", "0")
+	require.NoError(t, Load(""))
+	assert.False(t, IconFetchAllowPrivateNetworks())
+}
+
+func TestMediaProxyAllowPrivateNetworksOptionParsing(t *testing.T) {
+	assert.False(t, MediaProxyAllowPrivateNetworks())
+
+	os.Clearenv()
+	t.Setenv("MEDIA_PROXY_ALLOW_PRIVATE_NETWORKS", "1")
+	require.NoError(t, Load(""))
+	assert.True(t, MediaProxyAllowPrivateNetworks())
+
+	t.Setenv("MEDIA_PROXY_ALLOW_PRIVATE_NETWORKS", "0")
+	require.NoError(t, Load(""))
+	assert.False(t, MediaProxyAllowPrivateNetworks())
+}
+
 func TestLoadYAML(t *testing.T) {
 	require.Error(t, LoadYAML("testdata/notfound.yaml", ""))
 	require.Error(t, LoadYAML("", "testdata/notfound.env"))

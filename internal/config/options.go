@@ -152,6 +152,9 @@ type envOptions struct {
 	YouTubeApiKey                  string   `env:"YOUTUBE_API_KEY"`
 	YouTubeEmbedUrlOverride        *url.URL `env:"YOUTUBE_EMBED_URL_OVERRIDE" envDefault:"https://www.youtube-nocookie.com/embed/"`
 
+	IconFetchAllowPrivateNets  bool `env:"ICON_FETCH_ALLOW_PRIVATE_NETWORKS"`
+	MediaProxyAllowPrivateNets bool `env:"MEDIA_PROXY_ALLOW_PRIVATE_NETWORKS"`
+
 	PollingErrorLimit int           `env:"POLLING_PARSING_ERROR_LIMIT" validate:"min=0"`
 	PollingErrorRetry time.Duration `env:"POLLING_ERROR_RETRY" validate:"min=0"`
 }
@@ -432,15 +435,22 @@ func (o *options) sortedOptions(redactSecret bool) []Option {
 		"HTTP_CLIENT_USER_AGENT":             o.env.HttpClientUserAgent,
 		"HTTP_SERVER_TIMEOUT":                o.env.HttpServerTimeout,
 		"HTTP_SERVICE":                       !o.env.DisableHttpService,
+		"ICON_FETCH_ALLOW_PRIVATE_NETWORKS":  o.env.IconFetchAllowPrivateNets,
 		"INVIDIOUS_INSTANCE":                 o.env.InvidiousInstance,
 		"KEY_FILE":                           o.env.CertKeyFile,
 		"LISTEN_ADDR":                        o.env.ListenAddr,
-		"LOG_FILE":                           o.env.LogFile,
 		"LOG_DATE_TIME":                      o.env.LogDateTime,
+		"LOG_FILE":                           o.env.LogFile,
 		"LOG_FORMAT":                         o.env.LogFormat,
 		"LOG_LEVEL":                          o.env.LogLevel,
 		"MAINTENANCE_MESSAGE":                o.env.MaintenanceMessage,
 		"MAINTENANCE_MODE":                   o.env.MaintenanceMode,
+		"MEDIA_PROXY_ALLOW_PRIVATE_NETWORKS": o.env.MediaProxyAllowPrivateNets,
+		"MEDIA_PROXY_CUSTOM_URL":             o.env.MediaProxyCustomURL,
+		"MEDIA_PROXY_HTTP_CLIENT_TIMEOUT":    o.env.MediaProxyHTTPClientTimeout,
+		"MEDIA_PROXY_MODE":                   o.env.MediaProxyMode,
+		"MEDIA_PROXY_PRIVATE_KEY":            mediaProxyPrivateKeyValue,
+		"MEDIA_PROXY_RESOURCE_TYPES":         strings.Join(o.env.MediaProxyResourceTypes, ","),
 		"METRICS_ALLOWED_NETWORKS":           strings.Join(o.env.MetricsAllowedNetworks, ","),
 		"METRICS_COLLECTOR":                  o.env.MetricsCollector,
 		"METRICS_PASSWORD":                   secretValue(o.env.MetricsPassword, redactSecret),
@@ -495,6 +505,10 @@ func (o *options) String() string {
 
 func HTTPS() bool  { return opts.env.HTTPS }
 func EnableHTTPS() { opts.env.HTTPS = true }
+
+func IconFetchAllowPrivateNetworks() bool {
+	return opts.env.IconFetchAllowPrivateNets
+}
 
 func LogFile() string { return opts.env.LogFile }
 
@@ -711,6 +725,10 @@ func MediaProxyResourceTypes() []string {
 
 // MediaCustomProxyURL returns the custom proxy URL for medias.
 func MediaCustomProxyURL() *url.URL { return opts.env.MediaProxyCustomURL }
+
+func MediaProxyAllowPrivateNetworks() bool {
+	return opts.env.MediaProxyAllowPrivateNets
+}
 
 // MediaProxyHTTPClientTimeout returns the time limit in seconds before the
 // proxy HTTP client cancel the request.
