@@ -11,6 +11,8 @@ type Enclosure struct {
 	MimeType         string `json:"mime_type,omitempty"`
 	Size             int64  `json:"size,omitempty"`
 	MediaProgression int64  `json:"media_progression,omitempty"`
+
+	originalURL string
 }
 
 type EnclosureUpdateRequest struct {
@@ -18,40 +20,52 @@ type EnclosureUpdateRequest struct {
 }
 
 // Html5MimeType will modify the actual MimeType to allow direct playback from HTML5 player for some kind of MimeType
-func (e *Enclosure) Html5MimeType() string {
-	if e.MimeType == "video/m4v" {
+func (self *Enclosure) Html5MimeType() string {
+	if self.MimeType == "video/m4v" {
 		return "video/x-m4v"
 	}
-	return e.MimeType
+	return self.MimeType
 }
 
-func (e *Enclosure) IsAudio() bool {
-	return strings.HasPrefix(strings.ToLower(e.MimeType), "audio/")
+func (self *Enclosure) IsAudio() bool {
+	return strings.HasPrefix(strings.ToLower(self.MimeType), "audio/")
 }
 
-func (e *Enclosure) IsVideo() bool {
-	return strings.HasPrefix(strings.ToLower(e.MimeType), "video/")
+func (self *Enclosure) IsVideo() bool {
+	return strings.HasPrefix(strings.ToLower(self.MimeType), "video/")
 }
 
-func (e *Enclosure) IsImage() bool {
-	mimeType := strings.ToLower(e.MimeType)
+func (self *Enclosure) IsImage() bool {
+	mimeType := strings.ToLower(self.MimeType)
 	if strings.HasPrefix(mimeType, "image/") {
 		return true
 	}
-	mediaURL := strings.ToLower(e.URL)
+	mediaURL := strings.ToLower(self.URL)
 	return strings.HasSuffix(mediaURL, ".jpg") ||
 		strings.HasSuffix(mediaURL, ".jpeg") ||
 		strings.HasSuffix(mediaURL, ".png") ||
 		strings.HasSuffix(mediaURL, ".gif")
 }
 
+func (self *Enclosure) ReplaceURL(u string) string {
+	self.originalURL, self.URL = self.URL, u
+	return self.originalURL
+}
+
+func (self *Enclosure) OriginalURL() string {
+	if self.originalURL != "" {
+		return self.originalURL
+	}
+	return self.URL
+}
+
 // EnclosureList represents a list of attachments.
 type EnclosureList []Enclosure
 
 // FindMediaPlayerEnclosure returns the first enclosure that can be played by a media player.
-func (el EnclosureList) FindMediaPlayerEnclosure() *Enclosure {
-	for i := range el {
-		enclosure := &el[i]
+func (self EnclosureList) FindMediaPlayerEnclosure() *Enclosure {
+	for i := range self {
+		enclosure := &self[i]
 		if enclosure.URL != "" {
 			if enclosure.IsAudio() || enclosure.IsVideo() {
 				return enclosure
@@ -61,9 +75,9 @@ func (el EnclosureList) FindMediaPlayerEnclosure() *Enclosure {
 	return nil
 }
 
-func (el EnclosureList) ContainsAudioOrVideo() bool {
-	for i := range el {
-		enclosure := &el[i]
+func (self EnclosureList) ContainsAudioOrVideo() bool {
+	for i := range self {
+		enclosure := &self[i]
 		if enclosure.IsAudio() || enclosure.IsVideo() {
 			return true
 		}

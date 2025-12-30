@@ -25,16 +25,17 @@
                 </summary>
 
                 <p class="enclosure-download">
-                    <a href="{{ .URL | safeURL }}"
-                       {{ $.user.TargetBlank }}
-                       rel="noopener noreferrer" referrerpolicy="no-referrer">
-                        {{ .URL | safeURL  }}
+                    <a
+                      href="{{ .URL }}"
+                      {{ $.user.TargetBlank }}
+                      rel="noopener noreferrer" referrerpolicy="no-referrer">
+                        {{ .OriginalURL }}
                     </a>
                 </p>
 
                 {{ if .IsImage }}
                 <p class="enclosure-image">
-                    <img src="{{ .URL | safeURL }}" loading="lazy" />
+                    <img src="{{ .URL }}" loading="lazy" />
                 </p>
                 {{ end }}
             </details>

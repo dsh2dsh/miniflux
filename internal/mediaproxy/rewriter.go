@@ -38,7 +38,7 @@ func RewriteDocumentWithAbsoluteProxyURL(m *mux.ServeMux, content string,
 func ProxifyEnclosures(m *mux.ServeMux, enclosures []model.Enclosure) {
 	for i := range enclosures {
 		e := &enclosures[i]
-		e.URL = proxifyAbsoluteURL(m, e.MimeType, e.URL)
+		e.ReplaceURL(proxifyAbsoluteURL(m, e.MimeType, e.URL))
 	}
 }
 
