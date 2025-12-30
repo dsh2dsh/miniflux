@@ -19,6 +19,7 @@ import (
 	"miniflux.app/v2/internal/mediaproxy"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/processor"
+	"miniflux.app/v2/internal/reader/sanitizer"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/validator"
 )
@@ -308,14 +309,24 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := request.User(r)
-	if err := processor.ProcessEntryWebPage(ctx, feed, entry, user); err != nil {
-		json.ServerError(w, r, err)
-		return
-	}
+	if request.QueryBoolParam(r, "update_content", false) {
+		err := processor.ProcessEntryWebPage(ctx, feed, entry, user)
+		if err != nil {
+			json.ServerError(w, r, err)
+			return
+		}
 
-	shouldUpdateContent := request.QueryBoolParam(r, "update_content", false)
-	if shouldUpdateContent {
-		err := h.store.UpdateEntryTitleAndContent(ctx, entry)
+		err = h.store.UpdateEntryTitleAndContent(ctx, entry)
+		if err != nil {
+			json.ServerError(w, r, err)
+			return
+		}
+		entry.Content = mediaproxy.RewriteDocumentWithAbsoluteProxyURL(h.router,
+			entry.Content)
+	} else {
+		err := processor.ProcessEntryWebPage(ctx, feed, entry, user,
+			sanitizer.WithRewriteURL(
+				mediaproxy.New(h.router).WithAbsoluteProxy().RewriteURL))
 		if err != nil {
 			json.ServerError(w, r, err)
 			return
@@ -323,8 +334,7 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.OK(w, r, map[string]any{
-		"content": mediaproxy.RewriteDocumentWithAbsoluteProxyURL(h.router,
-			entry.Content),
+		"content":      entry.Content,
 		"reading_time": entry.ReadingTime,
 	})
 }
