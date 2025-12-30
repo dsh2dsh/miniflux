@@ -1123,11 +1123,15 @@ article.category-has-unread {
 }
 
 .entry-tags-list {
-    display: inline flex;
+    display: inline;
     list-style-type: none;
 }
 
-.entry-tags-list li ~ li::before {
+.entry-tags-list li {
+    display: inline;
+}
+
+.entry-tags-list li:not(:last-child):after {
     content: ", ";
 }
 
