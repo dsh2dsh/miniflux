@@ -1276,15 +1276,6 @@ article.category-has-unread {
     border-color: var(--entry-content-code-border-color);
 }
 
-.entry-content pre.description {
-    color: inherit;
-    background: inherit;
-    border: inherit;
-    margin-top: 1em;
-    padding: 0;
-    white-space: pre-wrap;
-}
-
 .entry-content table {
     max-width: 100%;
 }
@@ -1338,6 +1329,19 @@ article.category-has-unread {
     margin-bottom: 15px;
     font-style: italic;
     border: dotted var(--entry-content-aside-border-color) 2px;
+}
+
+.entry-content > .youtube {
+    pre {
+        color: inherit;
+        background: inherit;
+        border: inherit;
+        padding: 0;
+        white-space: pre-wrap;
+    }
+    details {
+        margin-top: 1em;
+    }
 }
 
 details.entry-enclosures {

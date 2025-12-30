@@ -1,5 +1,9 @@
 <div class="youtube">
-    <details>
+    {{ if .description -}}
+    <pre class="description">{{ .description }}</pre>
+    {{- end }}
+
+    <details class="video">
         <summary>Embedded Youtube video</summary>
         <iframe
           src="{{ .iframeSrc }}"
@@ -13,8 +17,4 @@
           credentialless>
         </iframe>
     </details>
-
-    {{ if .description -}}
-    <pre class="description">{{ .description }}</pre>
-    {{- end }}
 </div>
