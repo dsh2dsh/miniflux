@@ -107,7 +107,7 @@ func (s *Storage) GetReadTime(ctx context.Context, feedID int64,
 
 // StoreFeedEntries updates feed entries while refreshing a feed.
 func (s *Storage) StoreFeedEntries(ctx context.Context, userID, feedID int64,
-	entries model.Entries, updateExisting bool,
+	entries model.Entries, forceUpdate bool,
 ) (*model.FeedRefreshed, error) {
 	if len(entries) == 0 {
 		return model.NewFeedRefreshed(), nil
@@ -116,7 +116,7 @@ func (s *Storage) StoreFeedEntries(ctx context.Context, userID, feedID int64,
 	var refreshed *model.FeedRefreshed
 	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) (err error) {
 		refreshed, err = s.refreshEntries(ctx, tx, userID, feedID, entries,
-			updateExisting)
+			forceUpdate)
 		if err != nil {
 			return err
 		}
@@ -129,18 +129,16 @@ func (s *Storage) StoreFeedEntries(ctx context.Context, userID, feedID int64,
 }
 
 func (s *Storage) refreshEntries(ctx context.Context, tx pgx.Tx, userID,
-	feedID int64, entries model.Entries, update bool,
+	feedID int64, entries model.Entries, force bool,
 ) (*model.FeedRefreshed, error) {
-	refreshed, err := s.knownEntries(ctx, tx, userID, feedID, entries)
+	refreshed, err := s.knownEntries(ctx, tx, userID, feedID, entries, force)
 	if err != nil {
 		return nil, err
 	}
 
-	if update {
-		for _, e := range refreshed.Updated {
-			if err = s.updateEntry(ctx, tx, e); err != nil {
-				return refreshed, err
-			}
+	for _, e := range refreshed.Updated {
+		if err = s.updateEntry(ctx, tx, e); err != nil {
+			return refreshed, err
 		}
 	}
 
@@ -151,7 +149,7 @@ func (s *Storage) refreshEntries(ctx context.Context, tx pgx.Tx, userID,
 }
 
 func (s *Storage) knownEntries(ctx context.Context, tx pgx.Tx, userID,
-	feedID int64, entries model.Entries,
+	feedID int64, entries model.Entries, force bool,
 ) (*model.FeedRefreshed, error) {
 	hashes := entries.RefreshFeed(userID, feedID)
 	published, err := s.publishedEntries(ctx, tx, userID, hashes)
@@ -159,7 +157,9 @@ func (s *Storage) knownEntries(ctx context.Context, tx pgx.Tx, userID,
 		return nil, err
 	}
 
-	refreshed := model.NewFeedRefreshed().Append(feedID, entries, published)
+	refreshed := model.NewFeedRefreshed().WithForceUpdate(force).
+		Append(feedID, entries, published)
+
 	if dd := s.DedupEntries(); dd != nil {
 		dd.Filter(userID, refreshed)
 	}

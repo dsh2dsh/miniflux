@@ -349,12 +349,8 @@ func (self *Refresh) processEntries(ctx context.Context, entries model.Entries,
 func (self *Refresh) refreshFeedEntries(ctx context.Context,
 	keepHashes []string,
 ) (*model.FeedRefreshed, error) {
-	// We don't update existing entries when the crawler is enabled (we crawl
-	// only inexisting entries). Unless it is forced to refresh.
-	update := self.force || !self.feed.Crawler
-
 	refreshed, err := self.store.StoreFeedEntries(ctx, self.userID, self.feedID,
-		self.feed.Entries, update)
+		self.feed.Entries, self.force)
 	if err != nil {
 		return nil, fmt.Errorf("reader/handler: store feed entries: %w", err)
 	}

@@ -371,12 +371,18 @@ type FeedRefreshed struct {
 
 	remoteEntries int
 	refreshed     bool
+	forceUpdate   bool
 }
 
 func NewFeedRefreshed() *FeedRefreshed { return new(FeedRefreshed) }
 
 func NewFeedNotModified(v int) *FeedRefreshed {
 	return &FeedRefreshed{NotModified: v}
+}
+
+func (self *FeedRefreshed) WithForceUpdate(value bool) *FeedRefreshed {
+	self.forceUpdate = value
+	return self
 }
 
 func (self *FeedRefreshed) Append(feedID int64, feedEntries []*Entry,
@@ -395,14 +401,14 @@ func (self *FeedRefreshed) Append(feedID int64, feedEntries []*Entry,
 			e.Status = EntryStatusUnread
 			self.Created = append(self.Created, e)
 		case e.FeedID != storedEntry.FeedID:
-			if e.Date.After(storedEntry.Date) {
+			if self.forceUpdate || e.Date.After(storedEntry.Date) {
 				e.Status = EntryStatusUnread
 			} else {
 				e.Status = EntryStatusRead
 				self.Dedups++
 			}
 			self.Created = append(self.Created, e)
-		case e.Date.After(storedEntry.Date):
+		case self.forceUpdate || e.Date.After(storedEntry.Date):
 			e.Status = EntryStatusUnread
 			self.Updated = append(self.Updated, e)
 		default:

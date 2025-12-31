@@ -78,7 +78,7 @@ func (self *FeedProcessor) ProcessFeedEntries(ctx context.Context, userID int64,
 		return nil
 	}
 
-	if err := self.markStoredEntries(ctx); err != nil {
+	if err := self.markStoredEntries(ctx, force); err != nil {
 		logging.FromContext(ctx).Error("Unable mark stored entries",
 			slog.Int("entries", len(self.feed.Entries)),
 			slog.Any("error", err))
@@ -183,8 +183,9 @@ func (self *FeedProcessor) deleteAgedEntries(ctx context.Context) {
 	}
 }
 
-func (self *FeedProcessor) markStoredEntries(ctx context.Context) error {
-	if len(self.feed.Entries) == 0 {
+func (self *FeedProcessor) markStoredEntries(ctx context.Context, force bool,
+) error {
+	if force || len(self.feed.Entries) == 0 {
 		return nil
 	}
 
