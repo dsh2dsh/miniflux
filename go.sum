@@ -27,6 +27,8 @@ github.com/dsh2dsh/expx-dotenv v1.4.0 h1:GLDENXzl79jsPLUemIVzSc7SrhJonAM8enTxe60
 github.com/dsh2dsh/expx-dotenv v1.4.0/go.mod h1:GBgZKlYrqEnUetmP2NMnKj7lVc1TTQIOV0wQbGQrxmA=
 github.com/dsh2dsh/gofeed/v2 v2.2.0 h1:SuzQvaFqa0dEeUiAaU8BuBfc7cGcCKD4H+A9jafUcr4=
 github.com/dsh2dsh/gofeed/v2 v2.2.0/go.mod h1:Weu8/sZvk+/LmaeB0+vfkMc9rg/tLcsgtTLGvSs/xq0=
+github.com/dsh2dsh/gofeed/v2 v2.3.0 h1:PCPnTfvmGeXNJkIS+zs/fC7FXMo5OEzxthvmLI/zJBo=
+github.com/dsh2dsh/gofeed/v2 v2.3.0/go.mod h1:Weu8/sZvk+/LmaeB0+vfkMc9rg/tLcsgtTLGvSs/xq0=
 github.com/dsh2dsh/goxpp/v2 v2.0.5 h1:RBEy9Hi22rkqbUOBFg+1KxaS3ipgWpHfjdZGqFIAJ4k=
 github.com/dsh2dsh/goxpp/v2 v2.0.5/go.mod h1:6IFiwugLa3KDWCeTiUYMlUnu2UL5Nw7fE+n+MXcm9sM=
 github.com/fxamacker/cbor/v2 v2.9.0 h1:NpKPmjDBgUfBms6tr6JZkTHtfFGcMKsw3eGcmD/sapM=
