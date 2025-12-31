@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -441,4 +442,17 @@ func TestParseEncodings(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestParseBytes_youtube(t *testing.T) {
+	b, err := os.ReadFile("testdata/youtube.xml")
+	require.NoError(t, err)
+
+	feed, err := ParseBytes("", b)
+	require.NoError(t, err)
+	require.NotNil(t, feed)
+
+	assert.Equal(t, "Gamer's Little Playground", feed.Title)
+	assert.Equal(t, "https://www.youtube.com/channel/UCiZVMOinTQGb8HQu53VbV4Q",
+		feed.SiteURL)
 }
