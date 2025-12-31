@@ -155,10 +155,12 @@ func (self *ContentRewrite) youtubeIframe(log *slog.Logger, entry *model.Entry,
 		slog.String("iframe", iframe))
 
 	entry.Content = self.render("youtube.html", map[string]any{
-		"iframeSrc":   iframe,
-		"width":       yt.Width,
-		"height":      yt.Height,
-		"description": template.HTML(yt.Description),
+		"Entry":       entry,
+		"IframeSrc":   iframe,
+		"Width":       yt.Width,
+		"Height":      yt.Height,
+		"Description": template.HTML(yt.Description),
+		"Thumbnail":   &yt.Thumbnail,
 	})
 	self.sanitized = true
 }
@@ -167,6 +169,10 @@ type youtubeContent struct {
 	Width, Height int
 	VideoId       string
 	Description   string
+	Thumbnail     struct {
+		Width, Height int
+		URL           string
+	}
 }
 
 func youtubeVideo(entry *model.Entry) (c youtubeContent) {
@@ -185,6 +191,12 @@ func youtubeVideo(entry *model.Entry) (c youtubeContent) {
 	if len(mg.Contents) != 0 {
 		c.Width = mg.Contents[0].Width
 		c.Height = mg.Contents[0].Height
+	}
+
+	if len(mg.ThumbnailsEx) != 0 {
+		c.Thumbnail.URL = mg.ThumbnailsEx[0].URL
+		c.Thumbnail.Width = mg.ThumbnailsEx[0].Width
+		c.Thumbnail.Height = mg.ThumbnailsEx[0].Height
 	}
 
 	if len(mg.Descriptions) != 0 {
