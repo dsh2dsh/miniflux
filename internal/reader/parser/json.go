@@ -11,7 +11,6 @@ import (
 
 	"github.com/dsh2dsh/gofeed/v2/json"
 
-	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/model"
 )
 
@@ -168,8 +167,8 @@ func (self *jsonEntry) Parse() *model.Entry {
 	self.entry.URL = self.entryURL()
 	self.entry.Author = joinJsonAuthors(self.json.AllAuthors())
 	self.entry.Tags = self.tags()
-	self.entry.Hash = self.hash()
 	self.entry.AppendEnclosures(self.enclosures())
+	self.hashEntry()
 
 	enclosures := self.entry.Enclosures()
 	if len(enclosures) != 0 && self.entry.URL == "" {
@@ -223,14 +222,14 @@ func (self *jsonEntry) tags() []string {
 	return slices.Compact(tags)
 }
 
-func (self *jsonEntry) hash() string {
+func (self *jsonEntry) hashEntry() {
 	switch {
 	case self.entry.URL != "":
-		return crypto.HashFromString(self.entry.URL)
+		self.entry.HashFrom(self.entry.URL)
 	case self.json.ID != "":
-		return crypto.HashFromString(self.json.ID)
+		self.entry.HashFrom(self.json.ID)
 	default:
-		return crypto.HashFromString(self.entry.Title + self.entry.Content)
+		self.entry.HashFrom(self.entry.Title + self.entry.Content)
 	}
 }
 

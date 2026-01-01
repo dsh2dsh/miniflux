@@ -69,6 +69,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 		HandleFunc("/feeds/{feedID}/mark-all-as-read", handler.markFeedAsRead).
 		HandleFunc("/export", handler.exportFeeds).
 		HandleFunc("/import", handler.importFeeds).
+		HandleFunc("POST /import/entries", handler.importEntries).
 		HandleFunc("/feeds/{feedID}/entries", handler.getFeedEntries).
 		HandleFunc("/feeds/{feedID}/entries/{entryID}", handler.getFeedEntry).
 		HandleFunc("GET /entries", handler.getEntries).

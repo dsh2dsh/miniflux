@@ -398,21 +398,21 @@ func (self *FeedRefreshed) Append(feedID int64, feedEntries []*Entry,
 		storedEntry, ok := storedBy[e.Hash]
 		switch {
 		case !ok:
-			e.Status = EntryStatusUnread
+			e.KeepImportedStatus(EntryStatusUnread)
 			self.Created = append(self.Created, e)
 		case e.FeedID != storedEntry.FeedID:
 			if self.forceUpdate || e.Date.After(storedEntry.Date) {
-				e.Status = EntryStatusUnread
+				e.KeepImportedStatus(EntryStatusUnread)
 			} else {
-				e.Status = EntryStatusRead
+				e.KeepImportedStatus(EntryStatusRead)
 				self.Dedups++
 			}
 			self.Created = append(self.Created, e)
 		case self.forceUpdate || e.Date.After(storedEntry.Date):
-			e.Status = EntryStatusUnread
+			e.KeepImportedStatus(EntryStatusUnread)
 			self.Updated = append(self.Updated, e)
 		default:
-			e.Status = storedEntry.Status
+			e.KeepImportedStatus(storedEntry.Status)
 		}
 	}
 	return self

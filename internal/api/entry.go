@@ -19,6 +19,7 @@ import (
 	"miniflux.app/v2/internal/mediaproxy"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/processor"
+	"miniflux.app/v2/internal/reader/readingtime"
 	"miniflux.app/v2/internal/reader/sanitizer"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/validator"
@@ -280,6 +281,65 @@ func (h *handler) updateEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.Created(w, r, entry)
+}
+
+func (h *handler) importEntries(w http.ResponseWriter, r *http.Request) {
+	var importReq model.ImportEntries
+	if err := json_parser.NewDecoder(r.Body).Decode(&importReq); err != nil {
+		json.BadRequest(w, r, err)
+		return
+	}
+
+	if importReq.FeedURL == "" {
+		json.BadRequest(w, r, errors.New("empty feed URL"))
+		return
+	} else if len(importReq.Entries) == 0 {
+		json.BadRequest(w, r, errors.New("empty entries list"))
+		return
+	}
+
+	ctx := r.Context()
+	user := request.User(r)
+
+	feed, err := h.store.FeedByURL(ctx, user.ID, importReq.FeedURL)
+	if err != nil {
+		json.ServerError(w, r, err)
+		return
+	} else if feed == nil {
+		json.BadRequest(w, r, errors.New("feed does not exists"))
+		return
+	}
+
+	entries := make(model.Entries, len(importReq.Entries))
+	for i := range importReq.Entries {
+		importEntry := importReq.Entries[i]
+		if importEntry.URL == "" {
+			json.BadRequest(w, r, errors.New("url is required"))
+			return
+		}
+
+		if importEntry.Status == "" {
+			importEntry.Status = model.EntryStatusRead
+		}
+		if err := validator.ValidateEntryStatus(importEntry.Status); err != nil {
+			json.BadRequest(w, r, err)
+			return
+		}
+
+		entry := model.NewEntryFrom(importEntry)
+		if user.ShowReadingTime {
+			entry.ReadingTime = readingtime.EstimateReadingTime(entry.Content,
+				user.DefaultReadingSpeed, user.CJKReadingSpeed)
+		}
+		entries[i] = entry
+	}
+
+	_, err = h.store.StoreFeedEntries(ctx, user.ID, feed.ID, entries, true)
+	if err != nil {
+		json.ServerError(w, r, err)
+		return
+	}
+	json.Created(w, r, &entriesResponse{Total: len(entries), Entries: entries})
 }
 
 func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {

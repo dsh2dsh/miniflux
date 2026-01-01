@@ -52,7 +52,7 @@ func (self *dedupUserEntries) Filter(r *model.FeedRefreshed) uint64 {
 	var created uint64
 	for _, e := range r.Created.Unread() {
 		if feedID, ok := self.hashes[e.Hash]; ok && e.FeedID != feedID {
-			e.Status = model.EntryStatusRead
+			e.KeepImportedStatus(model.EntryStatusRead)
 			r.Dedups++
 		} else if !ok {
 			self.hashes[e.Hash] = e.FeedID

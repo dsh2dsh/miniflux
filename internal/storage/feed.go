@@ -517,3 +517,14 @@ func (s *Storage) ResetNextCheckAt(ctx context.Context) error {
 	}
 	return nil
 }
+
+func (s *Storage) FeedByURL(ctx context.Context, userID int64, u string,
+) (*model.Feed, error) {
+	feed, err := s.NewFeedQueryBuilder(userID).FeedByURL(ctx, u)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	} else if err != nil {
+		return nil, fmt.Errorf("storage: fetch feed by url=%s: %w", u, err)
+	}
+	return feed, nil
+}

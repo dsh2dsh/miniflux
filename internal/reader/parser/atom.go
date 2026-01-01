@@ -13,7 +13,6 @@ import (
 	"github.com/dsh2dsh/gofeed/v2/atom"
 	"github.com/dsh2dsh/gofeed/v2/options"
 
-	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/model"
 )
 
@@ -196,8 +195,8 @@ func (self *atomEntry) Parse() *model.Entry {
 	self.entry.Author = joinAtomAuthors(self.atom.Authors)
 	self.entry.CommentsURL = self.commentsURL()
 	self.entry.Tags = self.atom.GetCategories()
-	self.entry.Hash = self.hash()
 	self.entry.AppendEnclosures(self.enclosures())
+	self.hashEntry()
 
 	enclosures := self.entry.Enclosures()
 	if len(enclosures) != 0 && self.entry.URL == "" {
@@ -249,14 +248,14 @@ func (self *atomEntry) commentsURL() string {
 	return ""
 }
 
-func (self *atomEntry) hash() string {
+func (self *atomEntry) hashEntry() {
 	switch {
 	case self.entry.URL != "":
-		return crypto.HashFromString(self.entry.URL)
+		self.entry.HashFrom(self.entry.URL)
 	case self.atom.ID != "":
-		return crypto.HashFromString(self.atom.ID)
+		self.entry.HashFrom(self.atom.ID)
 	default:
-		return crypto.HashFromString(self.entry.Title + self.entry.Content)
+		self.entry.HashFrom(self.entry.Title + self.entry.Content)
 	}
 }
 

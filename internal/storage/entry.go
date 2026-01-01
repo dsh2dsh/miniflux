@@ -136,14 +136,8 @@ func (s *Storage) refreshEntries(ctx context.Context, tx pgx.Tx, userID,
 		return nil, err
 	}
 
-	for _, e := range refreshed.Updated {
-		if err = s.updateEntry(ctx, tx, e); err != nil {
-			return refreshed, err
-		}
-	}
-
-	if len(refreshed.Created) == 0 {
-		return refreshed, nil
+	if err = s.updateEntries(ctx, tx, refreshed.Updated); err != nil {
+		return refreshed, err
 	}
 	return refreshed, s.createEntries(ctx, tx, refreshed.Created)
 }
@@ -206,44 +200,71 @@ SELECT feed_id, status, hash, published_at
 	return entries, nil
 }
 
-// updateEntry updates an entry when a feed is refreshed.
-//
-// Note: we do not update the published date because some feeds do not contains
-// any date, it default to time.Now() which could change the order of items on
-// the history page.
-func (s *Storage) updateEntry(ctx context.Context, tx pgx.Tx, e *model.Entry,
+func (s *Storage) updateEntries(ctx context.Context, tx pgx.Tx,
+	entries model.Entries,
 ) error {
-	err := tx.QueryRow(ctx, `
-UPDATE entries
-   SET title = $1,
-       url = $2,
-       comments_url = $3,
-       content = $4,
-       author = $5,
-       reading_time = $6,
-       tags = $10,
-       changed_at = now(),
-       published_at = $11,
-       status = $12,
-       extra = $13
- WHERE user_id = $7 AND feed_id = $8 AND hash = $9
-RETURNING id, status, changed_at`,
+	if len(entries) == 0 {
+		return nil
+	}
+
+	var batch pgx.Batch
+	for _, e := range entries {
+		s.queueUpdateEntry(&batch, e)
+	}
+
+	if err := tx.SendBatch(ctx, &batch).Close(); err != nil {
+		return fmt.Errorf("storage: batch update entries(%d): %w",
+			len(entries), err)
+	}
+	return nil
+}
+
+func (s *Storage) queueUpdateEntry(batch *pgx.Batch, e *model.Entry) {
+	args := append(make([]any, 0, 14),
+		e.UserID, e.FeedID, e.Hash,
 		e.Title,
 		e.URL,
 		e.CommentsURL,
 		e.Content,
 		e.Author,
 		e.ReadingTime,
-		e.UserID, e.FeedID, e.Hash,
 		e.Tags,
 		e.Date,
-		model.EntryStatusUnread,
-		&e.Extra,
-	).Scan(&e.ID, &e.Status, &e.ChangedAt)
-	if err != nil {
-		return fmt.Errorf("storage: update entry %q: %w", e.URL, err)
+		e.Status,
+		&e.Extra)
+
+	withStarred := func() string {
+		if !e.Imported() {
+			return ""
+		}
+		args = append(args, e.Starred)
+		return ", starred = $" + strconv.Itoa(len(args))
 	}
-	return nil
+
+	query := `
+UPDATE entries
+   SET title = $4,
+       url = $5,
+       comments_url = $6,
+       content = $7,
+       author = $8,
+       reading_time = $9,
+       tags = $10,
+       changed_at = now(),
+       published_at = $11,
+       status = $12,
+       extra = $13` + withStarred() + `
+ WHERE user_id = $1 AND feed_id = $2 AND hash = $3
+RETURNING id, changed_at`
+
+	batch.Queue(query, args...).QueryRow(func(row pgx.Row) error {
+		err := row.Scan(&e.ID, &e.ChangedAt)
+		if err != nil {
+			return fmt.Errorf("queued update entry %q (feed #%d): %w",
+				e.URL, e.FeedID, err)
+		}
+		return nil
+	})
 }
 
 func (s *Storage) createEntries(ctx context.Context, tx pgx.Tx,
@@ -272,6 +293,7 @@ func (s *Storage) createEntries(ctx context.Context, tx pgx.Tx,
 			"author",
 			"user_id",
 			"feed_id",
+			"starred",
 			"reading_time",
 			"tags",
 			"changed_at",
@@ -292,6 +314,7 @@ func (s *Storage) createEntries(ctx context.Context, tx pgx.Tx,
 				e.Author,
 				e.UserID,
 				e.FeedID,
+				e.Starred,
 				e.ReadingTime,
 				e.Tags,
 				now,
@@ -358,8 +381,9 @@ INSERT INTO entries (
   reading_time,
   tags,
   extra,
+  starred,
   changed_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, now())
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, now())
 RETURNING id, created_at, changed_at`,
 		e.Status,
 		e.Title,
@@ -374,6 +398,7 @@ RETURNING id, created_at, changed_at`,
 		e.ReadingTime,
 		e.Tags,
 		&e.Extra,
+		e.Starred,
 	).QueryRow(func(row pgx.Row) error {
 		err := row.Scan(&e.ID, &e.CreatedAt, &e.ChangedAt)
 		if err != nil {

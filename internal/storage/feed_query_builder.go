@@ -330,3 +330,17 @@ func (f *FeedQueryBuilder) fillFeedCounters(feeds model.Feeds, readCounters,
 		feed.NumberOfVisibleEntries = feed.ReadCount + feed.UnreadCount
 	}
 }
+
+func (f *FeedQueryBuilder) FeedByURL(ctx context.Context, u string,
+) (*model.Feed, error) {
+	f.conditions = append(f.conditions, "f.feed_url = $"+strconv.Itoa(len(f.args)+1))
+	f.args = append(f.args, u)
+
+	feeds, err := f.queryFeeds(ctx)
+	if err != nil {
+		return nil, err
+	} else if len(feeds) != 1 {
+		return nil, nil
+	}
+	return feeds[0], nil
+}

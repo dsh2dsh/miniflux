@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"miniflux.app/v2/internal/config"
-	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/integration"
 	"miniflux.app/v2/internal/locale"
@@ -548,7 +547,7 @@ func (self *Refresh) feedParsingError(user *model.User) *model.Entry {
 	})
 
 	entry.URL = self.routeURL("feedEntries", "feedID", self.feedID)
-	entry.Hash = crypto.HashFromString(entry.URL)
+	entry.HashFrom(entry.URL)
 	return entry
 }
 

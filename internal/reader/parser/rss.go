@@ -13,7 +13,6 @@ import (
 	"github.com/dsh2dsh/gofeed/v2/options"
 	"github.com/dsh2dsh/gofeed/v2/rss"
 
-	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/model"
 )
 
@@ -182,8 +181,8 @@ func (self *rssEntry) Parse() *model.Entry {
 	self.entry.CommentsURL = self.commentsURL()
 	self.entry.ReadingTime = self.readingTime()
 	self.entry.Tags = slices.Collect(self.rss.AllCategories())
-	self.entry.Hash = self.hash()
 	self.entry.AppendEnclosures(self.enclosures())
+	self.hashEntry()
 
 	enclosures := self.entry.Enclosures()
 	if len(enclosures) != 0 && self.entry.URL == "" {
@@ -290,12 +289,13 @@ func (self *rssEntry) enclosures() (enclosures []model.Enclosure) {
 	return enclosures
 }
 
-func (self *rssEntry) hash() string {
+func (self *rssEntry) hashEntry() {
 	switch {
 	case self.entry.URL != "":
-		return crypto.HashFromString(self.entry.URL)
+		self.entry.HashFrom(self.entry.URL)
 	case self.rss.GUID != nil:
-		return crypto.HashFromString(self.rss.GUID.Value)
+		self.entry.HashFrom(self.rss.GUID.Value)
+	default:
+		self.entry.HashFrom(self.entry.Title + self.entry.Content)
 	}
-	return crypto.HashFromString(self.entry.Title + self.entry.Content)
 }

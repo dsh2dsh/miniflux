@@ -659,13 +659,7 @@ func (self *EndpointTestSuite) TestCreateFeedEndpoint() {
 }
 
 func (self *EndpointTestSuite) TestCreateFeedEndpoint_2entries() {
-	feedURL, err := url.Parse(self.cfg.FeedURL)
-	self.Require().NoError(err)
-
-	ref, err := url.Parse("/2entries.xml")
-	self.Require().NoError(err)
-	feedURL = feedURL.ResolveReference(ref)
-
+	feedURL := self.makeFeedURL("/2entries.xml")
 	self.T().Log(feedURL)
 	feedID := self.createFeedWith(
 		model.FeedCreationRequest{FeedURL: feedURL.String()})
@@ -677,13 +671,7 @@ func (self *EndpointTestSuite) TestCreateFeedEndpoint_2entries() {
 }
 
 func (self *EndpointTestSuite) TestCreateFeedEndpoint_2hash() {
-	feedURL, err := url.Parse(self.cfg.FeedURL)
-	self.Require().NoError(err)
-
-	ref, err := url.Parse("/2hash.xml")
-	self.Require().NoError(err)
-	feedURL = feedURL.ResolveReference(ref)
-
+	feedURL := self.makeFeedURL("/2hash.xml")
 	self.T().Log(feedURL)
 	feedID := self.createFeedWith(
 		model.FeedCreationRequest{FeedURL: feedURL.String()})
@@ -779,12 +767,7 @@ func (self *EndpointTestSuite) TestUpdateFeedEndpoint() {
 func (self *EndpointTestSuite) TestCannotHaveDuplicateFeedWhenUpdatingFeed() {
 	self.createFeed()
 
-	feedURL, err := url.Parse(self.cfg.FeedURL)
-	self.Require().NoError(err)
-	ref, err := url.Parse("/2entries.xml")
-	self.Require().NoError(err)
-	feedURL = feedURL.ResolveReference(ref)
-
+	feedURL := self.makeFeedURL("/2entries.xml")
 	self.T().Log(feedURL)
 	feedID := self.createFeedWith(model.FeedCreationRequest{
 		FeedURL: feedURL.String(),
@@ -794,7 +777,7 @@ func (self *EndpointTestSuite) TestCannotHaveDuplicateFeedWhenUpdatingFeed() {
 		FeedURL: model.SetOptionalField(self.cfg.FeedURL),
 	}
 
-	_, err = self.client.UpdateFeed(feedID, &feedModify)
+	_, err := self.client.UpdateFeed(feedID, &feedModify)
 	self.T().Log(err)
 	self.Require().Error(err, "Duplicated feeds should not be allowed")
 }
@@ -918,22 +901,14 @@ func (self *EndpointTestSuite) TestRefreshFeedEndpoint_markedRead() {
 func (self *EndpointTestSuite) TestRefreshFeedEndpoint_dedup() {
 	self.createFeed()
 
-	feedURL, err := url.Parse(self.cfg.FeedURL)
-	self.Require().NoError(err)
-	ref, err := url.Parse("/empty.xml")
-	self.Require().NoError(err)
-	feedURL = feedURL.ResolveReference(ref)
-
+	feedURL := self.makeFeedURL("/empty.xml")
 	self.T().Log(feedURL.String())
 	feedID := self.createFeedWith(model.FeedCreationRequest{
 		FeedURL:         feedURL.String(),
 		IgnoreHTTPCache: true,
 	})
 
-	ref, err = url.Parse("/dups.xml")
-	self.Require().NoError(err)
-	feedURL = feedURL.ResolveReference(ref)
-
+	feedURL = self.makeFeedURL("/dups.xml")
 	self.T().Log(feedURL.String())
 	feedModify := model.FeedModificationRequest{
 		FeedURL: model.SetOptionalField(feedURL.String()),
@@ -953,6 +928,17 @@ func (self *EndpointTestSuite) TestRefreshFeedEndpoint_dedup() {
 	entry := result.Entries[0]
 	self.Require().NotNil(entry)
 	self.Equal(model.EntryStatusRead, entry.Status)
+}
+
+func (self *EndpointTestSuite) makeFeedURL(p string) *url.URL {
+	self.T().Helper()
+
+	u, err := url.Parse(self.cfg.FeedURL)
+	self.Require().NoError(err)
+
+	u2, err := url.Parse(p)
+	self.Require().NoError(err)
+	return u.ResolveReference(u2)
 }
 
 func (self *EndpointTestSuite) TestGetFeedEndpoint() {
@@ -1376,6 +1362,56 @@ func (self *EndpointTestSuite) TestFlushHistoryEndpoint() {
 	self.Zero(readEntries.Total, "Invalid total")
 }
 
+func (self *EndpointTestSuite) TestImportEntries() {
+	feedURL := self.makeFeedURL("/empty.xml")
+	self.createFeedWith(model.FeedCreationRequest{
+		FeedURL: feedURL.String(),
+	})
+
+	entry := model.ExternalEntry{
+		URL:     "https://example.org/imported-entry",
+		Title:   "Imported Entry",
+		Content: "Hello world",
+		Status:  model.EntryStatusUnread,
+	}
+
+	importReq := model.ImportEntries{
+		FeedURL: feedURL.String(),
+		Entries: []*model.ExternalEntry{&entry},
+	}
+
+	res, err := self.client.ImportEntries(self.T().Context(), &importReq)
+	self.Require().NoError(err)
+	self.Require().NotNil(res)
+	self.Equal(1, res.Total)
+	self.Len(res.Entries, 1)
+
+	firstID := res.Entries[0].ID
+	self.NotZero(firstID)
+	self.Equal(model.EntryStatusUnread, res.Entries[0].Status)
+	self.False(res.Entries[0].Starred)
+
+	entry.Status = model.EntryStatusRead
+	res, err = self.client.ImportEntries(self.T().Context(), &importReq)
+	self.Require().NoError(err)
+	self.Require().NotNil(res)
+	self.Equal(1, res.Total)
+	self.Len(res.Entries, 1)
+	self.Equal(firstID, res.Entries[0].ID)
+	self.Equal(model.EntryStatusRead, res.Entries[0].Status)
+	self.False(res.Entries[0].Starred)
+
+	entry.Starred = true
+	res, err = self.client.ImportEntries(self.T().Context(), &importReq)
+	self.Require().NoError(err)
+	self.Require().NotNil(res)
+	self.Equal(1, res.Total)
+	self.Len(res.Entries, 1)
+	self.Equal(firstID, res.Entries[0].ID)
+	self.Equal(model.EntryStatusRead, res.Entries[0].Status)
+	self.True(res.Entries[0].Starred)
+}
+
 func (self *EndpointTestSuite) TestRefreshRemovedEntry() {
 	feedID := self.createFeedWith(model.FeedCreationRequest{
 		IgnoreHTTPCache: true,
@@ -1395,13 +1431,7 @@ func (self *EndpointTestSuite) TestRefreshRemovedEntry() {
 	self.T().Log(err)
 	self.Require().ErrorIs(err, client.ErrNotFound)
 
-	feedURL, err := url.Parse(self.cfg.FeedURL)
-	self.Require().NoError(err)
-
-	ref, err := url.Parse("/updated_entry.xml")
-	self.Require().NoError(err)
-	feedURL = feedURL.ResolveReference(ref)
-
+	feedURL := self.makeFeedURL("/updated_entry.xml")
 	self.T().Log(feedURL)
 	_, err = self.client.UpdateFeed(feedID, &model.FeedModificationRequest{
 		FeedURL: model.SetOptionalField(feedURL.String()),

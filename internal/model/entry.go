@@ -17,6 +17,7 @@ import (
 
 	"github.com/dsh2dsh/gofeed/v2/atom"
 
+	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/logging"
 )
 
@@ -50,8 +51,9 @@ type Entry struct {
 	Tags        []string   `json:"tags" db:"tags"`
 	Extra       EntryExtra `json:"extra,omitzero" db:"extra"`
 
-	atom   *atom.Entry
-	stored bool
+	atom     *atom.Entry
+	imported bool
+	stored   bool
 }
 
 type EntryExtra struct {
@@ -128,6 +130,59 @@ func (self *Entry) AppendEnclosures(encList EnclosureList) {
 		return
 	}
 	self.Extra.Enclosures = append(self.Extra.Enclosures, encList...)
+}
+
+func (self *Entry) HashFrom(s string) { self.Hash = crypto.HashFromString(s) }
+
+func (self *Entry) Imported() bool { return self.imported }
+
+func (self *Entry) KeepImportedStatus(value string) {
+	if !self.imported {
+		self.Status = value
+	}
+}
+
+func NewEntryFrom(ext *ExternalEntry) *Entry {
+	entry := &Entry{
+		Status:      ext.Status,
+		Title:       ext.Title,
+		URL:         ext.URL,
+		CommentsURL: ext.CommentsURL,
+		Content:     ext.Content,
+		Author:      ext.Author,
+		Starred:     ext.Starred,
+		Tags:        ext.Tags,
+		imported:    true,
+	}
+	entry.HashFrom(ext.URL)
+
+	if ext.PublishedAt > 0 {
+		entry.Date = time.Unix(ext.PublishedAt, 0).UTC()
+	} else {
+		entry.Date = time.Now().UTC()
+	}
+
+	if ext.Title == "" {
+		entry.Title = ext.URL
+	}
+	return entry
+}
+
+type ImportEntries struct {
+	FeedURL string           `json:"feed_url,omitzero"`
+	Entries []*ExternalEntry `json:"entries,omitzero"`
+}
+
+type ExternalEntry struct {
+	Status      string   `json:"status,omitzero"`
+	Title       string   `json:"title,omitzero"`
+	URL         string   `json:"url,omitzero"`
+	CommentsURL string   `json:"comments_url,omitzero"`
+	PublishedAt int64    `json:"published_at,omitzero"`
+	Content     string   `json:"content,omitzero"`
+	Author      string   `json:"author,omitzero"`
+	Starred     bool     `json:"starred,omitzero"`
+	Tags        []string `json:"tags,omitzero"`
 }
 
 // Entries represents a list of entries.
@@ -208,7 +263,8 @@ func (self Entries) Unread() iter.Seq2[int, *Entry] {
 
 func (self Entries) RefreshFeed(userID, feedID int64) []string {
 	for _, e := range self {
-		e.UserID, e.FeedID, e.Status = userID, feedID, EntryStatusUnread
+		e.UserID, e.FeedID = userID, feedID
+		e.KeepImportedStatus(EntryStatusUnread)
 	}
 	return self.Hashes()
 }

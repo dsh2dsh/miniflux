@@ -719,6 +719,21 @@ func (c *Client) UpdateFeedContext(ctx context.Context, feedID int64, feedChange
 	return f, nil
 }
 
+func (c *Client) ImportEntries(ctx context.Context, req *model.ImportEntries,
+) (*EntryResultSet, error) {
+	body, err := c.request.Post(ctx, "/v1/import/entries", req)
+	if err != nil {
+		return nil, err
+	}
+	defer body.Close()
+
+	res := &EntryResultSet{}
+	if err := json.NewDecoder(body).Decode(res); err != nil {
+		return nil, fmt.Errorf("miniflux: response error (%w)", err)
+	}
+	return res, nil
+}
+
 // MarkFeedAsRead marks all unread entries of the feed as read.
 func (c *Client) MarkFeedAsRead(feedID int64) error {
 	ctx, cancel := withDefaultTimeout()
