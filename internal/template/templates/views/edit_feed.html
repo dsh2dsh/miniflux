@@ -158,6 +158,14 @@
             <input type="text" name="urlrewrite_rules" id="form-urlrewrite-rules" value="{{ .form.UrlRewriteRules }}" spellcheck="false">
 
             <div class="form-label-row">
+                <label for="form-block-authors">Block authors (one author per line)</label>
+            </div>
+            <textarea
+              id="form-block-authors" name="blockAuthors"
+              cols="40" rows="10" spellcheck="false"
+            >{{ .form.BlockAuthorsString }}</textarea>
+
+            <div class="form-label-row">
                 <label for="form-block-filter-rules">
                     {{ t "form.feed.label.block_filter_entry_rules" }}
                 </label>

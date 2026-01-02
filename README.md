@@ -296,6 +296,8 @@ This project is an opinionated fork of Miniflux.
   <small>Dec <var data-var='date'> 3</var>, <var data-var='time'>02:59:00</var> GMT+0</small>
   ```
 
+* Add simplified filter for blocking feed entries by authors
+
 ---
 
 Features

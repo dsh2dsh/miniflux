@@ -24,6 +24,7 @@ func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
 		Description:           model.OptionalString(f.Description),
 		CategoryID:            model.OptionalNumber(f.CategoryID),
 		UrlRewriteRules:       model.OptionalString(f.UrlRewriteRules),
+		BlockAuthors:          model.OptionalSlice(f.BlockAuthors),
 		BlockFilterEntryRules: model.OptionalString(f.BlockFilterEntryRules),
 		KeepFilterEntryRules:  model.OptionalString(f.KeepFilterEntryRules),
 		ProxyURL:              model.OptionalString(f.ProxyURL),

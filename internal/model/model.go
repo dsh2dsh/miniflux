@@ -32,3 +32,10 @@ func OptionalValue[T any](value *T) T {
 	var zeroValue T
 	return zeroValue
 }
+
+func OptionalSlice[T any](value []T) *[]T {
+	if value != nil {
+		return &value
+	}
+	return &[]T{}
+}

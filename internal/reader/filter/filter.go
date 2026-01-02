@@ -32,6 +32,7 @@ func DeleteEntries(ctx context.Context, user *model.User, feed *model.Feed,
 
 	maxAge := config.FilterEntryMaxAge()
 	seen := makeUniqEntries(feed)
+	blockAuthors := NewAuthors(feed.BlockAuthors()).WithLogger(log)
 
 	del := func(e *model.Entry) bool {
 		switch {
@@ -41,7 +42,7 @@ func DeleteEntries(ctx context.Context, user *model.User, feed *model.Feed,
 		case e.Stored():
 			feed.IncFilteredByStored()
 			return true
-		case block.Match(e) || !keep.Allow(e):
+		case blockAuthors.Match(e) || block.Match(e) || !keep.Allow(e):
 			feed.IncFilteredByRules()
 			return true
 		case !seen.Add(e, log):

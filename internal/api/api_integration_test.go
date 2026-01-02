@@ -1445,3 +1445,39 @@ func (self *EndpointTestSuite) TestRefreshRemovedEntry() {
 	self.Equal(entry.Hash, entry2.Hash)
 	self.Equal(model.EntryStatusUnread, entry2.Status)
 }
+
+func (self *EndpointTestSuite) TestUpdateFeed_blockAuthors() {
+	feedID := self.createFeed()
+	feedModify := model.FeedModificationRequest{
+		BlockAuthors: model.OptionalSlice(
+			[]string{"Team AA", "Promoted", "Team AA"}),
+	}
+	expected := []string{"Promoted", "Team AA"}
+
+	updatedFeed, err := self.client.UpdateFeed(feedID, &feedModify)
+	self.Require().NoError(err)
+	self.Require().NotNil(updatedFeed)
+	self.Equal(expected, updatedFeed.BlockAuthors())
+
+	feedModify.BlockAuthors = nil
+	updatedFeed, err = self.client.UpdateFeed(feedID, &feedModify)
+	self.Require().NoError(err)
+	self.Require().NotNil(updatedFeed)
+	self.Equal(expected, updatedFeed.BlockAuthors())
+
+	feedModify.BlockAuthors = model.OptionalSlice([]string{})
+	updatedFeed, err = self.client.UpdateFeed(feedID, &feedModify)
+	self.Require().NoError(err)
+	self.Require().NotNil(updatedFeed)
+	self.Nil(updatedFeed.BlockAuthors())
+}
+
+func (self *EndpointTestSuite) TestBlockAuthors() {
+	feedID := self.createFeedWith(model.FeedCreationRequest{
+		BlockAuthors: []string{"Frédéric Guillot"},
+	})
+	entries, err := self.client.FeedEntries(feedID, nil)
+	self.Require().NoError(err)
+	self.Require().NotNil(entries)
+	self.Require().Empty(entries.Entries)
+}

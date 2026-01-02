@@ -6,6 +6,7 @@ package form // import "miniflux.app/v2/internal/ui/form"
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"miniflux.app/v2/internal/model"
 )
@@ -20,6 +21,7 @@ type FeedForm struct {
 	ScraperRules                string
 	RewriteRules                string
 	UrlRewriteRules             string
+	BlockAuthors                []string
 	BlockFilterEntryRules       string
 	KeepFilterEntryRules        string
 	Crawler                     bool
@@ -46,41 +48,71 @@ type FeedForm struct {
 	ProxyURL                    string
 }
 
+func (self *FeedForm) BlockAuthorsFrom(s string) {
+	if strings.TrimSpace(s) == "" {
+		self.BlockAuthors = nil
+		return
+	}
+
+	authors := make([]string, 0, strings.Count(s, "\n")+1)
+	for line := range strings.SplitSeq(s, "\n") {
+		line = strings.TrimSpace(strings.TrimSuffix(line, "\r"))
+		if line == "" {
+			continue
+		}
+		authors = append(authors, line)
+	}
+
+	if len(authors) == 0 {
+		self.BlockAuthors = nil
+		return
+	}
+	self.BlockAuthors = authors
+}
+
+func (self *FeedForm) BlockAuthorsString() string {
+	if len(self.BlockAuthors) == 0 {
+		return ""
+	}
+	return strings.Join(self.BlockAuthors, "\n")
+}
+
 // Merge updates the fields of the given feed.
-func (f FeedForm) Merge(feed *model.Feed) *model.Feed {
-	feed.Category.ID = f.CategoryID
-	feed.Title = f.Title
-	feed.SiteURL = f.SiteURL
-	feed.FeedURL = f.FeedURL
-	feed.Description = f.Description
-	feed.ScraperRules = f.ScraperRules
-	feed.RewriteRules = f.RewriteRules
-	feed.UrlRewriteRules = f.UrlRewriteRules
-	feed.Extra.BlockFilterEntryRules = f.BlockFilterEntryRules
-	feed.Extra.KeepFilterEntryRules = f.KeepFilterEntryRules
-	feed.Crawler = f.Crawler
-	feed.UserAgent = f.UserAgent
-	feed.Cookie = f.Cookie
+func (self *FeedForm) Merge(feed *model.Feed) *model.Feed {
+	feed.Category.ID = self.CategoryID
+	feed.Title = self.Title
+	feed.SiteURL = self.SiteURL
+	feed.FeedURL = self.FeedURL
+	feed.Description = self.Description
+	feed.ScraperRules = self.ScraperRules
+	feed.RewriteRules = self.RewriteRules
+	feed.UrlRewriteRules = self.UrlRewriteRules
+	feed.WithBlockAuthors(self.BlockAuthors)
+	feed.Extra.BlockFilterEntryRules = self.BlockFilterEntryRules
+	feed.Extra.KeepFilterEntryRules = self.KeepFilterEntryRules
+	feed.Crawler = self.Crawler
+	feed.UserAgent = self.UserAgent
+	feed.Cookie = self.Cookie
 	feed.ParsingErrorCount = 0
 	feed.ParsingErrorMsg = ""
-	feed.Username = f.Username
-	feed.Password = f.Password
-	feed.IgnoreHTTPCache = f.IgnoreHTTPCache
-	feed.AllowSelfSignedCertificates = f.AllowSelfSignedCertificates
-	feed.FetchViaProxy = f.FetchViaProxy
-	feed.Disabled = f.Disabled
-	feed.NoMediaPlayer = f.NoMediaPlayer
-	feed.HideGlobally = f.HideGlobally
-	feed.AppriseServiceURLs = f.AppriseServiceURLs
-	feed.WebhookURL = f.WebhookURL
-	feed.DisableHTTP2 = f.DisableHTTP2
-	feed.NtfyEnabled = f.NtfyEnabled
-	feed.NtfyPriority = f.NtfyPriority
-	feed.NtfyTopic = f.NtfyTopic
-	feed.PushoverEnabled = f.PushoverEnabled
-	feed.PushoverPriority = f.PushoverPriority
-	feed.ProxyURL = f.ProxyURL
-	feed.Extra.CommentsURLTemplate = f.CommentsURLTemplate
+	feed.Username = self.Username
+	feed.Password = self.Password
+	feed.IgnoreHTTPCache = self.IgnoreHTTPCache
+	feed.AllowSelfSignedCertificates = self.AllowSelfSignedCertificates
+	feed.FetchViaProxy = self.FetchViaProxy
+	feed.Disabled = self.Disabled
+	feed.NoMediaPlayer = self.NoMediaPlayer
+	feed.HideGlobally = self.HideGlobally
+	feed.AppriseServiceURLs = self.AppriseServiceURLs
+	feed.WebhookURL = self.WebhookURL
+	feed.DisableHTTP2 = self.DisableHTTP2
+	feed.NtfyEnabled = self.NtfyEnabled
+	feed.NtfyPriority = self.NtfyPriority
+	feed.NtfyTopic = self.NtfyTopic
+	feed.PushoverEnabled = self.PushoverEnabled
+	feed.PushoverPriority = self.PushoverPriority
+	feed.ProxyURL = self.ProxyURL
+	feed.Extra.CommentsURLTemplate = self.CommentsURLTemplate
 	return feed
 }
 
@@ -101,7 +133,7 @@ func NewFeedForm(r *http.Request) *FeedForm {
 		pushoverPriority = 0
 	}
 
-	return &FeedForm{
+	ff := &FeedForm{
 		FeedURL:                     r.FormValue("feed_url"),
 		SiteURL:                     r.FormValue("site_url"),
 		Title:                       r.FormValue("title"),
@@ -134,4 +166,6 @@ func NewFeedForm(r *http.Request) *FeedForm {
 		PushoverPriority:            pushoverPriority,
 		ProxyURL:                    r.FormValue("proxy_url"),
 	}
+	ff.BlockAuthorsFrom(r.FormValue("blockAuthors"))
+	return ff
 }

@@ -5,6 +5,7 @@ package model // import "miniflux.app/v2/internal/model"
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -80,7 +81,8 @@ type Feed struct {
 }
 
 type FeedExtra struct {
-	CommentsURLTemplate string `json:"comments_url_template,omitempty"`
+	BlockAuthors        []string `json:"blockAuthors,omitempty"`
+	CommentsURLTemplate string   `json:"comments_url_template,omitempty"`
 
 	BlockFilterEntryRules string `json:"block_filter_entry_rules,omitempty"`
 	KeepFilterEntryRules  string `json:"keep_filter_entry_rules,omitempty"`
@@ -179,6 +181,19 @@ var commentsURLTemplateFuncMap = template.FuncMap{
 	},
 }
 
+func (f *Feed) BlockAuthors() []string { return f.Extra.BlockAuthors }
+
+func (f *Feed) WithBlockAuthors(authors []string) *Feed {
+	if len(authors) == 0 {
+		f.Extra.BlockAuthors = nil
+		return f
+	}
+
+	slices.Sort(authors)
+	f.Extra.BlockAuthors = slices.Compact(authors)
+	return f
+}
+
 func (f *Feed) BlockFilterEntryRules() string {
 	return f.Extra.BlockFilterEntryRules
 }
@@ -201,26 +216,27 @@ func (f *Feed) FilteredByStored() int { return f.filteredByStored }
 
 // FeedCreationRequest represents the request to create a feed.
 type FeedCreationRequest struct {
-	FeedURL                     string `json:"feed_url"`
-	CategoryID                  int64  `json:"category_id"`
-	UserAgent                   string `json:"user_agent"`
-	Cookie                      string `json:"cookie"`
-	Username                    string `json:"username"`
-	Password                    string `json:"password"`
-	Crawler                     bool   `json:"crawler"`
-	Disabled                    bool   `json:"disabled"`
-	NoMediaPlayer               bool   `json:"no_media_player"`
-	IgnoreHTTPCache             bool   `json:"ignore_http_cache"`
-	AllowSelfSignedCertificates bool   `json:"allow_self_signed_certificates"`
-	FetchViaProxy               bool   `json:"fetch_via_proxy"`
-	HideGlobally                bool   `json:"hide_globally"`
-	DisableHTTP2                bool   `json:"disable_http2"`
-	ScraperRules                string `json:"scraper_rules"`
-	RewriteRules                string `json:"rewrite_rules"`
-	BlockFilterEntryRules       string `json:"block_filter_entry_rules"`
-	KeepFilterEntryRules        string `json:"keep_filter_entry_rules"`
-	UrlRewriteRules             string `json:"urlrewrite_rules"`
-	ProxyURL                    string `json:"proxy_url"`
+	FeedURL                     string   `json:"feed_url"`
+	CategoryID                  int64    `json:"category_id"`
+	UserAgent                   string   `json:"user_agent"`
+	Cookie                      string   `json:"cookie"`
+	Username                    string   `json:"username"`
+	Password                    string   `json:"password"`
+	Crawler                     bool     `json:"crawler"`
+	Disabled                    bool     `json:"disabled"`
+	NoMediaPlayer               bool     `json:"no_media_player"`
+	IgnoreHTTPCache             bool     `json:"ignore_http_cache"`
+	AllowSelfSignedCertificates bool     `json:"allow_self_signed_certificates"`
+	FetchViaProxy               bool     `json:"fetch_via_proxy"`
+	HideGlobally                bool     `json:"hide_globally"`
+	DisableHTTP2                bool     `json:"disable_http2"`
+	ScraperRules                string   `json:"scraper_rules"`
+	RewriteRules                string   `json:"rewrite_rules"`
+	BlockAuthors                []string `json:"blockAuthors,omitempty"`
+	BlockFilterEntryRules       string   `json:"block_filter_entry_rules"`
+	KeepFilterEntryRules        string   `json:"keep_filter_entry_rules"`
+	UrlRewriteRules             string   `json:"urlrewrite_rules"`
+	ProxyURL                    string   `json:"proxy_url"`
 }
 
 type FeedCreationRequestFromSubscriptionDiscovery struct {
@@ -233,30 +249,31 @@ type FeedCreationRequestFromSubscriptionDiscovery struct {
 
 // FeedModificationRequest represents the request to update a feed.
 type FeedModificationRequest struct {
-	FeedURL                     *string `json:"feed_url"`
-	SiteURL                     *string `json:"site_url"`
-	Title                       *string `json:"title"`
-	Description                 *string `json:"description"`
-	ScraperRules                *string `json:"scraper_rules"`
-	RewriteRules                *string `json:"rewrite_rules"`
-	UrlRewriteRules             *string `json:"urlrewrite_rules"`
-	BlockFilterEntryRules       *string `json:"block_filter_entry_rules"`
-	KeepFilterEntryRules        *string `json:"keep_filter_entry_rules"`
-	Crawler                     *bool   `json:"crawler"`
-	UserAgent                   *string `json:"user_agent"`
-	Cookie                      *string `json:"cookie"`
-	Username                    *string `json:"username"`
-	Password                    *string `json:"password"`
-	CategoryID                  *int64  `json:"category_id"`
-	Disabled                    *bool   `json:"disabled"`
-	NoMediaPlayer               *bool   `json:"no_media_player"`
-	IgnoreHTTPCache             *bool   `json:"ignore_http_cache"`
-	AllowSelfSignedCertificates *bool   `json:"allow_self_signed_certificates"`
-	FetchViaProxy               *bool   `json:"fetch_via_proxy"`
-	HideGlobally                *bool   `json:"hide_globally"`
-	DisableHTTP2                *bool   `json:"disable_http2"`
-	ProxyURL                    *string `json:"proxy_url"`
-	CommentsURLTemplate         *string `json:"comments_url_template,omitempty"`
+	FeedURL                     *string   `json:"feed_url"`
+	SiteURL                     *string   `json:"site_url"`
+	Title                       *string   `json:"title"`
+	Description                 *string   `json:"description"`
+	ScraperRules                *string   `json:"scraper_rules"`
+	RewriteRules                *string   `json:"rewrite_rules"`
+	UrlRewriteRules             *string   `json:"urlrewrite_rules"`
+	BlockAuthors                *[]string `json:"blockAuthors,omitempty"`
+	BlockFilterEntryRules       *string   `json:"block_filter_entry_rules"`
+	KeepFilterEntryRules        *string   `json:"keep_filter_entry_rules"`
+	Crawler                     *bool     `json:"crawler"`
+	UserAgent                   *string   `json:"user_agent"`
+	Cookie                      *string   `json:"cookie"`
+	Username                    *string   `json:"username"`
+	Password                    *string   `json:"password"`
+	CategoryID                  *int64    `json:"category_id"`
+	Disabled                    *bool     `json:"disabled"`
+	NoMediaPlayer               *bool     `json:"no_media_player"`
+	IgnoreHTTPCache             *bool     `json:"ignore_http_cache"`
+	AllowSelfSignedCertificates *bool     `json:"allow_self_signed_certificates"`
+	FetchViaProxy               *bool     `json:"fetch_via_proxy"`
+	HideGlobally                *bool     `json:"hide_globally"`
+	DisableHTTP2                *bool     `json:"disable_http2"`
+	ProxyURL                    *string   `json:"proxy_url"`
+	CommentsURLTemplate         *string   `json:"comments_url_template,omitempty"`
 }
 
 // Patch updates a feed with modified values.
@@ -287,6 +304,10 @@ func (f *FeedModificationRequest) Patch(feed *Feed) {
 
 	if f.UrlRewriteRules != nil {
 		feed.UrlRewriteRules = *f.UrlRewriteRules
+	}
+
+	if f.BlockAuthors != nil {
+		feed.WithBlockAuthors(*f.BlockAuthors)
 	}
 
 	if f.BlockFilterEntryRules != nil {

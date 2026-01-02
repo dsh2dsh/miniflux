@@ -47,6 +47,7 @@ func (h *handler) showEditFeedPage(w http.ResponseWriter, r *http.Request) {
 		ScraperRules:                feed.ScraperRules,
 		RewriteRules:                feed.RewriteRules,
 		UrlRewriteRules:             feed.UrlRewriteRules,
+		BlockAuthors:                feed.BlockAuthors(),
 		BlockFilterEntryRules:       feed.BlockFilterEntryRules(),
 		KeepFilterEntryRules:        feed.KeepFilterEntryRules(),
 		Crawler:                     feed.Crawler,
@@ -74,7 +75,7 @@ func (h *handler) showEditFeedPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v.Set("menu", "feeds").
-		Set("form", feedForm).
+		Set("form", &feedForm).
 		Set("categories", categories).
 		Set("feed", feed).
 		Set("defaultUserAgent", config.HTTPClientUserAgent()).
