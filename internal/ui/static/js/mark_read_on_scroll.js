@@ -1,74 +1,73 @@
 class MarkReadOnScroll {
-  scrolledEntries = [];
+  lastAdded;
+  firstScrolled;
+  lastScrolled;
   timeoutId = 0;
-  lastEntryID = "";
 
   constructor(entries) {
     history.scrollRestoration = "manual";
-    if (entries.length == 0) {
-      return;
-    }
-
     this.observer = new IntersectionObserver((entries, observer) => {
       this.observerCallback(entries, observer);
     }, {
       root: null,
     });
+    this.addEntries(entries);
+  }
 
+  addEntries(entries) {
     entries.forEach((entry) => {
       this.observer.observe(entry);
-      this.lastEntryID = entry.dataset.id;
+      this.lastAdded = entry;
     });
   }
 
   observerCallback(entries, observer) {
-    let addedEntries = false;
-    let pageEnd = false;
-
+    let scrolledEntry = false;
     entries.forEach((entry) => {
       const bottom = entry.boundingClientRect.bottom;
-      if (entry.isIntersecting || bottom > 0) {
+      if (entry.isIntersecting || bottom > 0)
         return;
-      }
 
       const element = entry.target;
+      const entryId = element.dataset.id;
       this.observer.unobserve(element);
 
-      if (element.dataset.id === this.lastEntryID) {
-        pageEnd = true;
-      }
-
-      if (!element.classList.contains("item-status-unread")) {
-        return;
-      }
-      this.scrolledEntries.push(element);
-      addedEntries = true;
+      if (!this.firstScrolled )
+        this.firstScrolled = this.lastScrolled = element;
+      else
+        this.lastScrolled = element;
+      scrolledEntry = true;
     });
+    if (!scrolledEntry) return;
 
-
-    if (pageEnd) {
-      if (this.timeoutId > 0) {
-        clearTimeout(this.timeoutId)
-        this.timeoutId = 0;
-      }
-      this.markReadOnTimeout().finally(() => location.replace(location.href));
+    if (this.lastScrolled === this.lastAdded) {
+      if (this.timeoutId > 0)
+        clearTimeout(this.timeoutId);
+      this.readOnTimeout().finally(() => location.replace(location.href));
       return;
     }
 
-    if (!addedEntries || this.timeoutId > 0) {
-      return;
-    }
-
-    this.timeoutId = setTimeout(() => {
-      this.markReadOnTimeout();
-      this.timeoutId = 0;
-    }, 1000);
+    if (this.timeoutId === 0)
+      this.timeoutId = setTimeout(() => this.readOnTimeout(), 1000);
   }
 
-  async markReadOnTimeout() {
-    const items = this.scrolledEntries.slice();
-    this.scrolledEntries.length = 0;
-    await markItemsRead(items);
+  async readOnTimeout() {
+    this.timeoutId = 0;
+    await markItemsRead(this.scrolledEntries());
+  }
+
+  scrolledEntries() {
+    const entries = [];
+    let el = this.firstScrolled;
+    while (el) {
+      entries.push(el);
+      if (el === this.lastScrolled )
+        break;
+      el = el.nextElementSibling;
+    }
+
+    this.firstScrolled = this.lastScrolled = null;
+    return entries;
   }
 }
 
