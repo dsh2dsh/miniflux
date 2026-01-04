@@ -149,6 +149,14 @@ func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
 			return
 		}
 
+		remoteIP := request.FindRemoteIP(r)
+		if !config.TrustedProxy(remoteIP) {
+			logging.FromContext(r.Context()).Warn(
+				"[AuthProxy] Peer IP not allowed", slog.String("remote_ip", remoteIP))
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		username := r.Header.Get(config.AuthProxyHeader())
 		if username == "" {
 			next.ServeHTTP(w, r)
@@ -158,10 +166,10 @@ func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
 		ctx := r.Context()
 		clientIP := request.ClientIP(r)
 		log := logging.FromContext(ctx).With(
+			slog.String("remote_ip", remoteIP),
 			slog.String("client_ip", clientIP),
 			slog.String("user_agent", r.UserAgent()),
 			slog.String("username", username))
-		log.Debug("[AuthProxy] Received authenticated request")
 
 		user, err := m.store.UserByUsername(ctx, username)
 		if err != nil {

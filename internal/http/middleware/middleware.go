@@ -17,20 +17,19 @@ type MiddlewareFunc = mux.MiddlewareFunc
 
 func ClientIP(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("X-Forwarded-Proto") == "https" {
-			config.EnableHTTPS()
+		clientIP := request.FindRemoteIP(r)
+		if config.TrustedProxy(clientIP) {
+			clientIP = request.FindClientIP(r, config.TrustedProxy)
+			if r.Header.Get("X-Forwarded-Proto") == "https" {
+				config.EnableHTTPS()
+			}
 		}
 
 		if config.HTTPS() && config.HasHSTS() {
 			w.Header().Set("Strict-Transport-Security", "max-age=31536000")
 		}
-
-		ctx := r.Context()
-		clientIP := request.FindRemoteIP(r)
-		if config.TrustedProxy(clientIP) {
-			clientIP = request.FindClientIP(r, config.TrustedProxy)
-		}
-		next.ServeHTTP(w, r.WithContext(request.WithClientIP(ctx, clientIP)))
+		ctx := request.WithClientIP(r.Context(), clientIP)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
