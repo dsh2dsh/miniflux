@@ -3,7 +3,7 @@
 CREATE TABLE schema_version (
     version text NOT NULL
 );
-INSERT INTO schema_version (version) VALUES('125');
+INSERT INTO schema_version (version) VALUES('126');
 
 CREATE TABLE acme_cache (
     key character varying(400) NOT NULL PRIMARY KEY,
@@ -176,7 +176,7 @@ CREATE TABLE entries (
     UNIQUE (feed_id, hash)
 );
 
-CREATE INDEX ON entries USING gin (document_vectors);
+CREATE INDEX ON entries USING gin (document_vectors) WHERE status != 'removed';
 CREATE INDEX ON entries (feed_id, status, hash);
 CREATE INDEX ON entries (feed_id);
 CREATE INDEX ON entries (id, user_id, status);

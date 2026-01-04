@@ -745,4 +745,9 @@ CREATE INDEX ON feed_icons (icon_id);`),
 	// 125
 	sqlMigration(
 		`ALTER TABLE users ALTER COLUMN theme SET DEFAULT 'system_sans_serif'`),
+
+	// 126
+	sqlMigration(`
+CREATE INDEX ON entries
+ USING gin (document_vectors) WHERE status != 'removed'`),
 }
