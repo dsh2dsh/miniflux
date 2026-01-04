@@ -4,6 +4,7 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 
@@ -25,8 +26,16 @@ func (h *handler) showTagEntriesAllPage(w http.ResponseWriter,
 	v := h.View(r).WithSaveEntry()
 	user := v.User()
 
+	feedID := request.RouteInt64Param(r, "feedID")
+	var feed *model.Feed
+	v.Go(func(ctx context.Context) (err error) {
+		feed, err = h.store.FeedByID(ctx, v.UserID(), feedID)
+		return err
+	})
+
 	offset := request.QueryIntParam(r, "offset", 0)
 	query := h.store.NewEntryQueryBuilder(v.UserID()).
+		WithFeedID(feedID).
 		WithoutStatus(model.EntryStatusRemoved).
 		WithTags([]string{tagName}).
 		WithSorting("status", "asc").
@@ -42,6 +51,7 @@ func (h *handler) showTagEntriesAllPage(w http.ResponseWriter,
 	}
 
 	v.Set("tagName", tagName).
+		Set("feed", feed).
 		Set("total", count).
 		Set("entries", entries).
 		Set("pagination", getPagination(

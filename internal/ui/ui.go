@@ -167,6 +167,8 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 		"feedEntriesAll")
 	m.NameHandleFunc("/feed/{feedID}/mark-all-as-read", h.markFeedAsRead,
 		"markFeedAsRead")
+	m.NameHandleFunc("GET /feed/{feedID}/tags/{tagName}",
+		h.showTagEntriesAllPage, "tagEntriesAll")
 
 	// Category pages.
 	m.NameHandleFunc("/categories", h.showCategoryListPage, "categories")
@@ -195,10 +197,6 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 		"removeCategory")
 	m.NameHandleFunc("/category/{categoryID}/mark-all-as-read",
 		h.markCategoryAsRead, "markCategoryAsRead")
-
-	// Tag pages.
-	m.NameHandleFunc("/tags/{tagName}/entries/all", h.showTagEntriesAllPage,
-		"tagEntriesAll")
 
 	// User pages.
 	m.NameHandleFunc("/users", h.showUsersPage, "users")
