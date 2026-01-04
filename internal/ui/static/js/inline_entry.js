@@ -4,49 +4,44 @@ class InlineEntry {
 
     body.addEventListener("htmx:trigger", (event) => {
       const el = event.detail.elt;
-      if (el.closest(".item-title a")) {
+      if (el.closest(".item-title a"))
         this.beginInline(el);
-      };
-    });
+    }, true);
 
     body.addEventListener("htmx:beforeRequest", (event) => {
       const target = event.detail.target;
-      if (target.matches(".entry-content.inline")) {
+      if (target.matches(".entry-content.inline"))
         this.downloadingOriginal(event.target);
-      }
-    });
+    }, true);
 
     body.addEventListener("htmx:sendError", (event) => {
       const el = event.detail.elt;
-      if (el.closest(".item-title a")) {
+      if (el.closest(".item-title a"))
         this.inlineFailed(el.closest(".item"), event.detail);
-      };
-    });
+    }, true);
 
     body.addEventListener("htmx:responseError", (event) => {
       const el = event.detail.elt;
-      if (el.closest(".item-title a")) {
+      if (el.closest(".item-title a"))
         this.inlineFailed(el.closest(".item"), event.detail);
-      }
-    });
+    }, true);
 
     body.addEventListener("htmx:afterSettle", (event) => {
       const el = event.detail.elt;
-      if (el.matches(".item > .loaded")) {
+      if (el.matches(".item > .loaded"))
         this.entryInlined(el.closest(".item"));
-      } else if (el.matches(".entry-content.download")) {
+      else if (el.matches(".entry-content.download"))
         this.downloaded(el.closest(".item"));
-      }
-    });
+    }, true);
 
-    if (body.dataset.markAsReadOnView === "true") {
-      body.addEventListener("click", (event) => {
-        const el = event.target;
-        if (el.closest(".item-title a")) {
-          this.originalLinkClick(el.closest(".item"));
-        };
-      });
-    };
+    if (body.dataset.markAsReadOnView !== "true")
+      return;
+
+    body.addEventListener("click", (event) => {
+      const el = event.target;
+      if (el.closest(".item-title a"))
+        this.originalLinkClick(el.closest(".item"));
+    }, true);
   }
 
   beginInline(title) {

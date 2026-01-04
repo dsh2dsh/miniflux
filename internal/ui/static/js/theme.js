@@ -1,13 +1,11 @@
 class SwitchTheme {
   constructor() {
     this.colorScheme = document.querySelector('meta[name="color-scheme"]');
-
-    document.querySelectorAll("#header-menu [data-color-scheme]")
-      .forEach(el => {
-        el.addEventListener("htmx:beforeSwap", event => {
-          this.switchColorScheme(el.dataset.colorScheme);
-        });
-      });
+    document.body.addEventListener("htmx:beforeSwap", event => {
+      const el = event.target;
+      if (el.matches("#header-menu [data-color-scheme]"))
+        this.switchColorScheme(el.dataset.colorScheme);
+    });
   }
 
   switchColorScheme(mode) {

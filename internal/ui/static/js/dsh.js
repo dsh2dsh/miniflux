@@ -44,10 +44,9 @@ async function markItemsRead(items) {
 
 function initDataConfirm() {
   document.body.addEventListener("click", (event) => {
-    if (event.target.closest(":is(a, button)[data-confirm]")) {
+    if (event.target.closest(":is(a, button)[data-confirm]"))
       handleConfirmationMessage(event.target, messageConfirmed);
-    };
-  });
+  }, true);
 }
 
 function createScriptURL(src) {
@@ -71,10 +70,9 @@ function initServiceWorker() {
 
 function initCommentLinks() {
   document.body.addEventListener("click", (event) => {
-    if (event.target.closest("a[data-comments-link=true]")) {
+    if (event.target.closest("a[data-comments-link=true]"))
       handleEntryStatus("next", event.target, true);
-    }
-  });
+  }, true);
 }
 
 function initElevator() {
@@ -83,10 +81,10 @@ function initElevator() {
       e.preventDefault();
       scroll(0, 0);
     }
-  })
+  }, true)
 }
 
-function handleHtmxEvents() {
+function handleHtmxErrors() {
   const body = document.body;
   body.addEventListener("htmx:sendError", (event) => {
     showToastNotification("error",
@@ -94,7 +92,6 @@ function handleHtmxEvents() {
   });
 
   body.addEventListener("htmx:responseError", (event) => {
-    console.log(event);
     const xhr = event.detail.xhr;
     showToastNotification("error",
       `Unexpected server error: ${xhr.status} ${xhr.statusText}`);
@@ -109,4 +106,4 @@ initDataConfirm();
 initServiceWorker();
 initCommentLinks();
 initElevator();
-handleHtmxEvents();
+handleHtmxErrors();
