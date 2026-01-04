@@ -73,14 +73,13 @@ function scrollPageTo(element, evenIfOnScreen) {
  * @param {boolean} noPreventDefault
  */
 function onClick(selector, callback, noPreventDefault) {
-    document.querySelectorAll(selector).forEach((element) => {
-        element.onclick = (event) => {
-            if (!noPreventDefault) {
-                event.preventDefault();
-            }
-            callback(event);
-        };
-    });
+  document.body.addEventListener("click", event => {
+    if (!event.target.closest(selector)) return;
+    if (!noPreventDefault) {
+      event.preventDefault();
+    }
+    callback(event);
+  }, true);
 }
 
 /**
@@ -91,6 +90,7 @@ function onClick(selector, callback, noPreventDefault) {
  * @param {boolean} noPreventDefault
  */
 function onAuxClick(selector, callback, noPreventDefault) {
+  /*
     document.querySelectorAll(selector).forEach((element) => {
         element.onauxclick = (event) => {
             if (!noPreventDefault) {
@@ -98,7 +98,8 @@ function onAuxClick(selector, callback, noPreventDefault) {
             }
             callback(event);
         };
-    });
+        });
+   */
 }
 
 /**
