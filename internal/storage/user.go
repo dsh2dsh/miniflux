@@ -370,11 +370,10 @@ FROM users WHERE ` + field + " = $1"
 func (s *Storage) AnotherUserWithFieldExists(ctx context.Context, userID int64,
 	field, value string,
 ) (bool, error) {
-	rows, _ := s.db.Query(ctx,
-		fmt.Sprintf(`
+	rows, _ := s.db.Query(ctx, `
 SELECT EXISTS(
-  SELECT FROM users WHERE id <> $1 AND %s=$2)`,
-			pgx.Identifier([]string{field}).Sanitize()),
+  SELECT FROM users
+   WHERE id <> $1 AND `+pgx.Identifier([]string{field}).Sanitize()+`=$2)`,
 		userID, value)
 
 	result, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[bool])
