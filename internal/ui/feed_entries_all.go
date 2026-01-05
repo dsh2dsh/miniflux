@@ -47,6 +47,7 @@ func (h *handler) showFeedEntriesAllPage(w http.ResponseWriter,
 	v.Set("menu", "feeds").
 		Set("feed", feed).
 		Set("entries", entries).
+		Set("lastEntry", lastEntry(entries)).
 		Set("total", count).
 		Set("pagination", getPagination(
 			route.Path(h.router, "feedEntriesAll", "feedID", feedID), count, offset,

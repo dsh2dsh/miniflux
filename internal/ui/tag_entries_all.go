@@ -54,6 +54,7 @@ func (h *handler) showTagEntriesAllPage(w http.ResponseWriter,
 		Set("feed", feed).
 		Set("total", count).
 		Set("entries", entries).
+		Set("lastEntry", lastEntry(entries)).
 		Set("pagination", getPagination(
 			route.Path(h.router, "tagEntriesAll", "tagName", url.PathEscape(tagName)),
 			count, offset, user.EntriesPerPage)).

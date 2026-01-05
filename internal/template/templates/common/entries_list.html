@@ -6,7 +6,7 @@
 
 <div class="items">
     {{ range .entries }}
-    {{   template "item" dict "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry }}
+    {{   template "item" dict "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry "lastEntry" $.lastEntry "showOnlyUnreadEntries" $.showOnlyUnreadEntries }}
     {{ end }}
 </div>
 
