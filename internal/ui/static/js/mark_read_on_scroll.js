@@ -85,6 +85,8 @@ class MarkReadOnScroll {
   }
 
   removeDupsAfter(lastItem) {
+    if (!lastItem.nextElementSibling) return;
+
     const knownItems = new Set();
     let el = lastItem
     while (el) {
