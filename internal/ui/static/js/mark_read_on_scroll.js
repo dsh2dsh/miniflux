@@ -1,10 +1,17 @@
 class MarkReadOnScroll {
+  static pageEndSelector = ".items > .item.pageEnd";
+
   lastAdded;
   firstScrolled;
   lastScrolled;
   timeoutId = 0;
 
   constructor(entries) {
+    document.body.addEventListener("htmx:afterSwap", event => {
+      if (event.target.matches(MarkReadOnScroll.pageEndSelector))
+        this.revealedCallback(event.target);
+    }, true);
+
     history.scrollRestoration = "manual";
     this.observer = new IntersectionObserver((entries, observer) => {
       this.observerCallback(entries, observer);
@@ -15,10 +22,12 @@ class MarkReadOnScroll {
   }
 
   addEntries(entries) {
-    entries.forEach((entry) => {
-      this.observer.observe(entry);
-      this.lastAdded = entry;
-    });
+    entries.forEach(entry => this.addEntry(entry));
+  }
+
+  addEntry(entry) {
+    this.observer.observe(entry);
+    this.lastAdded = entry;
   }
 
   observerCallback(entries, observer) {
@@ -69,7 +78,43 @@ class MarkReadOnScroll {
     this.firstScrolled = this.lastScrolled = null;
     return entries;
   }
+
+  revealedCallback(lastItem) {
+    this.removeDupsAfter(lastItem);
+    this.removeScrolled();
+  }
+
+  removeDupsAfter(lastItem) {
+    const knownItems = new Set();
+    let el = lastItem
+    while (el) {
+      knownItems.add(el.dataset.id);
+      el = el.previousElementSibling;
+    }
+
+    el = lastItem.nextElementSibling;
+    while (el) {
+      const nextSibling = el.nextElementSibling;
+      if (knownItems.has(el.dataset.id))
+        el.remove();
+      else
+        this.addEntry(el);
+      el = nextSibling;
+    }
+  }
+
+  removeScrolled() {
+    const pageEnds = document.querySelectorAll(MarkReadOnScroll.pageEndSelector);
+    if (pageEnds.length > 2) {
+      let el = pageEnds.at(-3);
+      while (el) {
+        const previousSibling = el.previousElementSibling;
+        el.remove();
+        el = previousSibling;
+      }
+    }
+  }
 }
 
 const readOnScrollObserver = new MarkReadOnScroll(
-  document.querySelectorAll(".items .item.item-status-unread"));
+  document.querySelectorAll(".items > .item.item-status-unread"));

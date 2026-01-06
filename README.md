@@ -211,7 +211,7 @@ This project is an opinionated fork of Miniflux.
 
   If mark entries as read when viewed enabled in user settings.
 
-* Mark entries as read when scrolled.
+* Mark entries as read when scrolled and infinite scroll.
 
 * Don't trust HTTP headers `X-Forwarded-For` and `X-Real-IP` by default.
 
