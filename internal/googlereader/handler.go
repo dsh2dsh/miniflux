@@ -55,8 +55,8 @@ func Serve(m *mux.ServeMux, store *storage.Storage, t *template.Engine) {
 	h := &handler{store: store, router: m, templates: t}
 	m.HandleFunc(LoginPath, h.clientLogin)
 
-	m = m.PrefixGroup(PathPrefix).
-		Use(WithKeyAuth(store), CORS, requestUserSession)
+	m = m.PrefixGroup(PathPrefix)
+	m.Use(WithKeyAuth(store), requestUserSession)
 
 	m.HandleFunc("/", h.serveHandler)
 	m.HandleFunc("/token", h.tokenHandler)

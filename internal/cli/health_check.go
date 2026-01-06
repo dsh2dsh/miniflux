@@ -20,7 +20,7 @@ var healthCmd = cobra.Command{
 
 	Long: `Perform a health check on the given endpoint.
 
-The value "auto" try to guess the health check endpoint.
+The value "auto" tries to guess the health check endpoint.
 `,
 
 	Example: `

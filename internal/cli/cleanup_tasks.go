@@ -19,7 +19,7 @@ import (
 
 var cleanupTasksCmd = cobra.Command{
 	Use:   "run-cleanup-tasks",
-	Short: "Run cleanup tasks (delete old sessions and archives old entries)",
+	Short: "Run cleanup tasks (delete old sessions and archive old entries)",
 	Args:  cobra.ExactArgs(0),
 
 	RunE: func(cmd *cobra.Command, args []string) error {
