@@ -523,6 +523,7 @@
     "page.keyboard_shortcuts.subtitle.pages": "पेज नेविगेशन",
     "page.keyboard_shortcuts.subtitle.sections": "अनुभाग नेविगेशन",
     "page.keyboard_shortcuts.title": "कुंजीपटल अल्प मार्ग",
+    "page.keyboard_shortcuts.toggle_bookmark_status": "बुकमार्क टॉगल करें",
     "page.keyboard_shortcuts.toggle_star_status": "बुकमार्क टॉगल करें",
     "page.keyboard_shortcuts.toggle_entry_attachments": "प्रविष्टि संलग्नक खोलें/बंद करें",
     "page.keyboard_shortcuts.toggle_read_status_next": "पढ़ें/अपठित टॉगल करें, अगला फ़ोकस करें",

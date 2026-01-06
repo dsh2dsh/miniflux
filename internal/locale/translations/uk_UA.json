@@ -529,6 +529,7 @@
     "page.keyboard_shortcuts.subtitle.pages": "Навігація по сторінках",
     "page.keyboard_shortcuts.subtitle.sections": "Навігація по розділах",
     "page.keyboard_shortcuts.title": "Комбінації клавиш",
+    "page.keyboard_shortcuts.toggle_bookmark_status": "Переключити статус закладки",
     "page.keyboard_shortcuts.toggle_star_status": "Переключити статус закладки",
     "page.keyboard_shortcuts.toggle_entry_attachments": "Перемкнути відкриття/закриття вкладень запису",
     "page.keyboard_shortcuts.toggle_read_status_next": "Переключити статус читання, перейти до наступного",

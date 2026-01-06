@@ -523,6 +523,7 @@
     "page.keyboard_shortcuts.subtitle.pages": "Navigazione pagine",
     "page.keyboard_shortcuts.subtitle.sections": "Navigazione sezioni",
     "page.keyboard_shortcuts.title": "Scorciatoie da tastiera",
+    "page.keyboard_shortcuts.toggle_bookmark_status": "Aggiungi/rimuovi dai preferiti",
     "page.keyboard_shortcuts.toggle_star_status": "Aggiungi/rimuovi dai preferiti",
     "page.keyboard_shortcuts.toggle_entry_attachments": "Apri/chiudi gli allegati dell'articolo",
     "page.keyboard_shortcuts.toggle_read_status_next": "Cambia lo stato di lettura (letto/da leggere), concentrati dopo",

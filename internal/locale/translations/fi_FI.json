@@ -523,6 +523,7 @@
     "page.keyboard_shortcuts.subtitle.pages": "Sivujen navigointi",
     "page.keyboard_shortcuts.subtitle.sections": "Osion navigointi",
     "page.keyboard_shortcuts.title": "Pikanäppäimet",
+    "page.keyboard_shortcuts.toggle_bookmark_status": "Vaihda kirjanmerkki",
     "page.keyboard_shortcuts.toggle_star_status": "Vaihda kirjanmerkki",
     "page.keyboard_shortcuts.toggle_entry_attachments": "Avaa tai sulje merkinnän liitteet",
     "page.keyboard_shortcuts.toggle_read_status_next": "Vaihda luettu/lukematon, keskity seuraavaksi",
