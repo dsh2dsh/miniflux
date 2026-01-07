@@ -750,4 +750,7 @@ CREATE INDEX ON feed_icons (icon_id);`),
 	sqlMigration(`
 CREATE INDEX ON entries
  USING gin (document_vectors) WHERE status != 'removed'`),
+
+	// 127
+	sqlMigration(`CREATE INDEX ON entries (feed_id, author)`),
 }

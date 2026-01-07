@@ -946,6 +946,11 @@ dialog {
     color: var(--item-meta-li-color);
 }
 
+a.item-meta-author {
+    font-style: italic;
+    text-decoration: underline;
+}
+
 .item-meta-icons {
     margin-top: 5px;
 }

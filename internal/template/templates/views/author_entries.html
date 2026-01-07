@@ -1,0 +1,20 @@
+{{ define "title"}}{{ .authorName }} ({{ .total }}) | {{ .feed.Title }}{{ end }}
+
+{{ define "page_header"}}
+<section class="page-header" aria-labelledby="page-header-title page-header-title-count">
+    <h1 id="page-header-title" dir="auto">
+        {{ .authorName }}
+        <span aria-hidden="true"> ({{ .total }})</span>
+        | {{ .feed.Title }}
+    </h1>
+    <span id="page-header-title-count" class="sr-only">{{ plural "page.tag_entry_count" .total .total }}</span>
+</section>
+{{ end }}
+
+{{ define "content"}}
+{{   if .entries }}
+{{     template "entries_list.html" . }}
+{{   else }}
+{{     template "info.html" "There are no entries matching this author." }}
+{{   end }}
+{{ end }}

@@ -16,7 +16,9 @@
                 {{ .entry.Feed.Title }}
             </a>
 
-            {{ if .entry.Author }}– <em>{{ .entry.Author }}</em>{{ end }}
+            {{ if .entry.Author }}
+            – <a href="{{ route "authorEntries" "feedID" $.entry.FeedID "authorName" (urlEncode .entry.Author) }}" class="item-meta-author">{{ .entry.Author }}</a>
+            {{ end }}
         </li>
 
         <li class="item-meta-info-timestamp">

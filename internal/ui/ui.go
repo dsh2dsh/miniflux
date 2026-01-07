@@ -167,6 +167,9 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 		"feedEntriesAll")
 	m.NameHandleFunc("/feed/{feedID}/mark-all-as-read", h.markFeedAsRead,
 		"markFeedAsRead")
+
+	m.NameHandleFunc("GET /feed/{feedID}/authors/{authorName}",
+		h.showAuthorEntries, "authorEntries")
 	m.NameHandleFunc("GET /feed/{feedID}/tags/{tagName}",
 		h.showTagEntriesAllPage, "tagEntriesAll")
 

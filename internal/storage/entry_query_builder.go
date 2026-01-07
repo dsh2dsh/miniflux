@@ -66,6 +66,11 @@ func (self *EntryQueryBuilder) WithContent() *EntryQueryBuilder {
 	return self
 }
 
+func (self *EntryQueryBuilder) WithAuthor(name string) *EntryQueryBuilder {
+	self.appendCondition("e.author = $", name, "")
+	return self
+}
+
 // WithSearchQuery adds full-text search query to the condition.
 func (self *EntryQueryBuilder) WithSearchQuery(query string) *EntryQueryBuilder {
 	if query == "" {
