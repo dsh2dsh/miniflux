@@ -47,214 +47,209 @@ type EntryQueryBuilder struct {
 	fetchContent    bool
 }
 
-func (e *EntryQueryBuilder) WithContent() *EntryQueryBuilder {
-	e.fetchContent = true
-	return e
+func (self *EntryQueryBuilder) appendCondition(prefix string, arg any,
+	suffix string,
+) string {
+	if arg == nil {
+		self.conditions = append(self.conditions, prefix)
+		return ""
+	}
+
+	self.args = append(self.args, arg)
+	argPos := strconv.Itoa(len(self.args))
+
+	s := prefix + argPos
+	if suffix != "" {
+		s += suffix
+	}
+
+	self.conditions = append(self.conditions, s)
+	return argPos
+}
+
+func (self *EntryQueryBuilder) WithContent() *EntryQueryBuilder {
+	self.fetchContent = true
+	return self
 }
 
 // WithSearchQuery adds full-text search query to the condition.
-func (e *EntryQueryBuilder) WithSearchQuery(query string) *EntryQueryBuilder {
+func (self *EntryQueryBuilder) WithSearchQuery(query string) *EntryQueryBuilder {
 	if query == "" {
-		return e
+		return self
 	}
 
-	n := len(e.args) + 1
-	e.conditions = append(e.conditions, fmt.Sprintf(
-		"e.document_vectors @@ websearch_to_tsquery($%d)", n))
-	e.args = append(e.args, query)
+	argPos := self.appendCondition(
+		`ts_rank(document_vectors, websearch_to_tsquery($`,
+		query,
+		`)) - extract(epoch from now() - published_at)::float * 0.0000001`)
 
 	// 0.0000001 = 0.1 / (seconds_in_a_day)
-	const tsRank = `ts_rank(document_vectors, websearch_to_tsquery($%d)) - extract(epoch from now() - published_at)::float * 0.0000001`
-	e.WithSorting(fmt.Sprintf(tsRank, n), "DESC")
-	return e
+	self.WithSorting(
+		`ts_rank(document_vectors, websearch_to_tsquery($`+argPos+`)) - extract(epoch from now() - published_at)::float * 0.0000001`,
+		"DESC")
+	return self
 }
 
 // WithStarred adds starred filter.
-func (e *EntryQueryBuilder) WithStarred(starred bool) *EntryQueryBuilder {
+func (self *EntryQueryBuilder) WithStarred(starred bool) *EntryQueryBuilder {
 	if starred {
-		e.conditions = append(e.conditions, "e.starred is true")
+		self.appendCondition("e.starred is true", nil, "")
 	} else {
-		e.conditions = append(e.conditions, "e.starred is false")
+		self.appendCondition("e.starred is false", nil, "")
 	}
-	return e
+	return self
 }
 
 // BeforeChangedDate adds a condition < changed_at
-func (e *EntryQueryBuilder) BeforeChangedDate(date time.Time,
+func (self *EntryQueryBuilder) BeforeChangedDate(date time.Time,
 ) *EntryQueryBuilder {
-	e.conditions = append(e.conditions,
-		"e.changed_at < $"+strconv.Itoa(len(e.args)+1))
-	e.args = append(e.args, date)
-	return e
+	self.appendCondition("e.changed_at < $", date, "")
+	return self
 }
 
 // AfterChangedDate adds a condition > changed_at
-func (e *EntryQueryBuilder) AfterChangedDate(date time.Time,
+func (self *EntryQueryBuilder) AfterChangedDate(date time.Time,
 ) *EntryQueryBuilder {
-	e.conditions = append(e.conditions,
-		"e.changed_at > $"+strconv.Itoa(len(e.args)+1))
-	e.args = append(e.args, date)
-	return e
+	self.appendCondition("e.changed_at > $", date, "")
+	return self
 }
 
 // BeforePublishedDate adds a condition < published_at
-func (e *EntryQueryBuilder) BeforePublishedDate(date time.Time,
+func (self *EntryQueryBuilder) BeforePublishedDate(date time.Time,
 ) *EntryQueryBuilder {
-	e.conditions = append(e.conditions,
-		"e.published_at < $"+strconv.Itoa(len(e.args)+1))
-	e.args = append(e.args, date)
-	return e
+	self.appendCondition("e.published_at < $", date, "")
+	return self
 }
 
 // AfterPublishedDate adds a condition > published_at
-func (e *EntryQueryBuilder) AfterPublishedDate(date time.Time,
+func (self *EntryQueryBuilder) AfterPublishedDate(date time.Time,
 ) *EntryQueryBuilder {
-	e.conditions = append(e.conditions,
-		"e.published_at > $"+strconv.Itoa(len(e.args)+1))
-	e.args = append(e.args, date)
-	return e
+	self.appendCondition("e.published_at > $", date, "")
+	return self
 }
 
 // BeforeEntryID adds a condition < entryID.
-func (e *EntryQueryBuilder) BeforeEntryID(entryID int64) *EntryQueryBuilder {
+func (self *EntryQueryBuilder) BeforeEntryID(entryID int64) *EntryQueryBuilder {
 	if entryID != 0 {
-		e.conditions = append(e.conditions,
-			"e.id < $"+strconv.Itoa(len(e.args)+1))
-		e.args = append(e.args, entryID)
+		self.appendCondition("e.id < $", entryID, "")
 	}
-	return e
+	return self
 }
 
 // AfterEntryID adds a condition > entryID.
-func (e *EntryQueryBuilder) AfterEntryID(entryID int64) *EntryQueryBuilder {
+func (self *EntryQueryBuilder) AfterEntryID(entryID int64) *EntryQueryBuilder {
 	if entryID != 0 {
-		e.conditions = append(e.conditions,
-			"e.id > $"+strconv.Itoa(len(e.args)+1))
-		e.args = append(e.args, entryID)
+		self.appendCondition("e.id > $", entryID, "")
 	}
-	return e
+	return self
 }
 
 // WithEntryIDs filter by entry IDs.
-func (e *EntryQueryBuilder) WithEntryIDs(entryIDs []int64) *EntryQueryBuilder {
-	e.conditions = append(e.conditions,
-		fmt.Sprintf("e.id = ANY($%d)", len(e.args)+1))
-	e.args = append(e.args, entryIDs)
-	return e
+func (self *EntryQueryBuilder) WithEntryIDs(entryIDs []int64,
+) *EntryQueryBuilder {
+	self.appendCondition("e.id = ANY($", entryIDs, ")")
+	return self
 }
 
 // WithEntryID filter by entry ID.
-func (e *EntryQueryBuilder) WithEntryID(entryID int64) *EntryQueryBuilder {
+func (self *EntryQueryBuilder) WithEntryID(entryID int64) *EntryQueryBuilder {
 	if entryID != 0 {
-		e.conditions = append(e.conditions,
-			"e.id = $"+strconv.Itoa(len(e.args)+1))
-		e.args = append(e.args, entryID)
+		self.appendCondition("e.id = $", entryID, "")
 	}
-	return e
+	return self
 }
 
 // WithFeedID filter by feed ID.
-func (e *EntryQueryBuilder) WithFeedID(feedID int64) *EntryQueryBuilder {
+func (self *EntryQueryBuilder) WithFeedID(feedID int64) *EntryQueryBuilder {
 	if feedID > 0 {
-		e.conditions = append(e.conditions,
-			"e.feed_id = $"+strconv.Itoa(len(e.args)+1))
-		e.args = append(e.args, feedID)
+		self.appendCondition("e.feed_id = $", feedID, "")
 	}
-	return e
+	return self
 }
 
 // WithCategoryID filter by category ID.
-func (e *EntryQueryBuilder) WithCategoryID(categoryID int64) *EntryQueryBuilder {
+func (self *EntryQueryBuilder) WithCategoryID(categoryID int64) *EntryQueryBuilder {
 	if categoryID > 0 {
-		e.conditions = append(e.conditions,
-			"f.category_id = $"+strconv.Itoa(len(e.args)+1))
-		e.args = append(e.args, categoryID)
+		self.appendCondition("f.category_id = $", categoryID, "")
 	}
-	return e
+	return self
 }
 
 // WithStatus filter by entry status.
-func (e *EntryQueryBuilder) WithStatus(status string) *EntryQueryBuilder {
+func (self *EntryQueryBuilder) WithStatus(status string) *EntryQueryBuilder {
 	if status != "" {
-		e.conditions = append(e.conditions,
-			"e.status = $"+strconv.Itoa(len(e.args)+1))
-		e.args = append(e.args, status)
+		self.appendCondition("e.status = $", status, "")
 	}
-	return e
+	return self
 }
 
 // WithStatuses filter by a list of entry statuses.
-func (e *EntryQueryBuilder) WithStatuses(statuses []string) *EntryQueryBuilder {
+func (self *EntryQueryBuilder) WithStatuses(statuses []string) *EntryQueryBuilder {
 	if len(statuses) > 0 {
-		e.conditions = append(e.conditions,
-			fmt.Sprintf("e.status = ANY($%d)", len(e.args)+1))
-		e.args = append(e.args, statuses)
+		self.appendCondition("e.status = ANY($", statuses, ")")
 	}
-	return e
+	return self
 }
 
 // WithTags filter by a list of entry tags.
-func (e *EntryQueryBuilder) WithTags(tags []string) *EntryQueryBuilder {
-	if len(tags) > 0 {
-		for _, cat := range tags {
-			e.conditions = append(e.conditions,
-				fmt.Sprintf("LOWER($%d) = ANY(LOWER(e.tags::text)::text[])",
-					len(e.args)+1))
-			e.args = append(e.args, cat)
-		}
+func (self *EntryQueryBuilder) WithTags(tags []string) *EntryQueryBuilder {
+	if len(tags) == 0 {
+		return self
 	}
-	return e
+
+	for _, s := range tags {
+		self.appendCondition("LOWER($", s, ") = ANY(LOWER(e.tags::text)::text[])")
+	}
+	return self
 }
 
 // WithoutStatus set the entry status that should not be returned.
-func (e *EntryQueryBuilder) WithoutStatus(status string) *EntryQueryBuilder {
+func (self *EntryQueryBuilder) WithoutStatus(status string) *EntryQueryBuilder {
 	if status != "" {
-		e.conditions = append(e.conditions,
-			"e.status <> $"+strconv.Itoa(len(e.args)+1))
-		e.args = append(e.args, status)
+		self.appendCondition("e.status <> $", status, "")
 	}
-	return e
+	return self
 }
 
 // WithSorting add a sort expression.
-func (e *EntryQueryBuilder) WithSorting(column, direction string,
+func (self *EntryQueryBuilder) WithSorting(column, direction string,
 ) *EntryQueryBuilder {
-	e.sortExpressions = append(e.sortExpressions, column+" "+direction)
-	return e
+	self.sortExpressions = append(self.sortExpressions, column+" "+direction)
+	return self
 }
 
 // WithLimit set the limit.
-func (e *EntryQueryBuilder) WithLimit(limit int) *EntryQueryBuilder {
+func (self *EntryQueryBuilder) WithLimit(limit int) *EntryQueryBuilder {
 	if limit > 0 {
-		e.limit = limit
+		self.limit = limit
 	}
-	return e
+	return self
 }
 
 // WithOffset set the offset.
-func (e *EntryQueryBuilder) WithOffset(offset int) *EntryQueryBuilder {
+func (self *EntryQueryBuilder) WithOffset(offset int) *EntryQueryBuilder {
 	if offset > 0 {
-		e.offset = offset
+		self.offset = offset
 	}
-	return e
+	return self
 }
 
-func (e *EntryQueryBuilder) WithGloballyVisible() *EntryQueryBuilder {
-	e.conditions = append(e.conditions, "c.hide_globally IS FALSE")
-	e.conditions = append(e.conditions, "f.hide_globally IS FALSE")
-	return e
+func (self *EntryQueryBuilder) WithGloballyVisible() *EntryQueryBuilder {
+	self.appendCondition("c.hide_globally IS FALSE", nil, "")
+	self.appendCondition("f.hide_globally IS FALSE", nil, "")
+	return self
 }
 
 // CountEntries count the number of entries that match the condition.
-func (e *EntryQueryBuilder) CountEntries(ctx context.Context) (int, error) {
+func (self *EntryQueryBuilder) CountEntries(ctx context.Context) (int, error) {
 	query := `
 SELECT count(*)
   FROM entries e
 	     JOIN feeds f ON f.id = e.feed_id
 	     JOIN categories c ON c.id = f.category_id
- WHERE ` + e.buildCondition()
+ WHERE ` + self.buildCondition()
 
-	rows, _ := e.db.Query(ctx, query, e.args...)
+	rows, _ := self.db.Query(ctx, query, self.args...)
 	count, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[int])
 	if err != nil {
 		return 0, fmt.Errorf("store: unable to count entries: %w", err)
@@ -263,9 +258,9 @@ SELECT count(*)
 }
 
 // GetEntry returns a single entry that match the condition.
-func (e *EntryQueryBuilder) GetEntry(ctx context.Context,
+func (self *EntryQueryBuilder) GetEntry(ctx context.Context,
 ) (*model.Entry, error) {
-	entries, err := e.WithLimit(1).WithContent().GetEntries(ctx)
+	entries, err := self.WithLimit(1).WithContent().GetEntries(ctx)
 	if err != nil {
 		return nil, err
 	} else if len(entries) != 1 {
@@ -275,10 +270,10 @@ func (e *EntryQueryBuilder) GetEntry(ctx context.Context,
 }
 
 // GetEntries returns a list of entries that match the condition.
-func (e *EntryQueryBuilder) GetEntries(ctx context.Context,
+func (self *EntryQueryBuilder) GetEntries(ctx context.Context,
 ) (model.Entries, error) {
 	withContent := func() string {
-		if e.fetchContent {
+		if self.fetchContent {
 			return ", e.content"
 		}
 		return ""
@@ -327,9 +322,9 @@ FROM entries e
      LEFT JOIN feed_icons fi ON fi.feed_id=f.id
      LEFT JOIN icons i ON i.id=fi.icon_id
      LEFT JOIN users u ON u.id=e.user_id
-WHERE ` + e.buildCondition() + " " + e.buildSorting()
+WHERE ` + self.buildCondition() + " " + self.buildSorting()
 
-	rows, err := e.db.Query(ctx, query, e.args...)
+	rows, err := self.db.Query(ctx, query, self.args...)
 	if err != nil {
 		return nil, fmt.Errorf("storage: unable to get entries: %w", err)
 	}
@@ -391,7 +386,7 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 			&iconID, &iconHash,
 			&tz)
 
-		if e.fetchContent {
+		if self.fetchContent {
 			dest = append(dest, &entry.Content)
 		}
 
@@ -438,12 +433,12 @@ WHERE ` + e.buildCondition() + " " + e.buildSorting()
 }
 
 // GetEntryIDs returns a list of entry IDs that match the condition.
-func (e *EntryQueryBuilder) GetEntryIDs(ctx context.Context) ([]int64, error) {
-	rows, _ := e.db.Query(ctx, `
+func (self *EntryQueryBuilder) GetEntryIDs(ctx context.Context) ([]int64, error) {
+	rows, _ := self.db.Query(ctx, `
 SELECT e.id
   FROM entries e
        LEFT JOIN feeds f ON f.id=e.feed_id
- WHERE `+e.buildCondition()+" "+e.buildSorting(), e.args...)
+ WHERE `+self.buildCondition()+" "+self.buildSorting(), self.args...)
 
 	entryIDs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
 	if err != nil {
@@ -452,34 +447,34 @@ SELECT e.id
 	return entryIDs, nil
 }
 
-func (e *EntryQueryBuilder) buildCondition() string {
-	return strings.Join(e.conditions, " AND ")
+func (self *EntryQueryBuilder) buildCondition() string {
+	return strings.Join(self.conditions, " AND ")
 }
 
-func (e *EntryQueryBuilder) buildSorting() string {
+func (self *EntryQueryBuilder) buildSorting() string {
 	var parts string
-	if len(e.sortExpressions) > 0 {
-		parts = " ORDER BY " + strings.Join(e.sortExpressions, ", ")
+	if len(self.sortExpressions) > 0 {
+		parts = " ORDER BY " + strings.Join(self.sortExpressions, ", ")
 	}
 
-	if e.limit > 0 {
-		parts += " LIMIT " + strconv.FormatInt(int64(e.limit), 10)
+	if self.limit > 0 {
+		parts += " LIMIT " + strconv.FormatInt(int64(self.limit), 10)
 	}
 
-	if e.offset > 0 {
-		parts += " OFFSET " + strconv.FormatInt(int64(e.offset), 10)
+	if self.offset > 0 {
+		parts += " OFFSET " + strconv.FormatInt(int64(self.offset), 10)
 	}
 	return parts
 }
 
-func (e *EntryQueryBuilder) CountStatusStarred(ctx context.Context,
+func (self *EntryQueryBuilder) CountStatusStarred(ctx context.Context,
 ) (iter.Seq2[*model.Entry, int], error) {
-	rows, _ := e.db.Query(ctx, `
+	rows, _ := self.db.Query(ctx, `
 SELECT e.status, e.starred, count(*) AS count
   FROM entries e, feeds f, categories c
  WHERE f.id = e.feed_id AND c.id = f.category_id AND
-       `+e.buildCondition()+`
-GROUP BY e.status, e.starred`, e.args...)
+       `+self.buildCondition()+`
+GROUP BY e.status, e.starred`, self.args...)
 
 	type groupCount struct {
 		Status  string
