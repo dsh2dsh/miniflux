@@ -91,7 +91,10 @@ func demonize() (*exec.Cmd, error) {
 }
 
 func waitReady(cmd *exec.Cmd) error {
-	baseURL := "http://" + os.Getenv("LISTEN_ADDR")
+	baseURL := os.Getenv("BASE_URL")
+	if baseURL == "" {
+		baseURL = "http://" + os.Getenv("LISTEN_ADDR")
+	}
 	api := client.NewClient(baseURL, os.Getenv("ADMIN_USERNAME"),
 		os.Getenv("ADMIN_PASSWORD"))
 
