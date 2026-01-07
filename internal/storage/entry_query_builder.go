@@ -78,9 +78,7 @@ func (self *EntryQueryBuilder) WithSearchQuery(query string) *EntryQueryBuilder 
 	}
 
 	argPos := self.appendCondition(
-		`ts_rank(document_vectors, websearch_to_tsquery($`,
-		query,
-		`)) - extract(epoch from now() - published_at)::float * 0.0000001`)
+		"e.document_vectors @@ websearch_to_tsquery($", query, ")")
 
 	// 0.0000001 = 0.1 / (seconds_in_a_day)
 	self.WithSorting(
