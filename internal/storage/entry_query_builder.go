@@ -29,12 +29,6 @@ func (s *Storage) NewEntryQueryBuilder(userID int64) *EntryQueryBuilder {
 	}
 }
 
-// NewAnonymousQueryBuilder returns a new EntryQueryBuilder suitable for
-// anonymous users.
-func (s *Storage) NewAnonymousQueryBuilder() *EntryQueryBuilder {
-	return &EntryQueryBuilder{store: s, db: s.db}
-}
-
 // EntryQueryBuilder builds a SQL query to fetch entries.
 type EntryQueryBuilder struct {
 	store           *Storage
