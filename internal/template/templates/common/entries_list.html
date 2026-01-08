@@ -4,9 +4,9 @@
 </div>
 {{ end }}
 
-<div class="items">
+<div class="items" {{ if .showOnlyUnreadEntries }}data-infinite-scroll="true"{{ end }}>
     {{ range .entries }}
-    {{   template "item" dict "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry "lastEntry" $.lastEntry "requestURI" $.requestURI "showOnlyUnreadEntries" $.showOnlyUnreadEntries }}
+    {{   template "item" dict "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry "infiniteScroll" $.showOnlyUnreadEntries "lastEntry" $.lastEntry "requestURI" $.requestURI }}
     {{ end }}
 </div>
 
