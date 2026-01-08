@@ -267,7 +267,7 @@ func (h *handler) handleItems(w http.ResponseWriter, r *http.Request) {
 	case request.HasQueryParam(r, "with_ids"):
 		csvItemIDs := request.QueryStringParam(r, "with_ids", "")
 		if csvItemIDs != "" {
-			var itemIDs []int64
+			var itemIDs []int64 //nolint:prealloc // unknown len
 			for strItemID := range strings.SplitSeq(csvItemIDs, ",") {
 				strItemID = strings.TrimSpace(strItemID)
 				itemID, _ := strconv.ParseInt(strItemID, 10, 64)
