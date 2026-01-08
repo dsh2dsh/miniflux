@@ -17,6 +17,7 @@ func (h *handler) showSearchPage(w http.ResponseWriter, r *http.Request) {
 	user := v.User()
 
 	searchQuery := request.QueryStringParam(r, "q", "")
+	unreadOnly := request.QueryBoolParam(r, "unread", false)
 	offset := request.QueryIntParam(r, "offset", 0)
 	var entries model.Entries
 	var count int
@@ -24,9 +25,14 @@ func (h *handler) showSearchPage(w http.ResponseWriter, r *http.Request) {
 	if searchQuery != "" {
 		query := h.store.NewEntryQueryBuilder(v.UserID()).
 			WithSearchQuery(searchQuery).
-			WithoutStatus(model.EntryStatusRemoved).
 			WithOffset(offset).
 			WithLimit(user.EntriesPerPage)
+
+		if unreadOnly {
+			query.WithStatus(model.EntryStatusUnread)
+		} else {
+			query.WithoutStatus(model.EntryStatusRemoved)
+		}
 
 		var err error
 		entries, count, err = v.WaitEntriesCount(query)
@@ -39,14 +45,16 @@ func (h *handler) showSearchPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pagination := getPagination(route.Path(h.router, "search"), count,
-		offset, user.EntriesPerPage)
-	pagination.SearchQuery = searchQuery
+	pagination := getPagination(
+		route.Path(h.router, "search"), count, offset, user.EntriesPerPage).
+		WithSearchQuery(searchQuery).
+		WithUnreadOnly(unreadOnly)
 
 	v.Set("menu", "search").
 		Set("searchQuery", searchQuery).
 		Set("entries", entries).
 		Set("total", count).
-		Set("pagination", pagination)
+		Set("pagination", pagination).
+		Set("showOnlyUnreadEntries", unreadOnly)
 	html.OK(w, r, v.Render("search"))
 }

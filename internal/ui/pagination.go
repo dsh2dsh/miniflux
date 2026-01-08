@@ -22,7 +22,9 @@ type pagination struct {
 	LastOffset   int
 	PrevOffset   int
 	FirstOffset  int
-	SearchQuery  string
+
+	searchQuery string
+	unreadOnly  bool
 }
 
 func getPagination(route string, total, offset, itemsPerPage int) *pagination {
@@ -61,6 +63,16 @@ func getPagination(route string, total, offset, itemsPerPage int) *pagination {
 	}
 }
 
+func (self *pagination) WithSearchQuery(q string) *pagination {
+	self.searchQuery = q
+	return self
+}
+
+func (self *pagination) WithUnreadOnly(value bool) *pagination {
+	self.unreadOnly = value
+	return self
+}
+
 func (self *pagination) FirstDisabled() template.HTMLAttr {
 	return disabled(self.ShowFirst)
 }
@@ -88,8 +100,11 @@ func (self *pagination) offsetQuery(offset int) string {
 	if offset > 0 {
 		v.Set("offset", strconv.Itoa(offset))
 	}
-	if self.SearchQuery != "" {
-		v.Set("q", url.QueryEscape(self.SearchQuery))
+	if self.searchQuery != "" {
+		v.Set("q", url.QueryEscape(self.searchQuery))
+	}
+	if self.unreadOnly {
+		v.Set("unread", "1")
 	}
 	return v.Encode()
 }
