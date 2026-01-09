@@ -3,15 +3,15 @@
   class="item entry-item {{ if .user.EntrySwipe }}entry-swipe{{ end }} item-status-{{ .entry.Status }} {{ if eq .entry .lastEntry }}pageEnd{{ end }}"
   data-id="{{ .entry.ID }}"
   aria-labelledby="entry-title-{{ .entry.ID }}"
-  {{ if and (eq .entry .lastEntry) .infiniteScroll }}
-  hx-get="{{ .requestURI }}"
+  {{ if and (eq .entry .lastEntry) .showOnlyUnreadEntries }}
+    hx-get="{{ .requestURI }}"
   hx-select=".items > .item"
   hx-swap="afterend"
   hx-trigger="revealed"
   hx-disinherit="*"
   {{ end }}
   tabindex="-1">
-    {{ template "item_meta" dict "user" .user "entry" .entry "withInfo" true }}
+    {{ template "item_meta" dict "user" .user "entry" .entry "showOnlyUnreadEntries" .showOnlyUnreadEntries "withInfo" true }}
 
     <header class="item-header" dir="auto">
         <h2 id="entry-title-{{ .entry.ID }}" class="item-title">

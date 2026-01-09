@@ -17,7 +17,7 @@
             </a>
 
             {{ if .entry.Author }}
-            – <a href="{{ route "authorEntries" "feedID" $.entry.FeedID "authorName" (urlEncode .entry.Author) }}" class="item-meta-author">{{ .entry.Author }}</a>
+            – <a href="{{ route (ifElseString .showOnlyUnreadEntries "authorEntries" "authorEntriesAll") "feedID" $.entry.FeedID "authorName" (urlEncode .entry.Author) }}" class="item-meta-author">{{ .entry.Author }}</a>
             {{ end }}
         </li>
 

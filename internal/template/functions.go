@@ -62,13 +62,6 @@ func (self *funcMap) Map() template.FuncMap {
 		"truncate":           truncate,
 		"urlEncode":          url.PathEscape,
 
-		"condMsg": func(cond bool, s1, s2 string) string {
-			if cond {
-				return s1
-			}
-			return s2
-		},
-
 		"csp": func() *contentSecurityPolicy { return self.csp },
 
 		"hasOAuth2Provider": func(provider string) bool {
@@ -76,6 +69,13 @@ func (self *funcMap) Map() template.FuncMap {
 		},
 
 		"hasAuthProxy": func() bool { return config.AuthProxyHeader() != "" },
+
+		"ifElseString": func(cond bool, s1, s2 string) string {
+			if cond {
+				return s1
+			}
+			return s2
+		},
 
 		"metaColorScheme": func(theme string) string {
 			colorScheme := model.ColorScheme(theme)
