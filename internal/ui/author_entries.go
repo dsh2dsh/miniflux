@@ -12,6 +12,16 @@ import (
 )
 
 func (h *handler) showAuthorEntries(w http.ResponseWriter, r *http.Request) {
+	h.renderAuthorEntries(w, r, true)
+}
+
+func (h *handler) showAuthorEntriesAll(w http.ResponseWriter, r *http.Request) {
+	h.renderAuthorEntries(w, r, false)
+}
+
+func (h *handler) renderAuthorEntries(w http.ResponseWriter, r *http.Request,
+	unread bool,
+) {
 	authorName, err := url.PathUnescape(request.RouteStringParam(r, "authorName"))
 	if err != nil {
 		html.ServerError(w, r, err)
@@ -31,13 +41,18 @@ func (h *handler) showAuthorEntries(w http.ResponseWriter, r *http.Request) {
 	offset := request.QueryIntParam(r, "offset", 0)
 	query := h.store.NewEntryQueryBuilder(v.UserID()).
 		WithFeedID(feedID).
-		WithoutStatus(model.EntryStatusRemoved).
 		WithAuthor(authorName).
 		WithSorting("status", "asc").
 		WithSorting(user.EntryOrder, user.EntryDirection).
 		WithSorting("id", user.EntryDirection).
 		WithOffset(offset).
 		WithLimit(user.EntriesPerPage)
+
+	if unread {
+		query.WithStatus(model.EntryStatusUnread)
+	} else {
+		query.WithoutStatus(model.EntryStatusRemoved)
+	}
 
 	entries, count, err := v.WaitEntriesCount(query)
 	if err != nil {
@@ -54,6 +69,6 @@ func (h *handler) showAuthorEntries(w http.ResponseWriter, r *http.Request) {
 			route.Path(h.router, "authorEntries", "authorName",
 				url.PathEscape(authorName)),
 			count, offset, user.EntriesPerPage)).
-		Set("showOnlyUnreadEntries", false)
+		Set("showOnlyUnreadEntries", unread)
 	html.OK(w, r, v.Render("author_entries"))
 }
