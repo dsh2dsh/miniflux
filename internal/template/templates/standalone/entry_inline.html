@@ -49,7 +49,7 @@
             {{ if .entry.Enclosures }}{{ t "entry.tags.label" }}{{ end }}
             <ul class="entry-tags-list comma-list">
                 {{ range .entry.Tags }}
-                <li><a href="{{ route "tagEntries" "feedID" $.entry.FeedID "tagName" (urlEncode .) }}"><strong>{{ . }}</strong></a></li>
+                <li><a href="{{ route ( ifElseString $.entry.Unread "tagEntries" "tagEntriesAll") "feedID" $.entry.FeedID "tagName" (urlEncode .) }}"><strong>{{ . }}</strong></a></li>
                 {{ end }}
             </ul>
         </div>

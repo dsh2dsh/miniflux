@@ -142,6 +142,8 @@ func (self *Entry) KeepImportedStatus(value string) {
 	}
 }
 
+func (self *Entry) Unread() bool { return self.Status == EntryStatusUnread }
+
 func NewEntryFrom(ext *ExternalEntry) *Entry {
 	entry := &Entry{
 		Status:      ext.Status,
