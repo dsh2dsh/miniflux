@@ -14,8 +14,18 @@ import (
 	"miniflux.app/v2/internal/model"
 )
 
-func (h *handler) showTagEntriesAllPage(w http.ResponseWriter,
+func (h *handler) showTagEntries(w http.ResponseWriter, r *http.Request) {
+	h.renderTagEntries(w, r, true)
+}
+
+func (h *handler) showTagEntriesAll(w http.ResponseWriter,
 	r *http.Request,
+) {
+	h.renderTagEntries(w, r, false)
+}
+
+func (h *handler) renderTagEntries(w http.ResponseWriter, r *http.Request,
+	unread bool,
 ) {
 	tagName, err := url.PathUnescape(request.RouteStringParam(r, "tagName"))
 	if err != nil {
@@ -36,13 +46,18 @@ func (h *handler) showTagEntriesAllPage(w http.ResponseWriter,
 	offset := request.QueryIntParam(r, "offset", 0)
 	query := h.store.NewEntryQueryBuilder(v.UserID()).
 		WithFeedID(feedID).
-		WithoutStatus(model.EntryStatusRemoved).
 		WithTags([]string{tagName}).
 		WithSorting("status", "asc").
 		WithSorting(user.EntryOrder, user.EntryDirection).
 		WithSorting("id", user.EntryDirection).
 		WithOffset(offset).
 		WithLimit(user.EntriesPerPage)
+
+	if unread {
+		query.WithStatus(model.EntryStatusUnread)
+	} else {
+		query.WithoutStatus(model.EntryStatusRemoved)
+	}
 
 	entries, count, err := v.WaitEntriesCount(query)
 	if err != nil {
@@ -58,6 +73,6 @@ func (h *handler) showTagEntriesAllPage(w http.ResponseWriter,
 		Set("pagination", getPagination(
 			route.Path(h.router, "tagEntriesAll", "tagName", url.PathEscape(tagName)),
 			count, offset, user.EntriesPerPage)).
-		Set("showOnlyUnreadEntries", false)
+		Set("showOnlyUnreadEntries", unread)
 	html.OK(w, r, v.Render("tag_entries"))
 }
