@@ -106,22 +106,32 @@ a:hover {
     flex-direction: column;
 }
 
+.header nav .logo input {
+    display: none;
+    visibility: hidden;
+}
+
 .header nav .logo svg {
     padding: 5px;
     inline-size: 24px;
     block-size: 24px;
 }
 
-.header nav .logo[aria-expanded="true"] svg {
+.header nav .logo:has(input:checked) svg {
     rotate: 180deg;
 }
 
-.header ul.js-menu-show {
+.header ul {
+    display: none;
+}
+
+.header nav .logo:has(input:checked) + ul {
     display: initial;
 }
 
-.header ul:not(.js-menu-show) {
+.header nav .logo a {
     display: none;
+    visibility: hidden;
 }
 
 .header li {
@@ -282,22 +292,22 @@ body[data-color-scheme=light] #header-menu {
     justify-content: center;
 }
 
-.logo a {
+.logo a, .logo label {
     color: var(--logo-color);
     letter-spacing: 1px;
     display: flex;
     align-items: center;
 }
 
-.logo a:hover {
+.logo a:hover, .logo:has(input:checked) label {
     color: #339966;
 }
 
-.logo a span {
+.logo a span, .logo label span {
     color: #339966;
 }
 
-.logo a:hover span {
+.logo a:hover span, .logo:has(input:checked) label span {
     color: var(--logo-hover-color-span);
 }
 
@@ -392,11 +402,21 @@ body[data-color-scheme=light] #header-menu {
         flex-direction: row;
     }
 
+    .header nav .logo label {
+        display: none;
+        visibility: hidden;
+    }
+
+    .header nav .logo a {
+        display: revert;
+        visibility: revert;
+    }
+
     .header .logo svg {
         display: none;
     }
 
-    .header ul:not(.js-menu-show), .header ul.js-menu-show {
+    .header ul {
         display: revert;
     }
 

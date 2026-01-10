@@ -87,6 +87,13 @@
     <header class="header">
         <nav>
             <div class="logo" data-toggle-button-label="{{ t "menu.title" }}">
+                <label for="toggleMainMenu"
+                       role="button"
+                       tabindex="0"
+                       aria-label="{{ t "menu.title" }}">
+                    Mini<span>flux</span>
+                    <input id="toggleMainMenu" type="checkbox"/>
+                </label>
                 <a aria-label="{{ t "menu.home_page" }}" href="{{ route .user.DefaultHomePage }}">
                     Mini<span>flux</span>
                 </a>
