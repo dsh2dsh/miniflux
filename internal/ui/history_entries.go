@@ -34,6 +34,7 @@ func (h *handler) showHistoryPage(w http.ResponseWriter, r *http.Request) {
 		Set("entries", entries).
 		Set("total", count).
 		Set("pagination", getPagination(route.Path(h.router, "history"),
-			count, offset, user.EntriesPerPage))
+			count, offset, user.EntriesPerPage)).
+		Set("showOnlyUnreadEntries", false)
 	html.OK(w, r, v.Render("history_entries"))
 }
