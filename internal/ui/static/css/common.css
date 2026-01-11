@@ -367,23 +367,10 @@ body[data-color-scheme=light] #header-menu {
     100% {visibility: hidden; opacity: 0; z-index: 0}
 }
 
-/* Hide the logo when there is not enough space to display menus when using languages more verbose than English */
-@media (min-width: 620px) and (max-width: 850px) {
-    .logo {
-        display: none;
-    }
-}
-
-@media (min-width: 850px) {
-    .logo {
-        padding-right: 8px;
-    }
-}
-
-@media (min-width: 620px) {
+@media (min-width: 40rem) {
     body {
         margin: auto;
-        max-width: 900px; /* Wide enough to display the logo and the menu one a single row for any languages */
+        max-width: 60rem; /* Wide enough to display the logo and the menu one a single row for any languages */
     }
 
     .header {
@@ -400,6 +387,18 @@ body[data-color-scheme=light] #header-menu {
 
     .header nav {
         flex-direction: row;
+    }
+
+    /* Hide the logo when there is not enough space to display menus when using languages more verbose than English */
+    .header nav .logo {
+        display: none;
+    }
+
+    @media (min-width: 60rem) {
+        .header nav .logo {
+            display: initial;
+            padding-right: 8px;
+        }
     }
 
     .header nav .logo label {
