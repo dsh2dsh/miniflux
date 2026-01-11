@@ -663,9 +663,7 @@ a.button-primary:focus,
 }
 
 .button:disabled {
-    color: #ccc;
-    background: #f7f7f7;
-    border-color: #ccc;
+    color: var(--item-status-read-title-link-color);
 }
 
 .buttons {
