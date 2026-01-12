@@ -116,8 +116,20 @@ class MarkReadOnScroll {
       }
     }
   }
+
+  reset() {
+    if (this.timeoutId > 0) {
+      clearTimeout(this.timeoutId);
+      this.timeoutId = 0;
+    }
+    this.observer.disconnect();
+    this.lastAdded = this.firstScrolled = this.lastScrolled = undefined;
+  }
 }
 
-const readOnScrollObserver = new MarkReadOnScroll(
-  document.querySelectorAll(
-    ".items[data-infinite-scroll=true] > .item.item-status-unread"));
+function infiniteScrollEntries() {
+  return document.querySelectorAll(
+    ".items[data-infinite-scroll=true] > .item.item-status-unread")
+}
+
+const readOnScrollObserver = new MarkReadOnScroll(infiniteScrollEntries());
