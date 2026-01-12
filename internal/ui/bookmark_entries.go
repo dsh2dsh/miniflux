@@ -35,6 +35,7 @@ func (h *handler) showStarredPage(w http.ResponseWriter, r *http.Request) {
 		Set("total", count).
 		Set("entries", entries).
 		Set("pagination", getPagination(route.Path(h.router, "starred"),
-			count, offset, user.EntriesPerPage))
+			count, offset, user.EntriesPerPage)).
+		Set("showOnlyUnreadEntries", false)
 	html.OK(w, r, v.Render("bookmark_entries"))
 }
