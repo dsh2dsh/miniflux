@@ -348,22 +348,20 @@ body[data-color-scheme=light] #header-menu {
 }
 
 #toast-msg {
-    background-color: rgba(0,0,0,0.7);
-    padding-bottom: 4px;
-    padding-left: 4px;
-    padding-right: 5px;
+    background-color: rgb(0 0 0 / 0.7);
+    padding: 1rem;
     border-radius: 5px;
 }
 
 .toast-animate {
-    animation: toastKeyFrames 2s;
+    animation: toastKeyFrames 5s;
 }
 
 @keyframes toastKeyFrames {
     0% {visibility: hidden; opacity: 0;}
-    25% {visibility: visible; opacity: 1; z-index: 9999}
+    15% {visibility: visible; opacity: 1; z-index: 9999}
     50% {visibility: visible; opacity: 1; z-index: 9999}
-    75% {visibility: visible; opacity: 1; z-index: 9999}
+    85% {visibility: visible; opacity: 1; z-index: 9999}
     100% {visibility: hidden; opacity: 0; z-index: 0}
 }
 
