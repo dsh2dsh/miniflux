@@ -102,21 +102,8 @@ function handleHtmxErrors() {
   });
 }
 
-function boosted() {
-  document.body.addEventListener("htmx:afterSwap", event => {
-    if (event.target !== document.body || !event.detail.boosted) return;
-
-    readOnScrollObserver.reset();
-    readOnScrollObserver.addEntries(infiniteScrollEntries());
-
-    initializeFormHandlers();
-    initializeMediaPlayerHandlers();
-  });
-}
-
 initDataConfirm();
 initServiceWorker();
 initCommentLinks();
 initElevator();
 handleHtmxErrors();
-boosted();

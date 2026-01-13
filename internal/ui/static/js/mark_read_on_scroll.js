@@ -6,7 +6,7 @@ class MarkReadOnScroll {
   lastScrolled;
   timeoutId = 0;
 
-  constructor(entries) {
+  constructor() {
     document.body.addEventListener("htmx:afterSwap", event => {
       if (event.target.matches(MarkReadOnScroll.pageEndSelector))
         this.revealedCallback(event.target);
@@ -18,11 +18,13 @@ class MarkReadOnScroll {
     }, {
       root: null,
     });
-    this.addEntries(entries);
+    this.addEntries();
   }
 
-  addEntries(entries) {
-    entries.forEach(entry => this.addEntry(entry));
+  addEntries() {
+    document.querySelectorAll(
+      ".items[data-infinite-scroll=true] > .item.item-status-unread"
+    ).forEach(entry => this.addEntry(entry));
   }
 
   addEntry(entry) {
@@ -117,19 +119,15 @@ class MarkReadOnScroll {
     }
   }
 
-  reset() {
+  restart() {
     if (this.timeoutId > 0) {
       clearTimeout(this.timeoutId);
       this.timeoutId = 0;
     }
     this.observer.disconnect();
     this.lastAdded = this.firstScrolled = this.lastScrolled = undefined;
+    this.addEntries();
   }
 }
 
-function infiniteScrollEntries() {
-  return document.querySelectorAll(
-    ".items[data-infinite-scroll=true] > .item.item-status-unread")
-}
-
-const readOnScrollObserver = new MarkReadOnScroll(infiniteScrollEntries());
+const readOnScrollObserver = new MarkReadOnScroll();
