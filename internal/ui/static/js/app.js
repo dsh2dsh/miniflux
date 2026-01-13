@@ -530,7 +530,6 @@ function toggleMainMenuDropdown(event) {
  * Initialize the main menu handlers.
  */
 function initializeMainMenuHandlers() {
-  /*
     toggleAriaAttributesOnMainMenu();
     window.addEventListener("resize", toggleAriaAttributesOnMainMenu, { passive: true });
 
@@ -539,7 +538,6 @@ function initializeMainMenuHandlers() {
         logoElement.addEventListener("click", toggleMainMenuDropdown);
         logoElement.addEventListener("keydown", toggleMainMenuDropdown);
     }
-   */
 
     onClick(".header nav li", (event) => {
         const linkElement = event.target.closest("a") || event.target.querySelector("a");
@@ -1244,7 +1242,7 @@ function initializeClickHandlers() {
 }
 
 // Initialize application handlers
-initializeMainMenuHandlers();
+// initializeMainMenuHandlers();
 initializeFormHandlers();
 initializeMediaPlayerHandlers();
 initializeWebAuthn();
