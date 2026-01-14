@@ -58,6 +58,12 @@ func (self *AccessLog) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		slog.String("client_ip", request.ClientIP(r)),
 		slog.String("proto", r.Proto))
 
+	if s := r.Header.Get("HX-Boosted"); s != "" {
+		log = log.With(slog.Bool("hx-boosted", true))
+	} else if s := r.Header.Get("HX-Request"); s != "" {
+		log = log.With(slog.Bool("hx-request", true))
+	}
+
 	if u := logRequest.User; u != nil {
 		log = log.With(slog.GroupAttrs("user",
 			slog.Int64("id", u.ID),
