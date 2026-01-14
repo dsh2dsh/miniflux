@@ -1,10 +1,12 @@
 class InlineEntry {
+  static itemTitleLink = ".entry-item .item-title a";
+
   constructor() {
     const body = document.body;
 
     body.addEventListener("htmx:trigger", (event) => {
       const el = event.detail.elt;
-      if (el.closest(".item-title a"))
+      if (el.closest(InlineEntry.itemTitleLink))
         this.beginInline(el);
     }, true);
 
@@ -16,19 +18,19 @@ class InlineEntry {
 
     body.addEventListener("htmx:sendError", (event) => {
       const el = event.detail.elt;
-      if (el.closest(".item-title a"))
+      if (el.closest(InlineEntry.itemTitleLink))
         this.inlineFailed(el.closest(".item"), event.detail);
     }, true);
 
     body.addEventListener("htmx:responseError", (event) => {
       const el = event.detail.elt;
-      if (el.closest(".item-title a"))
+      if (el.closest(InlineEntry.itemTitleLink))
         this.inlineFailed(el.closest(".item"), event.detail);
     }, true);
 
     body.addEventListener("htmx:afterSettle", (event) => {
       const el = event.detail.elt;
-      if (el.matches(".item > .loaded"))
+      if (el.matches(".entry-item > .loaded"))
         this.entryInlined(el.closest(".item"));
       else if (el.matches(".entry-content.download"))
         this.downloaded(el.closest(".item"));
@@ -39,8 +41,8 @@ class InlineEntry {
 
     body.addEventListener("click", (event) => {
       const el = event.target;
-      if (el.closest(".item-title a"))
-        this.originalLinkClick(el.closest(".item"));
+      if (el.closest(InlineEntry.itemTitleLink))
+        this.originalLinkClick(el.closest(".entry-item"));
     }, true);
   }
 
