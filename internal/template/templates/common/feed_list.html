@@ -8,7 +8,7 @@
         >
             <header class="item-header" dir="auto">
                 <h2 id="feed-title-{{ .ID }}" class="item-title">
-                    <a href="{{ route "feedEntries" "feedID" .ID }}">
+                    <a href="{{ route "feedEntries" "feedID" .ID }}" hx-boost="true">
                         {{ if and (.Icon) (gt .Icon.IconID 0) }}
                         <img class="feed-icon" src="{{ route "feedIcon" "externalIconID" .Icon.ExternalId }}" loading="lazy" alt="">
                         {{ end }}
@@ -25,6 +25,7 @@
                 </span>
                 <span class="category">
                     <a id="feed-category-{{ .ID }}"
+                       hx-boost="true"
                        href="{{ route "categoryEntries" "categoryID" .Category.ID }}"
                        aria-label="{{ t "page.category_label" .Category.Title }}"
                     >
@@ -57,12 +58,12 @@
                 </ul>
                 <ul class="item-meta-icons">
                     <li class="item-meta-icons-refresh">
-                        <a href="{{ route "refreshFeed" "feedID" .ID }}" aria-describedby="feed-title-{{ .ID }}">
+                        <a href="{{ route "refreshFeed" "feedID" .ID }}" aria-describedby="feed-title-{{ .ID }}" hx-boost="true">
                             {{ icon "refresh" }}<span class="icon-label">{{ t "menu.refresh_feed" }}</span>
                         </a>
                     </li>
                     <li class="item-meta-icons-edit">
-                        <a href="{{ route "editFeed" "feedID" .ID }}" aria-describedby="feed-title-{{ .ID }}">
+                        <a href="{{ route "editFeed" "feedID" .ID }}" aria-describedby="feed-title-{{ .ID }}" hx-boost="true">
                             {{ icon "edit" }}<span class="icon-label">{{ t "menu.edit_feed" }}</span>
                         </a>
                     </li>

@@ -8,7 +8,7 @@
 {{ end }}
 
 {{ define "content"}}
-<form action="{{ route "saveUser" }}" method="post" autocomplete="off">
+<form action="{{ route "saveUser" }}" method="post" autocomplete="off" hx-boost="true">
     {{ if .errorMessage }}
         <div role="alert" class="alert alert-error">{{ .errorMessage }}</div>
     {{ end }}

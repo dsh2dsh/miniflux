@@ -6,10 +6,10 @@
     <nav aria-label="{{ .feed.Title }} {{ t "menu.title" }}">
         <ul>
             <li>
-                <a href="{{ route "feeds" }}">{{ icon "feeds" }}{{ t "menu.feeds" }}</a>
+                <a href="{{ route "feeds" }}" hx-boost="true">{{ icon "feeds" }}{{ t "menu.feeds" }}</a>
             </li>
             <li>
-                <a href="{{ route "feedEntries" "feedID" .feed.ID }}">{{ icon "entries" }}{{ t "menu.feed_entries" }}</a>
+                <a href="{{ route "feedEntries" "feedID" .feed.ID }}" hx-boost="true">{{ icon "entries" }}{{ t "menu.feed_entries" }}</a>
             </li>
             <li>
                 <a href="#"
@@ -37,7 +37,7 @@
     </div>
     {{ end }}
 
-    <form action="{{ route "updateFeed" "feedID" .feed.ID }}" method="post" autocomplete="off">
+    <form action="{{ route "updateFeed" "feedID" .feed.ID }}" method="post" autocomplete="off" hx-boost="true">
         {{ if .errorMessage }}
             <div role="alert" class="alert alert-error">{{ .errorMessage }}</div>
         {{ end }}

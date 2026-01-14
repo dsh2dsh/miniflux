@@ -1,5 +1,5 @@
 {{ define "settings_menu" }}
-<nav aria-label="{{ t "page.settings.title" }} {{ t "menu.title" }}">
+<nav aria-label="{{ t "page.settings.title" }} {{ t "menu.title" }}" hx-boost="true">
     <ul>
         <li>
             <a href="{{ route "settings" }}">{{ icon "settings" }}{{ t "menu.settings" }}</a>

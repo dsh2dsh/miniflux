@@ -6,7 +6,7 @@
     <nav aria-label="{{ t "page.new_category.title" }} {{ t "menu.title" }}">
         <ul>
             <li>
-                <a href="{{ route "categories" }}">{{ icon "categories" }}{{ t "menu.categories" }}</a>
+                <a href="{{ route "categories" }}" hx-boost="true">{{ icon "categories" }}{{ t "menu.categories" }}</a>
             </li>
         </ul>
     </nav>
@@ -14,7 +14,7 @@
 {{ end }}
 
 {{ define "content"}}
-<form action="{{ route "saveCategory" }}" method="post" autocomplete="off">
+<form action="{{ route "saveCategory" }}" method="post" autocomplete="off" hx-boost="true">
     {{ if .errorMessage }}
         <div role="alert" class="alert alert-error">{{ .errorMessage }}</div>
     {{ end }}

@@ -37,7 +37,7 @@
 
                 {{ if $.user.IsAdmin }}
                 <td>
-                    <a href="{{ route "editUser" "userID" .ID }}">{{ t "action.edit" }}</a>,
+                    <a href="{{ route "editUser" "userID" .ID }}" hx-boost="true">{{ t "action.edit" }}</a>,
                     <a href="#"
                        data-confirm="true"
                        data-label-question="{{ t "confirm.question" }}"
@@ -56,7 +56,7 @@
 
 {{ if $.user.IsAdmin }}
 <p>
-    <a href="{{ route "createUser" }}" class="button button-primary">{{ t "menu.add_user" }}</a>
+    <a href="{{ route "createUser" }}" class="button button-primary" hx-boost="true">{{ t "menu.add_user" }}</a>
 </p>
 {{ end }}
 {{ end }}

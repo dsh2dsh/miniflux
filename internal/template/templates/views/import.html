@@ -12,7 +12,7 @@
     <div role="alert" class="alert alert-error">{{ .errorMessage }}</div>
 {{ end }}
 
-<form action="{{ route "uploadOPML" }}" method="post" enctype="multipart/form-data">
+<form action="{{ route "uploadOPML" }}" method="post" enctype="multipart/form-data" hx-boost="true">
     <label for="form-file">{{ t "form.import.label.file" }}</label>
     <input type="file" name="file" id="form-file">
 

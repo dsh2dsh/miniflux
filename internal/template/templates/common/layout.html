@@ -86,7 +86,7 @@
     {{ if .user }}
     <a class="skip-to-content-link" href="#main">{{ t "skip_to_content" }}</a>
     <header class="header">
-        <nav>
+        <nav hx-boost="true">
             <div class="logo" data-toggle-button-label="{{ t "menu.title" }}">
                 <label for="toggleMainMenu"
                        role="button"

@@ -8,7 +8,7 @@
 {{ end }}
 
 {{ define "content"}}
-<form method="post" autocomplete="off" action="{{ route "updateIntegration" }}" class="integration-form">
+<form method="post" autocomplete="off" action="{{ route "updateIntegration" }}" class="integration-form" hx-boost="true">
     {{ if .errorMessage }}
         <div role="alert" class="alert alert-error">{{ .errorMessage }}</div>
     {{ end }}

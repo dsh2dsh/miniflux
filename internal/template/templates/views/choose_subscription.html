@@ -8,7 +8,7 @@
 {{ end }}
 
 {{ define "content"}}
-<form action="{{ route "chooseSubscription" }}" method="POST">
+<form action="{{ route "chooseSubscription" }}" method="POST" hx-boost="true">
     <input type="hidden" name="category_id" value="{{ .form.CategoryID }}">
     <input type="hidden" name="user_agent" value="{{ .form.UserAgent }}">
     <input type="hidden" name="cookie" value="{{ .form.Cookie }}">

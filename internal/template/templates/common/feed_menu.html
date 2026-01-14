@@ -1,19 +1,19 @@
 {{ define "feed_menu" }}
 <nav aria-label="{{ t "page.feeds.title" }} {{ t "menu.title" }}"><ul>
     <li>
-        <a class="page-link" href="{{ route "feeds" }}">{{ icon "feeds" }}{{ t "menu.feeds" }}</a>
+        <a class="page-link" href="{{ route "feeds" }}" hx-boost="true">{{ icon "feeds" }}{{ t "menu.feeds" }}</a>
     </li>
     <li>
-        <a class="page-link" href="{{ route "addSubscription" }}">{{ icon "add-feed" }}{{ t "menu.add_feed" }}</a>
+        <a class="page-link" href="{{ route "addSubscription" }}" hx-boost="true">{{ icon "add-feed" }}{{ t "menu.add_feed" }}</a>
     </li>
     <li>
         <a class="page-link" href="{{ route "export" }}">{{ icon "feed-export" }}{{ t "menu.export" }}</a>
     </li>
     <li>
-        <a class="page-link" href="{{ route "import" }}">{{ icon "feed-import" }}{{ t "menu.import" }}</a>
+        <a class="page-link" href="{{ route "import" }}" hx-boost="true">{{ icon "feed-import" }}{{ t "menu.import" }}</a>
     </li>
     <li>
-        <form action="{{ route "refreshAllFeeds" }}" class="page-header-action-form">
+        <form action="{{ route "refreshAllFeeds" }}" class="page-header-action-form" hx-boost="true">
             <button class="page-button" data-label-loading="{{ t "confirm.loading" }}">
                 {{ icon "refresh" }}{{ t "menu.refresh_all_feeds" }}
             </button>
