@@ -19,6 +19,7 @@ func (h *handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 	modifyRequest := model.CategoryModificationRequest{
 		Title:        model.SetOptionalField(f.Title),
 		HideGlobally: model.SetOptionalField(f.HideGlobally),
+		HideLabel:    model.SetOptionalField(f.HideLabel),
 	}
 	userID := request.UserID(r)
 	id := request.RouteInt64Param(r, "categoryID")

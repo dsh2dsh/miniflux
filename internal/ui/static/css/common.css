@@ -803,6 +803,10 @@ dialog {
     color: var(--category-color);
 }
 
+.category.hideLabel {
+    display: none;
+}
+
 .category a {
     color: var(--category-link-color);
     text-decoration: none;

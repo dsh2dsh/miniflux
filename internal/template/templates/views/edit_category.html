@@ -33,6 +33,13 @@
         {{ t "form.category.hide_globally" }}
     </label>
 
+    <label>
+        <input type="checkbox" name="hideLabel"
+               {{ if .form.HideLabel }}checked{{ end }}
+               value="1"/>
+        <span>Hide category label in an entry list</span>
+    </label>
+
     <div class="buttons">
         <button type="submit" class="button button-primary" data-label-loading="{{ t "form.submit.saving" }}">{{ t "action.update" }}</button>
     </div>

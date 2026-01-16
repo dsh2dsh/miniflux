@@ -753,4 +753,8 @@ CREATE INDEX ON entries
 
 	// 127
 	sqlMigration(`CREATE INDEX ON entries (feed_id, author)`),
+
+	// 128
+	sqlMigration(`
+ALTER TABLE categories ADD COLUMN extra jsonb NOT NULL DEFAULT '{}'::jsonb`),
 }

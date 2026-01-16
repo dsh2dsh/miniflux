@@ -3,7 +3,7 @@
 CREATE TABLE schema_version (
     version text NOT NULL
 );
-INSERT INTO schema_version (version) VALUES('127');
+INSERT INTO schema_version (version) VALUES('128');
 
 CREATE TABLE acme_cache (
     key character varying(400) NOT NULL PRIMARY KEY,
@@ -81,6 +81,7 @@ CREATE TABLE categories (
     user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title text NOT NULL,
     hide_globally boolean DEFAULT false NOT NULL,
+    extra jsonb NOT NULL DEFAULT '{}'::jsonb,
     UNIQUE (user_id, title)
 );
 

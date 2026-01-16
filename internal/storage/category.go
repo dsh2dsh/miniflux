@@ -81,9 +81,9 @@ SELECT EXISTS (SELECT FROM categories WHERE user_id=$1 AND id=$2)`,
 func (s *Storage) Category(ctx context.Context, userID, categoryID int64,
 ) (*model.Category, error) {
 	rows, _ := s.db.Query(ctx, `
-SELECT id, user_id, title, hide_globally
+SELECT id, user_id, title, hide_globally, extra
   FROM categories
- WHERE user_id=$1 AND id=$2`,
+ WHERE user_id = $1 AND id = $2`,
 		userID, categoryID)
 
 	category, err := pgx.CollectExactlyOneRow(rows,
@@ -100,9 +100,9 @@ SELECT id, user_id, title, hide_globally
 func (s *Storage) FirstCategory(ctx context.Context, userID int64,
 ) (*model.Category, error) {
 	rows, _ := s.db.Query(ctx, `
-SELECT id, user_id, title, hide_globally
+SELECT id, user_id, title, hide_globally, extra
   FROM categories
- WHERE user_id=$1
+ WHERE user_id = $1
  ORDER BY title ASC LIMIT 1`,
 		userID)
 
@@ -121,9 +121,9 @@ func (s *Storage) CategoryByTitle(ctx context.Context, userID int64,
 	title string,
 ) (*model.Category, error) {
 	rows, _ := s.db.Query(ctx, `
-SELECT id, user_id, title, hide_globally
+SELECT id, user_id, title, hide_globally, extra
   FROM categories
- WHERE user_id=$1 AND title=$2`,
+ WHERE user_id = $1 AND title = $2`,
 		userID, title)
 
 	category, err := pgx.CollectExactlyOneRow(rows,
@@ -140,9 +140,9 @@ SELECT id, user_id, title, hide_globally
 func (s *Storage) Categories(ctx context.Context, userID int64,
 ) ([]model.Category, error) {
 	rows, _ := s.db.Query(ctx, `
-SELECT id, user_id, title, hide_globally
+SELECT id, user_id, title, hide_globally, extra
   FROM categories
- WHERE user_id=$1 ORDER BY title ASC`,
+ WHERE user_id = $1 ORDER BY title ASC`,
 		userID)
 
 	categories, err := pgx.CollectRows(rows,
@@ -162,7 +162,7 @@ func (s *Storage) CategoriesWithFeedCount(ctx context.Context, userID int64,
 	}
 
 	query := `
-SELECT c.id, c.user_id, c.title, c.hide_globally,
+SELECT c.id, c.user_id, c.title, c.hide_globally, c.extra,
 	     (SELECT count(*) FROM feeds WHERE feeds.category_id=c.id) AS feed_count,
 	     (SELECT count(*)
 		      FROM feeds
@@ -211,9 +211,10 @@ func (s *Storage) UpdateCategory(ctx context.Context, category *model.Category,
 ) (bool, error) {
 	result, err := s.db.Exec(ctx, `
 UPDATE categories
-   SET title=$1, hide_globally=$2
- WHERE id=$3 AND user_id=$4`,
-		category.Title, category.HideGlobally, category.ID, category.UserID)
+   SET title = $3, hide_globally = $4, extra = $5
+ WHERE id = $1 AND user_id = $2`,
+		category.ID, category.UserID, category.Title, category.HideGlobally,
+		&category.Extra)
 	if err != nil {
 		return false, fmt.Errorf(`store: unable to update category: %w`, err)
 	}

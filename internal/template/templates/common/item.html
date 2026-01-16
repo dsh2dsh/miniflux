@@ -35,7 +35,7 @@
             </a>
         </h2>
 
-        <span class="category">
+        <span class="category {{ if .entry.Feed.Category.HiddenLabel }}hideLabel{{ end }}">
             <a
               href="{{ route "categoryEntries" "categoryID" .entry.Feed.Category.ID }}"
               aria-label="{{ t "page.category_label" .entry.Feed.Category.Title }}">
