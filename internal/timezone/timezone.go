@@ -10,7 +10,7 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
-// Convert converts provided date times to actual timezone.
+// Convert returns the provided time expressed in the given timezone.
 func Convert(tz string, times ...*time.Time) {
 	for _, t := range times {
 		*t = convert(tz, t)
@@ -47,7 +47,7 @@ func convert(tz string, t *time.Time) time.Time {
 	)
 }
 
-// Now returns the current time with the given timezone.
+// Now returns the current time in the given timezone.
 func Now(tz string) time.Time { return time.Now().In(getLocation(tz)) }
 
 func getLocation(tz string) *time.Location { return locations.Location(tz) }
