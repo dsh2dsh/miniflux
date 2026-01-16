@@ -110,7 +110,9 @@ func (self *FeedProcessor) init(ctx context.Context, userID int64, force bool,
 
 func (self *FeedProcessor) process(ctx context.Context) error {
 	log := logging.FromContext(ctx)
-	if err := filter.DeleteEntries(ctx, self.user, self.feed); err != nil {
+	err := filter.DeleteEntries(ctx, self.user, self.feed,
+		filter.WithSkipAgedFilter(self.skipAgeFilter))
+	if err != nil {
 		log.Debug("entries filter completed with error", slog.Any("error", err))
 		return fmt.Errorf("%w: delete filtered entries: %w", ErrBadFeed, err)
 	} else if len(self.feed.Entries) == 0 {

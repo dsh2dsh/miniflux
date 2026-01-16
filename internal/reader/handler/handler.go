@@ -139,6 +139,7 @@ func (self *Create) createFeed(ctx context.Context,
 	feed.CheckedNow()
 
 	err = processor.New(self.store, feed, self.templates).
+		WithSkipAgedFilter().
 		ProcessFeedEntries(ctx, self.userID, true)
 	if err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err, "", err)

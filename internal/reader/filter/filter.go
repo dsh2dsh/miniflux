@@ -18,39 +18,69 @@ import (
 )
 
 func DeleteEntries(ctx context.Context, user *model.User, feed *model.Feed,
+	opts ...Option,
 ) error {
-	block, keep, err := feedRules(user, feed)
+	return NewFeedFilter(user, feed, opts...).DeleteEntries(ctx)
+}
+
+type feedFilter struct {
+	user *model.User
+	feed *model.Feed
+
+	c Config
+}
+
+type Config struct {
+	skipAge bool
+}
+
+func NewFeedFilter(user *model.User, feed *model.Feed, opts ...Option,
+) *feedFilter {
+	self := &feedFilter{user: user, feed: feed}
+	for _, fn := range opts {
+		fn(&self.c)
+	}
+	return self
+}
+
+func (self *feedFilter) WithSkipAgedFilter(value bool) *feedFilter {
+	self.c.skipAge = value
+	return self
+}
+
+func (self *feedFilter) DeleteEntries(ctx context.Context) error {
+	block, keep, err := feedRules(self.user, self.feed)
 	if err != nil {
 		return fmt.Errorf("reader/filter: feed rules: %w", err)
 	}
 
 	log := logging.FromContext(ctx).With(slog.GroupAttrs("feed",
-		slog.Int64("id", feed.ID),
-		slog.String("url", feed.FeedURL)))
+		slog.Int64("id", self.feed.ID),
+		slog.String("url", self.feed.FeedURL)))
 	block = block.WithLogger(log.With(slog.String("filter_action", "block")))
 	keep = keep.WithLogger(log.With(slog.String("filter_action", "allow")))
 
 	maxAge := config.FilterEntryMaxAge()
-	seen := makeUniqEntries(feed)
-	blockAuthors := NewAuthors(feed.BlockAuthors()).WithLogger(log)
+	seen := makeUniqEntries(self.feed)
+	blockAuthors := NewAuthors(self.feed.BlockAuthors()).WithLogger(log)
 
 	del := func(e *model.Entry) bool {
 		switch {
-		case entryAged(ctx, e, maxAge):
-			feed.IncFilteredByAge()
+		case !self.c.skipAge && entryAged(ctx, e, maxAge):
+			self.feed.IncFilteredByAge()
 			return true
 		case e.Stored():
-			feed.IncFilteredByStored()
+			self.feed.IncFilteredByStored()
 			return true
 		case blockAuthors.Match(e) || block.Match(e) || !keep.Allow(e):
-			feed.IncFilteredByRules()
+			self.feed.IncFilteredByRules()
 			return true
 		case !seen.Add(e, log):
 			return true
 		}
 		return false
 	}
-	feed.Entries = slices.DeleteFunc(feed.Entries, del)
+	self.feed.Entries = slices.DeleteFunc(self.feed.Entries, del)
 	return nil
 }
 
