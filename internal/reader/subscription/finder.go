@@ -158,7 +158,7 @@ func (f *SubscriptionFinder) FindSubscriptionsFromWebPage(websiteURL, contentTyp
 			subscription := NewSubscription("", "")
 
 			if feedURL, exists := s.Attr("href"); exists && feedURL != "" {
-				subscription.URL, err = urllib.AbsoluteURL(websiteURL, feedURL)
+				subscription.URL, err = urllib.ResolveToAbsoluteURL(websiteURL, feedURL)
 				if err != nil {
 					return
 				}
@@ -204,7 +204,7 @@ func (f *SubscriptionFinder) FindSubscriptionsFromWellKnownURLs(websiteURL strin
 	}
 
 	// Look for knownURLs in current subdirectory, such as 'example.com/blog/'.
-	websiteURL, _ = urllib.AbsoluteURL(websiteURL, "./")
+	websiteURL, _ = urllib.ResolveToAbsoluteURL(websiteURL, "./")
 	if websiteURL != websiteURLRoot {
 		baseURLs = append(baseURLs, websiteURL)
 	}
@@ -212,7 +212,7 @@ func (f *SubscriptionFinder) FindSubscriptionsFromWellKnownURLs(websiteURL strin
 	var subscriptions Subscriptions
 	for _, baseURL := range baseURLs {
 		for _, knownURL := range knownURLs {
-			fullURL, err := urllib.AbsoluteURL(baseURL, knownURL)
+			fullURL, err := urllib.ResolveToAbsoluteURL(baseURL, knownURL)
 			if err != nil {
 				continue
 			}
@@ -356,7 +356,7 @@ func (f *SubscriptionFinder) findCanonicalURL(effectiveURL, contentType string, 
 		return effectiveURL
 	}
 
-	canonicalURL, err := urllib.AbsoluteURL(baseURL, strings.TrimSpace(canonicalHref))
+	canonicalURL, err := urllib.ResolveToAbsoluteURL(baseURL, strings.TrimSpace(canonicalHref))
 	if err != nil {
 		return effectiveURL
 	}

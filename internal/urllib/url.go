@@ -54,8 +54,8 @@ func GetAbsoluteURL(input string) (string, *url.URL, error) {
 	return "", u, nil
 }
 
-// AbsoluteURL converts the input URL as absolute URL if necessary.
-func AbsoluteURL(baseURL, input string) (string, error) {
+// ResolveToAbsoluteURL converts the input URL as absolute URL if necessary.
+func ResolveToAbsoluteURL(baseURL, input string) (string, error) {
 	absURL, u, err := GetAbsoluteURL(input)
 	if err != nil {
 		return "", err
@@ -78,7 +78,7 @@ func RootURL(websiteURL string) string {
 		websiteURL = "https://" + websiteURL[2:]
 	}
 
-	absoluteURL, err := AbsoluteURL(websiteURL, "")
+	absoluteURL, err := ResolveToAbsoluteURL(websiteURL, "")
 	if err != nil {
 		return websiteURL
 	}
