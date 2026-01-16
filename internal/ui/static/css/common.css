@@ -1332,6 +1332,11 @@ article.category-has-unread {
     max-width: 100%;
 }
 
+.entry-content tr {
+    color: revert;
+    background-color: revert;
+}
+
 .entry-content ul,
 .entry-content ol {
     margin-left: 30px;
