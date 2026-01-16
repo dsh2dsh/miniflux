@@ -11,6 +11,7 @@ import (
 	"miniflux.app/v2/internal/storage"
 )
 
+// ValidateAPIKeyCreation ensures API key creation requests include a description and are unique per user.
 func ValidateAPIKeyCreation(ctx context.Context, store *storage.Storage,
 	userID int64, request *model.APIKeyCreationRequest,
 ) *locale.LocalizedError {
