@@ -45,31 +45,32 @@ var (
 	userKey    ctxUser    = struct{}{}
 )
 
+// WebAuthnSessionData returns WebAuthn session data from the request context, or nil if absent.
 func WebAuthnSessionData(r *http.Request) *model.WebAuthnSession {
 	return getContextValue[*model.WebAuthnSession](r, WebAuthnDataContextKey)
 }
 
-// GoogleReaderToken returns the google reader token if it exists.
+// GoogleReaderToken returns the Google Reader token from the request context, if present.
 func GoogleReaderToken(r *http.Request) string {
 	return getContextStringValue(r, GoogleReaderTokenKey)
 }
 
-// IsAdminUser checks if the logged user is administrator.
+// IsAdminUser reports whether the logged-in user is an administrator.
 func IsAdminUser(r *http.Request) bool {
 	return getContextBoolValue(r, IsAdminUserContextKey)
 }
 
-// IsAuthenticated returns a boolean if the user is authenticated.
+// IsAuthenticated reports whether the user is authenticated.
 func IsAuthenticated(r *http.Request) bool {
 	return getContextBoolValue(r, IsAuthenticatedContextKey)
 }
 
-// UserID returns the UserID of the logged user.
+// UserID returns the logged-in user's ID from the request context.
 func UserID(r *http.Request) int64 {
 	return getContextInt64Value(r, UserIDContextKey)
 }
 
-// UserName returns the username of the logged user.
+// UserName returns the logged-in user's username, or "unknown" when unset.
 func UserName(r *http.Request) string {
 	value := getContextStringValue(r, UserNameContextKey)
 	if value == "" {
@@ -78,7 +79,7 @@ func UserName(r *http.Request) string {
 	return value
 }
 
-// UserTimezone returns the timezone used by the logged user.
+// UserTimezone returns the user's timezone, defaulting to "UTC" when unset.
 func UserTimezone(r *http.Request) string {
 	value := getContextStringValue(r, UserTimezoneContextKey)
 	if value == "" {
@@ -87,7 +88,7 @@ func UserTimezone(r *http.Request) string {
 	return value
 }
 
-// UserLanguage get the locale used by the current logged user.
+// UserLanguage returns the user's locale, defaulting to "en_US" when unset.
 func UserLanguage(r *http.Request) string {
 	language := getContextStringValue(r, UserLanguageContextKey)
 	if language == "" {
@@ -96,7 +97,7 @@ func UserLanguage(r *http.Request) string {
 	return language
 }
 
-// UserTheme get the theme used by the current logged user.
+// UserTheme returns the user's theme, defaulting to "system_serif" when unset.
 func UserTheme(r *http.Request) string {
 	theme := getContextStringValue(r, UserThemeContextKey)
 	if theme == "" {
@@ -105,31 +106,32 @@ func UserTheme(r *http.Request) string {
 	return theme
 }
 
-// SessionID returns the current session ID.
+// SessionID returns the current session ID from the request context.
 func SessionID(r *http.Request) string {
 	return getContextStringValue(r, SessionIDContextKey)
 }
 
-// OAuth2State returns the current OAuth2 state.
+// OAuth2State returns the OAuth2 state value from the request context.
 func OAuth2State(r *http.Request) string {
 	return getContextStringValue(r, OAuth2StateContextKey)
 }
 
+// OAuth2CodeVerifier returns the OAuth2 PKCE code verifier from the request context.
 func OAuth2CodeVerifier(r *http.Request) string {
 	return getContextStringValue(r, OAuth2CodeVerifierContextKey)
 }
 
-// FlashMessage returns the message message if any.
+// FlashMessage returns the flash message from the request context, if any.
 func FlashMessage(r *http.Request) string {
 	return getContextStringValue(r, FlashMessageContextKey)
 }
 
-// FlashErrorMessage returns the message error message if any.
+// FlashErrorMessage returns the flash error message from the request context, if any.
 func FlashErrorMessage(r *http.Request) string {
 	return getContextStringValue(r, FlashErrorMessageContextKey)
 }
 
-// LastForceRefresh returns the last force refresh timestamp.
+// LastForceRefresh returns the last force refresh timestamp from the request context.
 func LastForceRefresh(r *http.Request) int64 {
 	return getContextInt64Value(r, LastForceRefreshContextKey)
 }
@@ -138,7 +140,7 @@ func WithClientIP(ctx context.Context, ip string) context.Context {
 	return context.WithValue(ctx, ClientIPContextKey, ip)
 }
 
-// ClientIP returns the client IP address stored in the context.
+// ClientIP returns the client IP address stored in the request context.
 func ClientIP(r *http.Request) string {
 	return getContextValue[string](r, ClientIPContextKey)
 }

@@ -7,6 +7,8 @@ import (
 	"context"
 	"net/http"
 	"testing"
+
+	"miniflux.app/v2/internal/model"
 )
 
 func TestContextStringValue(t *testing.T) {
@@ -192,6 +194,28 @@ func TestUserID(t *testing.T) {
 	}
 }
 
+func TestUserName(t *testing.T) {
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
+
+	result := UserName(r)
+	expected := "unknown"
+
+	if result != expected {
+		t.Errorf(`Unexpected context value, got %q instead of %q`, result, expected)
+	}
+
+	ctx := r.Context()
+	ctx = context.WithValue(ctx, UserNameContextKey, "jane")
+	r = r.WithContext(ctx)
+
+	result = UserName(r)
+	expected = "jane"
+
+	if result != expected {
+		t.Errorf(`Unexpected context value, got %q instead of %q`, result, expected)
+	}
+}
+
 func TestUserTimezone(t *testing.T) {
 	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
@@ -302,6 +326,28 @@ func TestOAuth2State(t *testing.T) {
 	}
 }
 
+func TestOAuth2CodeVerifier(t *testing.T) {
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
+
+	result := OAuth2CodeVerifier(r)
+	expected := ""
+
+	if result != expected {
+		t.Errorf(`Unexpected context value, got %q instead of %q`, result, expected)
+	}
+
+	ctx := r.Context()
+	ctx = context.WithValue(ctx, OAuth2CodeVerifierContextKey, "verifier")
+	r = r.WithContext(ctx)
+
+	result = OAuth2CodeVerifier(r)
+	expected = "verifier"
+
+	if result != expected {
+		t.Errorf(`Unexpected context value, got %q instead of %q`, result, expected)
+	}
+}
+
 func TestFlashMessage(t *testing.T) {
 	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
@@ -346,6 +392,66 @@ func TestFlashErrorMessage(t *testing.T) {
 	}
 }
 
+func TestLastForceRefresh(t *testing.T) {
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
+
+	result := LastForceRefresh(r)
+	var expected int64
+
+	if result != expected {
+		t.Errorf(`Unexpected context value, got %v instead of %v`, result, expected)
+	}
+
+	ctx := r.Context()
+	ctx = context.WithValue(ctx, LastForceRefreshContextKey, "not-a-timestamp")
+	r = r.WithContext(ctx)
+
+	result = LastForceRefresh(r)
+
+	if result != expected {
+		t.Errorf(`Unexpected context value, got %v instead of %v`, result, expected)
+	}
+
+	ctx = r.Context()
+	ctx = context.WithValue(ctx, LastForceRefreshContextKey, int64(1700000000))
+	r = r.WithContext(ctx)
+
+	result = LastForceRefresh(r)
+	expected = 1700000000
+
+	if result != expected {
+		t.Errorf(`Unexpected context value, got %v instead of %v`, result, expected)
+	}
+}
+
+func TestWebAuthnSessionData(t *testing.T) {
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
+
+	result := WebAuthnSessionData(r)
+	if result != nil {
+		t.Errorf("Unexpected context value, got %v instead of nil", result)
+	}
+
+	ctx := r.Context()
+	ctx = context.WithValue(ctx, WebAuthnDataContextKey, "invalid")
+	r = r.WithContext(ctx)
+
+	result = WebAuthnSessionData(r)
+	if result != nil {
+		t.Errorf("Unexpected context value, got %v instead of nil", result)
+	}
+
+	session := &model.WebAuthnSession{}
+	ctx = r.Context()
+	ctx = context.WithValue(ctx, WebAuthnDataContextKey, session)
+	r = r.WithContext(ctx)
+
+	result = WebAuthnSessionData(r)
+	if result == nil {
+		t.Errorf("Unexpected context value, got nil instead of session")
+	}
+}
+
 func TestClientIP(t *testing.T) {
 	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
 
@@ -362,6 +468,28 @@ func TestClientIP(t *testing.T) {
 
 	result = ClientIP(r)
 	expected = "127.0.0.1"
+
+	if result != expected {
+		t.Errorf(`Unexpected context value, got %q instead of %q`, result, expected)
+	}
+}
+
+func TestGoogleReaderToken(t *testing.T) {
+	r, _ := http.NewRequest(http.MethodGet, "http://example.org", nil)
+
+	result := GoogleReaderToken(r)
+	expected := ""
+
+	if result != expected {
+		t.Errorf(`Unexpected context value, got %q instead of %q`, result, expected)
+	}
+
+	ctx := r.Context()
+	ctx = context.WithValue(ctx, GoogleReaderTokenKey, "token")
+	r = r.WithContext(ctx)
+
+	result = GoogleReaderToken(r)
+	expected = "token"
 
 	if result != expected {
 		t.Errorf(`Unexpected context value, got %q instead of %q`, result, expected)

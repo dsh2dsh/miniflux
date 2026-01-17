@@ -10,8 +10,8 @@ import (
 	"strings"
 )
 
-// FindClientIP returns the client real IP address based on trusted
-// Reverse-Proxy HTTP headers.
+// FindClientIP returns the real client IP address using trusted reverse-proxy
+// headers when allowed.
 func FindClientIP(r *http.Request, trustedProxy func(ip string) bool) string {
 	if clientIP := XForwardedFor(r, trustedProxy); clientIP != "" {
 		return clientIP
@@ -53,7 +53,7 @@ func dropIPv6zone(address string) string {
 	return before
 }
 
-// FindRemoteIP returns remote client IP address without considering HTTP
+// FindRemoteIP returns the remote client IP address without considering HTTP
 // headers.
 func FindRemoteIP(r *http.Request) string {
 	remoteIP, _, err := net.SplitHostPort(r.RemoteAddr)
