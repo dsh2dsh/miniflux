@@ -21,6 +21,8 @@ func OptionalString(value string) *string {
 	return nil
 }
 
+// SetOptionalField returns a pointer to the given value so optional request
+// fields can be marked as set.
 func SetOptionalField[T any](value T) *T {
 	return &value
 }
