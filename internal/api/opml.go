@@ -30,7 +30,7 @@ func (h *handler) importFeeds(w http.ResponseWriter, r *http.Request) {
 		json.ServerError(w, r, err)
 		return
 	}
-	json.Created(w, r, map[string]string{
-		"message": "Feeds imported successfully",
+	json.Created(w, r, importFeedsResponse{
+		Message: "Feeds imported successfully",
 	})
 }

@@ -18,8 +18,21 @@ type entriesResponse struct {
 	Entries model.Entries `json:"entries"`
 }
 
+type integrationsStatusResponse struct {
+	HasIntegrations bool `json:"has_integrations,omitzero"`
+}
+
+type entryContentResponse struct {
+	Content     string `json:"content,omitzero"`
+	ReadingTime int    `json:"reading_time,omitzero"`
+}
+
 type feedCreationResponse struct {
-	FeedID int64 `json:"feed_id"`
+	FeedID int64 `json:"feed_id,omitzero"`
+}
+
+type importFeedsResponse struct {
+	Message string `json:"message,omitzero"`
 }
 
 type VersionResponse struct {

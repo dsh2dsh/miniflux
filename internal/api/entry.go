@@ -393,9 +393,9 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	json.OK(w, r, map[string]any{
-		"content":      entry.Content,
-		"reading_time": entry.ReadingTime,
+	json.OK(w, r, entryContentResponse{
+		Content:     entry.Content,
+		ReadingTime: entry.ReadingTime,
 	})
 }
 
