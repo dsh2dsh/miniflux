@@ -49,7 +49,7 @@ func (self *feedFilter) WithSkipAgedFilter(value bool) *feedFilter {
 }
 
 func (self *feedFilter) DeleteEntries(ctx context.Context) error {
-	block, keep, err := feedRules(self.user, self.feed)
+	block, keep, err := self.filterRules()
 	if err != nil {
 		return fmt.Errorf("reader/filter: feed rules: %w", err)
 	}
@@ -84,32 +84,40 @@ func (self *feedFilter) DeleteEntries(ctx context.Context) error {
 	return nil
 }
 
-func feedRules(user *model.User, feed *model.Feed) (*Filter, *Filter, error) {
-	block, err := joinRules(user.BlockFilterEntryRules,
-		feed.BlockFilterEntryRules())
+func (self *feedFilter) filterRules() (*Filter, *Filter, error) {
+	block, err := self.blockRules()
 	if err != nil {
-		return nil, nil, fmt.Errorf("building block filter: %w", err)
+		return nil, nil, err
 	}
 
-	keep, err := joinRules(user.KeepFilterEntryRules,
-		feed.KeepFilterEntryRules())
+	keep, err := self.keepRules()
 	if err != nil {
-		return nil, nil, fmt.Errorf("building keep filter: %w", err)
+		return nil, nil, err
 	}
 	return block, keep, nil
 }
 
-func joinRules(userRules, feedRules string) (*Filter, error) {
-	userFilter, err := New(userRules)
+func (self *feedFilter) blockRules() (*Filter, error) {
+	block, err := NewCombinedFilter(
+		self.user.BlockFilterEntryRules,
+		self.feed.Category.BlockFilter(),
+		self.feed.BlockFilterEntryRules())
 	if err != nil {
-		return nil, fmt.Errorf("bad user rules: %w", err)
+		return nil, fmt.Errorf(
+			"building block filter from sets=user,category,feed: %w", err)
 	}
+	return block, nil
+}
 
-	feedFilter, err := New(feedRules)
+func (self *feedFilter) keepRules() (*Filter, error) {
+	keep, err := NewCombinedFilter(
+		self.user.KeepFilterEntryRules,
+		self.feed.KeepFilterEntryRules())
 	if err != nil {
-		return nil, fmt.Errorf("bad feed rules: %w", err)
+		return nil, fmt.Errorf(
+			"building keep filter from sets=user,feed: %w", err)
 	}
-	return userFilter.Concat(feedFilter), nil
+	return keep, nil
 }
 
 func matchDatePattern(pattern string, entryDate time.Time) bool {

@@ -10,27 +10,44 @@ import (
 	"miniflux.app/v2/internal/model"
 )
 
+func New(s string) (*Filter, error) {
+	return NewCombinedFilter(s)
+}
+
+func NewCombinedFilter(humanRules ...string) (*Filter, error) {
+	var size int
+	for _, s := range humanRules {
+		if strings.TrimSpace(s) == "" {
+			continue
+		}
+		size += strings.Count(s, "\n") + 1
+	}
+	rules := make([]*Rule, 0, size)
+
+	for j, s := range humanRules {
+		if strings.TrimSpace(s) == "" {
+			continue
+		}
+		var i int
+		for line := range strings.SplitSeq(s, "\n") {
+			i++
+			line = strings.TrimSpace(strings.TrimSuffix(line, "\r"))
+			if line == "" {
+				continue
+			}
+			rule, err := NewRule(line)
+			if err != nil {
+				return nil, fmt.Errorf("parse rule set=%d line=%d: %w", j+1, i, err)
+			}
+			rules = append(rules, rule)
+		}
+	}
+	return &Filter{rules: rules}, nil
+}
+
 type Filter struct {
 	rules  []*Rule
 	logger *slog.Logger
-}
-
-func New(s string) (*Filter, error) {
-	rules := make([]*Rule, 0, strings.Count(s, "\n")+1)
-	var i int
-	for line := range strings.SplitSeq(s, "\n") {
-		i++
-		line = strings.TrimSpace(strings.TrimSuffix(line, "\r"))
-		if line == "" {
-			continue
-		}
-		rule, err := NewRule(line)
-		if err != nil {
-			return nil, fmt.Errorf("parse rule line %v: %w", i, err)
-		}
-		rules = append(rules, rule)
-	}
-	return &Filter{rules: rules}, nil
 }
 
 func (self *Filter) WithLogger(l *slog.Logger) *Filter {

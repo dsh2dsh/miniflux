@@ -19,7 +19,8 @@ type Category struct {
 }
 
 type CategoryExtra struct {
-	HideLabel bool `json:"hide_label,omitempty"`
+	BlockFilter string `json:"block_filter,omitempty"`
+	HideLabel   bool   `json:"hide_label,omitempty"`
 }
 
 func (self *Category) String() string {
@@ -28,6 +29,8 @@ func (self *Category) String() string {
 }
 
 func (self *Category) HiddenLabel() bool { return self.Extra.HideLabel }
+
+func (self *Category) BlockFilter() string { return self.Extra.BlockFilter }
 
 type CategoryCreationRequest struct {
 	Title        string `json:"title,omitzero"`
@@ -38,6 +41,7 @@ type CategoryModificationRequest struct {
 	Title        *string `json:"title,omitzero"`
 	HideGlobally *bool   `json:"hide_globally,omitzero"`
 	HideLabel    *bool   `json:"hide_label,omitzero"`
+	BlockFilter  *string `json:"block_filter,omitempty"`
 }
 
 func (self *CategoryModificationRequest) Patch(category *Category) {
@@ -51,5 +55,9 @@ func (self *CategoryModificationRequest) Patch(category *Category) {
 
 	if self.HideLabel != nil {
 		category.Extra.HideLabel = *self.HideLabel
+	}
+
+	if self.BlockFilter != nil {
+		category.Extra.BlockFilter = *self.BlockFilter
 	}
 }

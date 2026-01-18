@@ -25,23 +25,42 @@
         <div role="alert" class="alert alert-error">{{ .errorMessage }}</div>
     {{ end }}
 
-    <label for="form-title">{{ t "form.category.label.title" }}</label>
-    <input type="text" name="title" id="form-title" value="{{ .form.Title }}" required autofocus>
+    <fieldset>
+        <label for="form-title">{{ t "form.category.label.title" }}</label>
+        <input type="text" name="title" id="form-title" value="{{ .form.Title }}" required autofocus>
 
-    <label>
-        <input type="checkbox" name="hide_globally" {{ if .form.HideGlobally }}checked{{ end }} value="1">
-        {{ t "form.category.hide_globally" }}
-    </label>
+        <label>
+            <input type="checkbox" name="hide_globally" {{ if .form.HideGlobally }}checked{{ end }} value="1">
+            {{ t "form.category.hide_globally" }}
+        </label>
 
-    <label>
-        <input type="checkbox" name="hideLabel"
-               {{ if .form.HideLabel }}checked{{ end }}
-               value="1"/>
-        <span>Hide category label in an entry list</span>
-    </label>
+        <label>
+            <input type="checkbox" name="hideLabel"
+                   {{ if .form.HideLabel }}checked{{ end }}
+                   value="1"/>
+            <span>Hide category label in an entry list</span>
+        </label>
 
-    <div class="buttons">
-        <button type="submit" class="button button-primary" data-label-loading="{{ t "form.submit.saving" }}">{{ t "action.update" }}</button>
-    </div>
+        <div class="buttons">
+            <button type="submit" class="button button-primary" data-label-loading="{{ t "form.submit.saving" }}">{{ t "action.update" }}</button>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <div class="form-label-row">
+            <label for="formBlockFilter">
+                {{ t "form.feed.label.block_filter_entry_rules" }}
+            </label>
+            &nbsp;
+            <a href=" https://miniflux.app/docs/rules.html#filtering-rules" {{ $.user.TargetBlank }}>
+                {{ icon "external-link" }}
+            </a>
+        </div>
+        <textarea id="formBlockFilter" name="blockFilter" cols="40" rows="10" spellcheck="false">{{ .form.BlockFilter }}</textarea>
+
+        <div class="buttons">
+            <button type="submit" class="button button-primary" data-label-loading="{{ t "form.submit.saving" }}">{{ t "action.update" }}</button>
+        </div>
+    </fieldset>
 </form>
 {{ end }}

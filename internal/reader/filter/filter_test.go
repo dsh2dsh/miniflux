@@ -17,6 +17,7 @@ import (
 
 func TestBlockingEntries(t *testing.T) {
 	tests := []struct {
+		name     string
 		feed     model.Feed
 		user     model.User
 		expected int
@@ -24,6 +25,7 @@ func TestBlockingEntries(t *testing.T) {
 	}{
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Extra: model.FeedExtra{
 					BlockFilterEntryRules: "Any=(?i)example",
 				},
@@ -32,6 +34,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{ // invalid regex
 			feed: model.Feed{
+				Category: &model.Category{},
 				Extra: model.FeedExtra{
 					BlockFilterEntryRules: "Any=[a-z",
 				},
@@ -41,6 +44,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Extra: model.FeedExtra{
 					BlockFilterEntryRules: "Any=(?i)example",
 				},
@@ -50,6 +54,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Extra: model.FeedExtra{
 					BlockFilterEntryRules: "Any=(?i)example",
 				},
@@ -58,6 +63,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Extra: model.FeedExtra{
 					BlockFilterEntryRules: "Any=(?i)example",
 				},
@@ -67,6 +73,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Extra: model.FeedExtra{
 					BlockFilterEntryRules: "Any=(?i)example",
 				},
@@ -80,6 +87,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Extra: model.FeedExtra{
 					BlockFilterEntryRules: "Any=(?i)example",
 				},
@@ -93,6 +101,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Extra: model.FeedExtra{
 					BlockFilterEntryRules: "Any=(?i)example",
 				},
@@ -106,6 +115,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Extra: model.FeedExtra{
 					BlockFilterEntryRules: "Any=(?i)example",
 				},
@@ -120,6 +130,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Extra: model.FeedExtra{
 					BlockFilterEntryRules: "Any=(?i)example",
 				},
@@ -130,6 +141,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Extra: model.FeedExtra{
 					BlockFilterEntryRules: "Any=(?i)example",
 				},
@@ -141,12 +153,14 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
-				Entries: model.Entries{{Title: "No rule defined"}},
+				Category: &model.Category{},
+				Entries:  model.Entries{{Title: "No rule defined"}},
 			},
 			expected: 1,
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{URL: "https://example.com", Title: "Some Example"},
 				},
@@ -157,6 +171,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{URL: "https://different.com", Title: "Some Test"},
 				},
@@ -167,6 +182,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{URL: "https://different.com", Title: "Some Example"},
 				},
@@ -178,6 +194,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{CommentsURL: "https://example.com", Content: "Some Example"},
 				},
@@ -188,6 +205,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{CommentsURL: "https://different.com", Content: "Some Test"},
 				},
@@ -198,6 +216,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{CommentsURL: "https://different.com", Content: "Some Example"},
 				},
@@ -209,6 +228,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Author: "Example", Tags: []string{"example", "something else"}},
 				},
@@ -219,6 +239,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Author: "Different", Tags: []string{"example", "something else"}},
 				},
@@ -229,6 +250,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Author: "Different", Tags: []string{"example", "something else"}},
 				},
@@ -240,6 +262,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Author: "Different", Tags: []string{"example", "test"}},
 				},
@@ -251,6 +274,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Date: time.Date(2024, 3, 14, 0, 0, 0, 0, time.UTC)},
 				},
@@ -262,6 +286,7 @@ func TestBlockingEntries(t *testing.T) {
 		// Test max-age filter
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
 				},
@@ -272,6 +297,7 @@ func TestBlockingEntries(t *testing.T) {
 		// Invalid duration format
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
 				},
@@ -281,6 +307,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Date: time.Date(2024, 3, 14, 0, 0, 0, 0, time.UTC)},
 				},
@@ -290,6 +317,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Extra: model.FeedExtra{
 					BlockFilterEntryRules: "EntryURL=(?i)example\nEntryTitle=(?i)Test",
 				},
@@ -301,7 +329,8 @@ func TestBlockingEntries(t *testing.T) {
 		// Test cases for merged user and feed BlockFilterEntryRules
 		{
 			feed: model.Feed{
-				Extra: model.FeedExtra{BlockFilterEntryRules: "EntryURL=(?i)website"},
+				Category: &model.Category{},
+				Extra:    model.FeedExtra{BlockFilterEntryRules: "EntryURL=(?i)website"},
 				Entries: model.Entries{
 					{URL: "https://example.com", Title: "Some Title"},
 				},
@@ -313,7 +342,8 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
-				Extra: model.FeedExtra{BlockFilterEntryRules: "EntryURL=(?i)example"},
+				Category: &model.Category{},
+				Extra:    model.FeedExtra{BlockFilterEntryRules: "EntryURL=(?i)example"},
 				Entries: model.Entries{
 					{URL: "https://example.com", Title: "Some Other"},
 				},
@@ -323,7 +353,8 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
-				Extra: model.FeedExtra{BlockFilterEntryRules: "EntryURL=(?i)example"},
+				Category: &model.Category{},
+				Extra:    model.FeedExtra{BlockFilterEntryRules: "EntryURL=(?i)example"},
 				Entries: model.Entries{
 					{URL: "https://different.com", Title: "Some Other"},
 				},
@@ -334,7 +365,8 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
-				Extra: model.FeedExtra{BlockFilterEntryRules: "EntryURL=(?i)example"},
+				Category: &model.Category{},
+				Extra:    model.FeedExtra{BlockFilterEntryRules: "EntryURL=(?i)example"},
 				Entries: model.Entries{
 					{URL: "https://example.com", Title: "Some Title"},
 				},
@@ -345,6 +377,7 @@ func TestBlockingEntries(t *testing.T) {
 		// Test multiple rules with \r\n separators
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Extra: model.FeedExtra{
 					BlockFilterEntryRules: "EntryURL=(?i)example\r\nEntryTitle=(?i)Test",
 				},
@@ -356,6 +389,7 @@ func TestBlockingEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Extra: model.FeedExtra{
 					BlockFilterEntryRules: "EntryURL=(?i)example\r\nEntryTitle=(?i)Test",
 				},
@@ -365,11 +399,28 @@ func TestBlockingEntries(t *testing.T) {
 			},
 			user: model.User{BlockFilterEntryRules: "EntryTitle=(?i)title"},
 		},
+		{
+			name: "category rule matched",
+			feed: model.Feed{
+				Category: &model.Category{
+					Extra: model.CategoryExtra{
+						BlockFilter: "   EntryTitle=(?i)title   ",
+					},
+				},
+				Entries: model.Entries{
+					{URL: "https://example.com", Title: "Some Title"},
+				},
+			},
+		},
 	}
 
 	require.NoError(t, config.Load(""))
 	for i, tt := range tests {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+		name := tt.name
+		if name == "" {
+			name = "test " + strconv.Itoa(i)
+		}
+		t.Run(name, func(t *testing.T) {
 			user, feed := tt.user, tt.feed
 			if tt.err {
 				require.Error(t, DeleteEntries(t.Context(), &user, &feed))
@@ -390,47 +441,54 @@ func TestAllowEntries(t *testing.T) {
 	}{
 		{
 			feed: model.Feed{
-				Extra:   model.FeedExtra{KeepFilterEntryRules: "Any=(?i)example"},
-				Entries: model.Entries{{Title: "https://example.com"}},
+				Category: &model.Category{},
+				Extra:    model.FeedExtra{KeepFilterEntryRules: "Any=(?i)example"},
+				Entries:  model.Entries{{Title: "https://example.com"}},
 			},
 			expected: 1,
 		},
 		{
 			feed: model.Feed{
-				Extra:   model.FeedExtra{KeepFilterEntryRules: "Any=[a-z"},
-				Entries: model.Entries{{Title: "https://example.com"}},
+				Category: &model.Category{},
+				Extra:    model.FeedExtra{KeepFilterEntryRules: "Any=[a-z"},
+				Entries:  model.Entries{{Title: "https://example.com"}},
 			},
 			err: true,
 			// invalid regex
 		},
 		{
 			feed: model.Feed{
-				Extra:   model.FeedExtra{KeepFilterEntryRules: "Any=(?i)example"},
-				Entries: model.Entries{{Title: "https://different.com"}},
+				Category: &model.Category{},
+				Extra:    model.FeedExtra{KeepFilterEntryRules: "Any=(?i)example"},
+				Entries:  model.Entries{{Title: "https://different.com"}},
 			},
 		},
 		{
 			feed: model.Feed{
-				Extra:   model.FeedExtra{KeepFilterEntryRules: "Any=(?i)example"},
-				Entries: model.Entries{{Title: "Some Example"}},
-			},
-			expected: 1,
-		},
-		{
-			feed: model.Feed{
-				Extra:   model.FeedExtra{KeepFilterEntryRules: "Any=(?i)example"},
-				Entries: model.Entries{{Title: "Something different"}},
-			},
-		},
-		{
-			feed: model.Feed{
-				Entries: model.Entries{{Title: "No rule defined"}},
+				Category: &model.Category{},
+				Extra:    model.FeedExtra{KeepFilterEntryRules: "Any=(?i)example"},
+				Entries:  model.Entries{{Title: "Some Example"}},
 			},
 			expected: 1,
 		},
 		{
 			feed: model.Feed{
-				Extra: model.FeedExtra{KeepFilterEntryRules: "Any=(?i)example"},
+				Category: &model.Category{},
+				Extra:    model.FeedExtra{KeepFilterEntryRules: "Any=(?i)example"},
+				Entries:  model.Entries{{Title: "Something different"}},
+			},
+		},
+		{
+			feed: model.Feed{
+				Category: &model.Category{},
+				Entries:  model.Entries{{Title: "No rule defined"}},
+			},
+			expected: 1,
+		},
+		{
+			feed: model.Feed{
+				Category: &model.Category{},
+				Extra:    model.FeedExtra{KeepFilterEntryRules: "Any=(?i)example"},
 				Entries: model.Entries{
 					{
 						Title: "Something different",
@@ -442,7 +500,8 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
-				Extra: model.FeedExtra{KeepFilterEntryRules: "Any=(?i)example"},
+				Category: &model.Category{},
+				Extra:    model.FeedExtra{KeepFilterEntryRules: "Any=(?i)example"},
 				Entries: model.Entries{
 					{
 						Title: "Example",
@@ -454,7 +513,8 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
-				Extra: model.FeedExtra{KeepFilterEntryRules: "Any=(?i)example"},
+				Category: &model.Category{},
+				Extra:    model.FeedExtra{KeepFilterEntryRules: "Any=(?i)example"},
 				Entries: model.Entries{
 					{
 						Title: "Example",
@@ -466,7 +526,8 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
-				Extra: model.FeedExtra{KeepFilterEntryRules: "Any=(?i)example"},
+				Category: &model.Category{},
+				Extra:    model.FeedExtra{KeepFilterEntryRules: "Any=(?i)example"},
 				Entries: model.Entries{
 					{
 						Title: "Something more",
@@ -477,7 +538,8 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
-				Extra: model.FeedExtra{KeepFilterEntryRules: "Any=(?i)example"},
+				Category: &model.Category{},
+				Extra:    model.FeedExtra{KeepFilterEntryRules: "Any=(?i)example"},
 				Entries: model.Entries{
 					{Title: "Something different", Author: "Example"},
 				},
@@ -486,7 +548,8 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
-				Extra: model.FeedExtra{KeepFilterEntryRules: "Any=(?i)example"},
+				Category: &model.Category{},
+				Extra:    model.FeedExtra{KeepFilterEntryRules: "Any=(?i)example"},
 				Entries: model.Entries{
 					{Title: "Something different", Author: "Something different"},
 				},
@@ -494,6 +557,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{URL: "https://example.com", Title: "Some Example"},
 				},
@@ -505,6 +569,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{URL: "https://different.com", Title: "Some Test"},
 				},
@@ -516,6 +581,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{URL: "https://different.com", Title: "Some Example"},
 				},
@@ -526,6 +592,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{CommentsURL: "https://example.com", Content: "Some Example"},
 				},
@@ -537,6 +604,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{CommentsURL: "https://different.com", Content: "Some Test"},
 				},
@@ -548,6 +616,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{CommentsURL: "https://different.com", Content: "Some Example"},
 				},
@@ -558,6 +627,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{
 						Author: "Example",
@@ -572,6 +642,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{
 						Author: "Different",
@@ -586,6 +657,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{
 						Author: "Different",
@@ -599,6 +671,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{
 						Author: "Different",
@@ -613,19 +686,22 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
-				Entries: model.Entries{{Date: time.Now().Add(24 * time.Hour)}},
+				Category: &model.Category{},
+				Entries:  model.Entries{{Date: time.Now().Add(24 * time.Hour)}},
 			},
 			user:     model.User{KeepFilterEntryRules: "EntryDate=future"},
 			expected: 1,
 		},
 		{
 			feed: model.Feed{
-				Entries: model.Entries{{Date: time.Now().Add(-24 * time.Hour)}},
+				Category: &model.Category{},
+				Entries:  model.Entries{{Date: time.Now().Add(-24 * time.Hour)}},
 			},
 			user: model.User{KeepFilterEntryRules: "EntryDate=future"},
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Date: time.Date(2024, 3, 14, 0, 0, 0, 0, time.UTC)},
 				},
@@ -635,6 +711,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Date: time.Date(2024, 3, 14, 0, 0, 0, 0, time.UTC)},
 				},
@@ -646,6 +723,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Date: time.Date(2024, 3, 16, 0, 0, 0, 0, time.UTC)},
 				},
@@ -655,6 +733,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Date: time.Date(2024, 3, 16, 0, 0, 0, 0, time.UTC)},
 				},
@@ -666,6 +745,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Date: time.Date(2024, 3, 10, 0, 0, 0, 0, time.UTC)},
 				},
@@ -677,6 +757,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Date: time.Date(2024, 2, 28, 0, 0, 0, 0, time.UTC)},
 				},
@@ -687,6 +768,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Date: time.Date(2024, 2, 28, 0, 0, 0, 0, time.UTC)},
 				},
@@ -698,6 +780,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Date: time.Date(2024, 2, 28, 0, 0, 0, 0, time.UTC)},
 				},
@@ -709,6 +792,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Date: time.Date(2024, 2, 28, 0, 0, 0, 0, time.UTC)},
 				},
@@ -721,6 +805,7 @@ func TestAllowEntries(t *testing.T) {
 		// Test max-age filter
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
 				},
@@ -731,6 +816,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Date: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
 				},
@@ -740,6 +826,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Date: time.Date(2024, 2, 28, 0, 0, 0, 0, time.UTC)},
 				},
@@ -749,6 +836,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Entries: model.Entries{
 					{Date: time.Date(2024, 2, 28, 0, 0, 0, 0, time.UTC)},
 				},
@@ -760,6 +848,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Extra: model.FeedExtra{
 					KeepFilterEntryRules: "EntryURL=(?i)example\nEntryTitle=(?i)Test",
 				},
@@ -772,7 +861,8 @@ func TestAllowEntries(t *testing.T) {
 		// Test cases for merged user and feed KeepFilterEntryRules
 		{
 			feed: model.Feed{
-				Extra: model.FeedExtra{KeepFilterEntryRules: "EntryURL=(?i)website"},
+				Category: &model.Category{},
+				Extra:    model.FeedExtra{KeepFilterEntryRules: "EntryURL=(?i)website"},
 				Entries: model.Entries{
 					{URL: "https://example.com", Title: "Some Title"},
 				},
@@ -783,7 +873,8 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
-				Extra: model.FeedExtra{KeepFilterEntryRules: "EntryURL=(?i)example"},
+				Category: &model.Category{},
+				Extra:    model.FeedExtra{KeepFilterEntryRules: "EntryURL=(?i)example"},
 				Entries: model.Entries{
 					{URL: "https://example.com", Title: "Some Other"},
 				},
@@ -794,7 +885,8 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
-				Extra: model.FeedExtra{KeepFilterEntryRules: "EntryURL=(?i)example"},
+				Category: &model.Category{},
+				Extra:    model.FeedExtra{KeepFilterEntryRules: "EntryURL=(?i)example"},
 				Entries: model.Entries{
 					{URL: "https://different.com", Title: "Some Other"},
 				},
@@ -804,7 +896,8 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
-				Extra: model.FeedExtra{KeepFilterEntryRules: "EntryURL=(?i)example"},
+				Category: &model.Category{},
+				Extra:    model.FeedExtra{KeepFilterEntryRules: "EntryURL=(?i)example"},
 				Entries: model.Entries{
 					{URL: "https://example.com", Title: "Some Title"},
 				},
@@ -815,6 +908,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Extra: model.FeedExtra{
 					KeepFilterEntryRules: "EntryURL=(?i)example\r\nEntryTitle=(?i)Test",
 				},
@@ -826,6 +920,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Extra: model.FeedExtra{
 					KeepFilterEntryRules: "EntryURL=(?i)example\r\nEntryTitle=(?i)Test",
 				},
@@ -837,6 +932,7 @@ func TestAllowEntries(t *testing.T) {
 		},
 		{
 			feed: model.Feed{
+				Category: &model.Category{},
 				Extra: model.FeedExtra{
 					KeepFilterEntryRules: "EntryURL=(?i)example\r\nEntryTitle=(?i)Test",
 				},
@@ -904,6 +1000,7 @@ func TestParseDuration(t *testing.T) {
 
 func TestMaxAgeFilter(t *testing.T) {
 	oldFeed := model.Feed{
+		Category: &model.Category{},
 		Entries: model.Entries{
 			{
 				Title: "Old Entry",
@@ -913,6 +1010,7 @@ func TestMaxAgeFilter(t *testing.T) {
 	}
 
 	newFeed := model.Feed{
+		Category: &model.Category{},
 		Entries: model.Entries{
 			{
 				Title: "New Entry",
@@ -938,6 +1036,7 @@ func TestBlockedGlobally(t *testing.T) {
 	require.NoError(t, config.Load(""))
 	var user model.User
 	feed := model.Feed{
+		Category: &model.Category{},
 		Entries: model.Entries{
 			{Date: time.Date(2020, 5, 1, 0o5, 0o5, 0o5, 0o5, time.UTC)},
 		},
@@ -968,6 +1067,7 @@ func TestBlockedEntryWithGlobalMaxAge(t *testing.T) {
 
 	var user model.User
 	feed := model.Feed{
+		Category: &model.Category{},
 		Entries: model.Entries{
 			{
 				Title: "Test Entry",
@@ -984,6 +1084,7 @@ func TestBlockedEntryWithDefaultGlobalMaxAge(t *testing.T) {
 	require.NoError(t, config.Load(""))
 	var user model.User
 	feed := model.Feed{
+		Category: &model.Category{},
 		Entries: model.Entries{
 			// 31 days old
 			{Title: "Test Entry", Date: time.Now().Add(-31 * 24 * time.Hour)},

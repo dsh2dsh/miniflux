@@ -8,6 +8,7 @@ import (
 
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
+	"miniflux.app/v2/internal/reader/filter"
 	"miniflux.app/v2/internal/storage"
 )
 
@@ -28,17 +29,23 @@ func ValidateCategoryCreation(ctx context.Context, store *storage.Storage,
 
 // ValidateCategoryModification validates category modification.
 func ValidateCategoryModification(ctx context.Context, store *storage.Storage,
-	userID, categoryID int64, request *model.CategoryModificationRequest,
+	userID, categoryID int64, r *model.CategoryModificationRequest,
 ) *locale.LocalizedError {
-	if request.Title != nil {
-		if *request.Title == "" {
+	if r.Title != nil {
+		if *r.Title == "" {
 			return locale.NewLocalizedError("error.title_required")
 		}
 
-		if store.AnotherCategoryExists(ctx, userID, categoryID, *request.Title) {
+		if store.AnotherCategoryExists(ctx, userID, categoryID, *r.Title) {
 			return locale.NewLocalizedError("error.category_already_exists")
 		}
 	}
 
+	if s := model.OptionalValue(r.BlockFilter); s != "" {
+		if _, err := filter.New(s); err != nil {
+			return locale.NewLocalizedError(
+				"The block list rule is invalid: " + err.Error())
+		}
+	}
 	return nil
 }

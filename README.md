@@ -298,6 +298,10 @@ This project is an opinionated fork of Miniflux.
 
 * Add simplified filter for blocking feed entries by authors
 
+* Add entry blocking rules to categories
+
+  Now entries can be blocked by user rules or category rules or feed rules.
+
 ---
 
 Features

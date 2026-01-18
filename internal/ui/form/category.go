@@ -12,6 +12,7 @@ type CategoryForm struct {
 	Title        string
 	HideGlobally bool
 	HideLabel    bool
+	BlockFilter  string
 }
 
 // NewCategoryForm returns a new CategoryForm.
@@ -20,5 +21,6 @@ func NewCategoryForm(r *http.Request) *CategoryForm {
 		Title:        r.FormValue("title"),
 		HideGlobally: r.FormValue("hide_globally") == "1",
 		HideLabel:    r.FormValue("hideLabel") == "1",
+		BlockFilter:  r.FormValue("blockFilter"),
 	}
 }

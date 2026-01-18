@@ -35,6 +35,7 @@ func (h *handler) showEditCategoryPage(w http.ResponseWriter, r *http.Request) {
 		Title:        category.Title,
 		HideGlobally: category.HideGlobally,
 		HideLabel:    category.HiddenLabel(),
+		BlockFilter:  category.BlockFilter(),
 	}
 
 	v.Set("menu", "categories").
