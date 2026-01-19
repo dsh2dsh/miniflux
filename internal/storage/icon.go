@@ -16,7 +16,8 @@ import (
 	"miniflux.app/v2/internal/model"
 )
 
-// HasFeedIcon checks if the given feed has an icon.
+// HasFeedIcon reports whether the specified feed already has an associated icon
+// record.
 func (s *Storage) HasFeedIcon(ctx context.Context, feedID int64) bool {
 	rows, _ := s.db.Query(ctx,
 		`SELECT EXISTS(SELECT FROM feed_icons WHERE feed_id = $1)`, feedID)
@@ -30,7 +31,8 @@ func (s *Storage) HasFeedIcon(ctx context.Context, feedID int64) bool {
 	return result
 }
 
-// IconByID returns an icon by the ID.
+// IconByID fetches a single icon by its internal identifier, returning nil when
+// it is not found.
 func (s *Storage) IconByID(ctx context.Context, iconID int64,
 ) (*model.Icon, error) {
 	rows, _ := s.db.Query(ctx,
@@ -46,7 +48,8 @@ func (s *Storage) IconByID(ctx context.Context, iconID int64,
 	return icon, nil
 }
 
-// IconByExternalID returns an icon by the External Icon ID.
+// IconByExternalID fetches an icon using its external identifier, returning nil
+// when no match exists.
 func (s *Storage) IconByExternalID(ctx context.Context, externalIconID string,
 ) (*model.Icon, error) {
 	rows, _ := s.db.Query(ctx,
@@ -64,7 +67,8 @@ func (s *Storage) IconByExternalID(ctx context.Context, externalIconID string,
 	return icon, nil
 }
 
-// IconByFeedID returns a feed icon.
+// IconByFeedID returns the icon linked to the given feed for the specified
+// user, or nil if none is set.
 func (s *Storage) IconByFeedID(ctx context.Context, userID, feedID int64,
 ) (*model.Icon, error) {
 	rows, _ := s.db.Query(ctx, `
@@ -84,7 +88,8 @@ SELECT icons.id, icons.hash, icons.mime_type, icons.content
 	return icon, nil
 }
 
-// StoreFeedIcon creates or updates a feed icon.
+// StoreFeedIcon creates or reuses an icon by hash and associates it with the
+// given feed atomically.
 func (s *Storage) StoreFeedIcon(ctx context.Context, feedID int64,
 	icon *model.Icon,
 ) error {
@@ -126,7 +131,8 @@ func normalizeMimeType(mimeType string) string {
 	return "image/x-icon"
 }
 
-// Icons returns all icons that belongs to a user.
+// Icons lists all icons currently associated with any feed owned by the given
+// user.
 func (s *Storage) Icons(ctx context.Context, userID int64,
 ) ([]*model.Icon, error) {
 	rows, _ := s.db.Query(ctx, `
