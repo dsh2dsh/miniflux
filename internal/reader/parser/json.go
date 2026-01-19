@@ -162,7 +162,7 @@ type jsonEntry struct {
 
 func (self *jsonEntry) Parse() *model.Entry {
 	self.entry.Date = self.published()
-	self.entry.Title = self.json.Title
+	self.entry.Title = self.title()
 	self.entry.Content = self.json.Content()
 	self.entry.URL = self.entryURL()
 	self.entry.Author = joinJsonAuthors(self.json.AllAuthors())
@@ -185,6 +185,20 @@ func (self *jsonEntry) published() time.Time {
 		return *t
 	}
 	return time.Now()
+}
+
+func (self *jsonEntry) title() string {
+	for _, s := range [...]string{
+		self.json.Title,
+		self.json.Summary,
+		self.json.ContentText,
+		self.json.ContentHTML,
+	} {
+		if s = strings.TrimSpace(s); s != "" {
+			return s
+		}
+	}
+	return ""
 }
 
 func (self *jsonEntry) entryURL() string {
