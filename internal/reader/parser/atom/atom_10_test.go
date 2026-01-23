@@ -1393,22 +1393,32 @@ A website: http://example.org/</media:description>
 		{
 			URL:      "https://www.example.org/duplicate-thumbnail.jpg",
 			MimeType: "image/*",
+			Height:   360,
+			Width:    480,
 		},
 		{
 			URL:      "https://www.example.org/duplicate-thumbnail.jpg",
 			MimeType: "image/*",
+			Height:   360,
+			Width:    480,
 		},
 		{
 			URL:      "https://example.org/thumbnail2.jpg",
 			MimeType: "image/*",
+			Height:   360,
+			Width:    480,
 		},
 		{
 			URL:      "https://www.youtube.com/v/abcd",
 			MimeType: "application/x-shockwave-flash",
+			Height:   390,
+			Width:    640,
 		},
 		{
 			URL:      "https://example.org/v/efg",
 			MimeType: "application/x-shockwave-flash",
+			Height:   390,
+			Width:    640,
 		},
 	}, feed.Entries[0].Enclosures())
 }
@@ -1450,18 +1460,26 @@ A website: http://example.org/</media:description>
 		{
 			URL:      "https://example.org/duplicated-thumbnail.jpg",
 			MimeType: "image/*",
+			Height:   360,
+			Width:    480,
 		},
 		{
 			URL:      "https://example.org/duplicated-thumbnail.jpg",
 			MimeType: "image/*",
+			Height:   360,
+			Width:    480,
 		},
 		{
 			URL:      "https://www.youtube.com/v/abcd",
 			MimeType: "application/x-shockwave-flash",
+			Height:   390,
+			Width:    640,
 		},
 		{
 			URL:      "https://example.org/relative/media.mp4",
 			MimeType: "application/x-shockwave-flash",
+			Height:   390,
+			Width:    640,
 		},
 		{
 			URL:      "http://www.example.org/sampleFile.torrent",

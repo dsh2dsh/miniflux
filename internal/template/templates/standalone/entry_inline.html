@@ -35,7 +35,11 @@
 
                 {{ if .IsImage }}
                 <p class="enclosure-image">
-                    <img src="{{ .URL }}" loading="lazy" />
+                    <img
+                      src="{{ .URL }}"
+                      {{ if .Width }}width="{{ .Width }}"{{ end }}
+                      {{ if .Height }}height="{{ .Height }}"{{ end }}
+                      loading="lazy" />
                 </p>
                 {{ end }}
             </details>

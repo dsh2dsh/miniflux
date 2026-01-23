@@ -314,8 +314,13 @@ func (self *atomEntry) atomEnclosures() iter.Seq[model.Enclosure] {
 
 func (self *atomEntry) mediaThumbnails() iter.Seq[model.Enclosure] {
 	return func(yield func(model.Enclosure) bool) {
-		for thumbnail := range self.atom.Media.AllThumbnails() {
-			enc := model.Enclosure{URL: thumbnail, MimeType: "image/*"}
+		for t := range self.atom.Media.AllThumbnailsEx() {
+			enc := model.Enclosure{
+				URL:      t.URL,
+				MimeType: "image/*",
+				Height:   t.Height,
+				Width:    t.Width,
+			}
 			if !yield(enc) {
 				return
 			}
@@ -326,7 +331,12 @@ func (self *atomEntry) mediaThumbnails() iter.Seq[model.Enclosure] {
 func (self *atomEntry) mediaContents() iter.Seq[model.Enclosure] {
 	return func(yield func(model.Enclosure) bool) {
 		for content := range self.atom.Media.AllContents() {
-			enc := model.Enclosure{URL: content.URL, MimeType: content.Type}
+			enc := model.Enclosure{
+				URL:      content.URL,
+				MimeType: content.Type,
+				Height:   content.Height,
+				Width:    content.Width,
+			}
 			if enc.MimeType == "" {
 				switch content.Medium {
 				case "image":

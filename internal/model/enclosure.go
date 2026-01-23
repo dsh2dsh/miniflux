@@ -11,6 +11,8 @@ type Enclosure struct {
 	MimeType         string `json:"mime_type,omitempty"`
 	Size             int64  `json:"size,omitempty"`
 	MediaProgression int64  `json:"media_progression,omitempty"`
+	Height           int    `json:"height,omitempty"`
+	Width            int    `json:"width,omitempty"`
 
 	originalURL string
 }
