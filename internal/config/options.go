@@ -72,6 +72,7 @@ type envOptions struct {
 	AuthProxyUserCreation          bool     `env:"AUTH_PROXY_USER_CREATION"`
 	BaseURL                        string   `env:"BASE_URL" validate:"required"`
 	BatchSize                      int      `env:"BATCH_SIZE" validate:"min=1"`
+	BlockMarkRead                  bool     `env:"BLOCK_MARK_READ"`
 	CertDomain                     string   `env:"CERT_DOMAIN"`
 	CertFile                       string   `env:"CERT_FILE" validate:"omitempty,filepath"`
 	CertKeyFile                    string   `env:"KEY_FILE" validate:"omitempty,filepath"`
@@ -402,6 +403,7 @@ func (o *options) sortedOptions(redactSecret bool) []Option {
 		"BASE_PATH":                          o.basePath,
 		"BASE_URL":                           o.env.BaseURL,
 		"BATCH_SIZE":                         o.env.BatchSize,
+		"BLOCK_MARK_READ":                    o.env.BlockMarkRead,
 		"CERT_DOMAIN":                        o.env.CertDomain,
 		"CERT_FILE":                          o.env.CertFile,
 		"CLEANUP_ARCHIVE_BATCH_SIZE":         o.env.CleanupArchiveBatchSize,
@@ -874,3 +876,5 @@ func SortedOptions(redactSecret bool) []Option {
 }
 
 func String() string { return opts.String() }
+
+func BlockMarkRead() bool { return opts.env.BlockMarkRead }

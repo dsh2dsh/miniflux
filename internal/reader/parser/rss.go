@@ -109,7 +109,7 @@ func (self *rssFeed) entry(item *rss.Item) *model.Entry {
 	p := rssEntry{
 		rss:     item,
 		siteURL: self.parsedSiteURL,
-		entry:   &model.Entry{Date: time.Now(), Feed: self.feed},
+		entry:   NewEntry(self.feed),
 	}
 
 	entry := p.Parse()

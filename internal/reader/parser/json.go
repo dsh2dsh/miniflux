@@ -109,7 +109,7 @@ func (self *jsonFeed) entry(item *json.Item) *model.Entry {
 	p := jsonEntry{
 		json:    item,
 		siteURL: self.parsedSiteURL,
-		entry:   &model.Entry{Date: time.Now(), Feed: self.feed},
+		entry:   NewEntry(self.feed),
 	}
 
 	entry := p.Parse()

@@ -266,7 +266,9 @@ func (self Entries) Unread() iter.Seq2[int, *Entry] {
 func (self Entries) RefreshFeed(userID, feedID int64) []string {
 	for _, e := range self {
 		e.UserID, e.FeedID = userID, feedID
-		e.KeepImportedStatus(EntryStatusUnread)
+		if e.Status == "" {
+			e.Status = EntryStatusUnread
+		}
 	}
 	return self.Hashes()
 }

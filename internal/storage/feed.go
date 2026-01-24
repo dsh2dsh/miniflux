@@ -235,10 +235,7 @@ func (s *Storage) CreateFeed(ctx context.Context, feed *model.Feed) error {
 		return nil
 	}
 
-	for _, e := range feed.Entries {
-		e.UserID, e.FeedID = feed.UserID, feed.ID
-		e.Status = model.EntryStatusUnread
-	}
+	feed.Entries.RefreshFeed(feed.UserID, feed.ID)
 
 	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
 		return s.createEntries(ctx, tx, feed.Entries)

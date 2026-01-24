@@ -74,7 +74,10 @@ func (self *feedFilter) DeleteEntries(ctx context.Context) error {
 			return true
 		case blockAuthors.Match(e) || block.Match(e) || !keep.Allow(e):
 			self.feed.IncFilteredByRules()
-			return true
+			if !self.blockMarkRead() {
+				return true
+			}
+			e.KeepImportedStatus(model.EntryStatusRead)
 		case !seen.Add(e, log):
 			return true
 		}
@@ -118,6 +121,10 @@ func (self *feedFilter) keepRules() (*Filter, error) {
 			"building keep filter from sets=user,feed: %w", err)
 	}
 	return keep, nil
+}
+
+func (self *feedFilter) blockMarkRead() bool {
+	return config.BlockMarkRead() || self.feed.BlockMarkRead()
 }
 
 func matchDatePattern(pattern string, entryDate time.Time) bool {

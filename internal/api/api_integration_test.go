@@ -1481,3 +1481,18 @@ func (self *EndpointTestSuite) TestBlockAuthors() {
 	self.Require().NotNil(entries)
 	self.Require().Empty(entries.Entries)
 }
+
+func (self *EndpointTestSuite) TestMarkReadBlockedAuthors() {
+	feedID := self.createFeedWith(model.FeedCreationRequest{
+		BlockAuthors:  []string{"Frédéric Guillot"},
+		BlockMarkRead: true,
+	})
+
+	entries, err := self.client.FeedEntries(feedID, nil)
+	self.Require().NoError(err)
+	self.Require().NotNil(entries)
+
+	self.NotEmpty(entries.Entries)
+	self.False(slices.ContainsFunc(entries.Entries,
+		func(e *model.Entry) bool { return e.Status != model.EntryStatusRead }))
+}

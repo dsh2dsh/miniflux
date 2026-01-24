@@ -82,6 +82,7 @@ type Feed struct {
 
 type FeedExtra struct {
 	BlockAuthors        []string `json:"blockAuthors,omitempty"`
+	BlockMarkRead       bool     `json:"blockMarkRead,omitempty"`
 	CommentsURLTemplate string   `json:"comments_url_template,omitempty"`
 
 	BlockFilterEntryRules string `json:"block_filter_entry_rules,omitempty"`
@@ -194,6 +195,13 @@ func (f *Feed) WithBlockAuthors(authors []string) *Feed {
 	return f
 }
 
+func (f *Feed) BlockMarkRead() bool { return f.Extra.BlockMarkRead }
+
+func (f *Feed) WithBlockMarkRead(value bool) *Feed {
+	f.Extra.BlockMarkRead = value
+	return f
+}
+
 func (f *Feed) BlockFilterEntryRules() string {
 	return f.Extra.BlockFilterEntryRules
 }
@@ -234,6 +242,7 @@ type FeedCreationRequest struct {
 	RewriteRules                string   `json:"rewrite_rules"`
 	BlockAuthors                []string `json:"blockAuthors,omitempty"`
 	BlockFilterEntryRules       string   `json:"block_filter_entry_rules"`
+	BlockMarkRead               bool     `json:"blockMarkRead,omitempty"`
 	KeepFilterEntryRules        string   `json:"keep_filter_entry_rules"`
 	UrlRewriteRules             string   `json:"urlrewrite_rules"`
 	ProxyURL                    string   `json:"proxy_url"`
@@ -416,21 +425,17 @@ func (self *FeedRefreshed) Append(feedID int64, feedEntries []*Entry,
 	}
 
 	for _, e := range feedEntries {
-		storedEntry, ok := storedBy[e.Hash]
+		storedEntry, stored := storedBy[e.Hash]
 		switch {
-		case !ok:
-			e.KeepImportedStatus(EntryStatusUnread)
+		case !stored:
 			self.Created = append(self.Created, e)
 		case e.FeedID != storedEntry.FeedID:
-			if self.forceUpdate || e.Date.After(storedEntry.Date) {
-				e.KeepImportedStatus(EntryStatusUnread)
-			} else {
+			if !self.forceUpdate && !e.Date.After(storedEntry.Date) {
 				e.KeepImportedStatus(EntryStatusRead)
 				self.Dedups++
 			}
 			self.Created = append(self.Created, e)
 		case self.forceUpdate || e.Date.After(storedEntry.Date):
-			e.KeepImportedStatus(EntryStatusUnread)
 			self.Updated = append(self.Updated, e)
 		default:
 			e.KeepImportedStatus(storedEntry.Status)

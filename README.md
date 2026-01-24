@@ -302,6 +302,16 @@ This project is an opinionated fork of Miniflux.
 
   Now entries can be blocked by user rules or category rules or feed rules.
 
+* Optionally mark blocked entries as read, instead of delete them.
+
+  With configuration like
+
+  ```
+  BLOCK_MARK_READ=true
+  ```
+
+  it marks entries, blocked by filter rules, as read, instead of deleting them.
+
 ---
 
 Features
@@ -332,7 +342,7 @@ Features
 - Supports alternative YouTube video players such as [Invidious](https://invidio.us).
 - Blocks external JavaScript to prevent tracking and enhance security.
 - Sanitizes external content before rendering it.
-- Enforces a [Content Security](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) and a [Trusted Types Policy](https://developer.mozilla.org/en-US/docs/Web/API/Trusted_Types_API) to only application JavaScript and blocks inline scripts and styles. 
+- Enforces a [Content Security](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) and a [Trusted Types Policy](https://developer.mozilla.org/en-US/docs/Web/API/Trusted_Types_API) to only application JavaScript and blocks inline scripts and styles.
 
 ### Bot Protection Bypass Mechanisms
 

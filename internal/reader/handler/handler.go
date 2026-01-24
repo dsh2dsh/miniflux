@@ -134,6 +134,7 @@ func (self *Create) createFeed(ctx context.Context,
 	feed.ProxyURL = r.ProxyURL
 
 	feed.WithBlockAuthors(r.BlockAuthors)
+	feed.WithBlockMarkRead(r.BlockMarkRead)
 	feed.WithCategoryID(r.CategoryID)
 	feed.ContentChanged(body)
 	feed.CheckedNow()
