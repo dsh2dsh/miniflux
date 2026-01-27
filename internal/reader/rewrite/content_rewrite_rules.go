@@ -5,7 +5,10 @@ package rewrite // import "miniflux.app/v2/internal/reader/rewrite"
 
 import "strings"
 
-var addImageTitleRules = []rule{{name: "add_image_title"}}
+var (
+	addImageTitleRules  = []rule{{name: "add_image_title"}}
+	addDynamicImageRule = rule{name: "add_dynamic_image"}
+)
 
 // List of predefined rewrite rules (alphabetically sorted).
 //
@@ -13,6 +16,14 @@ var addImageTitleRules = []rule{{name: "add_image_title"}}
 var domainRules = map[string][]rule{
 	"abstrusegoose.com":      addImageTitleRules,
 	"amazingsuperpowers.com": addImageTitleRules,
+
+	"bleepingcomputer.com": {
+		addDynamicImageRule,
+		{
+			name: "remove",
+			args: []string{".ia_ad, .cz-related-article-wrapp, div[align]"},
+		},
+	},
 
 	"blog.cloudflare.com": {
 		addImageTitleRules[0],
@@ -78,7 +89,7 @@ var domainRules = map[string][]rule{
 	"thedoghousediaries.com": addImageTitleRules,
 
 	"theverge.com": {
-		{name: "add_dynamic_image"},
+		addDynamicImageRule,
 		{
 			name: "remove",
 			args: []string{"div.duet--recirculation--related-list, .hidden"},

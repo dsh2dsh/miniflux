@@ -10,6 +10,7 @@ import "strings"
 var predefinedRules = map[string]string{
 	"arstechnica.com":      "div.post-content",
 	"bbc.co.uk":            "div.vxp-column--single, div.story-body__inner, ul.gallery-images__list",
+	"bleepingcomputer.com": ".articleBody",
 	"blog.cloudflare.com":  "div.post-content",
 	"cbc.ca":               ".story-content",
 	"darkreading.com":      "div.ArticleBase-Body",
