@@ -10,8 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dsh2dsh/gofeed/v2/atom"
-	"github.com/dsh2dsh/gofeed/v2/ext"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -28,80 +26,11 @@ type RewriteTestSuite struct {
 	user      *model.User
 }
 
-func (self *RewriteTestSuite) withConfig(envs map[string]string) {
-	self.T().Helper()
-	for k, v := range envs {
-		self.T().Setenv(k, v)
-	}
-	self.Require().NoError(config.Load(""))
-}
-
-func (self *RewriteTestSuite) apply(entry *model.Entry, rules string,
-) *ContentRewrite {
+func (self *RewriteTestSuite) apply(entry *model.Entry, rules string) {
 	self.T().Helper()
 
 	contentRewrite := NewContentRewrite(rules, self.user, self.templates)
 	contentRewrite.Apply(self.T().Context(), entry)
-	return contentRewrite
-}
-
-func (self *RewriteTestSuite) TestRewriteYoutubeVideoLink() {
-	self.withConfig(nil)
-
-	const initialContent = "foo bar baz"
-	testEntry := model.Entry{
-		URL:     "https://www.youtube.com/watch?v=1234",
-		Content: initialContent,
-	}
-
-	contentRewrite := self.apply(withYoutubeAtom(&testEntry, "1234",
-		"Video & Description"), "")
-	self.True(contentRewrite.Sanitized())
-
-	content := testEntry.Content
-	self.NotContains(content, initialContent)
-
-	self.Contains(content, `src="https://www.youtube-nocookie.com/embed/1234"`)
-	self.Contains(content, `loading="lazy"`)
-	self.Contains(content, `referrerpolicy="strict-origin-when-cross-origin"`)
-	self.Contains(content, `credentialless`)
-	self.Contains(content,
-		`<pre class="description">Video &amp; Description</pre>`)
-}
-
-func withYoutubeAtom(entry *model.Entry, videoId, descr string,
-) *model.Entry {
-	return entry.WithAtom(&atom.Entry{
-		Youtube: &ext.Youtube{VideoId: videoId},
-		Media: &ext.Media{
-			Groups: []ext.MediaGroup{
-				{
-					Contents:     []ext.MediaContent{{Width: 640, Height: 390}},
-					Descriptions: []ext.MediaDescription{{Text: descr}},
-				},
-			},
-		},
-	})
-}
-
-func (self *RewriteTestSuite) TestRewriteYoutubeLinkAndCustomEmbedURL() {
-	self.withConfig(map[string]string{
-		"YOUTUBE_EMBED_URL_OVERRIDE": "https://invidious.custom/embed/",
-	})
-
-	testEntry := model.Entry{
-		URL: "https://www.youtube.com/watch?v=1234",
-	}
-
-	contentRewrite := self.apply(withYoutubeAtom(&testEntry, "1234", ""), "")
-	self.True(contentRewrite.Sanitized())
-
-	content := testEntry.Content
-	self.NotContains(content, `</pre>`)
-	self.Contains(content, `src="https://invidious.custom/embed/1234"`)
-	self.Contains(content, `loading="lazy"`)
-	self.Contains(content, `referrerpolicy="strict-origin-when-cross-origin"`)
-	self.Contains(content, `credentialless`)
 }
 
 func (self *RewriteTestSuite) TestHTMLUnescapeRule() {
@@ -118,8 +47,7 @@ Email sending has resumed for affected users. We are actively monitoring this se
 This incident has been resolved. No mail has been lost, and we don&#039;t anticipate further issues..&lt;/p&gt;`,
 	}
 
-	contentRewrite := self.apply(&entry, "html_unescape")
-	self.False(contentRewrite.Sanitized())
+	self.apply(&entry, "html_unescape")
 
 	expected := `
 <p><strong>Type:</strong> Incident</p>

@@ -51,13 +51,42 @@ type Entry struct {
 	Tags        []string   `json:"tags" db:"tags"`
 	Extra       EntryExtra `json:"extra,omitzero" db:"extra"`
 
-	atom     *atom.Entry
-	imported bool
-	stored   bool
+	parsedURL *url.URL
+	atom      *atom.Entry
+	imported  bool
+	stored    bool
 }
 
 type EntryExtra struct {
 	Enclosures EnclosureList `json:"enclosures,omitempty"`
+	SiteData   *anyObject    `json:"siteData,omitempty"`
+}
+
+func (self *Entry) WithParsedURL(u *url.URL) *Entry {
+	self.parsedURL = u
+	self.URL = u.String()
+	return self
+}
+
+func (self *Entry) ParsedURL() (*url.URL, error) {
+	if self.parsedURL != nil {
+		return self.parsedURL, nil
+	}
+
+	u, err := url.Parse(self.URL)
+	if err != nil {
+		return nil, fmt.Errorf("parse entry URL: %w", err)
+	}
+	self.parsedURL = u
+	return u, nil
+}
+
+func (self *Entry) Hostname() string {
+	u, err := self.ParsedURL()
+	if err != nil {
+		return self.URL
+	}
+	return u.Hostname()
 }
 
 func (self *Entry) WithAtom(atom *atom.Entry) *Entry {
@@ -143,6 +172,22 @@ func (self *Entry) KeepImportedStatus(value string) {
 }
 
 func (self *Entry) Unread() bool { return self.Status == EntryStatusUnread }
+
+func (self *Entry) WithSiteData(data any) *Entry {
+	self.Extra.SiteData = newAnyObject(data)
+	return self
+}
+
+func (self *Entry) DecodeSiteData(v any) error {
+	if self.Extra.SiteData == nil {
+		return nil
+	}
+
+	if err := self.Extra.SiteData.Decode(v); err != nil {
+		return fmt.Errorf("decode entry site data into %T: %w", v, err)
+	}
+	return nil
+}
 
 func NewEntryFrom(ext *ExternalEntry) *Entry {
 	entry := &Entry{

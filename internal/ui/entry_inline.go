@@ -12,6 +12,7 @@ import (
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/processor"
 	"miniflux.app/v2/internal/reader/sanitizer"
+	"miniflux.app/v2/internal/sites"
 	"miniflux.app/v2/internal/ui/view"
 )
 
@@ -28,12 +29,21 @@ func (h *handler) inlineEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	content := mediaproxy.RewriteDocumentWithRelativeProxyURL(
-		h.router, entry.Content)
+	var errorMsg string
+	content := entry.Content
+	b, err := sites.Render(r.Context(), request.User(r), entry, h.tpl)
+	if err != nil {
+		errorMsg = err.Error()
+	} else if len(b) != 0 {
+		content = string(b)
+	}
+
+	content = mediaproxy.RewriteDocumentWithRelativeProxyURL(h.router, content)
 	mediaproxy.ProxifyEnclosures(h.router, entry.Enclosures())
 
 	v := view.New(h.tpl, r, nil).
 		Set("entry", entry).
+		Set("errorMessage", errorMsg).
 		Set("safeContent", template.HTML(content)).
 		Set("user", request.User(r))
 	html.OK(w, r, v.Render("entry_inline"))

@@ -98,7 +98,6 @@ var domainRules = map[string][]rule{
 
 	"treelobsters.com": addImageTitleRules,
 	"xkcd.com":         addImageTitleRules,
-	"youtube.com":      {{name: "add_youtube_video"}},
 }
 
 func findDomainRule(hostname string) []rule {

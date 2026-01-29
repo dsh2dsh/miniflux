@@ -3,7 +3,10 @@
 
 package model // import "miniflux.app/v2/internal/model"
 
-import "strings"
+import (
+	"iter"
+	"strings"
+)
 
 // Enclosure represents an attachment.
 type Enclosure struct {
@@ -85,4 +88,17 @@ func (self EnclosureList) ContainsAudioOrVideo() bool {
 		}
 	}
 	return false
+}
+
+func (self EnclosureList) WithMimeType(mimeType string) iter.Seq[*Enclosure] {
+	return func(yield func(*Enclosure) bool) {
+		for i := range self {
+			enc := &self[i]
+			if strings.EqualFold(enc.MimeType, mimeType) {
+				if !yield(enc) {
+					return
+				}
+			}
+		}
+	}
 }

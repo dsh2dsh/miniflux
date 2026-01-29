@@ -1,5 +1,11 @@
 <div class="loaded" hx-disable="">
     <article class="entry-content feed-id-{{ .entry.FeedID }} inline" dir="auto">
+        {{ if .errorMessage }}
+        <div role="alert" class="alert alert-error">
+            <p>{{ .errorMessage }}</p>
+        </div>
+        {{ end }}
+
         {{ .safeContent }}
     </article>
 

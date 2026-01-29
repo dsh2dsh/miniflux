@@ -23,6 +23,7 @@ import (
 	"miniflux.app/v2/internal/reader/rewrite"
 	"miniflux.app/v2/internal/reader/sanitizer"
 	"miniflux.app/v2/internal/reader/scraper"
+	"miniflux.app/v2/internal/sites"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/template"
 )
@@ -162,10 +163,11 @@ func (self *FeedProcessor) process(ctx context.Context) error {
 			}
 		}
 
+		sites.Rewrite(ctx, entry)
 		contentRewrite.Apply(ctx, entry)
 		// The sanitizer should always run at the end of the process to make sure
 		// unsafe HTML is filtered out.
-		err := self.sanitizeEntry(entry, pageURL, contentRewrite.Sanitized())
+		err := self.sanitizeEntry(entry, pageURL)
 		if err != nil {
 			return fmt.Errorf("%w: %w", ErrBadFeed, err)
 		}
@@ -250,7 +252,7 @@ func (self *FeedProcessor) Scrape(ctx context.Context, entry *model.Entry,
 func (self *FeedProcessor) UpdateEntry(entry *model.Entry, pageURL string,
 	opts ...sanitizer.Option,
 ) error {
-	err := self.sanitizeEntry(entry, pageURL, false, opts...)
+	err := self.sanitizeEntry(entry, pageURL, opts...)
 	if err != nil {
 		return err
 	}
@@ -263,12 +265,9 @@ func (self *FeedProcessor) UpdateEntry(entry *model.Entry, pageURL string,
 }
 
 func (self *FeedProcessor) sanitizeEntry(entry *model.Entry, pageURL string,
-	contentClear bool, opts ...sanitizer.Option,
+	opts ...sanitizer.Option,
 ) error {
 	entry.Title = sanitizeTitle(entry, self.feed)
-	if contentClear {
-		return nil
-	}
 
 	if pageURL == "" {
 		pageURL = entry.URL

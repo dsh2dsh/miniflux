@@ -1,18 +1,7 @@
 <div class="youtube">
-    {{ if .Description -}}
-    <pre class="description">{{ .Description }}</pre>
-    {{- end }}
+    {{ .Description }}
 
-    {{ if .Thumbnail.URL -}}
-    <details class="thumbnail" name="youtube-{{ .Entry.Hash }}">
-        <summary>Video thumbnail</summary>
-        <img src="{{ .Thumbnail.URL }}"
-             width="{{ or .Thumbnail.Width 480 }}"
-             height="{{ or .Thumbnail.Height 360 }}"/>
-    </details>
-    {{- end }}
-
-    <details class="video" name="youtube-{{ .Entry.Hash }}">
+    <details class="video" name="youtube-iframe">
         <summary>Embedded Youtube video</summary>
         <iframe
           src="{{ .IframeSrc }}"

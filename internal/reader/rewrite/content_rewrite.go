@@ -11,10 +11,8 @@ import (
 	"strings"
 	"text/scanner"
 
-	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
-	"miniflux.app/v2/internal/reader/sanitizer"
 	"miniflux.app/v2/internal/template"
 	"miniflux.app/v2/internal/urllib"
 )
@@ -23,8 +21,6 @@ type ContentRewrite struct {
 	rules     []rule
 	templates *template.Engine
 	user      *model.User
-
-	sanitized bool
 }
 
 func NewContentRewrite(userRules string, u *model.User, t *template.Engine,
@@ -54,8 +50,6 @@ func parseRules(s string) []rule {
 	}
 }
 
-func (self *ContentRewrite) Sanitized() bool { return self.sanitized }
-
 func (self *ContentRewrite) Apply(ctx context.Context, entry *model.Entry) {
 	rules := self.rules
 	if len(rules) == 0 {
@@ -65,7 +59,6 @@ func (self *ContentRewrite) Apply(ctx context.Context, entry *model.Entry) {
 	logging.FromContext(ctx).Debug("Applying content rewrite rules",
 		slog.Any("rules", rules), slog.String("entry_url", entry.URL))
 
-	self.sanitized = false
 	for _, r := range rules {
 		self.applyRule(ctx, entry, r)
 	}
@@ -89,8 +82,6 @@ func (self *ContentRewrite) applyRule(ctx context.Context, entry *model.Entry,
 		entry.Content = addDynamicImage(entry.Content)
 	case "add_dynamic_iframe":
 		entry.Content = addDynamicIframe(entry.Content)
-	case "add_youtube_video":
-		self.youtubeIframe(log, entry)
 	case "add_invidious_video":
 		entry.Content = addInvidiousVideo(entry.URL, entry.Content)
 	case "add_youtube_video_using_invidious_player":
@@ -130,82 +121,6 @@ func (self *ContentRewrite) applyRule(ctx context.Context, entry *model.Entry,
 	case "remove_img_blur_params":
 		entry.Content = removeImgBlurParams(entry.Content)
 	case "html_unescape":
-		self.unsafeContent(entry, html.UnescapeString)
+		entry.Content = html.UnescapeString(entry.Content)
 	}
-}
-
-func (self *ContentRewrite) unsafeContent(entry *model.Entry,
-	fn func(string) string,
-) {
-	entry.Content = fn(entry.Content)
-	self.sanitized = false
-}
-
-func (self *ContentRewrite) youtubeIframe(log *slog.Logger, entry *model.Entry,
-) {
-	yt := youtubeVideo(entry)
-	if yt.VideoId == "" {
-		log.Warn("Cannot find Youtube video id for add_youtube_video rule")
-		return
-	}
-
-	iframe := config.YouTubeEmbedUrlOverride() + yt.VideoId
-	log.Debug("render youtube.html for add_youtube_video rule",
-		slog.Bool("description", yt.Description != ""),
-		slog.String("iframe", iframe))
-
-	entry.Content = self.render("youtube.html", map[string]any{
-		"Entry":       entry,
-		"IframeSrc":   iframe,
-		"Width":       yt.Width,
-		"Height":      yt.Height,
-		"Description": template.HTML(yt.Description),
-		"Thumbnail":   &yt.Thumbnail,
-	})
-	self.sanitized = true
-}
-
-type youtubeContent struct {
-	Width, Height int
-	VideoId       string
-	Description   string
-	Thumbnail     struct {
-		Width, Height int
-		URL           string
-	}
-}
-
-func youtubeVideo(entry *model.Entry) (c youtubeContent) {
-	atom := entry.Atom()
-	if atom == nil || atom.Youtube == nil {
-		return c
-	}
-	c.VideoId = atom.Youtube.VideoId
-
-	media := atom.Media
-	if media == nil || len(media.Groups) == 0 {
-		return c
-	}
-
-	mg := &media.Groups[0]
-	if len(mg.Contents) != 0 {
-		c.Width = mg.Contents[0].Width
-		c.Height = mg.Contents[0].Height
-	}
-
-	if len(mg.ThumbnailsEx) != 0 {
-		c.Thumbnail.URL = mg.ThumbnailsEx[0].URL
-		c.Thumbnail.Width = mg.ThumbnailsEx[0].Width
-		c.Thumbnail.Height = mg.ThumbnailsEx[0].Height
-	}
-
-	if len(mg.Descriptions) != 0 {
-		c.Description = sanitizer.StripTags(mg.Descriptions[0].Text)
-	}
-	return c
-}
-
-func (self *ContentRewrite) render(name string, data map[string]any) string {
-	data["language"] = self.user.Language
-	return string(self.templates.Render(name, data))
 }
