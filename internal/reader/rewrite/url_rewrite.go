@@ -6,6 +6,7 @@ package rewrite // import "miniflux.app/v2/internal/reader/rewrite"
 import (
 	"context"
 	"log/slog"
+	"net/url"
 	"regexp"
 
 	"miniflux.app/v2/internal/logging"
@@ -41,10 +42,22 @@ func RewriteEntryURL(ctx context.Context, feed *model.Feed, entry *model.Entry,
 	}
 
 	rewrittenURL := re.ReplaceAllString(entry.URL, parts[2])
+	if rewrittenURL == entry.URL {
+		return
+	}
+
 	log.Debug("Rewriting entry URL",
 		slog.String("original_entry_url", entry.URL),
 		slog.String("rewritten_entry_url", rewrittenURL),
 		slog.Int64("feed_id", feed.ID),
 		slog.String("feed_url", feed.FeedURL))
-	entry.URL = rewrittenURL
+
+	u, err := url.Parse(rewrittenURL)
+	if err != nil {
+		log.Error("Unable parse rewriten entry URL",
+			slog.String("rewritten_entry_url", rewrittenURL),
+			slog.Any("error", err))
+		return
+	}
+	entry.WithURL(u)
 }

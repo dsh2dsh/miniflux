@@ -20,8 +20,6 @@ type atomFeed struct {
 	baseURL *url.URL
 	atom    *atom.Feed
 	feed    *model.Feed
-
-	parsedSiteURL *url.URL
 }
 
 func parseAtom(feedURL *url.URL, b []byte) (*model.Feed, error) {
@@ -41,42 +39,40 @@ func (self *atomFeed) Feed(feedURL *url.URL, atomFeed *atom.Feed,
 
 	self.feed = &model.Feed{
 		Title:       self.atom.Title,
-		FeedURL:     self.feedURL(),
-		SiteURL:     self.siteURL(),
 		Description: self.atom.Subtitle,
-		IconURL:     self.iconURL(),
 	}
+
+	self.feed.WithFeedURL(self.feedURL())
+	self.feed.WithSiteURL(self.siteURL())
+	self.feed.IconURL = self.iconURL()
 	self.feed.Entries = self.entries()
 	return self.feed, nil
 }
 
-func (self *atomFeed) feedURL() string {
+func (self *atomFeed) feedURL() *url.URL {
 	link := self.atom.GetFeedLink()
 	if link == "" {
-		return self.baseURL.String()
+		return self.baseURL
 	}
 
 	u, err := url.Parse(link)
 	if err != nil {
-		return self.baseURL.String()
+		return self.baseURL
 	} else if u.IsAbs() {
-		return link
+		return u
 	}
-	return self.baseURL.ResolveReference(u).String()
+	return self.baseURL.ResolveReference(u)
 }
 
-func (self *atomFeed) siteURL() string {
+func (self *atomFeed) siteURL() *url.URL {
 	link := self.atom.GetLink()
 	u, err := url.Parse(link)
 	if err != nil {
-		return link
+		return self.baseURL
 	} else if u.IsAbs() {
-		self.parsedSiteURL = u
-		return link
+		return u
 	}
-
-	self.parsedSiteURL = self.baseURL.ResolveReference(u)
-	return self.parsedSiteURL.String()
+	return self.baseURL.ResolveReference(u)
 }
 
 func (self *atomFeed) iconURL() string {
@@ -86,10 +82,18 @@ func (self *atomFeed) iconURL() string {
 	}
 
 	u, err := url.Parse(imageURL)
-	if err != nil || u.IsAbs() || self.parsedSiteURL == nil {
+	if err != nil || u.IsAbs() {
 		return imageURL
 	}
-	return self.parsedSiteURL.ResolveReference(u).String()
+	return self.ResolveReference(u).String()
+}
+
+func (self *atomFeed) ResolveReference(u *url.URL) *url.URL {
+	siteURL, err := self.feed.ParsedSiteURL()
+	if err != nil || siteURL == nil {
+		return u
+	}
+	return siteURL.ResolveReference(u)
 }
 
 func (self *atomFeed) entries() model.Entries {
@@ -105,16 +109,11 @@ func (self *atomFeed) entries() model.Entries {
 }
 
 func (self *atomFeed) entry(item *atom.Entry) *model.Entry {
-	p := atomEntry{
-		atom:    item,
-		siteURL: self.parsedSiteURL,
-		entry:   NewEntry(self.feed),
-	}
-
+	p := atomEntry{feed: self, atom: item, entry: NewEntry(self.feed)}
 	entry := p.Parse()
+	self.fixEntryURL(entry)
 	entry.Author = self.entryAuthor(entry)
 	entry.Tags = self.entryTags(entry)
-	entry.URL = self.entryURL(entry)
 	entry.Title = self.entryTitle(entry)
 	return entry.WithAtom(item)
 }
@@ -166,11 +165,16 @@ func (self *atomFeed) entryTags(entry *model.Entry) []string {
 	return slices.Compact(tags)
 }
 
-func (self *atomFeed) entryURL(entry *model.Entry) string {
+func (self *atomFeed) fixEntryURL(entry *model.Entry) {
 	if entry.URL != "" {
-		return entry.URL
+		return
 	}
-	return self.feed.SiteURL
+
+	if u, err := self.feed.ParsedSiteURL(); err == nil {
+		entry.WithURL(u)
+	} else {
+		entry.WithURLString(self.feed.SiteURL)
+	}
 }
 
 func (self *atomFeed) entryTitle(entry *model.Entry) string {
@@ -181,9 +185,8 @@ func (self *atomFeed) entryTitle(entry *model.Entry) string {
 }
 
 type atomEntry struct {
-	atom    *atom.Entry
-	siteURL *url.URL
-
+	feed  *atomFeed
+	atom  *atom.Entry
 	entry *model.Entry
 }
 
@@ -191,7 +194,7 @@ func (self *atomEntry) Parse() *model.Entry {
 	self.entry.Date = self.published()
 	self.entry.Title = self.atom.Title
 	self.entry.Content = self.atom.GetContent()
-	self.entry.URL = self.itemURL()
+	self.entry.WithURL(self.itemURL())
 	self.entry.Author = joinAtomAuthors(self.atom.Authors)
 	self.entry.CommentsURL = self.commentsURL()
 	self.entry.Tags = self.atom.GetCategories()
@@ -200,7 +203,8 @@ func (self *atomEntry) Parse() *model.Entry {
 
 	enclosures := self.entry.Enclosures()
 	if len(enclosures) != 0 && self.entry.URL == "" {
-		self.entry.URL = enclosures[0].URL
+		u, _ := enclosures[0].ParsedURL()
+		self.entry.WithURL(u)
 	}
 	return self.entry
 }
@@ -212,15 +216,15 @@ func (self *atomEntry) published() time.Time {
 	return time.Now()
 }
 
-func (self *atomEntry) itemURL() string {
+func (self *atomEntry) itemURL() *url.URL {
 	link := self.atom.GetLink()
 	u, err := url.Parse(link)
 	if err != nil {
-		return ""
-	} else if u.IsAbs() || self.siteURL == nil {
-		return link
+		return nil
+	} else if u.IsAbs() {
+		return u
 	}
-	return self.siteURL.ResolveReference(u).String()
+	return self.feed.ResolveReference(u)
 }
 
 func (self *atomEntry) commentsURL() string {
@@ -239,10 +243,8 @@ func (self *atomEntry) commentsURL() string {
 				continue
 			case u.IsAbs():
 				return link.Href
-			case self.siteURL == nil:
-				continue
 			}
-			return self.siteURL.ResolveReference(u).String()
+			return self.feed.ResolveReference(u).String()
 		}
 	}
 	return ""
@@ -269,14 +271,10 @@ func (self *atomEntry) enclosures() []model.Enclosure {
 
 	for i := range enclosures {
 		enc := &enclosures[i]
-		if u, err := url.Parse(enc.URL); err != nil {
+		if u, err := enc.ParsedURL(); err != nil {
 			enc.URL = ""
 		} else if !u.IsAbs() {
-			if self.siteURL == nil {
-				enc.URL = ""
-			} else {
-				enc.URL = self.siteURL.ResolveReference(u).String()
-			}
+			enc.WithURL(self.feed.ResolveReference(u))
 		}
 	}
 

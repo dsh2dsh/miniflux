@@ -18,8 +18,6 @@ type jsonFeed struct {
 	baseURL *url.URL
 	json    *json.Feed
 	feed    *model.Feed
-
-	parsedSiteURL *url.URL
 }
 
 func parseJSON(feedURL *url.URL, b []byte) (*model.Feed, error) {
@@ -38,42 +36,40 @@ func (self *jsonFeed) Feed(feedURL *url.URL, jsonFeed *json.Feed,
 
 	self.feed = &model.Feed{
 		Title:       self.json.Title,
-		FeedURL:     self.feedURL(),
-		SiteURL:     self.siteURL(),
 		Description: self.json.Description,
-		IconURL:     self.iconURL(),
 	}
+
+	self.feed.WithFeedURL(self.feedURL())
+	self.feed.WithSiteURL(self.siteURL())
+	self.feed.IconURL = self.iconURL()
 	self.feed.Entries = self.entries()
 	return self.feed, nil
 }
 
-func (self *jsonFeed) feedURL() string {
+func (self *jsonFeed) feedURL() *url.URL {
 	link := strings.TrimSpace(self.json.FeedURL)
 	if link == "" {
-		return self.baseURL.String()
+		return self.baseURL
 	}
 
 	u, err := url.Parse(link)
 	if err != nil {
-		return self.baseURL.String()
+		return self.baseURL
 	} else if u.IsAbs() {
-		return link
+		return u
 	}
-	return self.baseURL.ResolveReference(u).String()
+	return self.baseURL.ResolveReference(u)
 }
 
-func (self *jsonFeed) siteURL() string {
+func (self *jsonFeed) siteURL() *url.URL {
 	link := strings.TrimSpace(self.json.HomePageURL)
 	u, err := url.Parse(link)
 	if err != nil {
-		return link
+		return self.baseURL
 	} else if u.IsAbs() {
-		self.parsedSiteURL = u
-		return link
+		return u
 	}
-
-	self.parsedSiteURL = self.baseURL.ResolveReference(u)
-	return self.parsedSiteURL.String()
+	return self.baseURL.ResolveReference(u)
 }
 
 func (self *jsonFeed) iconURL() string {
@@ -85,12 +81,20 @@ func (self *jsonFeed) iconURL() string {
 		u, err := url.Parse(link)
 		if err != nil {
 			continue
-		} else if u.IsAbs() || self.parsedSiteURL == nil {
-			return link
+		} else if u.IsAbs() {
+			return u.String()
 		}
-		return self.parsedSiteURL.ResolveReference(u).String()
+		return self.ResolveReference(u).String()
 	}
 	return ""
+}
+
+func (self *jsonFeed) ResolveReference(u *url.URL) *url.URL {
+	siteURL, err := self.feed.ParsedSiteURL()
+	if err != nil || siteURL == nil {
+		return u
+	}
+	return siteURL.ResolveReference(u)
 }
 
 func (self *jsonFeed) entries() []*model.Entry {
@@ -106,15 +110,11 @@ func (self *jsonFeed) entries() []*model.Entry {
 }
 
 func (self *jsonFeed) entry(item *json.Item) *model.Entry {
-	p := jsonEntry{
-		json:    item,
-		siteURL: self.parsedSiteURL,
-		entry:   NewEntry(self.feed),
-	}
-
+	p := jsonEntry{feed: self, json: item, entry: NewEntry(self.feed)}
 	entry := p.Parse()
+	self.fixEntryURL(entry)
+
 	entry.Author = self.entryAuthor(entry)
-	entry.URL = self.entryURL(entry)
 	entry.Title = self.entryTitle(entry)
 	return entry
 }
@@ -139,11 +139,16 @@ func joinJsonAuthors(authors iter.Seq[*json.Author]) string {
 	return strings.Join(names, ", ")
 }
 
-func (self *jsonFeed) entryURL(entry *model.Entry) string {
+func (self *jsonFeed) fixEntryURL(entry *model.Entry) {
 	if entry.URL != "" {
-		return entry.URL
+		return
 	}
-	return self.feed.SiteURL
+
+	if u, err := self.feed.ParsedSiteURL(); err == nil {
+		entry.WithURL(u)
+	} else {
+		entry.WithURLString(self.feed.SiteURL)
+	}
 }
 
 func (self *jsonFeed) entryTitle(entry *model.Entry) string {
@@ -154,9 +159,8 @@ func (self *jsonFeed) entryTitle(entry *model.Entry) string {
 }
 
 type jsonEntry struct {
-	json    *json.Item
-	siteURL *url.URL
-
+	feed  *jsonFeed
+	json  *json.Item
 	entry *model.Entry
 }
 
@@ -164,7 +168,7 @@ func (self *jsonEntry) Parse() *model.Entry {
 	self.entry.Date = self.published()
 	self.entry.Title = self.title()
 	self.entry.Content = self.json.Content()
-	self.entry.URL = self.entryURL()
+	self.entry.WithURL(self.entryURL())
 	self.entry.Author = joinJsonAuthors(self.json.AllAuthors())
 	self.entry.Tags = self.tags()
 	self.entry.AppendEnclosures(self.enclosures())
@@ -172,7 +176,8 @@ func (self *jsonEntry) Parse() *model.Entry {
 
 	enclosures := self.entry.Enclosures()
 	if len(enclosures) != 0 && self.entry.URL == "" {
-		self.entry.URL = enclosures[0].URL
+		u, _ := enclosures[0].ParsedURL()
+		self.entry.WithURL(u)
 	}
 	return self.entry
 }
@@ -201,17 +206,17 @@ func (self *jsonEntry) title() string {
 	return ""
 }
 
-func (self *jsonEntry) entryURL() string {
+func (self *jsonEntry) entryURL() *url.URL {
 	for link := range self.json.AllLinks() {
 		u, err := url.Parse(link)
 		if err != nil {
 			continue
-		} else if u.IsAbs() || self.siteURL == nil {
-			return link
+		} else if u.IsAbs() {
+			return u
 		}
-		return self.siteURL.ResolveReference(u).String()
+		return self.feed.ResolveReference(u)
 	}
-	return ""
+	return nil
 }
 
 func (self *jsonEntry) tags() []string {
@@ -264,13 +269,10 @@ func (self *jsonEntry) enclosures() []model.Enclosure {
 			Size:     att.SizeInBytes,
 		}
 
-		if u, err := url.Parse(enc.URL); err != nil {
+		if u, err := enc.ParsedURL(); err != nil {
 			continue
 		} else if !u.IsAbs() {
-			if self.siteURL == nil {
-				continue
-			}
-			enc.URL = self.siteURL.ResolveReference(u).String()
+			enc.WithURL(self.feed.ResolveReference(u))
 		}
 		enclosures = append(enclosures, enc)
 	}

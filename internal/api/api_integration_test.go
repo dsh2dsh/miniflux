@@ -947,9 +947,15 @@ func (self *EndpointTestSuite) TestGetFeedEndpoint() {
 	self.Require().NoError(err)
 	self.Require().NotNil(feed)
 	self.Equal(feedID, feed.ID, "Invalid feedID")
-	self.Equal(self.cfg.FeedURL, feed.FeedURL, "Invalid feed URL")
-	self.Equal(self.cfg.WebsiteURL, feed.SiteURL, "Invalid site URL")
 	self.Equal(self.cfg.FeedTitle, feed.Title, "Invalid title")
+
+	u, err := feed.ParsedFeedURL()
+	self.Require().NoError(err, "Invalid feed URL")
+	self.Equal(self.cfg.FeedURL, u.String(), "Invalid feed URL")
+
+	u, err = feed.ParsedSiteURL()
+	self.Require().NoError(err, "Invalid site URL")
+	self.Equal(self.cfg.WebsiteURL, u.String(), "Invalid site URL")
 }
 
 func (self *EndpointTestSuite) TestGetFeedIcon() {

@@ -130,7 +130,7 @@ func (self *Create) createFeed(ctx context.Context,
 	feed.HideGlobally = r.HideGlobally
 	feed.EtagHeader = etag
 	feed.LastModifiedHeader = lastModified
-	feed.FeedURL = url
+	feed.WithFeedURLString(url)
 	feed.ProxyURL = r.ProxyURL
 
 	feed.WithBlockAuthors(r.BlockAuthors)

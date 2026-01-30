@@ -546,8 +546,8 @@ func (self *Refresh) feedParsingError(user *model.User) *model.Entry {
 		"Feed": self.feed,
 	})
 
-	entry.URL = self.routeURL("feedEntries", "feedID", self.feedID)
-	entry.HashFrom(entry.URL)
+	entry.WithURLString(self.routeURL("feedEntries", "feedID", self.feedID)).
+		HashFrom(entry.URL)
 	return entry
 }
 

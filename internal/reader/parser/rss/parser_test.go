@@ -1118,7 +1118,7 @@ func TestParseEntryWithIncorrectEnclosureLength(t *testing.T) {
 	require.NotNil(t, feed)
 
 	require.Len(t, feed.Entries, 1)
-	assert.Equal(t, model.EnclosureList{
+	assert.EqualExportedValues(t, model.EnclosureList{
 		{
 			URL:      "http://www.example.org/myaudiofile.mp3",
 			MimeType: "audio/mpeg",
@@ -1357,7 +1357,7 @@ func TestParseEntryWithMediaGroup(t *testing.T) {
 	require.NotNil(t, feed)
 
 	require.Len(t, feed.Entries, 1)
-	assert.Equal(t, model.EnclosureList{
+	assert.EqualExportedValues(t, model.EnclosureList{
 		{
 			URL:      "https://example.org/file3.torrent",
 			MimeType: "application/x-bittorrent",
@@ -1422,7 +1422,7 @@ func TestParseEntryWithMediaContent(t *testing.T) {
 	require.NotNil(t, feed)
 
 	require.Len(t, feed.Entries, 1)
-	assert.Equal(t, model.EnclosureList{
+	assert.EqualExportedValues(t, model.EnclosureList{
 		{
 			URL:      "https://example.org/thumbnail.jpg",
 			MimeType: "image/*",
@@ -1468,7 +1468,7 @@ func TestParseEntryWithMediaPeerLink(t *testing.T) {
 	require.NotNil(t, feed)
 
 	require.Len(t, feed.Entries, 1)
-	assert.Equal(t, model.EnclosureList{
+	assert.EqualExportedValues(t, model.EnclosureList{
 		{
 			URL:      "https://www.example.org/file.torrent",
 			MimeType: "application/x-bittorrent",

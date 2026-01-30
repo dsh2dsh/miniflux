@@ -127,8 +127,8 @@ func (self *FeedProcessor) process(ctx context.Context) error {
 	slices.Reverse(self.feed.Entries)
 
 	// The errors are handled in RemoveTrackingParameters.
-	feedURL, _ := url.Parse(self.feed.FeedURL)
-	siteURL, _ := url.Parse(self.feed.SiteURL)
+	feedURL, _ := self.feed.ParsedFeedURL()
+	siteURL, _ := self.feed.ParsedSiteURL()
 
 	contentRewrite := rewrite.NewContentRewrite(self.feed.RewriteRules,
 		self.user, self.templates)
@@ -211,12 +211,12 @@ func (self *FeedProcessor) markStoredEntries(ctx context.Context, force bool,
 }
 
 func removeTracking(feedURL, siteURL *url.URL, entry *model.Entry) {
-	u, err := url.Parse(entry.URL)
+	u, err := entry.ParsedURL()
 	if err != nil {
 		return
 	}
 	sanitizer.StripTracking(u, feedURL.Hostname(), siteURL.Hostname())
-	entry.URL = u.String()
+	entry.WithURL(u)
 }
 
 func (self *FeedProcessor) Scrape(ctx context.Context, entry *model.Entry,
@@ -269,16 +269,22 @@ func (self *FeedProcessor) sanitizeEntry(entry *model.Entry, pageURL string,
 ) error {
 	entry.Title = sanitizeTitle(entry, self.feed)
 
-	if pageURL == "" {
-		pageURL = entry.URL
+	var parsedURL *url.URL
+	if pageURL != "" {
+		u, err := url.Parse(pageURL)
+		if err != nil {
+			return fmt.Errorf("reader/processor: parse page URL: %w", err)
+		}
+		parsedURL = u
+	} else {
+		u, err := entry.ParsedURL()
+		if err != nil {
+			return fmt.Errorf("reader/processor: %w", err)
+		}
+		parsedURL = u
 	}
 
-	u, err := url.Parse(pageURL)
-	if err != nil {
-		return fmt.Errorf("reader/processor: parse entry URL: %w", err)
-	}
-
-	entry.Content = sanitizer.SanitizeContent(entry.Content, u, opts...)
+	entry.Content = sanitizer.SanitizeContent(entry.Content, parsedURL, opts...)
 	return nil
 }
 
@@ -305,8 +311,8 @@ func ProcessEntryWebPage(ctx context.Context, feed *model.Feed,
 	entry *model.Entry, user *model.User, opts ...sanitizer.Option,
 ) error {
 	// The errors are handled in RemoveTrackingParameters.
-	feedURL, _ := url.Parse(feed.FeedURL)
-	siteURL, _ := url.Parse(feed.SiteURL)
+	feedURL, _ := feed.ParsedFeedURL()
+	siteURL, _ := feed.ParsedSiteURL()
 	removeTracking(feedURL, siteURL, entry)
 	rewrite.RewriteEntryURL(ctx, feed, entry)
 

@@ -5,6 +5,7 @@ package model // import "miniflux.app/v2/internal/model"
 
 import (
 	"fmt"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -78,6 +79,9 @@ type Feed struct {
 	filteredByRules  int
 	filteredByHash   int
 	filteredByStored int
+
+	feedURL *url.URL
+	siteURL *url.URL
 }
 
 type FeedExtra struct {
@@ -99,43 +103,101 @@ type FeedCounters struct {
 	UnreadCounters map[int64]int `json:"unreads"`
 }
 
-func (f *Feed) String() string {
+func (self *Feed) String() string {
 	return fmt.Sprintf("ID=%d, UserID=%d, FeedURL=%s, SiteURL=%s, Title=%s, Category={%s}",
-		f.ID,
-		f.UserID,
-		f.FeedURL,
-		f.SiteURL,
-		f.Title,
-		f.Category,
+		self.ID,
+		self.UserID,
+		self.FeedURL,
+		self.SiteURL,
+		self.Title,
+		self.Category,
 	)
 }
 
+func (self *Feed) WithFeedURL(u *url.URL) *Feed {
+	if u != nil {
+		self.feedURL, self.FeedURL = u, u.String()
+	} else {
+		self.WithFeedURLString("")
+	}
+	return self
+}
+
+func (self *Feed) WithFeedURLString(feedURL string) *Feed {
+	if self.FeedURL != feedURL {
+		self.feedURL, self.FeedURL = nil, feedURL
+	}
+	return self
+}
+
+func (self *Feed) ParsedFeedURL() (*url.URL, error) {
+	if self.feedURL != nil {
+		return self.feedURL, nil
+	}
+
+	u, err := url.Parse(self.FeedURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse feed URL: %w", err)
+	}
+	self.feedURL = u
+	return u, nil
+}
+
+func (self *Feed) WithSiteURL(u *url.URL) *Feed {
+	if u != nil {
+		self.siteURL, self.SiteURL = u, u.String()
+	} else {
+		self.WithSiteURLString("")
+	}
+	return self
+}
+
+func (self *Feed) WithSiteURLString(siteURL string) *Feed {
+	if self.SiteURL != siteURL {
+		self.siteURL, self.SiteURL = nil, siteURL
+	}
+	return self
+}
+
+func (self *Feed) ParsedSiteURL() (*url.URL, error) {
+	if self.siteURL != nil {
+		return self.siteURL, nil
+	}
+
+	u, err := url.Parse(self.SiteURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse site URL: %w", err)
+	}
+	self.siteURL = u
+	return u, nil
+}
+
 // WithCategoryID initializes the category attribute of the feed.
-func (f *Feed) WithCategoryID(categoryID int64) {
-	f.Category = &Category{ID: categoryID}
+func (self *Feed) WithCategoryID(categoryID int64) {
+	self.Category = &Category{ID: categoryID}
 }
 
 // WithTranslatedErrorMessage adds a new error message and increment the error counter.
-func (f *Feed) WithTranslatedErrorMessage(message string) {
-	f.ParsingErrorCount++
-	f.ParsingErrorMsg = message
+func (self *Feed) WithTranslatedErrorMessage(message string) {
+	self.ParsingErrorCount++
+	self.ParsingErrorMsg = message
 }
 
 // ResetErrorCounter removes all previous errors.
-func (f *Feed) ResetErrorCounter() {
-	f.ParsingErrorCount, f.ParsingErrorMsg = 0, ""
+func (self *Feed) ResetErrorCounter() {
+	self.ParsingErrorCount, self.ParsingErrorMsg = 0, ""
 }
 
 // CheckedNow set attribute values when the feed is refreshed.
-func (f *Feed) CheckedNow() {
-	f.CheckedAt = time.Now()
-	if f.SiteURL == "" {
-		f.SiteURL = f.FeedURL
+func (self *Feed) CheckedNow() {
+	self.CheckedAt = time.Now()
+	if self.SiteURL == "" {
+		self.SiteURL = self.FeedURL
 	}
 }
 
 // ScheduleNextCheck set "next_check_at" of a feed.
-func (f *Feed) ScheduleNextCheck(refreshDelayInMinutes int) int {
+func (self *Feed) ScheduleNextCheck(refreshDelayInMinutes int) int {
 	// Default to the global config Polling Frequency.
 	//
 	// Use the RSS TTL field, Retry-After, Cache-Control or Expires HTTP headers
@@ -147,23 +209,23 @@ func (f *Feed) ScheduleNextCheck(refreshDelayInMinutes int) int {
 	intervalMinutes = min(config.SchedulerRoundRobinMaxInterval(),
 		intervalMinutes)
 
-	f.NextCheckAt = time.Now().Add(time.Minute * time.Duration(intervalMinutes))
+	self.NextCheckAt = time.Now().Add(time.Minute * time.Duration(intervalMinutes))
 	return intervalMinutes
 }
 
-func (f *Feed) Size() uint64 { return f.Runtime.Size }
-func (f *Feed) HashString() string {
-	return strconv.FormatUint(f.Runtime.Hash, 16)
+func (self *Feed) Size() uint64 { return self.Runtime.Size }
+func (self *Feed) HashString() string {
+	return strconv.FormatUint(self.Runtime.Hash, 16)
 }
 
-func (f *Feed) ContentChanged(body []byte) bool {
-	oldSize, oldHash := f.Runtime.Size, f.Runtime.Hash
-	f.Runtime.Size, f.Runtime.Hash = uint64(len(body)), xxhash.Sum64(body)
-	return f.Runtime.Size != oldSize || f.Runtime.Hash != oldHash
+func (self *Feed) ContentChanged(body []byte) bool {
+	oldSize, oldHash := self.Runtime.Size, self.Runtime.Hash
+	self.Runtime.Size, self.Runtime.Hash = uint64(len(body)), xxhash.Sum64(body)
+	return self.Runtime.Size != oldSize || self.Runtime.Hash != oldHash
 }
 
-func (f *Feed) CommentsURLTemplate() (*template.Template, error) {
-	s := strings.TrimSpace(f.Extra.CommentsURLTemplate)
+func (self *Feed) CommentsURLTemplate() (*template.Template, error) {
+	s := strings.TrimSpace(self.Extra.CommentsURLTemplate)
 	if s == "" {
 		return nil, nil
 	}
@@ -182,45 +244,45 @@ var commentsURLTemplateFuncMap = template.FuncMap{
 	},
 }
 
-func (f *Feed) BlockAuthors() []string { return f.Extra.BlockAuthors }
+func (self *Feed) BlockAuthors() []string { return self.Extra.BlockAuthors }
 
-func (f *Feed) WithBlockAuthors(authors []string) *Feed {
+func (self *Feed) WithBlockAuthors(authors []string) *Feed {
 	if len(authors) == 0 {
-		f.Extra.BlockAuthors = nil
-		return f
+		self.Extra.BlockAuthors = nil
+		return self
 	}
 
 	slices.Sort(authors)
-	f.Extra.BlockAuthors = slices.Compact(authors)
-	return f
+	self.Extra.BlockAuthors = slices.Compact(authors)
+	return self
 }
 
-func (f *Feed) BlockMarkRead() bool { return f.Extra.BlockMarkRead }
+func (self *Feed) BlockMarkRead() bool { return self.Extra.BlockMarkRead }
 
-func (f *Feed) WithBlockMarkRead(value bool) *Feed {
-	f.Extra.BlockMarkRead = value
-	return f
+func (self *Feed) WithBlockMarkRead(value bool) *Feed {
+	self.Extra.BlockMarkRead = value
+	return self
 }
 
-func (f *Feed) BlockFilterEntryRules() string {
-	return f.Extra.BlockFilterEntryRules
+func (self *Feed) BlockFilterEntryRules() string {
+	return self.Extra.BlockFilterEntryRules
 }
 
-func (f *Feed) KeepFilterEntryRules() string {
-	return f.Extra.KeepFilterEntryRules
+func (self *Feed) KeepFilterEntryRules() string {
+	return self.Extra.KeepFilterEntryRules
 }
 
-func (f *Feed) IncFilteredByAge()  { f.filteredByAge++ }
-func (f *Feed) FilteredByAge() int { return f.filteredByAge }
+func (self *Feed) IncFilteredByAge()  { self.filteredByAge++ }
+func (self *Feed) FilteredByAge() int { return self.filteredByAge }
 
-func (f *Feed) IncFilteredByRules()  { f.filteredByRules++ }
-func (f *Feed) FilteredByRules() int { return f.filteredByRules }
+func (self *Feed) IncFilteredByRules()  { self.filteredByRules++ }
+func (self *Feed) FilteredByRules() int { return self.filteredByRules }
 
-func (f *Feed) IncFilteredByHash()  { f.filteredByHash++ }
-func (f *Feed) FilteredByHash() int { return f.filteredByHash }
+func (self *Feed) IncFilteredByHash()  { self.filteredByHash++ }
+func (self *Feed) FilteredByHash() int { return self.filteredByHash }
 
-func (f *Feed) IncFilteredByStored()  { f.filteredByStored++ }
-func (f *Feed) FilteredByStored() int { return f.filteredByStored }
+func (self *Feed) IncFilteredByStored()  { self.filteredByStored++ }
+func (self *Feed) FilteredByStored() int { return self.filteredByStored }
 
 // FeedCreationRequest represents the request to create a feed.
 type FeedCreationRequest struct {
@@ -286,105 +348,105 @@ type FeedModificationRequest struct {
 }
 
 // Patch updates a feed with modified values.
-func (f *FeedModificationRequest) Patch(feed *Feed) {
-	if f.FeedURL != nil && *f.FeedURL != "" {
-		feed.FeedURL = *f.FeedURL
+func (self *FeedModificationRequest) Patch(feed *Feed) {
+	if self.FeedURL != nil && *self.FeedURL != "" {
+		feed.WithFeedURLString(*self.FeedURL)
 	}
 
-	if f.SiteURL != nil && *f.SiteURL != "" {
-		feed.SiteURL = *f.SiteURL
+	if self.SiteURL != nil && *self.SiteURL != "" {
+		feed.WithSiteURLString(*self.SiteURL)
 	}
 
-	if f.Title != nil && *f.Title != "" {
-		feed.Title = *f.Title
+	if self.Title != nil && *self.Title != "" {
+		feed.Title = *self.Title
 	}
 
-	if f.Description != nil && *f.Description != "" {
-		feed.Description = *f.Description
+	if self.Description != nil && *self.Description != "" {
+		feed.Description = *self.Description
 	}
 
-	if f.ScraperRules != nil {
-		feed.ScraperRules = *f.ScraperRules
+	if self.ScraperRules != nil {
+		feed.ScraperRules = *self.ScraperRules
 	}
 
-	if f.RewriteRules != nil {
-		feed.RewriteRules = *f.RewriteRules
+	if self.RewriteRules != nil {
+		feed.RewriteRules = *self.RewriteRules
 	}
 
-	if f.UrlRewriteRules != nil {
-		feed.UrlRewriteRules = *f.UrlRewriteRules
+	if self.UrlRewriteRules != nil {
+		feed.UrlRewriteRules = *self.UrlRewriteRules
 	}
 
-	if f.BlockAuthors != nil {
-		feed.WithBlockAuthors(*f.BlockAuthors)
+	if self.BlockAuthors != nil {
+		feed.WithBlockAuthors(*self.BlockAuthors)
 	}
 
-	if f.BlockFilterEntryRules != nil {
-		feed.Extra.BlockFilterEntryRules = *f.BlockFilterEntryRules
+	if self.BlockFilterEntryRules != nil {
+		feed.Extra.BlockFilterEntryRules = *self.BlockFilterEntryRules
 	}
 
-	if f.KeepFilterEntryRules != nil {
-		feed.Extra.KeepFilterEntryRules = *f.KeepFilterEntryRules
+	if self.KeepFilterEntryRules != nil {
+		feed.Extra.KeepFilterEntryRules = *self.KeepFilterEntryRules
 	}
 
-	if f.Crawler != nil {
-		feed.Crawler = *f.Crawler
+	if self.Crawler != nil {
+		feed.Crawler = *self.Crawler
 	}
 
-	if f.UserAgent != nil {
-		feed.UserAgent = *f.UserAgent
+	if self.UserAgent != nil {
+		feed.UserAgent = *self.UserAgent
 	}
 
-	if f.Cookie != nil {
-		feed.Cookie = *f.Cookie
+	if self.Cookie != nil {
+		feed.Cookie = *self.Cookie
 	}
 
-	if f.Username != nil {
-		feed.Username = *f.Username
+	if self.Username != nil {
+		feed.Username = *self.Username
 	}
 
-	if f.Password != nil {
-		feed.Password = *f.Password
+	if self.Password != nil {
+		feed.Password = *self.Password
 	}
 
-	if f.CategoryID != nil && *f.CategoryID > 0 {
-		feed.Category.ID = *f.CategoryID
+	if self.CategoryID != nil && *self.CategoryID > 0 {
+		feed.Category.ID = *self.CategoryID
 	}
 
-	if f.Disabled != nil {
-		feed.Disabled = *f.Disabled
+	if self.Disabled != nil {
+		feed.Disabled = *self.Disabled
 	}
 
-	if f.NoMediaPlayer != nil {
-		feed.NoMediaPlayer = *f.NoMediaPlayer
+	if self.NoMediaPlayer != nil {
+		feed.NoMediaPlayer = *self.NoMediaPlayer
 	}
 
-	if f.IgnoreHTTPCache != nil {
-		feed.IgnoreHTTPCache = *f.IgnoreHTTPCache
+	if self.IgnoreHTTPCache != nil {
+		feed.IgnoreHTTPCache = *self.IgnoreHTTPCache
 	}
 
-	if f.AllowSelfSignedCertificates != nil {
-		feed.AllowSelfSignedCertificates = *f.AllowSelfSignedCertificates
+	if self.AllowSelfSignedCertificates != nil {
+		feed.AllowSelfSignedCertificates = *self.AllowSelfSignedCertificates
 	}
 
-	if f.FetchViaProxy != nil {
-		feed.FetchViaProxy = *f.FetchViaProxy
+	if self.FetchViaProxy != nil {
+		feed.FetchViaProxy = *self.FetchViaProxy
 	}
 
-	if f.HideGlobally != nil {
-		feed.HideGlobally = *f.HideGlobally
+	if self.HideGlobally != nil {
+		feed.HideGlobally = *self.HideGlobally
 	}
 
-	if f.DisableHTTP2 != nil {
-		feed.DisableHTTP2 = *f.DisableHTTP2
+	if self.DisableHTTP2 != nil {
+		feed.DisableHTTP2 = *self.DisableHTTP2
 	}
 
-	if f.ProxyURL != nil {
-		feed.ProxyURL = *f.ProxyURL
+	if self.ProxyURL != nil {
+		feed.ProxyURL = *self.ProxyURL
 	}
 
-	if f.CommentsURLTemplate != nil {
-		feed.Extra.CommentsURLTemplate = *f.CommentsURLTemplate
+	if self.CommentsURLTemplate != nil {
+		feed.Extra.CommentsURLTemplate = *self.CommentsURLTemplate
 	}
 }
 

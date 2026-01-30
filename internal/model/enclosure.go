@@ -4,7 +4,9 @@
 package model // import "miniflux.app/v2/internal/model"
 
 import (
+	"fmt"
 	"iter"
+	"net/url"
 	"strings"
 )
 
@@ -18,10 +20,40 @@ type Enclosure struct {
 	Width            int    `json:"width,omitempty"`
 
 	originalURL string
+	parsedURL   *url.URL
 }
 
 type EnclosureUpdateRequest struct {
 	MediaProgression int64 `json:"media_progression,omitempty"`
+}
+
+func (self *Enclosure) WithURL(u *url.URL) *Enclosure {
+	if u != nil {
+		self.parsedURL, self.URL = u, u.String()
+	} else {
+		self.WithURLString("")
+	}
+	return self
+}
+
+func (self *Enclosure) WithURLString(urlStr string) *Enclosure {
+	if self.URL != urlStr {
+		self.parsedURL, self.URL = nil, urlStr
+	}
+	return self
+}
+
+func (self *Enclosure) ParsedURL() (*url.URL, error) {
+	if self.parsedURL != nil {
+		return self.parsedURL, nil
+	}
+
+	u, err := url.Parse(self.URL)
+	if err != nil {
+		return nil, fmt.Errorf("parse enclosure URL: %w", err)
+	}
+	self.parsedURL = u
+	return u, nil
 }
 
 // Html5MimeType will modify the actual MimeType to allow direct playback from HTML5 player for some kind of MimeType
@@ -52,9 +84,9 @@ func (self *Enclosure) IsImage() bool {
 		strings.HasSuffix(mediaURL, ".gif")
 }
 
-func (self *Enclosure) ReplaceURL(u string) string {
-	self.originalURL, self.URL = self.URL, u
-	return self.originalURL
+func (self *Enclosure) ReplaceURL(urlStr string) string {
+	self.originalURL = self.URL
+	return self.WithURLString(urlStr).originalURL
 }
 
 func (self *Enclosure) OriginalURL() string {

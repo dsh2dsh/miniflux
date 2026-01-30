@@ -62,9 +62,19 @@ type EntryExtra struct {
 	SiteData   *anyObject    `json:"siteData,omitempty"`
 }
 
-func (self *Entry) WithParsedURL(u *url.URL) *Entry {
-	self.parsedURL = u
-	self.URL = u.String()
+func (self *Entry) WithURL(u *url.URL) *Entry {
+	if u != nil {
+		self.parsedURL, self.URL = u, u.String()
+	} else {
+		self.WithURLString("")
+	}
+	return self
+}
+
+func (self *Entry) WithURLString(urlStr string) *Entry {
+	if self.URL != urlStr {
+		self.parsedURL, self.URL = nil, urlStr
+	}
 	return self
 }
 
@@ -125,9 +135,9 @@ func (self *Entry) SetCommentsURL(rawURL string) (err error) {
 	var u *url.URL
 	switch {
 	case path.IsAbs(rawURL):
-		u, err = url.Parse(self.URL)
+		u, err = self.ParsedURL()
 		if err != nil {
-			return fmt.Errorf("model: parse entry url %q: %w", self.URL, err)
+			return fmt.Errorf("model: %w", err)
 		}
 		u = u.JoinPath(rawURL)
 	default:
@@ -193,13 +203,16 @@ func NewEntryFrom(ext *ExternalEntry) *Entry {
 	entry := &Entry{
 		Status:      ext.Status,
 		Title:       ext.Title,
-		URL:         ext.URL,
 		CommentsURL: ext.CommentsURL,
 		Content:     ext.Content,
 		Author:      ext.Author,
 		Starred:     ext.Starred,
 		Tags:        ext.Tags,
 		imported:    true,
+	}
+
+	if u, err := url.Parse(ext.URL); err == nil {
+		entry.WithURL(u)
 	}
 	entry.HashFrom(ext.URL)
 

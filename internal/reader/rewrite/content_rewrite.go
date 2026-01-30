@@ -14,7 +14,6 @@ import (
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/template"
-	"miniflux.app/v2/internal/urllib"
 )
 
 type ContentRewrite struct {
@@ -53,7 +52,7 @@ func parseRules(s string) []rule {
 func (self *ContentRewrite) Apply(ctx context.Context, entry *model.Entry) {
 	rules := self.rules
 	if len(rules) == 0 {
-		rules = findDomainRule(urllib.Domain(entry.URL))
+		rules = findDomainRule(entry.Hostname())
 	}
 
 	logging.FromContext(ctx).Debug("Applying content rewrite rules",

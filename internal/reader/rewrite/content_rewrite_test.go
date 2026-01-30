@@ -6,10 +6,10 @@ package rewrite // import "miniflux.app/v2/internal/reader/rewrite"
 import (
 	"log/slog"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -108,10 +108,7 @@ func TestRewriteWithNoMatchingRule(t *testing.T) {
 		Content: `Some text.`,
 	}
 	applyContentRewriteRules(t, testEntry, ``)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func applyContentRewriteRules(t *testing.T, entry *model.Entry,
@@ -136,10 +133,7 @@ func TestRewriteIncorrectYoutubeLink(t *testing.T) {
 		Content: `Video Description`,
 	}
 	applyContentRewriteRules(t, testEntry, ``)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteYoutubeVideoLinkUsingInvidious(t *testing.T) {
@@ -156,10 +150,7 @@ func TestRewriteYoutubeVideoLinkUsingInvidious(t *testing.T) {
 	}
 
 	applyContentRewriteRules(t, testEntry, `add_youtube_video_using_invidious_player`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteYoutubeShortLinkUsingInvidious(t *testing.T) {
@@ -176,10 +167,7 @@ func TestRewriteYoutubeShortLinkUsingInvidious(t *testing.T) {
 	}
 
 	applyContentRewriteRules(t, testEntry, `add_youtube_video_using_invidious_player`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestAddYoutubeVideoFromId(t *testing.T) {
@@ -323,10 +311,7 @@ func TestRewriteWithInexistingCustomRule(t *testing.T) {
 		Content: `Video Description`,
 	}
 	applyContentRewriteRules(t, testEntry, `some rule`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteWithXkcdLink(t *testing.T) {
@@ -341,10 +326,7 @@ func TestRewriteWithXkcdLink(t *testing.T) {
 		Content: `<img src="https://imgs.xkcd.com/comics/thermostat.png" title="Your problem is so terrible, I worry that, if I help you, I risk drawing the attention of whatever god of technology inflicted it on you." alt="Your problem is so terrible, I worry that, if I help you, I risk drawing the attention of whatever god of technology inflicted it on you." />`,
 	}
 	applyContentRewriteRules(t, testEntry, ``)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteWithXkcdLinkHtmlInjection(t *testing.T) {
@@ -359,10 +341,7 @@ func TestRewriteWithXkcdLinkHtmlInjection(t *testing.T) {
 		Content: `<img src="https://imgs.xkcd.com/comics/thermostat.png" title="<foo>" alt="<foo>" />`,
 	}
 	applyContentRewriteRules(t, testEntry, ``)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteWithXkcdLinkAndImageNoTitle(t *testing.T) {
@@ -377,10 +356,7 @@ func TestRewriteWithXkcdLinkAndImageNoTitle(t *testing.T) {
 		Content: `<img src="https://imgs.xkcd.com/comics/thermostat.png" alt="Your problem is so terrible, I worry that, if I help you, I risk drawing the attention of whatever god of technology inflicted it on you." />`,
 	}
 	applyContentRewriteRules(t, testEntry, ``)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteWithXkcdLinkAndNoImage(t *testing.T) {
@@ -395,10 +371,7 @@ func TestRewriteWithXkcdLinkAndNoImage(t *testing.T) {
 		Content: `test`,
 	}
 	applyContentRewriteRules(t, testEntry, ``)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteWithXkcdAndNoImage(t *testing.T) {
@@ -413,10 +386,7 @@ func TestRewriteWithXkcdAndNoImage(t *testing.T) {
 		Content: `test`,
 	}
 	applyContentRewriteRules(t, testEntry, ``)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteMailtoLink(t *testing.T) {
@@ -431,10 +401,7 @@ func TestRewriteMailtoLink(t *testing.T) {
 		Content: `<a href="mailto:ryan@qwantz.com?subject=blah%20blah">contact</a>`,
 	}
 	applyContentRewriteRules(t, testEntry, ``)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteWithPDFLink(t *testing.T) {
@@ -449,10 +416,7 @@ func TestRewriteWithPDFLink(t *testing.T) {
 		Content: `test`,
 	}
 	applyContentRewriteRules(t, testEntry, ``)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteWithNoLazyImage(t *testing.T) {
@@ -467,10 +431,7 @@ func TestRewriteWithNoLazyImage(t *testing.T) {
 		Content: `<img src="https://example.org/image.jpg" alt="Image"><noscript><p>Some text</p></noscript>`,
 	}
 	applyContentRewriteRules(t, testEntry, "add_dynamic_image")
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteWithLazyImage(t *testing.T) {
@@ -485,10 +446,7 @@ func TestRewriteWithLazyImage(t *testing.T) {
 		Content: `<img src="" data-url="https://example.org/image.jpg" alt="Image"><noscript><img src="https://example.org/fallback.jpg" alt="Fallback"></noscript>`,
 	}
 	applyContentRewriteRules(t, testEntry, "add_dynamic_image")
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteWithLazyDivImage(t *testing.T) {
@@ -503,10 +461,7 @@ func TestRewriteWithLazyDivImage(t *testing.T) {
 		Content: `<div data-url="https://example.org/image.jpg" alt="Image"></div><noscript><img src="https://example.org/fallback.jpg" alt="Fallback"></noscript>`,
 	}
 	applyContentRewriteRules(t, testEntry, "add_dynamic_image")
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteWithUnknownLazyNoScriptImage(t *testing.T) {
@@ -521,10 +476,7 @@ func TestRewriteWithUnknownLazyNoScriptImage(t *testing.T) {
 		Content: `<img src="" data-non-candidate="https://example.org/image.jpg" alt="Image"><noscript><img src="https://example.org/fallback.jpg" alt="Fallback"></noscript>`,
 	}
 	applyContentRewriteRules(t, testEntry, "add_dynamic_image")
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteWithLazySrcset(t *testing.T) {
@@ -539,10 +491,7 @@ func TestRewriteWithLazySrcset(t *testing.T) {
 		Content: `<img srcset="" data-srcset="https://example.org/image.jpg" alt="Image">`,
 	}
 	applyContentRewriteRules(t, testEntry, "add_dynamic_image")
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteWithImageAndLazySrcset(t *testing.T) {
@@ -557,10 +506,7 @@ func TestRewriteWithImageAndLazySrcset(t *testing.T) {
 		Content: `<img src="meow" srcset="" data-srcset="https://example.org/image.jpg" alt="Image">`,
 	}
 	applyContentRewriteRules(t, testEntry, "add_dynamic_image")
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteWithNoLazyIframe(t *testing.T) {
@@ -575,10 +521,7 @@ func TestRewriteWithNoLazyIframe(t *testing.T) {
 		Content: `<iframe src="https://example.org/embed" allowfullscreen></iframe>`,
 	}
 	applyContentRewriteRules(t, testEntry, "add_dynamic_iframe")
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteWithLazyIframe(t *testing.T) {
@@ -593,10 +536,7 @@ func TestRewriteWithLazyIframe(t *testing.T) {
 		Content: `<iframe data-src="https://example.org/embed" allowfullscreen></iframe>`,
 	}
 	applyContentRewriteRules(t, testEntry, "add_dynamic_iframe")
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteWithLazyIframeAndSrc(t *testing.T) {
@@ -611,10 +551,7 @@ func TestRewriteWithLazyIframeAndSrc(t *testing.T) {
 		Content: `<iframe src="about:blank" data-src="https://example.org/embed" allowfullscreen></iframe>`,
 	}
 	applyContentRewriteRules(t, testEntry, "add_dynamic_iframe")
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestNewLineRewriteRule(t *testing.T) {
@@ -629,10 +566,7 @@ func TestNewLineRewriteRule(t *testing.T) {
 		Content: "A\nB\nC",
 	}
 	applyContentRewriteRules(t, testEntry, "nl2br")
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestConvertTextLinkRewriteRule(t *testing.T) {
@@ -647,10 +581,7 @@ func TestConvertTextLinkRewriteRule(t *testing.T) {
 		Content: `Test: http://example.org/a/b`,
 	}
 	applyContentRewriteRules(t, testEntry, "convert_text_link")
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestMediumImage(t *testing.T) {
@@ -684,10 +615,7 @@ func TestMediumImage(t *testing.T) {
 	}
 	applyContentRewriteRules(t, testEntry, "fix_medium_images")
 	testEntry.Content = strings.TrimSpace(testEntry.Content)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteNoScriptImageWithoutNoScriptTag(t *testing.T) {
@@ -703,10 +631,7 @@ func TestRewriteNoScriptImageWithoutNoScriptTag(t *testing.T) {
 	}
 	applyContentRewriteRules(t, testEntry, "use_noscript_figure_images")
 	testEntry.Content = strings.TrimSpace(testEntry.Content)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteNoScriptImageWithNoScriptTag(t *testing.T) {
@@ -722,10 +647,7 @@ func TestRewriteNoScriptImageWithNoScriptTag(t *testing.T) {
 	}
 	applyContentRewriteRules(t, testEntry, "use_noscript_figure_images")
 	testEntry.Content = strings.TrimSpace(testEntry.Content)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteReplaceCustom(t *testing.T) {
@@ -740,10 +662,7 @@ func TestRewriteReplaceCustom(t *testing.T) {
 		Content: `<img src="http://example.org/logo.svg"><img src="https://example.org/article/picture.svg">`,
 	}
 	applyContentRewriteRules(t, testEntry, `replace("article/(.*).svg"|"article/$1.png")`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteReplaceTitleCustom(t *testing.T) {
@@ -758,10 +677,7 @@ func TestRewriteReplaceTitleCustom(t *testing.T) {
 		Content: `The replace_title rewrite rule should not modify the content.`,
 	}
 	applyContentRewriteRules(t, testEntry, `replace_title("(?i)^a\\s*ti"|"Ouch, a this")`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteRemoveCustom(t *testing.T) {
@@ -776,10 +692,7 @@ func TestRewriteRemoveCustom(t *testing.T) {
 		Content: `<div>Lorem Ipsum <span class="spam">I dont want to see this</span><span class="ads keep">Super important info</span></div>`,
 	}
 	applyContentRewriteRules(t, testEntry, `remove(".spam, .ads:not(.keep)")`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteRemoveQuotedSelector(t *testing.T) {
@@ -794,10 +707,7 @@ func TestRewriteRemoveQuotedSelector(t *testing.T) {
 		Content: `<div>Lorem Ipsum<img alt="LINUX KERNEL" src="/assets/categories/linuxkernel.webp" width="100" height="100"></div>`,
 	}
 	applyContentRewriteRules(t, testEntry, `remove("img[src^='/assets/categories/']")`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteAddCastopodEpisode(t *testing.T) {
@@ -812,10 +722,7 @@ func TestRewriteAddCastopodEpisode(t *testing.T) {
 		Content: `Episode Description`,
 	}
 	applyContentRewriteRules(t, testEntry, `add_castopod_episode`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteBase64Decode(t *testing.T) {
@@ -830,10 +737,7 @@ func TestRewriteBase64Decode(t *testing.T) {
 		Content: `VGhpcyBpcyBzb21lIGJhc2U2NCBlbmNvZGVkIGNvbnRlbnQ=`,
 	}
 	applyContentRewriteRules(t, testEntry, `base64_decode`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteBase64DecodeInHTML(t *testing.T) {
@@ -848,10 +752,7 @@ func TestRewriteBase64DecodeInHTML(t *testing.T) {
 		Content: `<div>Lorem Ipsum not valid base64<span class="base64">VGhpcyBpcyBzb21lIGJhc2U2NCBlbmNvZGVkIGNvbnRlbnQ=</span></div>`,
 	}
 	applyContentRewriteRules(t, testEntry, `base64_decode`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteBase64DecodeArgs(t *testing.T) {
@@ -866,10 +767,7 @@ func TestRewriteBase64DecodeArgs(t *testing.T) {
 		Content: `<div>Lorem Ipsum<span class="base64">VGhpcyBpcyBzb21lIGJhc2U2NCBlbmNvZGVkIGNvbnRlbnQ=</span></div>`,
 	}
 	applyContentRewriteRules(t, testEntry, `base64_decode(".base64")`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteRemoveTables(t *testing.T) {
@@ -884,10 +782,7 @@ func TestRewriteRemoveTables(t *testing.T) {
 		Content: `<table class="container"><tbody><tr><td><p>Test</p><table class="row"><tbody><tr><td><p>Hello World!</p></td><td><p>Test</p></td></tr></tbody></table></td></tr></tbody></table>`,
 	}
 	applyContentRewriteRules(t, testEntry, `remove_tables`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRemoveClickbait(t *testing.T) {
@@ -902,10 +797,7 @@ func TestRemoveClickbait(t *testing.T) {
 		Content: `Some description`,
 	}
 	applyContentRewriteRules(t, testEntry, `remove_clickbait`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestAddHackerNewsLinksUsingHack(t *testing.T) {
@@ -927,10 +819,7 @@ func TestAddHackerNewsLinksUsingHack(t *testing.T) {
 		<p># Comments: 38</p>`,
 	}
 	applyContentRewriteRules(t, testEntry, `add_hn_links_using_hack`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestAddHackerNewsLinksUsingOpener(t *testing.T) {
@@ -952,10 +841,7 @@ func TestAddHackerNewsLinksUsingOpener(t *testing.T) {
 		<p># Comments: 38</p>`,
 	}
 	applyContentRewriteRules(t, testEntry, `add_hn_links_using_opener`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestAddImageTitle(t *testing.T) {
@@ -986,10 +872,7 @@ func TestAddImageTitle(t *testing.T) {
 		`,
 	}
 	applyContentRewriteRules(t, testEntry, `add_image_title`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestFixGhostCard(t *testing.T) {
@@ -1020,10 +903,7 @@ func TestFixGhostCard(t *testing.T) {
 		Content: `<a href="https://example.org/article">Example Article - Example</a>`,
 	}
 	applyContentRewriteRules(t, testEntry, `fix_ghost_cards`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestFixGhostCardNoCard(t *testing.T) {
@@ -1039,10 +919,7 @@ func TestFixGhostCardNoCard(t *testing.T) {
 		Content: `<a href="https://example.org/article">Example Article - Example</a>`,
 	}
 	applyContentRewriteRules(t, testEntry, `fix_ghost_cards`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestFixGhostCardInvalidCard(t *testing.T) {
@@ -1062,10 +939,7 @@ func TestFixGhostCardInvalidCard(t *testing.T) {
 		</figure>`,
 	}
 	applyContentRewriteRules(t, testEntry, `fix_ghost_cards`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestFixGhostCardMissingAuthor(t *testing.T) {
@@ -1091,10 +965,7 @@ func TestFixGhostCardMissingAuthor(t *testing.T) {
 		Content: `<a href="https://example.org/article">Example Article</a>`,
 	}
 	applyContentRewriteRules(t, testEntry, `fix_ghost_cards`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestFixGhostCardDuplicatedAuthor(t *testing.T) {
@@ -1125,10 +996,7 @@ func TestFixGhostCardDuplicatedAuthor(t *testing.T) {
 		Content: `<a href="https://example.org/article">Example Article - Example</a>`,
 	}
 	applyContentRewriteRules(t, testEntry, `fix_ghost_cards`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestFixGhostCardMultiple(t *testing.T) {
@@ -1175,10 +1043,7 @@ func TestFixGhostCardMultiple(t *testing.T) {
 		Content: `<ul><li><a href="https://example.org/article1">Example Article 1 - Example</a></li><li><a href="https://example.org/article2">Example Article 2 - Example</a></li></ul>`,
 	}
 	applyContentRewriteRules(t, testEntry, `fix_ghost_cards`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestFixGhostCardMultipleSplit(t *testing.T) {
@@ -1228,10 +1093,7 @@ func TestFixGhostCardMultipleSplit(t *testing.T) {
 		<a href="https://example.org/article2">Example Article 2 - Example</a>`,
 	}
 	applyContentRewriteRules(t, testEntry, `fix_ghost_cards`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestStripImageQueryParams(t *testing.T) {
@@ -1278,10 +1140,7 @@ func TestStripImageQueryParams(t *testing.T) {
 		</article>`,
 	}
 	applyContentRewriteRules(t, testEntry, `remove_img_blur_params`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestStripImageQueryParamsNoChanges(t *testing.T) {
@@ -1301,10 +1160,7 @@ func TestStripImageQueryParamsNoChanges(t *testing.T) {
 		<a href="https://example.org">A link</a>`,
 	}
 	applyContentRewriteRules(t, testEntry, `remove_img_blur_params`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestStripImageQueryParamsEdgeCases(t *testing.T) {
@@ -1349,10 +1205,7 @@ func TestStripImageQueryParamsEdgeCases(t *testing.T) {
 		`,
 	}
 	applyContentRewriteRules(t, testEntry, `remove_img_blur_params`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestStripImageQueryParamsSimple(t *testing.T) {
@@ -1383,8 +1236,5 @@ func TestStripImageQueryParamsSimple(t *testing.T) {
 		`,
 	}
 	applyContentRewriteRules(t, testEntry, `remove_img_blur_params`)
-
-	if !reflect.DeepEqual(testEntry, controlEntry) {
-		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
-	}
+	assert.EqualExportedValues(t, controlEntry, testEntry)
 }

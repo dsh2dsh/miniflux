@@ -20,8 +20,6 @@ type rssFeed struct {
 	baseURL *url.URL
 	rss     *rss.Feed
 	feed    *model.Feed
-
-	parsedSiteURL *url.URL
 }
 
 func parseRSS(feedURL *url.URL, b []byte) (*model.Feed, error) {
@@ -41,43 +39,41 @@ func (self *rssFeed) Feed(feedURL *url.URL, rssFeed *rss.Feed,
 
 	self.feed = &model.Feed{
 		Title:       self.rss.GetTitle(),
-		FeedURL:     self.feedURL(),
-		SiteURL:     self.siteURL(),
 		Description: self.rss.GetDescription(),
 		TTL:         self.rss.GetTTL(),
-		IconURL:     self.iconURL(),
 	}
+
+	self.feed.WithFeedURL(self.feedURL())
+	self.feed.WithSiteURL(self.siteURL())
+	self.feed.IconURL = self.iconURL()
 	self.feed.Entries = self.entries()
 	return self.feed, nil
 }
 
-func (self *rssFeed) feedURL() string {
+func (self *rssFeed) feedURL() *url.URL {
 	link := self.rss.FeedLink()
 	if link == "" {
-		return self.baseURL.String()
+		return self.baseURL
 	}
 
 	u, err := url.Parse(link)
 	if err != nil {
-		return self.baseURL.String()
+		return self.baseURL
 	} else if u.IsAbs() {
-		return link
+		return u
 	}
-	return self.baseURL.ResolveReference(u).String()
+	return self.baseURL.ResolveReference(u)
 }
 
-func (self *rssFeed) siteURL() string {
+func (self *rssFeed) siteURL() *url.URL {
 	link := self.rss.Link()
 	u, err := url.Parse(link)
 	if err != nil {
-		return link
+		return self.baseURL
 	} else if u.IsAbs() {
-		self.parsedSiteURL = u
-		return link
+		return u
 	}
-
-	self.parsedSiteURL = self.baseURL.ResolveReference(u)
-	return self.parsedSiteURL.String()
+	return self.baseURL.ResolveReference(u)
 }
 
 func (self *rssFeed) iconURL() string {
@@ -87,10 +83,18 @@ func (self *rssFeed) iconURL() string {
 	}
 
 	u, err := url.Parse(img.URL)
-	if err != nil || u.IsAbs() || self.parsedSiteURL == nil {
+	if err != nil || u.IsAbs() {
 		return img.URL
 	}
-	return self.parsedSiteURL.ResolveReference(u).String()
+	return self.ResolveReference(u).String()
+}
+
+func (self *rssFeed) ResolveReference(u *url.URL) *url.URL {
+	siteURL, err := self.feed.ParsedSiteURL()
+	if err != nil || siteURL == nil {
+		return u
+	}
+	return siteURL.ResolveReference(u)
 }
 
 func (self *rssFeed) entries() []*model.Entry {
@@ -106,16 +110,12 @@ func (self *rssFeed) entries() []*model.Entry {
 }
 
 func (self *rssFeed) entry(item *rss.Item) *model.Entry {
-	p := rssEntry{
-		rss:     item,
-		siteURL: self.parsedSiteURL,
-		entry:   NewEntry(self.feed),
-	}
-
+	p := rssEntry{feed: self, rss: item, entry: NewEntry(self.feed)}
 	entry := p.Parse()
+	self.fixEntryURL(entry)
+
 	entry.Author = self.entryAuthor(entry)
 	entry.Tags = self.entryTags(entry)
-	entry.URL = self.entryURL(entry)
 	entry.Title = self.entryTitle(entry)
 	return entry
 }
@@ -151,11 +151,16 @@ func (self *rssFeed) entryTags(entry *model.Entry) []string {
 	return slices.Compact(tags)
 }
 
-func (self *rssFeed) entryURL(entry *model.Entry) string {
+func (self *rssFeed) fixEntryURL(entry *model.Entry) {
 	if entry.URL != "" {
-		return entry.URL
+		return
 	}
-	return self.feed.SiteURL
+
+	if u, err := self.feed.ParsedSiteURL(); err == nil {
+		entry.WithURL(u)
+	} else {
+		entry.WithURLString(self.feed.SiteURL)
+	}
 }
 
 func (self *rssFeed) entryTitle(entry *model.Entry) string {
@@ -166,9 +171,8 @@ func (self *rssFeed) entryTitle(entry *model.Entry) string {
 }
 
 type rssEntry struct {
-	rss     *rss.Item
-	siteURL *url.URL
-
+	feed  *rssFeed
+	rss   *rss.Item
 	entry *model.Entry
 }
 
@@ -176,7 +180,7 @@ func (self *rssEntry) Parse() *model.Entry {
 	self.entry.Date = self.published()
 	self.entry.Title = self.rss.GetTitle()
 	self.entry.Content = self.rss.GetContent()
-	self.entry.URL = self.entryURL()
+	self.entry.WithURL(self.entryURL())
 	self.entry.Author = self.author()
 	self.entry.CommentsURL = self.commentsURL()
 	self.entry.ReadingTime = self.readingTime()
@@ -186,7 +190,8 @@ func (self *rssEntry) Parse() *model.Entry {
 
 	enclosures := self.entry.Enclosures()
 	if len(enclosures) != 0 && self.entry.URL == "" {
-		self.entry.URL = enclosures[0].URL
+		u, _ := enclosures[0].ParsedURL()
+		self.entry.WithURL(u)
 	}
 	return self.entry
 }
@@ -198,19 +203,19 @@ func (self *rssEntry) published() time.Time {
 	return time.Now()
 }
 
-func (self *rssEntry) entryURL() string {
+func (self *rssEntry) entryURL() *url.URL {
 	link := self.rss.Link()
 	if link == "" {
-		return link
+		return nil
 	}
 
 	u, err := url.Parse(link)
 	if err != nil {
-		return ""
-	} else if u.IsAbs() || self.siteURL == nil {
-		return link
+		return nil
+	} else if u.IsAbs() {
+		return u
 	}
-	return self.siteURL.ResolveReference(u).String()
+	return self.feed.ResolveReference(u)
 }
 
 func (self *rssEntry) author() string {
@@ -237,10 +242,8 @@ func (self *rssEntry) commentsURL() string {
 		return ""
 	case u.IsAbs():
 		return self.rss.Comments
-	case self.siteURL == nil:
-		return ""
 	}
-	return self.siteURL.ResolveReference(u).String()
+	return self.feed.ResolveReference(u).String()
 }
 
 func (self *rssEntry) readingTime() int {
@@ -269,14 +272,10 @@ func (self *rssEntry) readingTime() int {
 func (self *rssEntry) enclosures() (enclosures []model.Enclosure) {
 	for rssEnc := range self.rss.AllEnclosures() {
 		enc := model.Enclosure{URL: rssEnc.URL, MimeType: rssEnc.Type}
-		if u, err := url.Parse(enc.URL); err != nil {
+		if u, err := enc.ParsedURL(); err != nil {
 			continue
 		} else if !u.IsAbs() {
-			if self.siteURL == nil {
-				continue
-			} else {
-				enc.URL = self.siteURL.ResolveReference(u).String()
-			}
+			enc.WithURL(self.feed.ResolveReference(u))
 		}
 
 		if s := rssEnc.Length; s != "" {

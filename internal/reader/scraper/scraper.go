@@ -50,7 +50,7 @@ func ScrapeWebsite(ctx context.Context, rb *fetcher.RequestBuilder, pageURL,
 	}
 
 	// The entry URL could redirect somewhere else.
-	hostname := urllib.Domain(resp.EffectiveURL())
+	hostname := resp.URL().Hostname()
 	if rules == "" {
 		rules = domainRules(hostname)
 	}

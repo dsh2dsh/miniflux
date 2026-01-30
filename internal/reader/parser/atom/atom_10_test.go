@@ -1389,7 +1389,7 @@ A website: http://example.org/</media:description>
 	require.NotNil(t, feed)
 
 	require.Len(t, feed.Entries, 1)
-	assert.Equal(t, model.EnclosureList{
+	assert.EqualExportedValues(t, model.EnclosureList{
 		{
 			URL:      "https://www.example.org/duplicate-thumbnail.jpg",
 			MimeType: "image/*",
@@ -1456,7 +1456,7 @@ A website: http://example.org/</media:description>
 	require.NotNil(t, feed)
 
 	require.Len(t, feed.Entries, 1)
-	assert.Equal(t, model.EnclosureList{
+	assert.EqualExportedValues(t, model.EnclosureList{
 		{
 			URL:      "https://example.org/duplicated-thumbnail.jpg",
 			MimeType: "image/*",

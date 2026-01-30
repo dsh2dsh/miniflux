@@ -81,8 +81,8 @@ func (self *FeedForm) BlockAuthorsString() string {
 func (self *FeedForm) Merge(feed *model.Feed) *model.Feed {
 	feed.Category.ID = self.CategoryID
 	feed.Title = self.Title
-	feed.SiteURL = self.SiteURL
-	feed.FeedURL = self.FeedURL
+	feed.WithSiteURLString(self.SiteURL)
+	feed.WithFeedURLString(self.FeedURL)
 	feed.Description = self.Description
 	feed.ScraperRules = self.ScraperRules
 	feed.RewriteRules = self.RewriteRules
