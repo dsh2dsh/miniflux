@@ -97,7 +97,16 @@ var domainRules = map[string][]rule{
 	},
 
 	"treelobsters.com": addImageTitleRules,
-	"xkcd.com":         addImageTitleRules,
+
+	"vnexpress.net": {
+		addDynamicImageRule,
+		{
+			name: "remove",
+			args: []string{`h1.title-detail, .box-tinlienquanv2, .thumb-above-video, .parser_title, table[border="0"], p.Normal:has(strong:only-child a), ul.link_content.ul-temp, ul.list-news, div.box-wg-guicauhoi`},
+		},
+	},
+
+	"xkcd.com": addImageTitleRules,
 }
 
 func findDomainRule(hostname string) []rule {
