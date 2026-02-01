@@ -836,7 +836,7 @@ func (self *EndpointTestSuite) TestUpdateFeedEndpoint_CommentsURLTemplate() {
 
 			self.Require().NoError(err)
 			self.Require().NotNil(feed)
-			self.Equal(tt.commentsURL, feed.Extra.CommentsURLTemplate)
+			self.Equal(tt.commentsURL, feed.CommentsURLTemplateString())
 		})
 	}
 }

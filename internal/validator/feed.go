@@ -103,8 +103,8 @@ func ValidateFeedModification(ctx context.Context, store *storage.Storage,
 	}
 
 	if s := model.OptionalValue(r.CommentsURLTemplate); s != "" {
-		f := model.Feed{Extra: model.FeedExtra{CommentsURLTemplate: s}}
-		_, err := f.CommentsURLTemplate()
+		var f model.Feed
+		_, err := f.WithCommentsURLTemplate(s).CommentsURLTemplate()
 		if err != nil {
 			return locale.NewLocalizedError(
 				"Invalid Comments URL template: " + err.Error())

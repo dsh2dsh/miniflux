@@ -42,7 +42,7 @@ func (h *handler) showEditFeedPage(w http.ResponseWriter, r *http.Request) {
 		SiteURL:                     feed.SiteURL,
 		FeedURL:                     feed.FeedURL,
 		Title:                       feed.Title,
-		CommentsURLTemplate:         feed.Extra.CommentsURLTemplate,
+		CommentsURLTemplate:         feed.CommentsURLTemplateString(),
 		Description:                 feed.Description,
 		ScraperRules:                feed.ScraperRules,
 		RewriteRules:                feed.RewriteRules,

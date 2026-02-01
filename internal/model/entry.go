@@ -5,10 +5,8 @@ package model // import "miniflux.app/v2/internal/model"
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"iter"
-	"log/slog"
 	"net/url"
 	"path"
 	"strings"
@@ -18,7 +16,6 @@ import (
 	"github.com/dsh2dsh/gofeed/v2/atom"
 
 	"miniflux.app/v2/internal/crypto"
-	"miniflux.app/v2/internal/logging"
 )
 
 // Entry statuses and default sorting order.
@@ -263,50 +260,22 @@ func (self Entries) Enclosures() []Enclosure {
 	return encList
 }
 
-func (self Entries) MakeCommentURLs(ctx context.Context) {
-	log := logging.FromContext(ctx)
-	feedTemplates := make(map[int64]*template.Template)
+func (self Entries) MakeCommentURL(t *template.Template) error {
+	if t == nil {
+		return nil
+	}
+
 	var b bytes.Buffer
-
 	for _, e := range self {
-		t, ok := feedTemplates[e.FeedID]
-		if !ok {
-			t2, err := e.Feed.CommentsURLTemplate()
-			switch {
-			case err != nil:
-				log.Error("model: failed parse comments_url_template",
-					slog.Int64("feed_id", e.FeedID),
-					slog.Any("error", err))
-				fallthrough
-			case t2 == nil:
-				feedTemplates[e.FeedID] = nil
-				continue
-			}
-
-			t = t2
-			feedTemplates[e.FeedID] = t
-		} else if t == nil {
-			continue
-		}
-
 		b.Reset()
 		if err := t.Execute(&b, e); err != nil {
-			log.Error("model: failed execute comments_url_template",
-				slog.Int64("feed_id", e.FeedID),
-				slog.Int64("entry_id", e.ID),
-				slog.Any("error", err))
-			feedTemplates[e.FeedID] = nil
-			continue
+			return fmt.Errorf("make comment URL from template: %w", err)
 		}
-
 		if err := e.SetCommentsURL(b.String()); err != nil {
-			log.Error("model: failed set templated comments url",
-				slog.Int64("feed_id", e.FeedID),
-				slog.Int64("entry_id", e.ID),
-				slog.Any("error", err))
-			feedTemplates[e.FeedID] = nil
+			return fmt.Errorf("set comment URL from template: %w", err)
 		}
 	}
+	return nil
 }
 
 func (self Entries) Unread() iter.Seq2[int, *Entry] {

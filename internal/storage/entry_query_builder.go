@@ -311,7 +311,6 @@ SELECT
   f.hide_globally,
   f.no_media_player,
   f.webhook_url,
-  COALESCE(f.extra ->> 'comments_url_template', ''),
   fi.icon_id, i.hash AS icon_hash,
   u.timezone` + withContent() + `
 FROM entries e
@@ -330,7 +329,6 @@ WHERE ` + self.buildCondition() + " " + self.buildSorting()
 
 	dest := make([]any, 0, 37)
 	var entries model.Entries
-	var hasCommentsURLTemplate bool
 	entryMap := make(map[int64]*model.Entry)
 
 	for rows.Next() {
@@ -381,7 +379,6 @@ WHERE ` + self.buildCondition() + " " + self.buildSorting()
 			&entry.Feed.HideGlobally,
 			&entry.Feed.NoMediaPlayer,
 			&entry.Feed.WebhookURL,
-			&entry.Feed.Extra.CommentsURLTemplate,
 			&iconID, &iconHash,
 			&tz)
 
@@ -394,9 +391,6 @@ WHERE ` + self.buildCondition() + " " + self.buildSorting()
 			return nil, fmt.Errorf("storage: unable to fetch entry row: %w", err)
 		}
 		dest = dest[:0]
-
-		hasCommentsURLTemplate = hasCommentsURLTemplate ||
-			entry.Feed.Extra.CommentsURLTemplate != ""
 
 		if iconID.Valid && iconHash.Valid && iconHash.String != "" {
 			*entry.Feed.Icon = model.FeedIcon{
@@ -423,10 +417,6 @@ WHERE ` + self.buildCondition() + " " + self.buildSorting()
 
 		entries = append(entries, entry)
 		entryMap[entry.ID] = entry
-	}
-
-	if hasCommentsURLTemplate {
-		entries.MakeCommentURLs(ctx)
 	}
 	return entries, nil
 }

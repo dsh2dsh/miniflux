@@ -126,9 +126,16 @@ func (self *FeedProcessor) process(ctx context.Context) error {
 	// process older entries first
 	slices.Reverse(self.feed.Entries)
 
-	// The errors are handled in RemoveTrackingParameters.
-	feedURL, _ := self.feed.ParsedFeedURL()
-	siteURL, _ := self.feed.ParsedSiteURL()
+	if t, err := self.feed.CommentsURLTemplate(); err == nil && t != nil {
+		log = log.With(
+			slog.String("template", self.feed.CommentsURLTemplateString()))
+		log.Debug("make comment URLs from template")
+		err := self.feed.Entries.MakeCommentURL(t)
+		if err != nil {
+			log.Error("failed make comment URLs from template",
+				slog.Any("error", err))
+		}
+	}
 
 	contentRewrite := rewrite.NewContentRewrite(self.feed.RewriteRules,
 		self.user, self.templates)
@@ -146,7 +153,7 @@ func (self *FeedProcessor) process(ctx context.Context) error {
 				slog.String("url", self.feed.FeedURL)))
 		log.Debug("Processing entry")
 
-		removeTracking(feedURL, siteURL, entry)
+		removeTracking(entry, self.feed.Hostnames()...)
 		rewrite.RewriteEntryURL(ctx, self.feed, entry)
 
 		var pageURL string
@@ -210,12 +217,13 @@ func (self *FeedProcessor) markStoredEntries(ctx context.Context, force bool,
 	return nil
 }
 
-func removeTracking(feedURL, siteURL *url.URL, entry *model.Entry) {
+func removeTracking(entry *model.Entry, hostnames ...string) {
 	u, err := entry.ParsedURL()
 	if err != nil {
 		return
 	}
-	sanitizer.StripTracking(u, feedURL.Hostname(), siteURL.Hostname())
+
+	sanitizer.StripTracking(u, hostnames...)
 	entry.WithURL(u)
 }
 
@@ -310,10 +318,7 @@ func sanitizeTitle(entry *model.Entry, feed *model.Feed) string {
 func ProcessEntryWebPage(ctx context.Context, feed *model.Feed,
 	entry *model.Entry, user *model.User, opts ...sanitizer.Option,
 ) error {
-	// The errors are handled in RemoveTrackingParameters.
-	feedURL, _ := feed.ParsedFeedURL()
-	siteURL, _ := feed.ParsedSiteURL()
-	removeTracking(feedURL, siteURL, entry)
+	removeTracking(entry, feed.Hostnames()...)
 	rewrite.RewriteEntryURL(ctx, feed, entry)
 
 	p := FeedProcessor{feed: feed, user: user}

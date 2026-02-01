@@ -112,7 +112,7 @@ func (self *FeedForm) Merge(feed *model.Feed) *model.Feed {
 	feed.PushoverEnabled = self.PushoverEnabled
 	feed.PushoverPriority = self.PushoverPriority
 	feed.ProxyURL = self.ProxyURL
-	feed.Extra.CommentsURLTemplate = self.CommentsURLTemplate
+	feed.WithCommentsURLTemplate(self.CommentsURLTemplate)
 	return feed
 }
 

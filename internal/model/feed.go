@@ -82,6 +82,8 @@ type Feed struct {
 
 	feedURL *url.URL
 	siteURL *url.URL
+
+	commentsURLTemplate *template.Template
 }
 
 type FeedExtra struct {
@@ -172,6 +174,18 @@ func (self *Feed) ParsedSiteURL() (*url.URL, error) {
 	return u, nil
 }
 
+func (self *Feed) Hostnames() []string {
+	hostnames := make([]string, 0, 2)
+	urls := [...]func() (*url.URL, error){self.ParsedFeedURL, self.ParsedSiteURL}
+	for _, fn := range urls {
+		u, err := fn()
+		if err == nil {
+			hostnames = append(hostnames, u.Hostname())
+		}
+	}
+	return hostnames
+}
+
 // WithCategoryID initializes the category attribute of the feed.
 func (self *Feed) WithCategoryID(categoryID int64) {
 	self.Category = &Category{ID: categoryID}
@@ -224,24 +238,38 @@ func (self *Feed) ContentChanged(body []byte) bool {
 	return self.Runtime.Size != oldSize || self.Runtime.Hash != oldHash
 }
 
+func (self *Feed) WithCommentsURLTemplate(s string) *Feed {
+	self.Extra.CommentsURLTemplate = s
+	return self
+}
+
 func (self *Feed) CommentsURLTemplate() (*template.Template, error) {
+	if self.commentsURLTemplate != nil {
+		return self.commentsURLTemplate, nil
+	}
+
 	s := strings.TrimSpace(self.Extra.CommentsURLTemplate)
 	if s == "" {
 		return nil, nil
 	}
 
-	t, err := template.New("").Funcs(commentsURLTemplateFuncMap).Parse(s)
+	t, err := template.New("").Funcs(commentsURLFuncs).Parse(s)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"model: parsing comments_url_template %q: %w", s, err)
 	}
+	self.commentsURLTemplate = t
 	return t, nil
 }
 
-var commentsURLTemplateFuncMap = template.FuncMap{
+var commentsURLFuncs = template.FuncMap{
 	"replace": func(s, from, to string) string {
 		return strings.Replace(s, from, to, 1)
 	},
+}
+
+func (self *Feed) CommentsURLTemplateString() string {
+	return self.Extra.CommentsURLTemplate
 }
 
 func (self *Feed) BlockAuthors() []string { return self.Extra.BlockAuthors }
