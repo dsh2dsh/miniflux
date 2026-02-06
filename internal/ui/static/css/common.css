@@ -918,6 +918,7 @@ dialog {
     font-size: 1rem;
     margin: 0;
     display: inline;
+    overflow-wrap: break-word;
 }
 
 .item-title a {
