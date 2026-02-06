@@ -102,40 +102,14 @@ func (m *middleware) redirectToLogin(w http.ResponseWriter, r *http.Request) {
 
 func (m *middleware) handleAppSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		s := request.Session(r)
-
-		if s == nil {
-			ctx = contextWithSessionKeys(ctx, &publicSession)
-			next.ServeHTTP(w, r.WithContext(ctx))
+		if s := request.Session(r); s != nil {
+			next.ServeHTTP(w, r)
 			return
 		}
 
-		ctx = contextWithSessionKeys(ctx, s)
+		ctx := request.WithSession(r.Context(), &publicSession)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
-}
-
-func contextWithSessionKeys(ctx context.Context, sess *model.Session,
-) context.Context {
-	ctx = context.WithValue(ctx, request.SessionIDContextKey, sess.ID)
-	ctx = context.WithValue(ctx, request.OAuth2StateContextKey,
-		sess.Data.OAuth2State)
-	ctx = context.WithValue(ctx, request.OAuth2CodeVerifierContextKey,
-		sess.Data.OAuth2CodeVerifier)
-	ctx = context.WithValue(ctx, request.FlashMessageContextKey,
-		sess.Data.FlashMessage)
-	ctx = context.WithValue(ctx, request.FlashErrorMessageContextKey,
-		sess.Data.FlashErrorMessage)
-	ctx = context.WithValue(ctx, request.UserLanguageContextKey,
-		sess.Data.Language)
-	ctx = context.WithValue(ctx, request.UserThemeContextKey,
-		sess.Data.Theme)
-	ctx = context.WithValue(ctx, request.LastForceRefreshContextKey,
-		sess.Data.LastForceRefresh)
-	ctx = context.WithValue(ctx, request.WebAuthnDataContextKey,
-		sess.Data.WebAuthnSessionData)
-	return ctx
 }
 
 func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {

@@ -8,6 +8,9 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/stretchr/testify/assert"
+
 	"miniflux.app/v2/internal/model"
 )
 
@@ -248,8 +251,9 @@ func TestUserLanguage(t *testing.T) {
 		t.Errorf(`Unexpected context value, got %q instead of %q`, result, expected)
 	}
 
-	ctx := r.Context()
-	ctx = context.WithValue(ctx, UserLanguageContextKey, "fr_FR")
+	ctx := WithSession(r.Context(), &model.Session{
+		Data: &model.SessionData{Language: "fr_FR"},
+	})
 	r = r.WithContext(ctx)
 
 	result = UserLanguage(r)
@@ -270,8 +274,9 @@ func TestUserTheme(t *testing.T) {
 		t.Errorf(`Unexpected context value, got %q instead of %q`, result, expected)
 	}
 
-	ctx := r.Context()
-	ctx = context.WithValue(ctx, UserThemeContextKey, "dark_serif")
+	ctx := WithSession(r.Context(), &model.Session{
+		Data: &model.SessionData{Theme: "dark_serif"},
+	})
 	r = r.WithContext(ctx)
 
 	result = UserTheme(r)
@@ -292,8 +297,7 @@ func TestSessionID(t *testing.T) {
 		t.Errorf(`Unexpected context value, got %q instead of %q`, result, expected)
 	}
 
-	ctx := r.Context()
-	ctx = context.WithValue(ctx, SessionIDContextKey, "id")
+	ctx := WithSession(r.Context(), &model.Session{ID: "id"})
 	r = r.WithContext(ctx)
 
 	result = SessionID(r)
@@ -314,8 +318,9 @@ func TestOAuth2State(t *testing.T) {
 		t.Errorf(`Unexpected context value, got %q instead of %q`, result, expected)
 	}
 
-	ctx := r.Context()
-	ctx = context.WithValue(ctx, OAuth2StateContextKey, "state")
+	ctx := WithSession(r.Context(), &model.Session{
+		Data: &model.SessionData{OAuth2State: "state"},
+	})
 	r = r.WithContext(ctx)
 
 	result = OAuth2State(r)
@@ -336,8 +341,9 @@ func TestOAuth2CodeVerifier(t *testing.T) {
 		t.Errorf(`Unexpected context value, got %q instead of %q`, result, expected)
 	}
 
-	ctx := r.Context()
-	ctx = context.WithValue(ctx, OAuth2CodeVerifierContextKey, "verifier")
+	ctx := WithSession(r.Context(), &model.Session{
+		Data: &model.SessionData{OAuth2CodeVerifier: "verifier"},
+	})
 	r = r.WithContext(ctx)
 
 	result = OAuth2CodeVerifier(r)
@@ -358,8 +364,9 @@ func TestFlashMessage(t *testing.T) {
 		t.Errorf(`Unexpected context value, got %q instead of %q`, result, expected)
 	}
 
-	ctx := r.Context()
-	ctx = context.WithValue(ctx, FlashMessageContextKey, "message")
+	ctx := WithSession(r.Context(), &model.Session{
+		Data: &model.SessionData{FlashMessage: "message"},
+	})
 	r = r.WithContext(ctx)
 
 	result = FlashMessage(r)
@@ -380,8 +387,9 @@ func TestFlashErrorMessage(t *testing.T) {
 		t.Errorf(`Unexpected context value, got %q instead of %q`, result, expected)
 	}
 
-	ctx := r.Context()
-	ctx = context.WithValue(ctx, FlashErrorMessageContextKey, "error message")
+	ctx := WithSession(r.Context(), &model.Session{
+		Data: &model.SessionData{FlashErrorMessage: "error message"},
+	})
 	r = r.WithContext(ctx)
 
 	result = FlashErrorMessage(r)
@@ -402,18 +410,9 @@ func TestLastForceRefresh(t *testing.T) {
 		t.Errorf(`Unexpected context value, got %v instead of %v`, result, expected)
 	}
 
-	ctx := r.Context()
-	ctx = context.WithValue(ctx, LastForceRefreshContextKey, "not-a-timestamp")
-	r = r.WithContext(ctx)
-
-	result = LastForceRefresh(r)
-
-	if result != expected {
-		t.Errorf(`Unexpected context value, got %v instead of %v`, result, expected)
-	}
-
-	ctx = r.Context()
-	ctx = context.WithValue(ctx, LastForceRefreshContextKey, int64(1700000000))
+	ctx := WithSession(r.Context(), &model.Session{
+		Data: &model.SessionData{LastForceRefresh: 1700000000},
+	})
 	r = r.WithContext(ctx)
 
 	result = LastForceRefresh(r)
@@ -432,24 +431,18 @@ func TestWebAuthnSessionData(t *testing.T) {
 		t.Errorf("Unexpected context value, got %v instead of nil", result)
 	}
 
-	ctx := r.Context()
-	ctx = context.WithValue(ctx, WebAuthnDataContextKey, "invalid")
+	var webauthnData webauthn.SessionData
+	ctx := WithSession(r.Context(), &model.Session{
+		Data: &model.SessionData{
+			WebAuthnSessionData: model.WebAuthnSession{
+				SessionData: &webauthnData,
+			},
+		},
+	})
 	r = r.WithContext(ctx)
 
 	result = WebAuthnSessionData(r)
-	if result != nil {
-		t.Errorf("Unexpected context value, got %v instead of nil", result)
-	}
-
-	session := &model.WebAuthnSession{}
-	ctx = r.Context()
-	ctx = context.WithValue(ctx, WebAuthnDataContextKey, session)
-	r = r.WithContext(ctx)
-
-	result = WebAuthnSessionData(r)
-	if result == nil {
-		t.Errorf("Unexpected context value, got nil instead of session")
-	}
+	assert.Equal(t, &webauthnData, result.SessionData)
 }
 
 func TestClientIP(t *testing.T) {

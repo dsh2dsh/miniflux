@@ -26,17 +26,8 @@ const (
 	UserTimezoneContextKey
 	IsAdminUserContextKey
 	IsAuthenticatedContextKey
-	UserLanguageContextKey
-	UserThemeContextKey
-	SessionIDContextKey
-	OAuth2StateContextKey
-	OAuth2CodeVerifierContextKey
-	FlashMessageContextKey
-	FlashErrorMessageContextKey
-	LastForceRefreshContextKey
 	ClientIPContextKey
 	GoogleReaderTokenKey
-	WebAuthnDataContextKey
 )
 
 var (
@@ -47,7 +38,10 @@ var (
 
 // WebAuthnSessionData returns WebAuthn session data from the request context, or nil if absent.
 func WebAuthnSessionData(r *http.Request) *model.WebAuthnSession {
-	return getContextValue[*model.WebAuthnSession](r, WebAuthnDataContextKey)
+	if s := Session(r); s != nil {
+		return &s.Data.WebAuthnSessionData
+	}
+	return nil
 }
 
 // GoogleReaderToken returns the Google Reader token from the request context, if present.
@@ -90,50 +84,66 @@ func UserTimezone(r *http.Request) string {
 
 // UserLanguage returns the user's locale, defaulting to "en_US" when unset.
 func UserLanguage(r *http.Request) string {
-	language := getContextStringValue(r, UserLanguageContextKey)
-	if language == "" {
-		language = "en_US"
+	if s := Session(r); s != nil {
+		return s.Data.Language
 	}
-	return language
+	return "en_US"
 }
 
 // UserTheme returns the user's theme, defaulting to "system_serif" when unset.
 func UserTheme(r *http.Request) string {
-	theme := getContextStringValue(r, UserThemeContextKey)
-	if theme == "" {
-		theme = "system_serif"
+	if s := Session(r); s != nil {
+		return s.Data.Theme
 	}
-	return theme
+	return "system_serif"
 }
 
 // SessionID returns the current session ID from the request context.
 func SessionID(r *http.Request) string {
-	return getContextStringValue(r, SessionIDContextKey)
+	if s := Session(r); s != nil {
+		return s.ID
+	}
+	return ""
 }
 
 // OAuth2State returns the OAuth2 state value from the request context.
 func OAuth2State(r *http.Request) string {
-	return getContextStringValue(r, OAuth2StateContextKey)
+	if s := Session(r); s != nil {
+		return s.Data.OAuth2State
+	}
+	return ""
 }
 
 // OAuth2CodeVerifier returns the OAuth2 PKCE code verifier from the request context.
 func OAuth2CodeVerifier(r *http.Request) string {
-	return getContextStringValue(r, OAuth2CodeVerifierContextKey)
+	if s := Session(r); s != nil {
+		return s.Data.OAuth2CodeVerifier
+	}
+	return ""
 }
 
 // FlashMessage returns the flash message from the request context, if any.
 func FlashMessage(r *http.Request) string {
-	return getContextStringValue(r, FlashMessageContextKey)
+	if s := Session(r); s != nil {
+		return s.Data.FlashMessage
+	}
+	return ""
 }
 
 // FlashErrorMessage returns the flash error message from the request context, if any.
 func FlashErrorMessage(r *http.Request) string {
-	return getContextStringValue(r, FlashErrorMessageContextKey)
+	if s := Session(r); s != nil {
+		return s.Data.FlashErrorMessage
+	}
+	return ""
 }
 
 // LastForceRefresh returns the last force refresh timestamp from the request context.
 func LastForceRefresh(r *http.Request) int64 {
-	return getContextInt64Value(r, LastForceRefreshContextKey)
+	if s := Session(r); s != nil {
+		return s.Data.LastForceRefresh
+	}
+	return 0
 }
 
 func WithClientIP(ctx context.Context, ip string) context.Context {
