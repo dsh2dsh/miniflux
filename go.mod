@@ -3,7 +3,7 @@ module miniflux.app/v2
 go 1.25
 
 require (
-	codeberg.org/readeck/go-readability/v2 v2.1.0
+	codeberg.org/readeck/go-readability/v2 v2.1.1
 	github.com/PuerkitoBio/goquery v1.11.0
 	github.com/caarlos0/env/v11 v11.3.1
 	github.com/cespare/xxhash/v2 v2.3.0
