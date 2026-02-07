@@ -101,7 +101,7 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 		return nil, localizedError
 	} else if len(subscriptions) > 0 {
 		slog.Debug("Subscriptions found from web page", slog.String("website_url", websiteURL), slog.Any("subscriptions", subscriptions))
-		return subscriptions, nil
+		return subscriptions.Parseable(f.requestBuilder), nil
 	}
 
 	// Step 5) Check if the website URL can use RSS-Bridge.
