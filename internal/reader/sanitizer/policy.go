@@ -1,8 +1,10 @@
 package sanitizer
 
 import (
+	"bytes"
 	"net/url"
 	"strings"
+	"unsafe"
 
 	"github.com/dsh2dsh/bluemonday/v2"
 	"golang.org/x/net/html/atom"
@@ -122,22 +124,60 @@ func init() {
 }
 
 func StripTags(s string) string {
+	b := StripTagsToBytes(s)
+	if len(b) == 0 {
+		return ""
+	}
+	return unsafeBytesToString(b)
+}
+
+func StripTagsToBytes(s string) []byte {
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return s
+		return nil
 	}
-	return titlePolicy.Sanitize(s)
+
+	var b bytes.Buffer
+	err := titlePolicy.SanitizeReaderToWriter(strings.NewReader(s), &b)
+	if err != nil {
+		return nil
+	}
+	return b.Bytes()
+}
+
+// This conversion *does not* copy data. Note that casting via
+// "(string)([]byte)" *does* copy data. Also note that you *should not* change
+// the byte slice after conversion, because Go strings are treated as immutable.
+// This would cause a segmentation violation panic.
+//
+// https://www.reddit.com/r/golang/comments/14xvgoj/converting_string_byte/
+func unsafeBytesToString(b []byte) string {
+	return unsafe.String(unsafe.SliceData(b), len(b))
 }
 
 func SanitizeContent(s string, pageURL *url.URL, opts ...Option) string {
+	b := SanitizeContentToBytes(s, pageURL, opts...)
+	if len(b) == 0 {
+		return ""
+	}
+	return unsafeBytesToString(b)
+}
+
+func SanitizeContentToBytes(s string, pageURL *url.URL, opts ...Option) []byte {
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return s
+		return nil
 	}
 
 	p := rewritePolicy{p: *contentPolicy, pageURL: pageURL}
 	p.init(opts...)
-	return p.Sanitize(s)
+
+	var b bytes.Buffer
+	err := p.p.SanitizeReaderToWriter(strings.NewReader(s), &b)
+	if err != nil {
+		return nil
+	}
+	return b.Bytes()
 }
 
 type rewritePolicy struct {
