@@ -26,7 +26,6 @@ import (
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/template"
 	"miniflux.app/v2/internal/ui"
-	"miniflux.app/v2/internal/version"
 	"miniflux.app/v2/internal/worker"
 )
 
@@ -265,7 +264,6 @@ func setupHandler(store *storage.Storage, pool *worker.Pool,
 		m = serveMux.PrefixGroup(config.BasePath())
 	}
 	m.HandleFunc("/healthcheck", readinessProbe)
-	m.HandleFunc("/version", handleVersion)
 
 	m.Use(middleware.Gzip, middleware.RequestId, middleware.ClientIP)
 
@@ -290,8 +288,4 @@ func setupHandler(store *storage.Storage, pool *worker.Pool,
 	}
 	ui.Serve(m, store, pool, templates)
 	return serveMux
-}
-
-func handleVersion(w http.ResponseWriter, r *http.Request) {
-	_, _ = w.Write([]byte(version.Version))
 }
