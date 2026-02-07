@@ -297,17 +297,28 @@ func (self *FeedProcessor) sanitizeEntry(entry *model.Entry, pageURL string,
 }
 
 func sanitizeTitle(entry *model.Entry, feed *model.Feed) string {
-	if entry.Title != "" {
-		return sanitizer.StripTags(entry.Title)
+	var title string
+	switch entry.Title {
+	case "":
+		title = makeTitle(entry.Content)
+	default:
+		title = sanitizer.StripTags(entry.Title)
 	}
 
-	title := strings.TrimSpace(sanitizer.StripTags(entry.Content))
 	if title == "" {
 		return feed.SiteURL
 	}
+	return title
+}
+
+func makeTitle(content string) string {
+	title := strings.TrimSpace(sanitizer.StripTags(content))
+	if title == "" {
+		return title
+	}
 
 	const maxLen = 100
-	title = strings.Join(strings.Fields(title), " ")
+	title = strings.Join(strings.Fields(content), " ")
 	if runes := []rune(title); len(runes) > maxLen {
 		return strings.TrimSpace(string(runes[:maxLen])) + "…"
 	}
