@@ -40,7 +40,7 @@ func NewIntegrationConfig(t *testing.T) *IntegrationConfig {
 		RegularPassword:   "regular_test_user_password",
 		FeedURL:           "http://127.0.0.1:8000/feed.xml",
 		FeedTitle:         "Miniflux",
-		SubscriptionTitle: "Miniflux Releases",
+		SubscriptionTitle: "Miniflux",
 		WebsiteURL:        "http://127.0.0.1:8000",
 		TestListenAddr:    "127.0.0.1:8000",
 	}
