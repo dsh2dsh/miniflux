@@ -11,6 +11,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/reader/parser"
@@ -20,6 +21,8 @@ import (
 type Subscription struct {
 	Title string `json:"title,omitempty"`
 	URL   string `json:"url,omitempty"`
+
+	err error
 }
 
 func NewSubscription(title, url string) *Subscription {
@@ -30,10 +33,12 @@ func (self *Subscription) String() string {
 	return fmt.Sprintf(`Title=%q, URL=%q`, self.Title, self.URL)
 }
 
+func (self *Subscription) Err() error { return self.err }
+
 func (self *Subscription) Parse(rb *fetcher.RequestBuilder) error {
 	resp, err := rb.Request(self.URL)
 	if err != nil {
-		return err
+		return locale.NewLocalizedErrorWrapper(err, "error.http_body_read", err)
 	}
 	defer resp.Close()
 
@@ -47,8 +52,13 @@ func (self *Subscription) Parse(rb *fetcher.RequestBuilder) error {
 	}
 	resp.Close()
 
-	_, err = parser.ParseBytes(resp.EffectiveURL(), body)
-	return err
+	feed, err := parser.ParseBytes(resp.EffectiveURL(), body)
+	if err != nil {
+		return err
+	}
+
+	self.Title = feed.Title
+	return nil
 }
 
 // Subscriptions represents a list of subscription.
@@ -69,9 +79,7 @@ func (self Subscriptions) Parseable(rb *fetcher.RequestBuilder) Subscriptions {
 
 	for i := range self {
 		g.Go(func() error {
-			if !self.parse(i, rb) {
-				self[i] = nil
-			}
+			self.parse(i, rb)
 			return nil
 		})
 	}
@@ -79,13 +87,13 @@ func (self Subscriptions) Parseable(rb *fetcher.RequestBuilder) Subscriptions {
 	log.Debug("waiting for group completion")
 	_ = g.Wait()
 
-	del := func(s *Subscription) bool { return s == nil }
+	del := func(s *Subscription) bool { return s.Err() != nil }
 	parseable := slices.DeleteFunc(self, del)
 	log.Debug("all subscriptions checked", slog.Int("parseable", len(parseable)))
 	return parseable
 }
 
-func (self Subscriptions) parse(i int, rb *fetcher.RequestBuilder) bool {
+func (self Subscriptions) parse(i int, rb *fetcher.RequestBuilder) {
 	s := self[i]
 	log := logging.FromContext(rb.Context()).With(
 		slog.Int("i", i),
@@ -94,9 +102,8 @@ func (self Subscriptions) parse(i int, rb *fetcher.RequestBuilder) bool {
 
 	if err := s.Parse(rb); err != nil {
 		log.Debug("unable parse discovered feed", slog.Any("error", err))
-		return false
+		s.err = err
+		return
 	}
-
 	log.Debug("parsed OK discovered feed")
-	return true
 }
