@@ -4,6 +4,7 @@
 package subscription // import "miniflux.app/v2/internal/reader/subscription"
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -72,12 +73,15 @@ func (self Subscriptions) Parseable(rb *fetcher.RequestBuilder) Subscriptions {
 	log := logging.FromContext(rb.Context()).With(
 		slog.Int("concurrency", config.WorkerPoolSize()),
 		slog.Int("subscriptions", len(self)))
-	log.Debug("keep parseable subscriptions")
+	log.Debug("keep only parseable subscriptions")
 
 	var g errgroup.Group
 	g.SetLimit(config.WorkerPoolSize())
 
 	for i := range self {
+		if err := context.Cause(rb.Context()); err != nil {
+			break
+		}
 		g.Go(func() error {
 			self.parse(i, rb)
 			return nil
@@ -85,7 +89,13 @@ func (self Subscriptions) Parseable(rb *fetcher.RequestBuilder) Subscriptions {
 	}
 
 	log.Debug("waiting for group completion")
-	_ = g.Wait()
+	if err := g.Wait(); err != nil {
+		log.Debug("group completed with error", slog.Any("error", err))
+		return nil
+	} else if err := context.Cause(rb.Context()); err != nil {
+		log.Debug("parsing of subscriptions cancelled", slog.Any("cause", err))
+		return nil
+	}
 
 	del := func(s *Subscription) bool { return s.Err() != nil }
 	parseable := slices.DeleteFunc(self, del)
