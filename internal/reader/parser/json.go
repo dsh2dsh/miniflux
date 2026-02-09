@@ -115,7 +115,6 @@ func (self *jsonFeed) entry(item *json.Item) *model.Entry {
 	self.fixEntryURL(entry)
 
 	entry.Author = self.entryAuthor(entry)
-	entry.Title = self.entryTitle(entry)
 	return entry
 }
 
@@ -149,13 +148,6 @@ func (self *jsonFeed) fixEntryURL(entry *model.Entry) {
 	} else {
 		entry.WithURLString(self.feed.SiteURL)
 	}
-}
-
-func (self *jsonFeed) entryTitle(entry *model.Entry) string {
-	if entry.Title == "" && entry.Content == "" {
-		return entry.URL
-	}
-	return entry.Title
 }
 
 type jsonEntry struct {

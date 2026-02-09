@@ -275,7 +275,7 @@ func (self *FeedProcessor) UpdateEntry(entry *model.Entry, pageURL string,
 func (self *FeedProcessor) sanitizeEntry(entry *model.Entry, pageURL string,
 	opts ...sanitizer.Option,
 ) error {
-	entry.Title = sanitizeTitle(entry, self.feed)
+	sanitizeTitle(entry, self.feed)
 
 	var parsedURL *url.URL
 	if pageURL != "" {
@@ -297,18 +297,18 @@ func (self *FeedProcessor) sanitizeEntry(entry *model.Entry, pageURL string,
 }
 
 func sanitizeTitle(entry *model.Entry, feed *model.Feed) string {
-	var title string
-	switch entry.Title {
-	case "":
-		title = makeTitle(entry.Content)
-	default:
-		title = sanitizer.StripTags(entry.Title)
+	if entry.Title != "" {
+		entry.Title = sanitizer.StripTags(entry.Title)
 	}
 
-	if title == "" {
-		return feed.SiteURL
+	if entry.Title == "" {
+		title := makeTitle(entry.Content)
+		if title == "" && entry.URL == "" {
+			title = feed.SiteURL
+		}
+		entry.WithAutoTitle(title)
 	}
-	return title
+	return entry.Title
 }
 
 func makeTitle(content string) string {

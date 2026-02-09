@@ -243,21 +243,13 @@ func TestParseEntryWithoutTitleAndDescription(t *testing.T) {
 		</rss>`
 
 	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, feed)
+	assert.Empty(t, feed.Description)
 
-	if feed.Description != "" {
-		t.Errorf("Expected empty feed description, got: %s", feed.Description)
-	}
-
-	if len(feed.Entries) != 1 {
-		t.Errorf("Expected 1 entry, got: %d", len(feed.Entries))
-	}
-
-	if feed.Entries[0].Title != "https://example.org/item" {
-		t.Errorf("Incorrect entry title, got: %s", feed.Entries[0].Title)
-	}
+	require.NotEmpty(t, feed.Entries)
+	assert.Empty(t, feed.Entries[0].Title)
+	assert.Equal(t, "https://example.org/item", feed.Entries[0].URL)
 }
 
 func TestParseEntryWithoutTitleButWithDescription(t *testing.T) {
@@ -1239,13 +1231,11 @@ func TestParseEntryWithRelativeURL(t *testing.T) {
 		</rss>`
 
 	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if feed.Entries[0].Title != "https://example.org/item.html" {
-		t.Errorf("Incorrect entry title, got: %s", feed.Entries[0].Title)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, feed)
+	require.NotEmpty(t, feed.Entries)
+	assert.Empty(t, feed.Entries[0].Title)
+	assert.Equal(t, "https://example.org/item.html", feed.Entries[0].URL)
 }
 
 func TestParseEntryWithCommentsURL(t *testing.T) {

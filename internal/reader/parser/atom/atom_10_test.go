@@ -149,13 +149,11 @@ func TestParseEntryWithoutTitleButWithURL(t *testing.T) {
 	</feed>`
 
 	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if feed.Entries[0].Title != "http://example.org/2003/12/13/atom03" {
-		t.Errorf("Incorrect entry title, got: %s", feed.Entries[0].Title)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, feed)
+	require.NotEmpty(t, feed.Entries)
+	assert.Empty(t, feed.Entries[0].Title)
+	assert.Equal(t, "http://example.org/2003/12/13/atom03", feed.Entries[0].URL)
 }
 
 func TestParseFeedURL(t *testing.T) {
@@ -514,13 +512,11 @@ func TestParseEntryWithEmptyXHTMLTitle(t *testing.T) {
 	</feed>`
 
 	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if feed.Entries[0].Title != `http://example.org/entry` {
-		t.Errorf("Incorrect entry title, got: %q", feed.Entries[0].Title)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, feed)
+	require.NotEmpty(t, feed.Entries)
+	assert.Empty(t, feed.Entries[0].Title)
+	assert.Equal(t, "http://example.org/entry", feed.Entries[0].URL)
 }
 
 func TestParseEntryWithXHTMLTitleWithoutDiv(t *testing.T) {

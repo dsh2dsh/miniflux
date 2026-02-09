@@ -114,7 +114,6 @@ func (self *atomFeed) entry(item *atom.Entry) *model.Entry {
 	self.fixEntryURL(entry)
 	entry.Author = self.entryAuthor(entry)
 	entry.Tags = self.entryTags(entry)
-	entry.Title = self.entryTitle(entry)
 	return entry.WithAtom(item)
 }
 
@@ -175,13 +174,6 @@ func (self *atomFeed) fixEntryURL(entry *model.Entry) {
 	} else {
 		entry.WithURLString(self.feed.SiteURL)
 	}
-}
-
-func (self *atomFeed) entryTitle(entry *model.Entry) string {
-	if entry.Title == "" && entry.Content == "" {
-		return entry.URL
-	}
-	return entry.Title
 }
 
 type atomEntry struct {

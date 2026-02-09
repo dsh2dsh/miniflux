@@ -724,17 +724,11 @@ func TestParseItemWithMissingTitleUsesURLFallback(t *testing.T) {
 	}`
 
 	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(feed.Entries) != 1 {
-		t.Errorf("Incorrect number of entries, got: %d", len(feed.Entries))
-	}
-
-	if feed.Entries[0].Title != "https://example.org/item" {
-		t.Errorf("Incorrect entry title, got: %s", feed.Entries[0].Title)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, feed)
+	require.NotEmpty(t, feed.Entries)
+	assert.Empty(t, feed.Entries[0].Title)
+	assert.Equal(t, "https://example.org/item", feed.Entries[0].URL)
 }
 
 func TestParseItemWithTooLongUnicodeTitle(t *testing.T) {

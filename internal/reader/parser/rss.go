@@ -116,7 +116,6 @@ func (self *rssFeed) entry(item *rss.Item) *model.Entry {
 
 	entry.Author = self.entryAuthor(entry)
 	entry.Tags = self.entryTags(entry)
-	entry.Title = self.entryTitle(entry)
 	return entry
 }
 
@@ -161,13 +160,6 @@ func (self *rssFeed) fixEntryURL(entry *model.Entry) {
 	} else {
 		entry.WithURLString(self.feed.SiteURL)
 	}
-}
-
-func (self *rssFeed) entryTitle(entry *model.Entry) string {
-	if entry.Title == "" && entry.Content == "" {
-		return entry.URL
-	}
-	return entry.Title
 }
 
 type rssEntry struct {

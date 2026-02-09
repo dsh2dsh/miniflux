@@ -55,6 +55,7 @@ type Entry struct {
 }
 
 type EntryExtra struct {
+	AutoTitle  string        `json:"autoTitle,omitempty"`
 	Enclosures EnclosureList `json:"enclosures,omitempty"`
 	SiteData   *anyObject    `json:"siteData,omitempty"`
 }
@@ -194,6 +195,21 @@ func (self *Entry) DecodeSiteData(v any) error {
 		return fmt.Errorf("decode entry site data into %T: %w", v, err)
 	}
 	return nil
+}
+
+func (self *Entry) WithAutoTitle(s string) *Entry {
+	self.Extra.AutoTitle = s
+	return self
+}
+
+func (self *Entry) AutoTitle() string {
+	switch {
+	case self.Title != "":
+		return self.Title
+	case self.Extra.AutoTitle != "":
+		return self.Extra.AutoTitle
+	}
+	return self.URL
 }
 
 func NewEntryFrom(ext *ExternalEntry) *Entry {

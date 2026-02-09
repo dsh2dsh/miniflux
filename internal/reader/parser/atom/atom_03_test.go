@@ -139,17 +139,12 @@ func TestParseAtom03WithoutEntryTitleButWithLink(t *testing.T) {
 	</feed>`
 
 	feed, err := parser.ParseBytes("http://diveintomark.org/", []byte(data))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(feed.Entries) != 1 {
-		t.Errorf("Incorrect number of entries, got: %d", len(feed.Entries))
-	}
-
-	if feed.Entries[0].Title != "http://diveintomark.org/2003/12/13/atom03" {
-		t.Errorf("Incorrect entry title, got: %s", feed.Entries[0].Title)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, feed)
+	require.NotEmpty(t, feed.Entries)
+	assert.Empty(t, feed.Entries[0].Title)
+	assert.Equal(t, "http://diveintomark.org/2003/12/13/atom03",
+		feed.Entries[0].URL)
 }
 
 func TestParseAtom03WithSummaryOnly(t *testing.T) {
