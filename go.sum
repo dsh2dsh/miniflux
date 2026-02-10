@@ -23,8 +23,8 @@ github.com/dsh2dsh/bluemonday/v2 v2.3.4 h1:7wMlTO3+wBPDMal/S+x1lqAp+5swAMKKYbMwd
 github.com/dsh2dsh/bluemonday/v2 v2.3.4/go.mod h1:YHNywuAGVBnRk8V+ipJVv8RYQ1uns4qzxRa1mnSFW1w=
 github.com/dsh2dsh/expx-dotenv v1.4.0 h1:GLDENXzl79jsPLUemIVzSc7SrhJonAM8enTxe60D7ds=
 github.com/dsh2dsh/expx-dotenv v1.4.0/go.mod h1:GBgZKlYrqEnUetmP2NMnKj7lVc1TTQIOV0wQbGQrxmA=
-github.com/dsh2dsh/gofeed/v2 v2.4.0 h1:/f3EkO0GIFeSz92HS2EuA51SAEE15qGaPoSmKq+Lz/s=
-github.com/dsh2dsh/gofeed/v2 v2.4.0/go.mod h1:SOrWPk2z819A6wYhf4TxoTxSC6zLlLPRiObIwVmdaME=
+github.com/dsh2dsh/gofeed/v2 v2.4.1 h1:tPp45+FUs4fZTYO2e2zjs1+0skJ9o4PkUxu71e+HZI8=
+github.com/dsh2dsh/gofeed/v2 v2.4.1/go.mod h1:tgsLSJPKPCc7Pr6PvOiLWI7azWkudrAmgSsSmg63l8M=
 github.com/dsh2dsh/goxpp/v2 v2.0.5 h1:RBEy9Hi22rkqbUOBFg+1KxaS3ipgWpHfjdZGqFIAJ4k=
 github.com/dsh2dsh/goxpp/v2 v2.0.5/go.mod h1:6IFiwugLa3KDWCeTiUYMlUnu2UL5Nw7fE+n+MXcm9sM=
 github.com/fxamacker/cbor/v2 v2.9.0 h1:NpKPmjDBgUfBms6tr6JZkTHtfFGcMKsw3eGcmD/sapM=
