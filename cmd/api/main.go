@@ -150,8 +150,8 @@ func waitHealth(ctx context.Context, api *client.Client) error {
 
 func healthCheck(api *client.Client) (bool, error) {
 	if err := api.Healthcheck(); err != nil {
-		var errno syscall.Errno
-		if errors.As(err, &errno) && errno == syscall.ECONNREFUSED {
+		errno, ok := errors.AsType[syscall.Errno](err)
+		if ok && errno == syscall.ECONNREFUSED {
 			return false, nil
 		}
 		return false, err

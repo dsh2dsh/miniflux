@@ -53,8 +53,7 @@ func localizeClientErr(err error) *locale.LocalizedErrorWrapper {
 }
 
 func networkError(err error) bool {
-	var urlErr *url.Error
-	if errors.As(err, &urlErr) {
+	if _, ok := errors.AsType[*url.Error](err); ok {
 		return true
 	}
 
@@ -62,23 +61,21 @@ func networkError(err error) bool {
 		return true
 	}
 
-	var opErr *net.OpError
-	return errors.As(err, &opErr)
+	_, ok := errors.AsType[*net.OpError](err)
+	return ok
 }
 
 func sslError(err error) bool {
-	var certErr *x509.UnknownAuthorityError
-	if errors.As(err, &certErr) {
+	if _, ok := errors.AsType[*x509.UnknownAuthorityError](err); ok {
 		return true
 	}
 
-	var hostErr *x509.HostnameError
-	if errors.As(err, &hostErr) {
+	if _, ok := errors.AsType[*x509.HostnameError](err); ok {
 		return true
 	}
 
-	var algErr *x509.InsecureAlgorithmError
-	return errors.As(err, &algErr)
+	_, ok := errors.AsType[*x509.InsecureAlgorithmError](err)
+	return ok
 }
 
 func (r *ResponseHandler) localizeStatusCode() *locale.LocalizedErrorWrapper {

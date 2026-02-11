@@ -197,8 +197,7 @@ func (r *ResponseHandler) WriteBodyTo(w io.Writer,
 		return nil
 	}
 
-	var maxBytesErr *http.MaxBytesError
-	if errors.As(err, &maxBytesErr) {
+	if maxBytesErr, ok := errors.AsType[*http.MaxBytesError](err); ok {
 		return locale.NewLocalizedErrorWrapper(
 			fmt.Errorf("fetcher: response body too large: %d bytes",
 				maxBytesErr.Limit),

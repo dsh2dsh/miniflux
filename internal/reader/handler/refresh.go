@@ -161,8 +161,8 @@ func (self *Refresh) response(ctx context.Context) (*fetcher.ResponseSemaphore,
 }
 
 func (self *Refresh) maybeTooManyRequests(log *slog.Logger, err error) error {
-	var errTooManyRequests *fetcher.ErrTooManyRequests
-	if !errors.As(err, &errTooManyRequests) {
+	errTooManyRequests, ok := errors.AsType[*fetcher.ErrTooManyRequests](err)
+	if !ok {
 		return err
 	}
 
@@ -480,8 +480,8 @@ func (self *Refresh) entriesLogGroup(refreshed *model.FeedRefreshed) slog.Attr {
 }
 
 func (self *Refresh) IncFeedError(ctx context.Context, err error) error {
-	var lerr *locale.LocalizedErrorWrapper
-	if !errors.As(err, &lerr) {
+	lerr, ok := errors.AsType[*locale.LocalizedErrorWrapper](err)
+	if !ok {
 		return err
 	}
 
