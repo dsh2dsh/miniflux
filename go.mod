@@ -1,6 +1,6 @@
 module miniflux.app/v2
 
-go 1.25
+go 1.26
 
 require (
 	codeberg.org/readeck/go-readability/v2 v2.1.1
