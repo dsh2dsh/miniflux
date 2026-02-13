@@ -17,10 +17,10 @@ import (
 func (h *handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 	f := form.NewCategoryForm(r)
 	modifyRequest := model.CategoryModificationRequest{
-		Title:        model.SetOptionalField(f.Title),
-		HideGlobally: model.SetOptionalField(f.HideGlobally),
-		HideLabel:    model.SetOptionalField(f.HideLabel),
-		BlockFilter:  model.SetOptionalField(f.BlockFilter),
+		Title:        new(f.Title),
+		HideGlobally: new(f.HideGlobally),
+		HideLabel:    new(f.HideLabel),
+		BlockFilter:  new(f.BlockFilter),
 	}
 	userID := request.UserID(r)
 	id := request.RouteInt64Param(r, "categoryID")

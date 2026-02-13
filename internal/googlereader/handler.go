@@ -885,7 +885,7 @@ func (h *handler) renameTagHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	modifyRequest := model.CategoryModificationRequest{
-		Title: model.SetOptionalField(destination.ID),
+		Title: new(destination.ID),
 	}
 	lerr := validator.ValidateCategoryModification(ctx, h.store, userID,
 		category.ID, &modifyRequest)

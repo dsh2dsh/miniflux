@@ -299,7 +299,7 @@ func (self *EndpointTestSuite) TestUpdateUserEndpoint() {
 		{
 			name: "default theme",
 			req: model.UserModificationRequest{
-				Theme: model.SetOptionalField("dark_serif"),
+				Theme: new("dark_serif"),
 			},
 			assert: func(updatedUser *model.User) {
 				self.Equal("dark_serif", updatedUser.Theme, "Invalid theme")
@@ -308,7 +308,7 @@ func (self *EndpointTestSuite) TestUpdateUserEndpoint() {
 		{
 			name: "external fonts",
 			req: model.UserModificationRequest{
-				ExternalFontHosts: model.SetOptionalField("  fonts.example.org  "),
+				ExternalFontHosts: new("  fonts.example.org  "),
 			},
 			assert: func(updatedUser *model.User) {
 				self.Equal("fonts.example.org", updatedUser.ExternalFontHosts,
@@ -318,14 +318,14 @@ func (self *EndpointTestSuite) TestUpdateUserEndpoint() {
 		{
 			name: "invalid external fonts",
 			req: model.UserModificationRequest{
-				ExternalFontHosts: model.SetOptionalField("'self' *"),
+				ExternalFontHosts: new("'self' *"),
 			},
 			wantErr: true,
 		},
 		{
 			name: "custom js",
 			req: model.UserModificationRequest{
-				CustomJS: model.SetOptionalField(js),
+				CustomJS: new(js),
 			},
 			assert: func(updatedUser *model.User) {
 				self.Equal(js, updatedUser.CustomJS, "Invalid custom JS")
@@ -334,14 +334,14 @@ func (self *EndpointTestSuite) TestUpdateUserEndpoint() {
 		{
 			name: "invalid theme",
 			req: model.UserModificationRequest{
-				Theme: model.SetOptionalField("invalid_theme"),
+				Theme: new("invalid_theme"),
 			},
 			wantErr: true,
 		},
 		{
 			name: "AlwaysOpenExternalLinks",
 			req: model.UserModificationRequest{
-				AlwaysOpenExternalLinks: model.SetOptionalField(true),
+				AlwaysOpenExternalLinks: new(true),
 			},
 			assert: func(updatedUser *model.User) {
 				self.True(updatedUser.Extra.AlwaysOpenExternalLinks)
@@ -368,7 +368,7 @@ func (self *EndpointTestSuite) TestRegularUsersCannotUpdateOtherUsers() {
 	self.Require().NotNil(adminUser)
 
 	userUpdateRequest := model.UserModificationRequest{
-		Theme: model.SetOptionalField("dark_serif"),
+		Theme: new("dark_serif"),
 	}
 
 	_, err = self.client.UpdateUser(adminUser.ID, &userUpdateRequest)
@@ -559,7 +559,7 @@ func (self *EndpointTestSuite) TestUpdateCategoryWithOptions() {
 
 	const title = "new title"
 	categoryModify := model.CategoryModificationRequest{
-		Title: model.SetOptionalField(title),
+		Title: new(title),
 	}
 	updatedCategory, err := self.client.UpdateCategoryWithOptions(
 		newCategory.ID, &categoryModify)
@@ -569,7 +569,7 @@ func (self *EndpointTestSuite) TestUpdateCategoryWithOptions() {
 	self.False(updatedCategory.HideGlobally, "Invalid hide globally value")
 
 	categoryModify = model.CategoryModificationRequest{
-		HideGlobally: model.SetOptionalField(true),
+		HideGlobally: new(true),
 	}
 	updatedCategory, err = self.client.UpdateCategoryWithOptions(
 		newCategory.ID, &categoryModify)
@@ -579,7 +579,7 @@ func (self *EndpointTestSuite) TestUpdateCategoryWithOptions() {
 	self.True(updatedCategory.HideGlobally, "Invalid hide globally value")
 
 	categoryModify = model.CategoryModificationRequest{
-		HideGlobally: model.SetOptionalField(false),
+		HideGlobally: new(false),
 	}
 	updatedCategory, err = self.client.UpdateCategoryWithOptions(
 		newCategory.ID, &categoryModify)
@@ -755,7 +755,7 @@ func (self *EndpointTestSuite) TestUpdateFeedEndpoint() {
 	const url = "https://example.org/feed.xml"
 	feedID := self.createFeed()
 	feedModify := model.FeedModificationRequest{
-		FeedURL: model.SetOptionalField(url),
+		FeedURL: new(url),
 	}
 
 	updatedFeed, err := self.client.UpdateFeed(feedID, &feedModify)
@@ -774,7 +774,7 @@ func (self *EndpointTestSuite) TestCannotHaveDuplicateFeedWhenUpdatingFeed() {
 	})
 
 	feedModify := model.FeedModificationRequest{
-		FeedURL: model.SetOptionalField(self.cfg.FeedURL),
+		FeedURL: new(self.cfg.FeedURL),
 	}
 
 	_, err := self.client.UpdateFeed(feedID, &feedModify)
@@ -786,7 +786,7 @@ func (self *EndpointTestSuite) TestUpdateFeedWithInvalidCategory() {
 	feedID := self.createFeed()
 
 	feedModify := model.FeedModificationRequest{
-		CategoryID: model.SetOptionalField(int64(123456789)),
+		CategoryID: new(int64(123456789)),
 	}
 
 	_, err := self.client.UpdateFeed(feedID, &feedModify)
@@ -824,7 +824,7 @@ func (self *EndpointTestSuite) TestUpdateFeedEndpoint_CommentsURLTemplate() {
 	for _, tt := range tests {
 		self.Run(tt.name, func() {
 			r := model.FeedModificationRequest{
-				CommentsURLTemplate: model.SetOptionalField(tt.commentsURL),
+				CommentsURLTemplate: new(tt.commentsURL),
 			}
 
 			feed, err := self.client.UpdateFeed(feedID, &r)
@@ -911,7 +911,7 @@ func (self *EndpointTestSuite) TestRefreshFeedEndpoint_dedup() {
 	feedURL = self.makeFeedURL("/dups.xml")
 	self.T().Log(feedURL.String())
 	feedModify := model.FeedModificationRequest{
-		FeedURL: model.SetOptionalField(feedURL.String()),
+		FeedURL: new(feedURL.String()),
 	}
 	updatedFeed, err := self.client.UpdateFeed(feedID, &feedModify)
 	self.Require().NoError(err)
@@ -1283,8 +1283,8 @@ func (self *EndpointTestSuite) TestUpdateEntryEndpoint() {
 	self.Require().NotEmpty(result.Entries)
 
 	entryUpdate := model.EntryUpdateRequest{
-		Title:   model.SetOptionalField("New title"),
-		Content: model.SetOptionalField("New content"),
+		Title:   new("New title"),
+		Content: new("New content"),
 	}
 
 	updatedEntry, err := self.client.UpdateEntry(
@@ -1440,7 +1440,7 @@ func (self *EndpointTestSuite) TestRefreshRemovedEntry() {
 	feedURL := self.makeFeedURL("/updated_entry.xml")
 	self.T().Log(feedURL)
 	_, err = self.client.UpdateFeed(feedID, &model.FeedModificationRequest{
-		FeedURL: model.SetOptionalField(feedURL.String()),
+		FeedURL: new(feedURL.String()),
 	})
 	self.Require().NoError(err)
 
