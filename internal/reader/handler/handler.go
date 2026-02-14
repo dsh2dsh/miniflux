@@ -136,6 +136,7 @@ func (self *Create) createFeed(ctx context.Context,
 	feed.WithBlockAuthors(r.BlockAuthors)
 	feed.WithBlockMarkRead(r.BlockMarkRead)
 	feed.WithCategoryID(r.CategoryID)
+	feed.WithIgnoreEntryUpdates(r.IgnoreEntryUpdates)
 	feed.ContentChanged(body)
 	feed.CheckedNow()
 

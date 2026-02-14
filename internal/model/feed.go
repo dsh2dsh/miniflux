@@ -90,6 +90,7 @@ type FeedExtra struct {
 	BlockAuthors        []string `json:"blockAuthors,omitempty"`
 	BlockMarkRead       bool     `json:"blockMarkRead,omitempty"`
 	CommentsURLTemplate string   `json:"comments_url_template,omitempty"`
+	IgnoreEntryUpdates  bool     `json:"ignore_entry_updates,omitempty"`
 
 	BlockFilterEntryRules string `json:"block_filter_entry_rules,omitempty"`
 	KeepFilterEntryRules  string `json:"keep_filter_entry_rules,omitempty"`
@@ -312,6 +313,15 @@ func (self *Feed) FilteredByHash() int { return self.filteredByHash }
 func (self *Feed) IncFilteredByStored()  { self.filteredByStored++ }
 func (self *Feed) FilteredByStored() int { return self.filteredByStored }
 
+func (self *Feed) WithIgnoreEntryUpdates(v bool) *Feed {
+	self.Extra.IgnoreEntryUpdates = v
+	return self
+}
+
+func (self *Feed) IgnoreEntryUpdates() bool {
+	return self.Extra.IgnoreEntryUpdates
+}
+
 // FeedCreationRequest represents the request to create a feed.
 type FeedCreationRequest struct {
 	FeedURL                     string   `json:"feed_url"`
@@ -321,6 +331,7 @@ type FeedCreationRequest struct {
 	Username                    string   `json:"username"`
 	Password                    string   `json:"password"`
 	Crawler                     bool     `json:"crawler"`
+	IgnoreEntryUpdates          bool     `json:"ignore_entry_updates,omitempty"`
 	Disabled                    bool     `json:"disabled"`
 	NoMediaPlayer               bool     `json:"no_media_player"`
 	IgnoreHTTPCache             bool     `json:"ignore_http_cache"`
@@ -359,6 +370,7 @@ type FeedModificationRequest struct {
 	BlockFilterEntryRules       *string   `json:"block_filter_entry_rules"`
 	KeepFilterEntryRules        *string   `json:"keep_filter_entry_rules"`
 	Crawler                     *bool     `json:"crawler"`
+	IgnoreEntryUpdates          *bool     `json:"ignore_entry_updates,omitempty"`
 	UserAgent                   *string   `json:"user_agent"`
 	Cookie                      *string   `json:"cookie"`
 	Username                    *string   `json:"username"`
@@ -419,6 +431,10 @@ func (self *FeedModificationRequest) Patch(feed *Feed) {
 
 	if self.Crawler != nil {
 		feed.Crawler = *self.Crawler
+	}
+
+	if self.IgnoreEntryUpdates != nil {
+		feed.WithIgnoreEntryUpdates(*self.IgnoreEntryUpdates)
 	}
 
 	if self.UserAgent != nil {
