@@ -86,12 +86,6 @@ func (self *FeedProcessor) ProcessFeedEntries(ctx context.Context, userID int64,
 		return fmt.Errorf("reader/processor: mark stored entries: %w", err)
 	}
 
-	if len(self.feed.Entries) == 0 {
-		logging.FromContext(ctx).Debug("FeedProcessor: skip processing",
-			slog.String("reason", "all entries already stored"))
-		return nil
-	}
-
 	if err := self.init(ctx, userID, force); err != nil {
 		return err
 	}
