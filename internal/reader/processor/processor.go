@@ -203,8 +203,13 @@ func (self *FeedProcessor) markStoredEntries(ctx context.Context, force bool,
 	entries := self.feed.Entries.ByHash()
 	for i := range storedEntries {
 		stored := &storedEntries[i]
-		e := entries[stored.Hash]
-		if !e.Date.After(stored.Date) {
+		e, ok := entries[stored.Hash]
+		switch {
+		case !ok:
+			continue
+		case !e.Date.After(stored.Date):
+			e.MarkStored()
+		case self.feed.IgnoreEntryUpdates():
 			e.MarkStored()
 		}
 	}
