@@ -209,18 +209,3 @@ func (r *ResponseHandler) WriteBodyTo(w io.Writer,
 		fmt.Errorf("fetcher: unable to read response body: %w", err),
 		"error.http_body_read", err)
 }
-
-func (r *ResponseHandler) bodyStatusText() string {
-	statusText := http.StatusText(r.StatusCode())
-	var b bytes.Buffer
-	_, _ = io.CopyN(&b, r.httpResponse.Body, 1024)
-	if s, _, _ := strings.Cut(b.String(), "\n"); s != "" {
-		switch statusText {
-		case "":
-			return s
-		default:
-			return statusText + ": " + s
-		}
-	}
-	return statusText
-}

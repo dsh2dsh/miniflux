@@ -1,6 +1,7 @@
 package fetcher
 
 import (
+	"bytes"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"miniflux.app/v2/internal/locale"
+	"miniflux.app/v2/internal/reader/encoding"
 )
 
 var translatedStatusCodes = map[int]string{
@@ -92,26 +94,42 @@ func (r *ResponseHandler) localizeStatusCode() *locale.LocalizedErrorWrapper {
 		return nil
 	}
 
-	statusText := r.bodyStatusText()
 	if key, ok := translatedStatusCodes[statusCode]; ok {
-		return locale.NewLocalizedErrorWrapper(
-			fmt.Errorf("reader/fetcher: unexpected response: %d %s",
-				statusCode, statusText),
-			key)
+		return locale.NewLocalizedErrorWrapper(r.errResponse(), key)
 	}
 
 	if statusCode == http.StatusTooManyRequests {
-		err := fmt.Errorf("%w: %d %s",
+		err := fmt.Errorf("%w: %w",
 			NewErrTooManyRequests(r.URL().Hostname(),
 				time.Now().Add(r.parseRetryDelay()), r.Header("Retry-After")),
-			statusCode, statusText)
+			r.errResponse())
 		return locale.NewLocalizedErrorWrapper(err, "error.http_too_many_requests")
 	}
 
-	return locale.NewLocalizedErrorWrapper(
-		fmt.Errorf("reader/fetcher: unexpected status code: %d %s",
-			statusCode, statusText),
+	return locale.NewLocalizedErrorWrapper(r.errResponse(),
 		"error.http_unexpected_status_code", statusCode)
+}
+
+func (r *ResponseHandler) errResponse() *ErrResponse {
+	errResp := &ErrResponse{
+		StatusCode:  r.StatusCode(),
+		ContentType: r.ContentType(),
+	}
+	if r.httpResponse.ContentLength == 0 {
+		return errResp
+	}
+
+	body, err := encoding.NewCharsetReader(r.Body(), errResp.ContentType)
+	if err != nil {
+		return errResp
+	}
+
+	var b bytes.Buffer
+	if _, err := io.Copy(&b, body); err != nil {
+		return errResp
+	}
+	errResp.Body = b.Bytes()
+	return errResp
 }
 
 type ErrTooManyRequests struct {
@@ -134,12 +152,12 @@ func NewErrTooManyRequests(hostname string, retryAfter time.Time,
 
 func (self *ErrTooManyRequests) Error() string {
 	return fmt.Sprintf(
-		"reader/fetcher: host %q rate limited, retry in %s, Retry-After=%q",
+		"host %q rate limited, retry in %s, Retry-After=%q",
 		self.hostname, self.Until(), self.retryHeader)
 }
 
 func (self *ErrTooManyRequests) Until() time.Duration {
-	if time.Now().After(self.retryAfter) {
+	if time.Now().Before(self.retryAfter) {
 		return time.Until(self.retryAfter)
 	}
 	return 0
@@ -153,4 +171,17 @@ func (self *ErrTooManyRequests) RetryHeader() string { return self.retryHeader }
 
 func (self *ErrTooManyRequests) Localized() *locale.LocalizedErrorWrapper {
 	return locale.NewLocalizedErrorWrapper(self, "error.http_too_many_requests")
+}
+
+type ErrResponse struct {
+	StatusCode  int
+	ContentType string
+	Body        []byte
+}
+
+var _ error = (*ErrResponse)(nil)
+
+func (self *ErrResponse) Error() string {
+	return fmt.Sprintf("reader/fetcher: unexpected status: %d %s",
+		self.StatusCode, http.StatusText(self.StatusCode))
 }
