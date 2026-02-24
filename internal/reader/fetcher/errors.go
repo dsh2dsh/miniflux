@@ -103,7 +103,7 @@ func (r *ResponseHandler) localizeStatusCode() *locale.LocalizedErrorWrapper {
 	if statusCode == http.StatusTooManyRequests {
 		err := fmt.Errorf("%w: %d %s",
 			NewErrTooManyRequests(r.URL().Hostname(),
-				time.Now().Add(r.parseRetryDelay())),
+				time.Now().Add(r.parseRetryDelay()), r.Header("Retry-After")),
 			statusCode, statusText)
 		return locale.NewLocalizedErrorWrapper(err, "error.http_too_many_requests")
 	}
@@ -115,29 +115,41 @@ func (r *ResponseHandler) localizeStatusCode() *locale.LocalizedErrorWrapper {
 }
 
 type ErrTooManyRequests struct {
-	hostname   string
-	retryAfter time.Time
+	hostname    string
+	retryAfter  time.Time
+	retryHeader string
 }
 
 var _ error = (*ErrTooManyRequests)(nil)
 
 func NewErrTooManyRequests(hostname string, retryAfter time.Time,
+	header string,
 ) *ErrTooManyRequests {
 	return &ErrTooManyRequests{
-		hostname:   hostname,
-		retryAfter: retryAfter,
+		hostname:    hostname,
+		retryAfter:  retryAfter,
+		retryHeader: header,
 	}
 }
 
 func (self *ErrTooManyRequests) Error() string {
 	return fmt.Sprintf(
-		"reader/fetcher: host %q rate limited, retry in %s",
-		self.hostname, time.Until(self.RetryAfter()))
+		"reader/fetcher: host %q rate limited, retry in %s, Retry-After=%q",
+		self.hostname, self.Until(), self.retryHeader)
+}
+
+func (self *ErrTooManyRequests) Until() time.Duration {
+	if time.Now().After(self.retryAfter) {
+		return time.Until(self.retryAfter)
+	}
+	return 0
 }
 
 func (self *ErrTooManyRequests) RetryAfter() time.Time {
 	return self.retryAfter
 }
+
+func (self *ErrTooManyRequests) RetryHeader() string { return self.retryHeader }
 
 func (self *ErrTooManyRequests) Localized() *locale.LocalizedErrorWrapper {
 	return locale.NewLocalizedErrorWrapper(self, "error.http_too_many_requests")

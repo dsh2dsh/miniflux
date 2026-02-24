@@ -161,25 +161,30 @@ func (self *Refresh) response(ctx context.Context) (*fetcher.ResponseSemaphore,
 }
 
 func (self *Refresh) maybeTooManyRequests(log *slog.Logger, err error) error {
-	errTooManyRequests, ok := errors.AsType[*fetcher.ErrTooManyRequests](err)
+	errRateLimited, ok := errors.AsType[*fetcher.ErrTooManyRequests](err)
 	if !ok {
 		return err
 	}
 
-	self.logRateLimited(log, errTooManyRequests.RetryAfter())
+	self.logRateLimited(log, errRateLimited.RetryAfter(),
+		errRateLimited.RetryHeader())
 	log.Warn("Unable to fetch feed",
 		slog.String("feed_url", self.feed.FeedURL),
 		slog.Any("error", err))
-	return errTooManyRequests.Localized()
+	return errRateLimited.Localized()
 }
 
-func (self *Refresh) logRateLimited(log *slog.Logger, retryAfter time.Time) {
-	refreshDelay := int(time.Until(retryAfter).Minutes())
+func (self *Refresh) logRateLimited(log *slog.Logger, retryAfter time.Time,
+	header string,
+) {
+	d := time.Until(retryAfter)
+	refreshDelay := int(d.Minutes())
 	nextCheck := self.feed.ScheduleNextCheck(refreshDelay)
 
 	log.Warn("Feed is rate limited",
 		slog.String("feed_url", self.feed.FeedURL),
-		slog.Duration("retry_after", time.Until(retryAfter)),
+		slog.Group("retry",
+			slog.String("header", header), slog.Duration("after", d)),
 		slog.Int("refresh_delay_in_minutes", refreshDelay),
 		slog.Int("calculated_next_check_interval_in_minutes", nextCheck),
 		slog.Time("new_next_check_at", self.feed.NextCheckAt))
@@ -189,7 +194,7 @@ func (self *Refresh) respError(log *slog.Logger,
 	resp *fetcher.ResponseSemaphore,
 ) error {
 	if retryAfter, ok := resp.TooManyRequests(); ok {
-		self.logRateLimited(log, retryAfter)
+		self.logRateLimited(log, retryAfter, resp.Header("Retry-After"))
 	}
 
 	if lerr := resp.LocalizedError(); lerr != nil {

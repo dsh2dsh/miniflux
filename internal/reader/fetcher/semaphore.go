@@ -22,8 +22,7 @@ func ExpireHostLimits(d time.Duration) { limits.Expire(d) }
 type ResponseSemaphore struct {
 	*ResponseHandler
 
-	tooManyRequests bool
-	retryAfter      time.Time
+	retryAfter time.Time
 
 	closed  bool
 	release func()
@@ -60,15 +59,14 @@ func (self *ResponseSemaphore) init(hostname string) *ResponseSemaphore {
 	}
 
 	if self.rateLimited() {
-		retryAfter := time.Now().Add(self.parseRetryDelay())
-		self.tooManyRequests = true
-		self.retryAfter = limits.SetRetryAfter(hostname, retryAfter)
+		self.retryAfter = limits.SetRetryAfter(hostname,
+			time.Now().Add(self.parseRetryDelay()), self.Header("Retry-After"))
 	}
 	return self
 }
 
 func (self *ResponseSemaphore) TooManyRequests() (time.Time, bool) {
-	return self.retryAfter, self.tooManyRequests
+	return self.retryAfter, !time.Now().After(self.retryAfter)
 }
 
 func (self *ResponseSemaphore) Close() {
@@ -92,8 +90,8 @@ func NewLimitsPerServer() *limitHosts {
 
 func (self *limitHosts) Acquire(ctx context.Context, hostname string) error {
 	s := self.hostLimit(hostname)
-	if retryAfter, ok := s.TooManyRequests(); ok {
-		return NewErrTooManyRequests(hostname, retryAfter)
+	if h, retryAfter, ok := s.TooManyRequests(); ok {
+		return NewErrTooManyRequests(hostname, retryAfter, h)
 	}
 	s.IncRefs()
 
@@ -101,9 +99,9 @@ func (self *limitHosts) Acquire(ctx context.Context, hostname string) error {
 		return err
 	}
 
-	if retryAfter, ok := s.TooManyRequests(); ok {
+	if h, retryAfter, ok := s.TooManyRequests(); ok {
 		s.Release()
-		return NewErrTooManyRequests(hostname, retryAfter)
+		return NewErrTooManyRequests(hostname, retryAfter, h)
 	}
 	return nil
 }
@@ -164,8 +162,9 @@ func (self *limitHosts) acquire(ctx context.Context, hostname string,
 }
 
 func (self *limitHosts) SetRetryAfter(hostname string, retryAfter time.Time,
+	headerValue string,
 ) time.Time {
-	return self.hostLimit(hostname).SetRetryAfter(retryAfter)
+	return self.hostLimit(hostname).SetRetryAfter(retryAfter, headerValue)
 }
 
 func (self *limitHosts) Release(hostname string) {
@@ -192,8 +191,8 @@ type hostLimit struct {
 	refs int
 	mu   sync.Mutex
 
-	tooManyRequests bool
-	retryAfter      time.Time
+	retryAfter  time.Time
+	retryHeader string
 
 	releasedAt time.Time
 }
@@ -281,20 +280,21 @@ func (self *hostLimit) Expired(d time.Duration) bool {
 	return self.refs == 0 && time.Since(self.releasedAt) >= d
 }
 
-func (self *hostLimit) SetRetryAfter(retryAfter time.Time) time.Time {
+func (self *hostLimit) SetRetryAfter(retryAfter time.Time, header string,
+) time.Time {
 	self.mu.Lock()
 	defer self.mu.Unlock()
 
-	if !self.tooManyRequests || retryAfter.After(self.retryAfter) {
+	if retryAfter.After(self.retryAfter) {
 		self.retryAfter = retryAfter
-		self.tooManyRequests = true
+		self.retryHeader = header
 	}
 	return self.retryAfter
 }
 
-func (self *hostLimit) TooManyRequests() (time.Time, bool) {
+func (self *hostLimit) TooManyRequests() (string, time.Time, bool) {
 	self.mu.Lock()
 	defer self.mu.Unlock()
 
-	return self.retryAfter, self.tooManyRequests
+	return self.retryHeader, self.retryAfter, !time.Now().After(self.retryAfter)
 }

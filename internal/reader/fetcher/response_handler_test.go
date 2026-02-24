@@ -72,35 +72,49 @@ func TestIsModified(t *testing.T) {
 }
 
 func TestRetryDelay(t *testing.T) {
-	testCases := map[string]struct {
-		RetryAfterHeader string
-		ExpectedDelay    time.Duration
+	tests := [...]struct {
+		name        string
+		retryHeader string
+		wantDelay   time.Duration
 	}{
-		"Empty header": {
-			RetryAfterHeader: "",
-			ExpectedDelay:    0,
+		{
+			name:      "empty header",
+			wantDelay: 0,
 		},
-		"Integer value": {
-			RetryAfterHeader: "42",
-			ExpectedDelay:    42 * time.Second,
+		{
+			name:        "garbage header",
+			retryHeader: "foobar",
 		},
-		"HTTP-date": {
-			RetryAfterHeader: time.Now().Add(42 * time.Second).Format(time.RFC1123),
-			ExpectedDelay:    41 * time.Second,
+		{
+			name:        "integer value",
+			retryHeader: "42",
+			wantDelay:   42 * time.Second,
+		},
+		{
+			name:        "negative value",
+			retryHeader: "-42",
+			wantDelay:   0,
+		},
+		{
+			name:        "HTTP-date",
+			retryHeader: time.Now().Add(42 * time.Second).Format(time.RFC1123),
+			wantDelay:   41 * time.Second,
+		},
+		{
+			name:        "past HTTP-date",
+			retryHeader: time.Now().Add(-42 * time.Second).Format(time.RFC1123),
+			wantDelay:   0,
 		},
 	}
 
-	for name, tc := range testCases {
-		t.Run(name, func(tt *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Log("Retry-After:", tt.retryHeader)
 			header := http.Header{}
-			header.Add("Retry-After", tc.RetryAfterHeader)
-			rh := ResponseHandler{
-				httpResponse: &http.Response{
-					Header: header,
-				},
-			}
-			assert.Equal(t, tc.ExpectedDelay,
-				rh.parseRetryDelay().Truncate(time.Second))
+			header.Add("Retry-After", tt.retryHeader)
+			resp := ResponseHandler{httpResponse: &http.Response{Header: header}}
+			assert.Equal(t, tt.wantDelay,
+				resp.parseRetryDelay().Truncate(time.Second))
 		})
 	}
 }

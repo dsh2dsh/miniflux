@@ -88,21 +88,22 @@ func (r *ResponseHandler) CacheControlMaxAgeInMinutes() int {
 }
 
 func (r *ResponseHandler) parseRetryDelay() time.Duration {
-	retryAfterHeaderValue := r.httpResponse.Header.Get("Retry-After")
-	if retryAfterHeaderValue == "" {
+	retryAfter := r.Header("Retry-After")
+	if retryAfter == "" {
 		return 0
 	}
 
 	// First, try to parse as an integer (number of seconds)
-	if seconds, err := strconv.Atoi(retryAfterHeaderValue); err == nil {
-		return time.Duration(seconds) * time.Second
+	if seconds, err := strconv.Atoi(retryAfter); err == nil {
+		return time.Duration(max(0, seconds)) * time.Second
 	}
 
 	// If not an integer, try to parse as an HTTP-date
-	if t, err := time.Parse(time.RFC1123, retryAfterHeaderValue); err == nil {
-		return time.Until(t)
+	t, err := time.Parse(time.RFC1123, retryAfter)
+	if err != nil || t.Before(time.Now()) {
+		return 0
 	}
-	return 0
+	return time.Until(t)
 }
 
 func (r *ResponseHandler) rateLimited() bool {
@@ -216,9 +217,9 @@ func (r *ResponseHandler) bodyStatusText() string {
 	if s, _, _ := strings.Cut(b.String(), "\n"); s != "" {
 		switch statusText {
 		case "":
-			statusText = s
+			return s
 		default:
-			statusText += ": " + s
+			return statusText + ": " + s
 		}
 	}
 	return statusText
