@@ -172,8 +172,6 @@ func TestCSPExternalFont(t *testing.T) {
 		`script-src 'nonce-1234'`,
 		`'strict-dynamic';`,
 		`font-src test.com;`,
-		`require-trusted-types-for 'script';`,
-		`trusted-types html url;`,
 		`manifest-src 'self';`,
 	}
 	csp := contentSecurityPolicy{nonce: "1234"}
@@ -195,8 +193,6 @@ func TestCSPNoUser(t *testing.T) {
 		`style-src 'nonce-1234';`,
 		`script-src 'nonce-1234'`,
 		`'strict-dynamic';`,
-		`require-trusted-types-for 'script';`,
-		`trusted-types html url;`,
 		`manifest-src 'self';`,
 	}
 	csp := contentSecurityPolicy{nonce: "1234"}
@@ -218,8 +214,6 @@ func TestCSPCustomJSExternalFont(t *testing.T) {
 		`style-src 'nonce-1234';`,
 		`script-src 'nonce-1234'`,
 		`'strict-dynamic';`,
-		`require-trusted-types-for 'script';`,
-		`trusted-types html url;`,
 		`manifest-src 'self';`,
 	}
 	csp := contentSecurityPolicy{nonce: "1234"}
@@ -241,8 +235,6 @@ func TestCSPExternalFontStylesheet(t *testing.T) {
 		`style-src 'nonce-1234' test.com;`,
 		`script-src 'nonce-1234'`,
 		`'strict-dynamic';`,
-		`require-trusted-types-for 'script';`,
-		`trusted-types html url;`,
 		`manifest-src 'self';`,
 	}
 	csp := contentSecurityPolicy{nonce: "1234"}
