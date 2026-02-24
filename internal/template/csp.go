@@ -36,16 +36,17 @@ func (self *contentSecurityPolicy) Content(user *model.User) string {
 func (self *contentSecurityPolicy) policies() map[string]string {
 	nonce := self.Nonce()
 	return map[string]string{
-		"default-src":               "'none'",
-		"frame-src":                 "*",
-		"img-src":                   "* data:",
-		"manifest-src":              "'self'",
-		"media-src":                 "*",
-		"require-trusted-types-for": "'script'",
-		"script-src":                "'nonce-" + nonce + "' 'strict-dynamic'",
-		"style-src":                 "'nonce-" + nonce + "'",
-		"trusted-types":             "html url",
-		"connect-src":               "'self'",
+		"default-src":  "'none'",
+		"frame-src":    "*",
+		"img-src":      "* data:",
+		"manifest-src": "'self'",
+		"media-src":    "*",
+		"script-src":   "'nonce-" + nonce + "' 'strict-dynamic'",
+		"style-src":    "'nonce-" + nonce + "'",
+		"connect-src":  "'self'",
+
+		// "require-trusted-types-for": "'script'",
+		// "trusted-types":             "html url",
 	}
 }
 
