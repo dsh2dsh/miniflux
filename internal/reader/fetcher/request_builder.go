@@ -99,115 +99,115 @@ func NewRequestBuilder() *RequestBuilder {
 	}
 }
 
-func (r *RequestBuilder) WithContext(ctx context.Context) *RequestBuilder {
-	r.ctx = ctx
-	return r
+func (self *RequestBuilder) WithContext(ctx context.Context) *RequestBuilder {
+	self.ctx = ctx
+	return self
 }
 
-func (r *RequestBuilder) Context() context.Context {
-	if r.ctx != nil {
-		return r.ctx
+func (self *RequestBuilder) Context() context.Context {
+	if self.ctx != nil {
+		return self.ctx
 	}
 	return context.Background()
 }
 
-func (r *RequestBuilder) WithHeader(key, value string) *RequestBuilder {
-	r.headers.Set(key, value)
-	return r
+func (self *RequestBuilder) WithHeader(key, value string) *RequestBuilder {
+	self.headers.Set(key, value)
+	return self
 }
 
-func (r *RequestBuilder) WithETag(etag string) *RequestBuilder {
+func (self *RequestBuilder) WithETag(etag string) *RequestBuilder {
 	if etag != "" {
-		r.headers.Set("If-None-Match", etag)
+		self.headers.Set("If-None-Match", etag)
 	}
-	return r
+	return self
 }
 
-func (r *RequestBuilder) WithLastModified(lastModified string) *RequestBuilder {
+func (self *RequestBuilder) WithLastModified(lastModified string) *RequestBuilder {
 	if lastModified != "" {
-		r.headers.Set("If-Modified-Since", lastModified)
+		self.headers.Set("If-Modified-Since", lastModified)
 	}
-	return r
+	return self
 }
 
-func (r *RequestBuilder) WithUserAgent(userAgent, defaultUserAgent string) *RequestBuilder {
+func (self *RequestBuilder) WithUserAgent(userAgent, defaultUserAgent string) *RequestBuilder {
 	if userAgent != "" {
-		r.headers.Set("User-Agent", userAgent)
+		self.headers.Set("User-Agent", userAgent)
 	} else {
-		r.headers.Set("User-Agent", defaultUserAgent)
+		self.headers.Set("User-Agent", defaultUserAgent)
 	}
-	return r
+	return self
 }
 
-func (r *RequestBuilder) WithCookie(cookie string) *RequestBuilder {
+func (self *RequestBuilder) WithCookie(cookie string) *RequestBuilder {
 	if cookie != "" {
-		r.headers.Set("Cookie", cookie)
+		self.headers.Set("Cookie", cookie)
 	}
-	return r
+	return self
 }
 
-func (r *RequestBuilder) WithUsernameAndPassword(username, password string) *RequestBuilder {
+func (self *RequestBuilder) WithUsernameAndPassword(username, password string) *RequestBuilder {
 	if username != "" && password != "" {
-		r.headers.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(username+":"+password)))
+		self.headers.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(username+":"+password)))
 	}
-	return r
+	return self
 }
 
-func (r *RequestBuilder) UseCustomApplicationProxyURL(value bool) *RequestBuilder {
-	r.useClientProxy = value
+func (self *RequestBuilder) UseCustomApplicationProxyURL(value bool) *RequestBuilder {
+	self.useClientProxy = value
 	if value {
-		r.customizedClient = true
+		self.customizedClient = true
 	}
-	return r
+	return self
 }
 
-func (r *RequestBuilder) WithCustomFeedProxyURL(proxyURL string) *RequestBuilder {
-	r.feedProxyURL = proxyURL
+func (self *RequestBuilder) WithCustomFeedProxyURL(proxyURL string) *RequestBuilder {
+	self.feedProxyURL = proxyURL
 	if proxyURL != "" {
-		r.customizedClient = true
+		self.customizedClient = true
 	}
-	return r
+	return self
 }
 
-func (r *RequestBuilder) Timeout() time.Duration { return r.clientTimeout }
+func (self *RequestBuilder) Timeout() time.Duration { return self.clientTimeout }
 
-func (r *RequestBuilder) WithoutRedirects() *RequestBuilder {
-	r.withoutRedirects = true
-	r.customizedClient = true
-	return r
+func (self *RequestBuilder) WithoutRedirects() *RequestBuilder {
+	self.withoutRedirects = true
+	self.customizedClient = true
+	return self
 }
 
-func (r *RequestBuilder) DisableHTTP2(value bool) *RequestBuilder {
-	r.disableHTTP2 = value
+func (self *RequestBuilder) DisableHTTP2(value bool) *RequestBuilder {
+	self.disableHTTP2 = value
 	if value {
-		r.customizedClient = true
+		self.customizedClient = true
 	}
-	return r
+	return self
 }
 
-func (r *RequestBuilder) IgnoreTLSErrors(value bool) *RequestBuilder {
-	r.ignoreTLSErrors = value
+func (self *RequestBuilder) IgnoreTLSErrors(value bool) *RequestBuilder {
+	self.ignoreTLSErrors = value
 	if value {
-		r.customizedClient = true
+		self.customizedClient = true
 	}
-	return r
+	return self
 }
 
-func (r *RequestBuilder) WithDenyPrivateNets(value bool) *RequestBuilder {
-	r.denyPrivateNets = value
-	r.customizedClient = value
-	return r
+func (self *RequestBuilder) WithDenyPrivateNets(value bool) *RequestBuilder {
+	self.denyPrivateNets = value
+	self.customizedClient = value
+	return self
 }
 
-func (r *RequestBuilder) execute(requestURL string) (*http.Response,
+func (self *RequestBuilder) execute(requestURL string) (*http.Response,
 	error,
 ) {
-	proxyURL, err := r.proxyURL()
+	proxyURL, err := self.proxyURL()
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := r.req(requestURL)
+	req, err := self.req(requestURL)
 	if err != nil {
 		return nil, err
 	}
@@ -217,20 +217,20 @@ func (r *RequestBuilder) execute(requestURL string) (*http.Response,
 		proxyURLRedacted = proxyURL.Redacted()
 	}
 
-	log := logging.FromContext(r.Context())
+	log := logging.FromContext(self.Context())
 	log.Debug("Making outgoing request",
-		slog.Bool("customized", r.customizedClient),
+		slog.Bool("customized", self.customizedClient),
 		slog.String("method", req.Method),
 		slog.String("url", req.URL.String()),
 		slog.Any("headers", req.Header),
-		slog.Bool("without_redirects", r.withoutRedirects),
-		slog.Bool("use_app_client_proxy", r.useClientProxy),
+		slog.Bool("without_redirects", self.withoutRedirects),
+		slog.Bool("use_app_client_proxy", self.useClientProxy),
 		slog.String("client_proxy_url", proxyURLRedacted),
-		slog.Bool("ignore_tls_errors", r.ignoreTLSErrors),
-		slog.Bool("disable_http2", r.disableHTTP2))
+		slog.Bool("ignore_tls_errors", self.ignoreTLSErrors),
+		slog.Bool("disable_http2", self.disableHTTP2))
 
 	start := time.Now()
-	resp, err := r.client(proxyURL).Do(req)
+	resp, err := self.client(proxyURL).Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("reader/fetcher: do http request: %w", err)
 	}
@@ -245,20 +245,20 @@ func (r *RequestBuilder) execute(requestURL string) (*http.Response,
 	return resp, nil
 }
 
-func (r *RequestBuilder) proxyURL() (*url.URL, error) {
+func (self *RequestBuilder) proxyURL() (*url.URL, error) {
 	var proxyURL *url.URL
 	switch {
-	case r.feedProxyURL != "":
-		u, err := url.Parse(r.feedProxyURL)
+	case self.feedProxyURL != "":
+		u, err := url.Parse(self.feedProxyURL)
 		if err != nil {
 			return nil, fmt.Errorf("reader/fetcher: invalid feed proxy URL %q: %w",
-				r.feedProxyURL, err)
+				self.feedProxyURL, err)
 		}
 		proxyURL = u
-	case r.useClientProxy && r.clientProxyURL != nil:
-		proxyURL = r.clientProxyURL
-	case r.proxyRotator != nil && r.proxyRotator.HasProxies():
-		proxyURL = r.proxyRotator.GetNextProxy()
+	case self.useClientProxy && self.clientProxyURL != nil:
+		proxyURL = self.clientProxyURL
+	case self.proxyRotator != nil && self.proxyRotator.HasProxies():
+		proxyURL = self.proxyRotator.GetNextProxy()
 	}
 	return proxyURL, nil
 }
@@ -268,21 +268,21 @@ var (
 	onceClient    sync.Once
 )
 
-func (r *RequestBuilder) client(proxyURL *url.URL) *http.Client {
-	if r.customizedClient {
-		return r.makeClient(proxyURL)
+func (self *RequestBuilder) client(proxyURL *url.URL) *http.Client {
+	if self.customizedClient {
+		return self.makeClient(proxyURL)
 	}
-	onceClient.Do(func() { defaultClient = r.makeClient(proxyURL) })
+	onceClient.Do(func() { defaultClient = self.makeClient(proxyURL) })
 	return defaultClient
 }
 
-func (r *RequestBuilder) makeClient(proxyURL *url.URL) *http.Client {
+func (self *RequestBuilder) makeClient(proxyURL *url.URL) *http.Client {
 	client := &http.Client{
-		Transport: r.transport(proxyURL),
-		Timeout:   r.Timeout(),
+		Transport: self.transport(proxyURL),
+		Timeout:   self.Timeout(),
 	}
 
-	if r.withoutRedirects {
+	if self.withoutRedirects {
 		client.CheckRedirect = withoutRedirects
 	}
 	return client
@@ -292,27 +292,27 @@ func withoutRedirects(*http.Request, []*http.Request) error {
 	return http.ErrUseLastResponse
 }
 
-func (r *RequestBuilder) transport(proxyURL *url.URL) http.RoundTripper {
-	dialer := &net.Dialer{Timeout: r.Timeout()}
-	if r.denyPrivateNets {
+func (self *RequestBuilder) transport(proxyURL *url.URL) http.RoundTripper {
+	dialer := &net.Dialer{Timeout: self.Timeout()}
+	if self.denyPrivateNets {
 		dialer.Control = denyDialToPrivate
 	}
 
 	transport := &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
 		DialContext:           dialer.DialContext,
-		TLSClientConfig:       r.tlsConfig(),
-		TLSHandshakeTimeout:   r.Timeout(),
-		DisableKeepAlives:     r.customizedClient,
+		TLSClientConfig:       self.tlsConfig(),
+		TLSHandshakeTimeout:   self.Timeout(),
+		DisableKeepAlives:     self.customizedClient,
 		IdleConnTimeout:       10 * time.Second,
-		ResponseHeaderTimeout: r.Timeout(),
+		ResponseHeaderTimeout: self.Timeout(),
 
 		// Setting `DialContext` disables HTTP/2, this option forces the transport
 		// to try HTTP/2 regardless.
 		ForceAttemptHTTP2: true,
 	}
 
-	if r.disableHTTP2 {
+	if self.disableHTTP2 {
 		transport.ForceAttemptHTTP2 = false
 
 		// https://pkg.go.dev/net/http#hdr-HTTP_2
@@ -353,8 +353,8 @@ func denyDialToPrivate(network, address string, _ syscall.RawConn) error {
 	return nil
 }
 
-func (r *RequestBuilder) tlsConfig() *tls.Config {
-	if !r.ignoreTLSErrors {
+func (self *RequestBuilder) tlsConfig() *tls.Config {
+	if !self.ignoreTLSErrors {
 		return nil
 	}
 
@@ -368,17 +368,17 @@ func (r *RequestBuilder) tlsConfig() *tls.Config {
 
 	return &tls.Config{
 		CipherSuites:       cipherSuites,
-		InsecureSkipVerify: r.ignoreTLSErrors,
+		InsecureSkipVerify: self.ignoreTLSErrors,
 	}
 }
 
-func (r *RequestBuilder) req(requestURL string) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet,
+func (self *RequestBuilder) req(requestURL string) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(self.Context(), http.MethodGet,
 		requestURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("reader/fetcher: create http request: %w", err)
 	}
-	req.Header = r.headers.Clone()
+	req.Header = self.headers.Clone()
 	// Set default Accept header if not already set. Note that for the media proxy
 	// requests, we need to forward the browser Accept header.
 	if req.Header.Get("Accept") == "" {
@@ -387,14 +387,14 @@ func (r *RequestBuilder) req(requestURL string) (*http.Request, error) {
 	return req, nil
 }
 
-func (r *RequestBuilder) Request(requestURL string) (*ResponseSemaphore,
+func (self *RequestBuilder) Request(requestURL string) (*ResponseSemaphore,
 	error,
 ) {
-	return newResponseSemaphore(r, requestURL)
+	return newResponseSemaphore(self, requestURL)
 }
 
-func (r *RequestBuilder) RequestWithContext(ctx context.Context,
+func (self *RequestBuilder) RequestWithContext(ctx context.Context,
 	requestURL string,
 ) (*ResponseSemaphore, error) {
-	return newResponseSemaphore(r.WithContext(ctx), requestURL)
+	return newResponseSemaphore(self.WithContext(ctx), requestURL)
 }
