@@ -27,11 +27,11 @@ var translatedStatusCodes = map[int]string{
 	http.StatusGatewayTimeout:      "error.http_gateway_timeout",
 }
 
-func (r *ResponseHandler) LocalizedError() *locale.LocalizedErrorWrapper {
-	if r.Err() != nil {
-		return localizeClientErr(r.Err())
+func (self *ResponseHandler) LocalizedError() *locale.LocalizedErrorWrapper {
+	if self.Err() != nil {
+		return localizeClientErr(self.Err())
 	}
-	return r.localizeStatusCode()
+	return self.localizeStatusCode()
 }
 
 func localizeClientErr(err error) *locale.LocalizedErrorWrapper {
@@ -80,12 +80,12 @@ func sslError(err error) bool {
 	return ok
 }
 
-func (r *ResponseHandler) localizeStatusCode() *locale.LocalizedErrorWrapper {
-	statusCode := r.StatusCode()
+func (self *ResponseHandler) localizeStatusCode() *locale.LocalizedErrorWrapper {
+	statusCode := self.StatusCode()
 	if statusCode < 400 {
 		if statusCode != http.StatusNotModified {
 			// Content-Length = -1 when no Content-Length header is sent.
-			if r.httpResponse.ContentLength == 0 {
+			if self.httpResponse.ContentLength == 0 {
 				return locale.NewLocalizedErrorWrapper(
 					errors.New("reader/fetcher: empty response body"),
 					"error.http_empty_response_body")
@@ -95,31 +95,31 @@ func (r *ResponseHandler) localizeStatusCode() *locale.LocalizedErrorWrapper {
 	}
 
 	if key, ok := translatedStatusCodes[statusCode]; ok {
-		return locale.NewLocalizedErrorWrapper(r.errResponse(), key)
+		return locale.NewLocalizedErrorWrapper(self.errResponse(), key)
 	}
 
 	if statusCode == http.StatusTooManyRequests {
 		err := fmt.Errorf("%w: %w",
-			NewErrTooManyRequests(r.URL().Hostname(),
-				time.Now().Add(r.parseRetryDelay()), r.Header("Retry-After")),
-			r.errResponse())
+			NewErrTooManyRequests(self.URL().Hostname(),
+				time.Now().Add(self.parseRetryDelay()), self.Header("Retry-After")),
+			self.errResponse())
 		return locale.NewLocalizedErrorWrapper(err, "error.http_too_many_requests")
 	}
 
-	return locale.NewLocalizedErrorWrapper(r.errResponse(),
+	return locale.NewLocalizedErrorWrapper(self.errResponse(),
 		"error.http_unexpected_status_code", statusCode)
 }
 
-func (r *ResponseHandler) errResponse() *ErrResponse {
+func (self *ResponseHandler) errResponse() *ErrResponse {
 	errResp := &ErrResponse{
-		StatusCode:  r.StatusCode(),
-		ContentType: r.ContentType(),
+		StatusCode:  self.StatusCode(),
+		ContentType: self.ContentType(),
 	}
-	if r.httpResponse.ContentLength == 0 {
+	if self.httpResponse.ContentLength == 0 {
 		return errResp
 	}
 
-	body, err := encoding.NewCharsetReader(r.Body(), errResp.ContentType)
+	body, err := encoding.NewCharsetReader(self.Body(), errResp.ContentType)
 	if err != nil {
 		return errResp
 	}

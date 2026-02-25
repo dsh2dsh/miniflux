@@ -27,41 +27,41 @@ type ResponseHandler struct {
 	maxBodySize int64
 }
 
-func (r *ResponseHandler) Status() string  { return r.httpResponse.Status }
-func (r *ResponseHandler) StatusCode() int { return r.httpResponse.StatusCode }
+func (self *ResponseHandler) Status() string  { return self.httpResponse.Status }
+func (self *ResponseHandler) StatusCode() int { return self.httpResponse.StatusCode }
 
-func (r *ResponseHandler) Header(key string) string {
-	return r.httpResponse.Header.Get(key)
+func (self *ResponseHandler) Header(key string) string {
+	return self.httpResponse.Header.Get(key)
 }
 
-func (r *ResponseHandler) Err() error { return r.clientErr }
+func (self *ResponseHandler) Err() error { return self.clientErr }
 
-func (r *ResponseHandler) URL() *url.URL { return r.httpResponse.Request.URL }
+func (self *ResponseHandler) URL() *url.URL { return self.httpResponse.Request.URL }
 
-func (r *ResponseHandler) EffectiveURL() string { return r.URL().String() }
+func (self *ResponseHandler) EffectiveURL() string { return self.URL().String() }
 
-func (r *ResponseHandler) ContentType() string {
-	return r.httpResponse.Header.Get("Content-Type")
+func (self *ResponseHandler) ContentType() string {
+	return self.httpResponse.Header.Get("Content-Type")
 }
 
-func (r *ResponseHandler) LastModified() string {
+func (self *ResponseHandler) LastModified() string {
 	// Ignore caching headers for feeds that do not want any cache.
-	if r.httpResponse.Header.Get("Expires") == "0" {
+	if self.httpResponse.Header.Get("Expires") == "0" {
 		return ""
 	}
-	return r.httpResponse.Header.Get("Last-Modified")
+	return self.httpResponse.Header.Get("Last-Modified")
 }
 
-func (r *ResponseHandler) ETag() string {
+func (self *ResponseHandler) ETag() string {
 	// Ignore caching headers for feeds that do not want any cache.
-	if r.httpResponse.Header.Get("Expires") == "0" {
+	if self.httpResponse.Header.Get("Expires") == "0" {
 		return ""
 	}
-	return r.httpResponse.Header.Get("ETag")
+	return self.httpResponse.Header.Get("ETag")
 }
 
-func (r *ResponseHandler) ExpiresInMinutes() int {
-	expiresHeaderValue := r.httpResponse.Header.Get("Expires")
+func (self *ResponseHandler) ExpiresInMinutes() int {
+	expiresHeaderValue := self.httpResponse.Header.Get("Expires")
 	if expiresHeaderValue != "" {
 		t, err := time.Parse(time.RFC1123, expiresHeaderValue)
 		if err == nil {
@@ -71,8 +71,8 @@ func (r *ResponseHandler) ExpiresInMinutes() int {
 	return 0
 }
 
-func (r *ResponseHandler) CacheControlMaxAgeInMinutes() int {
-	cacheControlHeaderValue := r.httpResponse.Header.Get("Cache-Control")
+func (self *ResponseHandler) CacheControlMaxAgeInMinutes() int {
+	cacheControlHeaderValue := self.httpResponse.Header.Get("Cache-Control")
 	if cacheControlHeaderValue != "" {
 		for directive := range strings.SplitSeq(cacheControlHeaderValue, ",") {
 			directive = strings.TrimSpace(directive)
@@ -87,8 +87,8 @@ func (r *ResponseHandler) CacheControlMaxAgeInMinutes() int {
 	return 0
 }
 
-func (r *ResponseHandler) parseRetryDelay() time.Duration {
-	retryAfter := r.Header("Retry-After")
+func (self *ResponseHandler) parseRetryDelay() time.Duration {
+	retryAfter := self.Header("Retry-After")
 	if retryAfter == "" {
 		return 0
 	}
@@ -106,41 +106,41 @@ func (r *ResponseHandler) parseRetryDelay() time.Duration {
 	return time.Until(t)
 }
 
-func (r *ResponseHandler) rateLimited() bool {
-	return r.httpResponse != nil &&
-		r.httpResponse.StatusCode == http.StatusTooManyRequests
+func (self *ResponseHandler) rateLimited() bool {
+	return self.httpResponse != nil &&
+		self.httpResponse.StatusCode == http.StatusTooManyRequests
 }
 
-func (r *ResponseHandler) IsModified(lastEtagValue, lastModifiedValue string) bool {
-	if r.httpResponse.StatusCode == http.StatusNotModified {
+func (self *ResponseHandler) IsModified(lastEtagValue, lastModifiedValue string) bool {
+	if self.httpResponse.StatusCode == http.StatusNotModified {
 		return false
 	}
 
-	if r.ETag() != "" {
-		return r.ETag() != lastEtagValue
+	if self.ETag() != "" {
+		return self.ETag() != lastEtagValue
 	}
 
-	if r.LastModified() != "" {
-		return r.LastModified() != lastModifiedValue
+	if self.LastModified() != "" {
+		return self.LastModified() != lastModifiedValue
 	}
 
 	return true
 }
 
-func (r *ResponseHandler) IsRedirect() bool {
-	return r.httpResponse != nil &&
-		(r.httpResponse.StatusCode == http.StatusMovedPermanently ||
-			r.httpResponse.StatusCode == http.StatusFound ||
-			r.httpResponse.StatusCode == http.StatusSeeOther ||
-			r.httpResponse.StatusCode == http.StatusTemporaryRedirect ||
-			r.httpResponse.StatusCode == http.StatusPermanentRedirect)
+func (self *ResponseHandler) IsRedirect() bool {
+	return self.httpResponse != nil &&
+		(self.httpResponse.StatusCode == http.StatusMovedPermanently ||
+			self.httpResponse.StatusCode == http.StatusFound ||
+			self.httpResponse.StatusCode == http.StatusSeeOther ||
+			self.httpResponse.StatusCode == http.StatusTemporaryRedirect ||
+			self.httpResponse.StatusCode == http.StatusPermanentRedirect)
 }
 
-func (r *ResponseHandler) Close() {
-	if r.Err() != nil {
+func (self *ResponseHandler) Close() {
+	if self.Err() != nil {
 		return
 	}
-	BodyClose(r.httpResponse.Body)
+	BodyClose(self.httpResponse.Body)
 }
 
 // maxPostHandlerReadBytes is the max number of Request.Body bytes not
@@ -162,24 +162,24 @@ func BodyClose(r io.ReadCloser) {
 	r.Close()
 }
 
-func (r *ResponseHandler) getReader(maxBodySize int64) io.ReadCloser {
-	logging.FromContext(r.httpResponse.Request.Context()).Debug(
+func (self *ResponseHandler) getReader(maxBodySize int64) io.ReadCloser {
+	logging.FromContext(self.httpResponse.Request.Context()).Debug(
 		"Request response",
-		slog.String("effective_url", r.EffectiveURL()),
-		slog.String("content_length", r.httpResponse.Header.Get("Content-Length")),
+		slog.String("effective_url", self.EffectiveURL()),
+		slog.String("content_length", self.httpResponse.Header.Get("Content-Length")),
 		slog.String("content_encoding",
-			r.httpResponse.Header.Get("Content-Encoding")),
-		slog.String("content_type", r.httpResponse.Header.Get("Content-Type")))
-	return http.MaxBytesReader(nil, r.httpResponse.Body, maxBodySize)
+			self.httpResponse.Header.Get("Content-Encoding")),
+		slog.String("content_type", self.httpResponse.Header.Get("Content-Type")))
+	return http.MaxBytesReader(nil, self.httpResponse.Body, maxBodySize)
 }
 
-func (r *ResponseHandler) Body() io.ReadCloser {
-	return r.getReader(r.maxBodySize)
+func (self *ResponseHandler) Body() io.ReadCloser {
+	return self.getReader(self.maxBodySize)
 }
 
-func (r *ResponseHandler) ReadBody() ([]byte, *locale.LocalizedErrorWrapper) {
+func (self *ResponseHandler) ReadBody() ([]byte, *locale.LocalizedErrorWrapper) {
 	var buffer bytes.Buffer
-	if err := r.WriteBodyTo(&buffer); err != nil {
+	if err := self.WriteBodyTo(&buffer); err != nil {
 		return nil, err
 	}
 
@@ -191,9 +191,9 @@ func (r *ResponseHandler) ReadBody() ([]byte, *locale.LocalizedErrorWrapper) {
 	return buffer.Bytes(), nil
 }
 
-func (r *ResponseHandler) WriteBodyTo(w io.Writer,
+func (self *ResponseHandler) WriteBodyTo(w io.Writer,
 ) *locale.LocalizedErrorWrapper {
-	_, err := io.Copy(w, r.Body())
+	_, err := io.Copy(w, self.Body())
 	if err == nil || errors.Is(err, io.EOF) {
 		return nil
 	}
