@@ -5,8 +5,9 @@
 {{ end }}
 
 <div class="items" {{ if .showOnlyUnreadEntries }}data-infinite-scroll="true"{{ end }}>
+    {{ $hasMore := gt .total (len .entries) }}
     {{ range .entries }}
-    {{   template "item" dict "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry "lastEntry" $.lastEntry "requestURI" $.requestURI "showOnlyUnreadEntries" $.showOnlyUnreadEntries }}
+    {{   template "item" dict "user" $.user "entry" . "hasSaveEntry" $.hasSaveEntry "pageEnd" (and $hasMore (eq . $.lastEntry)) "requestURI" $.requestURI "showOnlyUnreadEntries" $.showOnlyUnreadEntries }}
     {{ end }}
 </div>
 
