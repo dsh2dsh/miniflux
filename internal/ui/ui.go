@@ -281,16 +281,26 @@ func robotsTxt(w http.ResponseWriter, r *http.Request) {
 func (h *handler) redirect(w http.ResponseWriter, r *http.Request,
 	name string, args ...any,
 ) {
-	acceptHeader := r.Header.Get("Accept")
-	if acceptHeader != "application/json" {
-		html.Redirect(w, r, route.Path(h.router, name, args...))
+	location := route.Path(h.router, name, args...)
+	log := logging.FromContext(r.Context()).With(
+		slog.String("location", location))
+
+	if boosted := r.Header.Get("HX-Boosted"); boosted != "" {
+		log.Debug("redirect using HX-Location", slog.String("hx-boosted", boosted))
+		w.Header().Set("HX-Location", location)
+		html.NoContent(w, r)
 		return
 	}
 
+	if accept := r.Header.Get("Accept"); accept != "application/json" {
+		log.Debug("redirect using HTTP redirect", slog.String("accept", accept))
+		html.Redirect(w, r, location)
+		return
+	}
+
+	log.Debug("redirect using JSON payload")
 	resp := struct {
 		URL string `json:"url"`
-	}{
-		URL: route.Path(h.router, name, args...),
-	}
+	}{URL: location}
 	json.OK(w, r, &resp)
 }
