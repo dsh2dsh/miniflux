@@ -1,14 +1,10 @@
 package handler
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"log/slog"
-	"strconv"
-	"strings"
 	"time"
 
 	"miniflux.app/v2/internal/config"
@@ -22,7 +18,6 @@ import (
 	"miniflux.app/v2/internal/reader/icon"
 	"miniflux.app/v2/internal/reader/parser"
 	"miniflux.app/v2/internal/reader/processor"
-	"miniflux.app/v2/internal/reader/sanitizer"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/template"
 )
@@ -209,47 +204,7 @@ func (self *Refresh) logRespError(log *slog.Logger,
 
 	log.Warn("Unable to fetch feed",
 		slog.String("feed_url", self.feed.FeedURL), slog.Any("error", lerr))
-
-	errResp, ok := errors.AsType[*fetcher.ErrResponse](lerr)
-	if !ok || len(errResp.Body) == 0 {
-		return lerr
-	}
-
-	log.Warn("response has content, see next log lines",
-		slog.String("type", errResp.ContentType),
-		slog.Int("length", len(errResp.Body)))
-
-	self.warnBody(log, errResp.Body)
 	return lerr
-}
-
-func (self *Refresh) warnBody(log *slog.Logger, body []byte) {
-	content := sanitizer.StripTags(string(body))
-	if content == "" {
-		return
-	}
-
-	r := strings.NewReader(content)
-	s := bufio.NewScanner(r)
-	limit := 1024
-
-	for s.Scan() {
-		line := bytes.TrimSpace(s.Bytes())
-		switch n := len(line); {
-		case n == 0:
-			continue
-		case n > limit:
-			log.Warn("limit reached, left of response content skipped",
-				slog.Int("length", len(s.Bytes())+r.Len()),
-				slog.Int("limit", limit),
-				slog.Int("line_length", n))
-			return
-		default:
-			limit -= n
-		}
-		log.Warn(strconv.Quote(string(line)))
-	}
-	log.Warn("end of response content")
 }
 
 func (self *Refresh) refreshAnyway(resp *fetcher.ResponseSemaphore) bool {

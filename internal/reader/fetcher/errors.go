@@ -1,7 +1,6 @@
 package fetcher
 
 import (
-	"bytes"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	"miniflux.app/v2/internal/locale"
-	"miniflux.app/v2/internal/reader/encoding"
 )
 
 var translatedStatusCodes = map[int]string{
@@ -82,7 +80,7 @@ func sslError(err error) bool {
 
 func (self *ResponseHandler) localizeStatusCode() *locale.LocalizedErrorWrapper {
 	statusCode := self.StatusCode()
-	if statusCode < 400 {
+	if self.goodStatusCode() {
 		if statusCode != http.StatusNotModified {
 			// Content-Length = -1 when no Content-Length header is sent.
 			if self.httpResponse.ContentLength == 0 {
@@ -95,41 +93,27 @@ func (self *ResponseHandler) localizeStatusCode() *locale.LocalizedErrorWrapper 
 	}
 
 	if key, ok := translatedStatusCodes[statusCode]; ok {
-		return locale.NewLocalizedErrorWrapper(self.errResponse(), key)
+		return locale.NewLocalizedErrorWrapper(self.badStatusErr(), key)
 	}
 
 	if statusCode == http.StatusTooManyRequests {
 		err := fmt.Errorf("%w: %w",
 			NewErrTooManyRequests(self.URL().Hostname(),
 				time.Now().Add(self.parseRetryDelay()), self.Header("Retry-After")),
-			self.errResponse())
+			self.badStatusErr())
 		return locale.NewLocalizedErrorWrapper(err, "error.http_too_many_requests")
 	}
 
-	return locale.NewLocalizedErrorWrapper(self.errResponse(),
+	return locale.NewLocalizedErrorWrapper(self.badStatusErr(),
 		"error.http_unexpected_status_code", statusCode)
 }
 
-func (self *ResponseHandler) errResponse() *ErrResponse {
-	errResp := &ErrResponse{
+func (self *ResponseHandler) badStatusErr() *ErrBadStatus {
+	return &ErrBadStatus{
 		StatusCode:  self.StatusCode(),
 		ContentType: self.ContentType(),
+		Body:        self.content,
 	}
-	if self.httpResponse.ContentLength == 0 {
-		return errResp
-	}
-
-	body, err := encoding.NewCharsetReader(self.Body(), errResp.ContentType)
-	if err != nil {
-		return errResp
-	}
-
-	var b bytes.Buffer
-	if _, err := io.Copy(&b, body); err != nil {
-		return errResp
-	}
-	errResp.Body = b.Bytes()
-	return errResp
 }
 
 type ErrTooManyRequests struct {
@@ -173,15 +157,15 @@ func (self *ErrTooManyRequests) Localized() *locale.LocalizedErrorWrapper {
 	return locale.NewLocalizedErrorWrapper(self, "error.http_too_many_requests")
 }
 
-type ErrResponse struct {
+type ErrBadStatus struct {
 	StatusCode  int
 	ContentType string
 	Body        []byte
 }
 
-var _ error = (*ErrResponse)(nil)
+var _ error = (*ErrBadStatus)(nil)
 
-func (self *ErrResponse) Error() string {
+func (self *ErrBadStatus) Error() string {
 	return fmt.Sprintf("reader/fetcher: unexpected status: %d %s",
 		self.StatusCode, http.StatusText(self.StatusCode))
 }

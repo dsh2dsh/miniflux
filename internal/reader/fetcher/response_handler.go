@@ -4,9 +4,12 @@
 package fetcher // import "miniflux.app/v2/internal/reader/fetcher"
 
 import (
+	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"log/slog"
 	"math"
@@ -16,19 +19,100 @@ import (
 	"strings"
 	"time"
 
+	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/logging"
+	"miniflux.app/v2/internal/reader/encoding"
+	"miniflux.app/v2/internal/reader/sanitizer"
 )
 
 type ResponseHandler struct {
 	httpResponse *http.Response
 	clientErr    error
+	maxBodySize  int64
 
-	maxBodySize int64
+	content []byte
 }
 
-func (self *ResponseHandler) Status() string  { return self.httpResponse.Status }
-func (self *ResponseHandler) StatusCode() int { return self.httpResponse.StatusCode }
+func NewResponseHandler(resp *http.Response, err error) *ResponseHandler {
+	r := &ResponseHandler{
+		httpResponse: resp,
+		clientErr:    err,
+		maxBodySize:  config.HTTPClientMaxBodySize(),
+	}
+	return r.withResponseContent()
+}
+
+func (self *ResponseHandler) withResponseContent() *ResponseHandler {
+	skip := self.Err() != nil || self.goodStatusCode() ||
+		self.httpResponse.ContentLength == 0
+	if skip {
+		return self
+	}
+
+	body, err := encoding.NewCharsetReader(self.Body(), self.ContentType())
+	if err != nil {
+		return self
+	}
+
+	var b bytes.Buffer
+	if _, err := io.Copy(&b, body); err != nil {
+		return self
+	}
+	self.content = b.Bytes()
+
+	self.logResponseContent()
+	return self
+}
+
+func (self *ResponseHandler) goodStatusCode() bool {
+	return self.StatusCode() < 400
+}
+
+func (self *ResponseHandler) logResponseContent() {
+	if len(self.content) == 0 {
+		return
+	}
+
+	content := sanitizer.StripTags(string(self.content))
+	if content == "" {
+		return
+	}
+
+	r := strings.NewReader(content)
+	s := bufio.NewScanner(r)
+	limit := 1024
+	log := logging.FromContext(self.Context())
+
+	for s.Scan() {
+		line := bytes.TrimSpace(s.Bytes())
+		switch n := len(line); {
+		case n == 0:
+			continue
+		case n > limit:
+			log.Warn("limit reached, left of response content skipped",
+				slog.Int("length", len(s.Bytes())+r.Len()),
+				slog.Int("limit", limit),
+				slog.Int("line_length", n))
+			return
+		default:
+			limit -= n
+		}
+		log.Warn(strconv.Quote(html.UnescapeString(string(line))))
+	}
+}
+
+func (self *ResponseHandler) Context() context.Context {
+	return self.httpResponse.Request.Context()
+}
+
+func (self *ResponseHandler) Status() string {
+	return self.httpResponse.Status
+}
+
+func (self *ResponseHandler) StatusCode() int {
+	return self.httpResponse.StatusCode
+}
 
 func (self *ResponseHandler) Header(key string) string {
 	return self.httpResponse.Header.Get(key)

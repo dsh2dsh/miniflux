@@ -43,12 +43,8 @@ func newResponseSemaphore(r *RequestBuilder, rawURL string,
 	//nolint:bodyclose // ResponseSemaphore.Close() it
 	resp, err := r.execute(rawURL)
 	self := &ResponseSemaphore{
-		ResponseHandler: &ResponseHandler{
-			httpResponse: resp,
-			clientErr:    err,
-			maxBodySize:  config.HTTPClientMaxBodySize(),
-		},
-		release: func() { limits.Release(hostname) },
+		ResponseHandler: NewResponseHandler(resp, err),
+		release:         func() { limits.Release(hostname) },
 	}
 	return self.init(hostname), nil
 }
