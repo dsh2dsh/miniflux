@@ -12,8 +12,16 @@
     <p role="alert" class="alert alert-error">{{ t "page.add_feed.no_category" }}</p>
 {{ else }}
     <form action="{{ route "submitSubscription" }}" method="post" autocomplete="off" hx-boost="true">
+
         {{ if .errorMessage }}
-            <div role="alert" class="alert alert-error">{{ .errorMessage }}</div>
+        <div role="alert" class="alert alert-error">{{ .errorMessage }}</div>
+
+        {{   if .badStatusContent }}
+        <h2>Remote response</h2>
+        <div role="alert" class="alert alert-error" hx-disable="">
+            {{ .badStatusContent }}
+        </div>
+        {{   end }}
         {{ end }}
 
         <label for="form-url">{{ t "page.add_feed.label.url" }}</label>

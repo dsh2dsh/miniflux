@@ -4,16 +4,25 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"html/template"
+	"log/slog"
 	"net/http"
+	"net/url"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/locale"
+	"miniflux.app/v2/internal/logging"
+	"miniflux.app/v2/internal/mediaproxy"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/fetcher"
 	feedHandler "miniflux.app/v2/internal/reader/handler"
+	"miniflux.app/v2/internal/reader/sanitizer"
+	"miniflux.app/v2/internal/reader/scraper"
 	"miniflux.app/v2/internal/reader/subscription"
 	"miniflux.app/v2/internal/ui/form"
 )
@@ -21,9 +30,8 @@ import (
 func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 	f := form.NewSubscriptionForm(r)
 	if lerr := f.Validate(); lerr != nil {
-		h.showSubmitSubscriptionError(w, r, func(v *View) {
-			v.Set("form", f).
-				Set("errorMessage", lerr.Translate(v.User().Language))
+		h.showSubscriptionError(w, r, f, nil, func(v *View) {
+			v.Set("errorMessage", lerr.Translate(v.User().Language))
 			html.OK(w, r, v.Render("add_subscription"))
 		})
 		return
@@ -45,9 +53,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 		user.Integration().RSSBridgeURLIfEnabled(),
 		user.Integration().RSSBridgeTokenIfEnabled())
 	if lerr != nil {
-		h.showSubmitSubscriptionError(w, r, func(v *View) {
-			v.Set("form", f).
-				Set("errorMessage", lerr.Translate(v.User().Language))
+		h.showSubscriptionError(w, r, f, lerr, func(v *View) {
 			html.OK(w, r, v.Render("add_subscription"))
 		})
 		return
@@ -56,10 +62,9 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 	n := len(subscriptions)
 	switch {
 	case n == 0:
-		h.showSubmitSubscriptionError(w, r, func(v *View) {
+		h.showSubscriptionError(w, r, f, nil, func(v *View) {
 			lerr := locale.NewLocalizedError("error.subscription_not_found")
-			v.Set("form", f).
-				Set("errorMessage", lerr.Translate(v.User().Language))
+			v.Set("errorMessage", lerr.Translate(v.User().Language))
 			html.OK(w, r, v.Render("add_subscription"))
 		})
 
@@ -91,9 +96,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 				},
 			})
 		if lerr != nil {
-			h.showSubmitSubscriptionError(w, r, func(v *View) {
-				v.Set("form", f).
-					Set("errorMessage", lerr.Translate(v.User().Language))
+			h.showSubscriptionError(w, r, f, lerr, func(v *View) {
 				html.OK(w, r, v.Render("add_subscription"))
 			})
 			return
@@ -123,9 +126,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 				ProxyURL:                    f.ProxyURL,
 			})
 		if lerr != nil {
-			h.showSubmitSubscriptionError(w, r, func(v *View) {
-				v.Set("form", f).
-					Set("errorMessage", lerr.Translate(v.User().Language))
+			h.showSubscriptionError(w, r, f, lerr, func(v *View) {
 				html.OK(w, r, v.Render("add_subscription"))
 			})
 			return
@@ -133,16 +134,16 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 		h.redirect(w, r, "feedEntries", "feedID", feed.ID)
 
 	case n > 1:
-		h.showSubmitSubscriptionError(w, r, func(v *View) {
-			v.Set("subscriptions", subscriptions).
-				Set("form", f)
+		h.showSubscriptionError(w, r, f, nil, func(v *View) {
+			v.Set("subscriptions", subscriptions)
 			html.OK(w, r, v.Render("choose_subscription"))
 		})
 	}
 }
 
-func (h *handler) showSubmitSubscriptionError(w http.ResponseWriter,
-	r *http.Request, renderFunc func(v *View),
+func (h *handler) showSubscriptionError(w http.ResponseWriter, r *http.Request,
+	f *form.SubscriptionForm, lerr *locale.LocalizedErrorWrapper,
+	renderFunc func(v *View),
 ) {
 	v := h.View(r)
 
@@ -160,6 +161,45 @@ func (h *handler) showSubmitSubscriptionError(w http.ResponseWriter,
 	v.Set("menu", "feeds").
 		Set("categories", categories).
 		Set("defaultUserAgent", config.HTTPClientUserAgent()).
+		Set("form", f).
 		Set("hasProxyConfigured", config.HasHTTPClientProxyURLConfigured())
+
+	if lerr == nil {
+		renderFunc(v)
+		return
+
+	}
+
+	v.Set("errorMessage", lerr.Translate(v.User().Language))
+	v.Set("badStatusContent",
+		template.HTML(h.badStatusContent(r.Context(), f.URL, lerr)))
 	renderFunc(v)
+}
+
+func (h *handler) badStatusContent(ctx context.Context, urlString string,
+	err error,
+) string {
+	badStatusErr, ok := errors.AsType[*fetcher.ErrBadStatus](err)
+	if !ok || len(badStatusErr.Body) == 0 {
+		return ""
+	}
+
+	u, err := url.Parse(urlString)
+	if err != nil {
+		logging.FromContext(ctx).Debug("unable parse content URL",
+			slog.String("url", urlString), slog.Any("error", err))
+		return ""
+	}
+
+	_, content, err := scraper.Readability(ctx,
+		bytes.NewReader(badStatusErr.Body), u)
+	if err != nil {
+		logging.FromContext(ctx).Debug("unable extract readability",
+			slog.Any("error", err))
+		return ""
+	}
+
+	content = sanitizer.SanitizeContent(content, u,
+		sanitizer.WithRewriteURL(mediaproxy.New(h.router).RewriteURL))
+	return content
 }

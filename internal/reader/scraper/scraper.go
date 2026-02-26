@@ -59,7 +59,7 @@ func ScrapeWebsite(ctx context.Context, rb *fetcher.RequestBuilder, pageURL,
 	if sameSite && rules != "" {
 		return extractCustom(ctx, r, resp.URL(), rules)
 	}
-	return extractReadability(ctx, r, resp.URL())
+	return Readability(ctx, r, resp.URL())
 }
 
 func extractCustom(ctx context.Context, r io.Reader, u *url.URL, rules string,
@@ -81,7 +81,9 @@ func extractCustom(ctx context.Context, r io.Reader, u *url.URL, rules string,
 	return contentURL, content, nil
 }
 
-func extractReadability(ctx context.Context, r io.Reader, u *url.URL) (string, string, error) {
+func Readability(ctx context.Context, r io.Reader, u *url.URL) (string, string,
+	error,
+) {
 	pageURL := u.String()
 	log := logging.FromContext(ctx).With(slog.String("url", pageURL))
 	log.Debug("Extracting content with readability", slog.String("url", pageURL))
