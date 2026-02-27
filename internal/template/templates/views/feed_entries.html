@@ -78,11 +78,17 @@
 {{ end }}
 
 {{ define "content"}}
-{{ if ne .feed.ParsingErrorCount 0 }}
+{{ if gt .feed.ParsingErrorCount 0 }}
 <div role="alert" class="alert alert-error">
     <h3>{{ t "alert.feed_error" }}</h3>
     <p>{{ t .feed.ParsingErrorMsg }}</p>
 </div>
+
+{{   if .badStatusContent }}
+<div role="alert" class="alert alert-error entry-content" hx-disable="">
+    {{ .badStatusContent }}
+</div>
+{{   end }}
 {{ end }}
 
 {{ if .entries }}

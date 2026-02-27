@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	htmlTemplate "html/template"
 	"log/slog"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"miniflux.app/v2/internal/reader/icon"
 	"miniflux.app/v2/internal/reader/parser"
 	"miniflux.app/v2/internal/reader/processor"
+	"miniflux.app/v2/internal/reader/sanitizer"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/template"
 )
@@ -48,7 +50,7 @@ func RefreshFeed(ctx context.Context, store *storage.Storage,
 	}
 
 	if err := r.Refresh(ctx); err != nil {
-		return nil, r.IncFeedError(ctx, err)
+		return nil, r.incFeedErrors(ctx, err)
 	}
 	return r.refreshed, nil
 }
@@ -485,7 +487,7 @@ func (self *Refresh) entriesLogGroup(refreshed *model.FeedRefreshed) slog.Attr {
 	return slog.GroupAttrs("entries", attrs...)
 }
 
-func (self *Refresh) IncFeedError(ctx context.Context, err error) error {
+func (self *Refresh) incFeedErrors(ctx context.Context, err error) error {
 	lerr, ok := errors.AsType[*locale.LocalizedErrorWrapper](err)
 	if !ok {
 		return err
@@ -506,8 +508,14 @@ func (self *Refresh) IncFeedError(ctx context.Context, err error) error {
 		}
 	}
 
+	if err := self.withBadStatus(err); err != nil {
+		logging.FromContext(ctx).Error(
+			"unable extract bad status response content",
+			slog.Any("error", err))
+	}
+
 	self.feed.WithTranslatedErrorMessage(lerr.Translate(user.Language))
-	if err2 := self.store.IncFeedError(ctx, self.feed); err2 != nil {
+	if err2 := self.store.IncFeedErrors(ctx, self.feed); err2 != nil {
 		return fmt.Errorf("reader/handler: inc feed error count: %w: %w", err2, err)
 	}
 
@@ -519,6 +527,22 @@ func (self *Refresh) IncFeedError(ctx context.Context, err error) error {
 		}
 	}
 	return fmt.Errorf("%w: %w", ErrBadFeed, err)
+}
+
+func (self *Refresh) withBadStatus(err error) error {
+	badStatusErr, ok := errors.AsType[*fetcher.ErrBadStatus](err)
+	if !ok || len(badStatusErr.Body) == 0 {
+		return nil
+	}
+
+	u, err := self.feed.ParsedFeedURL()
+	if err != nil {
+		return err
+	}
+
+	content := sanitizer.SanitizeContent(string(badStatusErr.Body), u)
+	self.feed.WithBadStatus(content, badStatusErr.ContentType)
+	return nil
 }
 
 func (self *Refresh) notifyFeedError(ctx context.Context, user *model.User) {
@@ -548,9 +572,11 @@ func (self *Refresh) feedParsingError(user *model.User) *model.Entry {
 		printer.Plural("page.feeds.error_count",
 			self.feed.ParsingErrorCount, self.feed.ParsingErrorCount)
 
-	entry.Content = self.render("feed_parsing_error.html", user, map[string]any{
-		"Feed": self.feed,
-	})
+	data := map[string]any{"Feed": self.feed}
+	if badStatus := self.feed.BadStatus(); badStatus != nil {
+		data["badStatusContent"] = htmlTemplate.HTML(badStatus.Content)
+	}
+	entry.Content = self.render("feed_parsing_error.html", user, data)
 
 	entry.WithURLString(self.routeURL("feedEntries", "feedID", self.feedID)).
 		HashFrom(entry.URL)

@@ -17,8 +17,7 @@
         <div role="alert" class="alert alert-error">{{ .errorMessage }}</div>
 
         {{   if .badStatusContent }}
-        <h2>Remote response</h2>
-        <div role="alert" class="alert alert-error" hx-disable="">
+        <div role="alert" class="alert alert-error entry-content" hx-disable="">
             {{ .badStatusContent }}
         </div>
         {{   end }}

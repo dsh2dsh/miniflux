@@ -4,7 +4,6 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"html/template"
@@ -22,7 +21,6 @@ import (
 	"miniflux.app/v2/internal/reader/fetcher"
 	feedHandler "miniflux.app/v2/internal/reader/handler"
 	"miniflux.app/v2/internal/reader/sanitizer"
-	"miniflux.app/v2/internal/reader/scraper"
 	"miniflux.app/v2/internal/reader/subscription"
 	"miniflux.app/v2/internal/ui/form"
 )
@@ -186,20 +184,11 @@ func (h *handler) badStatusContent(ctx context.Context, urlString string,
 
 	u, err := url.Parse(urlString)
 	if err != nil {
-		logging.FromContext(ctx).Debug("unable parse content URL",
+		logging.FromContext(ctx).Error("unable parse content URL",
 			slog.String("url", urlString), slog.Any("error", err))
 		return ""
 	}
 
-	_, content, err := scraper.Readability(ctx,
-		bytes.NewReader(badStatusErr.Body), u)
-	if err != nil {
-		logging.FromContext(ctx).Debug("unable extract readability",
-			slog.Any("error", err))
-		return ""
-	}
-
-	content = sanitizer.SanitizeContent(content, u,
+	return sanitizer.SanitizeContent(string(badStatusErr.Body), u,
 		sanitizer.WithRewriteURL(mediaproxy.New(h.router).RewriteURL))
-	return content
 }

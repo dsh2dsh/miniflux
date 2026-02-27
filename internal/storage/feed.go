@@ -415,21 +415,23 @@ WHERE id = $8 AND user_id = $9`,
 	return nil
 }
 
-// IncFeedError updates feed errors.
-func (s *Storage) IncFeedError(ctx context.Context, feed *model.Feed,
+// IncFeedErrors updates feed errors.
+func (s *Storage) IncFeedErrors(ctx context.Context, feed *model.Feed,
 ) error {
 	rows, _ := s.db.Query(ctx, `
 UPDATE feeds
-   SET parsing_error_msg = $1,
+   SET parsing_error_msg = $3,
        parsing_error_count = parsing_error_count + 1,
-       checked_at = $2,
-       next_check_at = $3
- WHERE id = $4 AND user_id = $5
+       checked_at = $4,
+       next_check_at = $5,
+       runtime = $6
+ WHERE id = $1 AND user_id = $2
 RETURNING parsing_error_count`,
+		feed.ID, feed.UserID,
 		feed.ParsingErrorMsg,
 		feed.CheckedAt,
 		feed.NextCheckAt,
-		feed.ID, feed.UserID)
+		&feed.Runtime)
 
 	errCount, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[int])
 	if err != nil {
@@ -499,8 +501,11 @@ func (s *Storage) RemoveMultipleFeeds(ctx context.Context, userID int64,
 
 // ResetFeedErrors removes all feed errors.
 func (s *Storage) ResetFeedErrors(ctx context.Context) error {
-	_, err := s.db.Exec(ctx,
-		`UPDATE feeds SET parsing_error_count=0, parsing_error_msg=''`)
+	_, err := s.db.Exec(ctx, `
+UPDATE feeds SET
+  parsing_error_count = 0,
+  parsing_error_msg = ''
+  runtime = runtime - 'badStatus'`)
 	if err != nil {
 		return fmt.Errorf("storage: failed reset feed errors: %w", err)
 	}

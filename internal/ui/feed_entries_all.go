@@ -5,6 +5,7 @@ package ui // import "miniflux.app/v2/internal/ui"
 
 import (
 	"context"
+	"html/template"
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
@@ -42,6 +43,10 @@ func (h *handler) showFeedEntriesAllPage(w http.ResponseWriter,
 	} else if feed == nil {
 		html.NotFound(w, r)
 		return
+	}
+
+	if badStatus := feed.BadStatus(); badStatus != nil {
+		v.Set("badStatusContent", template.HTML(badStatus.Content))
 	}
 
 	v.Set("menu", "feeds").

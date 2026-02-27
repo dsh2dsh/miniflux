@@ -99,6 +99,17 @@ type FeedExtra struct {
 type FeedRuntime struct {
 	Size uint64 `json:"size,omitempty"`
 	Hash uint64 `json:"hash,omitempty"`
+
+	BadStatus *BadStatus `json:"badStatus,omitzero"`
+}
+
+type BadStatus struct {
+	ContentType string `json:"contentType,omitempty"`
+	Content     string `json:"content,omitempty"`
+}
+
+func NewBadStatus(content, contentType string) *BadStatus {
+	return &BadStatus{ContentType: contentType, Content: content}
 }
 
 type FeedCounters struct {
@@ -201,6 +212,7 @@ func (self *Feed) WithTranslatedErrorMessage(message string) {
 // ResetErrorCounter removes all previous errors.
 func (self *Feed) ResetErrorCounter() {
 	self.ParsingErrorCount, self.ParsingErrorMsg = 0, ""
+	self.Runtime.BadStatus = nil
 }
 
 // CheckedNow set attribute values when the feed is refreshed.
@@ -321,6 +333,24 @@ func (self *Feed) WithIgnoreEntryUpdates(v bool) *Feed {
 func (self *Feed) IgnoreEntryUpdates() bool {
 	return self.Extra.IgnoreEntryUpdates
 }
+
+func (self *Feed) WithBadStatus(content, contentType string) *Feed {
+	if content == "" {
+		self.Runtime.BadStatus = nil
+		return self
+	}
+
+	switch s := self.Runtime.BadStatus; s {
+	case nil:
+		self.Runtime.BadStatus = NewBadStatus(content, contentType)
+	default:
+		s.Content = content
+		s.ContentType = contentType
+	}
+	return self
+}
+
+func (self *Feed) BadStatus() *BadStatus { return self.Runtime.BadStatus }
 
 // FeedCreationRequest represents the request to create a feed.
 type FeedCreationRequest struct {
