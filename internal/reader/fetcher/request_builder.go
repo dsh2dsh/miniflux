@@ -31,7 +31,8 @@ const (
 	defaultAcceptHeader = "application/xml, application/atom+xml, application/rss+xml, application/rdf+xml, application/feed+json, text/html, */*;q=0.9"
 )
 
-var errDialToPrivate = errors.New("reader/fetcher: protect private network")
+var ErrPrivateNetworkHost = errors.New(
+	"reader/fetcher: refusing to access private network host")
 
 func NewRequestDiscovery(d *model.SubscriptionDiscoveryRequest,
 ) *RequestBuilder {
@@ -85,17 +86,18 @@ type RequestBuilder struct {
 	disableHTTP2     bool
 	proxyRotator     *proxyrotator.ProxyRotator
 	feedProxyURL     string
-	denyPrivateNets  bool
+	allowPrivateNets bool
 
 	customizedClient bool
 }
 
 func NewRequestBuilder() *RequestBuilder {
 	return &RequestBuilder{
-		headers:        make(http.Header),
-		clientProxyURL: config.HTTPClientProxyURL(),
-		clientTimeout:  config.HTTPClientTimeout(),
-		proxyRotator:   proxyrotator.ProxyRotatorInstance,
+		headers:          make(http.Header),
+		clientProxyURL:   config.HTTPClientProxyURL(),
+		clientTimeout:    config.HTTPClientTimeout(),
+		proxyRotator:     proxyrotator.ProxyRotatorInstance,
+		allowPrivateNets: config.FetcherAllowPrivateNetworks(),
 	}
 }
 
@@ -190,12 +192,6 @@ func (self *RequestBuilder) IgnoreTLSErrors(value bool) *RequestBuilder {
 	if value {
 		self.customizedClient = true
 	}
-	return self
-}
-
-func (self *RequestBuilder) WithDenyPrivateNets(value bool) *RequestBuilder {
-	self.denyPrivateNets = value
-	self.customizedClient = value
 	return self
 }
 
@@ -294,7 +290,7 @@ func withoutRedirects(*http.Request, []*http.Request) error {
 
 func (self *RequestBuilder) transport(proxyURL *url.URL) http.RoundTripper {
 	dialer := &net.Dialer{Timeout: self.Timeout()}
-	if self.denyPrivateNets {
+	if !self.allowPrivateNets {
 		dialer.Control = denyDialToPrivate
 	}
 
@@ -332,12 +328,12 @@ func (self *RequestBuilder) transport(proxyURL *url.URL) http.RoundTripper {
 func denyDialToPrivate(network, address string, _ syscall.RawConn) error {
 	host, _, err := net.SplitHostPort(address)
 	if err != nil {
-		return fmt.Errorf("%w: split %q: %w", errDialToPrivate, address, err)
+		return fmt.Errorf("%w: split %q: %w", ErrPrivateNetworkHost, address, err)
 	}
 
 	addr, err := netip.ParseAddr(host)
 	if err != nil {
-		return fmt.Errorf("%w: parse %q: %w", errDialToPrivate, address, err)
+		return fmt.Errorf("%w: parse %q: %w", ErrPrivateNetworkHost, address, err)
 	}
 
 	private := addr.IsLinkLocalMulticast() ||
@@ -348,7 +344,7 @@ func denyDialToPrivate(network, address string, _ syscall.RawConn) error {
 		addr.IsUnspecified()
 
 	if private {
-		return fmt.Errorf("%w: access denied: %s", errDialToPrivate, address)
+		return fmt.Errorf("%w: access denied: %s", ErrPrivateNetworkHost, address)
 	}
 	return nil
 }

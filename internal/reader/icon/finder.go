@@ -23,7 +23,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/image/draw"
 
-	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
@@ -141,11 +140,10 @@ func (self *IconFinder) downloadIcon(ctx context.Context, iconURL string,
 ) (*model.Icon, error) {
 	log := logging.FromContext(ctx)
 	log.Debug("Downloading icon",
-		slog.Bool("private_nets", config.IconFetchAllowPrivateNetworks()),
 		slog.String("website_url", self.websiteURL),
 		slog.String("icon_url", iconURL))
 
-	resp, err := self.request(iconURL, !config.IconFetchAllowPrivateNetworks())
+	resp, err := self.requestBuilder.Request(iconURL)
 	if err != nil {
 		return nil, fmt.Errorf("reader/icon: download icon %q: %w", iconURL, err)
 	}
@@ -175,11 +173,6 @@ func (self *IconFinder) downloadIcon(ctx context.Context, iconURL string,
 		return icon, nil
 	}
 	return resizeIcon(ctx, icon), nil
-}
-
-func (self *IconFinder) request(u string, denyPrivate bool,
-) (*fetcher.ResponseSemaphore, error) {
-	return self.requestBuilder.WithDenyPrivateNets(denyPrivate).Request(u)
 }
 
 func resizeIcon(ctx context.Context, icon *model.Icon) *model.Icon {
@@ -280,7 +273,7 @@ func (self *IconFinder) fetchIconsFromHTMLDocument(ctx context.Context,
 		slog.String("document_url", documentURL))
 	log.Debug("Searching icons from HTML document")
 
-	resp, err := self.request(documentURL, false)
+	resp, err := self.requestBuilder.Request(documentURL)
 	if err != nil {
 		return nil, fmt.Errorf("reader/icon: download website page %q: %w",
 			documentURL, err)

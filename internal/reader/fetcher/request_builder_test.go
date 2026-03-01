@@ -240,6 +240,8 @@ func TestRequestBuilder_CustomAcceptHeaderNotOverridden(t *testing.T) {
 }
 
 func TestRequestBuilder_WithoutRedirects(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("FETCHER_ALLOW_PRIVATE_NETWORKS", "1")
 	require.NoError(t, config.Load(""))
 
 	// Create a redirect server
@@ -257,6 +259,7 @@ func TestRequestBuilder_WithoutRedirects(t *testing.T) {
 	resp, err := builder.WithoutRedirects().Request(server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
+	require.NoError(t, resp.Err())
 	defer resp.Close()
 
 	if resp.StatusCode() != http.StatusFound {
@@ -397,12 +400,12 @@ func TestDenyDialToPrivate(t *testing.T) {
 				return
 			}
 			require.ErrorIs(t, denyDialToPrivate("", tt.address, nil),
-				errDialToPrivate)
+				ErrPrivateNetworkHost)
 		})
 	}
 }
 
-func TestRequestBuilder_WithDenyPrivateNets(t *testing.T) {
+func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 	if testing.Verbose() {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
 	}
@@ -416,14 +419,21 @@ func TestRequestBuilder_WithDenyPrivateNets(t *testing.T) {
 		}))
 	t.Cleanup(server.Close)
 
-	rb := NewRequestBuilder()
-	resp, err := rb.WithDenyPrivateNets(true).Request(server.URL)
+	resp, err := NewRequestBuilder().Request(server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	require.ErrorIs(t, resp.Err(), errDialToPrivate)
+	require.ErrorIs(t, resp.Err(), ErrPrivateNetworkHost)
 
-	resp, err = rb.WithDenyPrivateNets(false).Request(server.URL)
+	t.Setenv("FETCHER_ALLOW_PRIVATE_NETWORKS", "1")
+	require.NoError(t, config.Load(""))
+
+	rb := NewRequestBuilder()
+	rb.customizedClient = true
+
+	resp, err = rb.Request(server.URL)
 	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NoError(t, resp.Err())
 	assert.Equal(t, http.StatusOK, resp.StatusCode())
 	resp.Close()
 }
