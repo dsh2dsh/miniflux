@@ -34,12 +34,6 @@ mutation SaveUrl($input: SaveUrlInput!) {
 }
 `
 
-type SaveUrlInput struct {
-	ClientRequestId string `json:"clientRequestId"`
-	Source          string `json:"source"`
-	Url             string `json:"url"`
-}
-
 type errorResponse struct {
 	Errors []struct {
 		Message string `json:"message"`
@@ -49,31 +43,28 @@ type errorResponse struct {
 type successResponse struct {
 	Data struct {
 		SaveUrl struct {
-			Url             string `json:"url"`
-			ClientRequestId string `json:"clientRequestId"`
+			URL             string `json:"url"`
+			ClientRequestID string `json:"clientRequestId"`
 		} `json:"saveUrl"`
 	} `json:"data"`
 }
 
-type Client interface {
-	SaveUrl(url string) error
-}
-
-type client struct {
+type Client struct {
 	wrapped     *http.Client
 	apiEndpoint string
 	apiToken    string
 }
 
-func NewClient(apiToken, apiEndpoint string) Client {
+func NewClient(apiToken, apiEndpoint string) *Client {
 	if apiEndpoint == "" {
 		apiEndpoint = defaultApiEndpoint
 	}
 
-	return &client{wrapped: &http.Client{Timeout: defaultClientTimeout}, apiEndpoint: apiEndpoint, apiToken: apiToken}
+	httpClient := &http.Client{Timeout: defaultClientTimeout}
+	return &Client{wrapped: httpClient, apiEndpoint: apiEndpoint, apiToken: apiToken}
 }
 
-func (c *client) SaveUrl(url string) error {
+func (c *Client) SaveURL(url string) error {
 	payload := map[string]any{
 		"query": mutation,
 		"variables": map[string]any{
@@ -113,11 +104,14 @@ func (c *client) SaveUrl(url string) error {
 		if err = json.Unmarshal(b, &errResponse); err != nil {
 			return fmt.Errorf("omnivore: failed to save URL: status=%d %s", resp.StatusCode, string(b))
 		}
-		return fmt.Errorf("omnivore: failed to save URL: status=%d %s", resp.StatusCode, errResponse.Errors[0].Message)
+		if len(errResponse.Errors) > 0 {
+			return fmt.Errorf("omnivore: failed to save URL: status=%d %s", resp.StatusCode, errResponse.Errors[0].Message)
+		}
+		return fmt.Errorf("omnivore: failed to save URL: status=%d %s", resp.StatusCode, string(b))
 	}
 
-	var successReponse successResponse
-	if err = json.Unmarshal(b, &successReponse); err != nil {
+	var successResp successResponse
+	if err = json.Unmarshal(b, &successResp); err != nil {
 		return fmt.Errorf("omnivore: failed to parse response, however the request appears successful, is the url correct?: status=%d %s", resp.StatusCode, string(b))
 	}
 

@@ -59,7 +59,6 @@ func (c *Client) CreateBookmark(entryURL, entryTitle, pinboardTags string, markA
 		return fmt.Errorf("pinboard: unable to create request: %w", err)
 	}
 
-	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 
 	httpClient := &http.Client{Timeout: defaultClientTimeout}
@@ -92,7 +91,6 @@ func (c *Client) getBookmark(entryURL string) (*Post, error) {
 		return nil, fmt.Errorf("pinboard: unable to create request: %w", err)
 	}
 
-	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 
 	httpClient := &http.Client{Timeout: defaultClientTimeout}

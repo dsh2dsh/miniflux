@@ -406,7 +406,15 @@ func SendEntry(entry *model.Entry, user *model.User) {
 			slog.Int64("user_id", user.ID),
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL))
-		archiveorg.NewClient().SendURL(entry.URL, entry.Title)
+
+		if err := archiveorg.NewClient().SendURL(entry.URL); err != nil {
+			slog.Error("Unable to send entry to Archive.org",
+				slog.Int64("user_id", user.ID),
+				slog.Int64("entry_id", entry.ID),
+				slog.String("entry_url", entry.URL),
+				slog.Any("error", err),
+			)
+		}
 	}
 
 	if userIntegrations.WebhookEnabled {
@@ -444,7 +452,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 		)
 
 		client := omnivore.NewClient(userIntegrations.OmnivoreAPIKey, userIntegrations.OmnivoreURL)
-		if err := client.SaveUrl(entry.URL); err != nil {
+		if err := client.SaveURL(entry.URL); err != nil {
 			slog.Error("Unable to send entry to Omnivore",
 				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
@@ -542,7 +550,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, user *model.User) {
 
 		webhookClient := webhook.NewClient(webhookURL, userIntegrations.WebhookSecret)
 		if err := webhookClient.SendNewEntriesWebhookEvent(feed, entries); err != nil {
-			slog.Debug("Unable to send new entries to Webhook",
+			slog.Warn("Unable to send new entries to Webhook",
 				slog.Int64("user_id", user.ID),
 				slog.Int("nb_entries", len(entries)),
 				slog.Int64("feed_id", feed.ID),
@@ -641,7 +649,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, user *model.User) {
 			slog.Int64("feed_id", feed.ID),
 		)
 
-		client := pushover.New(
+		client := pushover.NewClient(
 			userIntegrations.PushoverUser,
 			userIntegrations.PushoverToken,
 			feed.PushoverPriority,
@@ -657,30 +665,28 @@ func PushEntries(feed *model.Feed, entries model.Entries, user *model.User) {
 	// Integrations that only support sending individual entries
 	if userIntegrations.TelegramBotEnabled {
 		for _, entry := range entries {
-			if userIntegrations.TelegramBotEnabled {
-				slog.Debug("Sending a new entry to Telegram",
+			slog.Debug("Sending a new entry to Telegram",
+				slog.Int64("user_id", user.ID),
+				slog.Int64("entry_id", entry.ID),
+				slog.String("entry_url", entry.URL),
+			)
+
+			if err := telegrambot.PushEntry(
+				feed,
+				entry,
+				userIntegrations.TelegramBotToken,
+				userIntegrations.TelegramBotChatID,
+				userIntegrations.TelegramBotTopicID,
+				userIntegrations.TelegramBotDisableWebPagePreview,
+				userIntegrations.TelegramBotDisableNotification,
+				userIntegrations.TelegramBotDisableButtons,
+			); err != nil {
+				slog.Error("Unable to send entry to Telegram",
 					slog.Int64("user_id", user.ID),
 					slog.Int64("entry_id", entry.ID),
 					slog.String("entry_url", entry.URL),
+					slog.Any("error", err),
 				)
-
-				if err := telegrambot.PushEntry(
-					feed,
-					entry,
-					userIntegrations.TelegramBotToken,
-					userIntegrations.TelegramBotChatID,
-					userIntegrations.TelegramBotTopicID,
-					userIntegrations.TelegramBotDisableWebPagePreview,
-					userIntegrations.TelegramBotDisableNotification,
-					userIntegrations.TelegramBotDisableButtons,
-				); err != nil {
-					slog.Error("Unable to send entry to Telegram",
-						slog.Int64("user_id", user.ID),
-						slog.Int64("entry_id", entry.ID),
-						slog.String("entry_url", entry.URL),
-						slog.Any("error", err),
-					)
-				}
 			}
 		}
 	}

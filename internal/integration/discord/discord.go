@@ -84,7 +84,7 @@ func (c *Client) SendDiscordMsg(feed *model.Feed, entries model.Entries) error {
 		if err != nil {
 			return fmt.Errorf("discord: unable to send request: %w", err)
 		}
-		response.Body.Close()
+		defer response.Body.Close()
 
 		if response.StatusCode >= 400 {
 			return fmt.Errorf("discord: unable to send a notification: url=%s status=%d", c.webhookURL, response.StatusCode)

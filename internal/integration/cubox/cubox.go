@@ -51,7 +51,8 @@ func (c *Client) SaveLink(entryURL string) error {
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 
-	response, err := http.DefaultClient.Do(request)
+	httpClient := &http.Client{Timeout: defaultClientTimeout}
+	response, err := httpClient.Do(request)
 	if err != nil {
 		return fmt.Errorf("cubox: unable to send request: %w", err)
 	}

@@ -48,7 +48,8 @@ type errorResponse struct {
 }
 
 func NewClient(apiToken, apiEndpoint, tags string) *Client {
-	return &Client{wrapped: &http.Client{Timeout: defaultClientTimeout}, apiEndpoint: apiEndpoint, apiToken: apiToken, tags: tags}
+	httpClient := &http.Client{Timeout: defaultClientTimeout}
+	return &Client{wrapped: httpClient, apiEndpoint: apiEndpoint, apiToken: apiToken, tags: tags}
 }
 
 func (c *Client) attachTags(entryID string) error {
