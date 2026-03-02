@@ -343,7 +343,13 @@ func denyDialToPrivate(network, address string, _ syscall.RawConn) error {
 		addr.IsPrivate() ||
 		addr.IsUnspecified()
 
-	if private {
+	if !private {
+		return nil
+	}
+
+	ok := config.FetcherHostPermitted(address) ||
+		config.FetcherHostPermitted(host)
+	if !ok {
 		return fmt.Errorf("%w: access denied: %s", ErrPrivateNetworkHost, address)
 	}
 	return nil

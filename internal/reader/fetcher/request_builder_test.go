@@ -436,4 +436,29 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 	require.NoError(t, resp.Err())
 	assert.Equal(t, http.StatusOK, resp.StatusCode())
 	resp.Close()
+
+	t.Setenv("FETCHER_ALLOW_PRIVATE_HOSTS", server.Listener.Addr().String())
+	t.Setenv("FETCHER_ALLOW_PRIVATE_NETWORKS", "0")
+	require.NoError(t, config.Load(""))
+
+	rb = NewRequestBuilder()
+	rb.customizedClient = true
+	resp, err = rb.Request(server.URL)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NoError(t, resp.Err())
+	assert.Equal(t, http.StatusOK, resp.StatusCode())
+	resp.Close()
+
+	t.Setenv("FETCHER_ALLOW_PRIVATE_HOSTS", "127.0.0.1")
+	require.NoError(t, config.Load(""))
+
+	rb = NewRequestBuilder()
+	rb.customizedClient = true
+	resp, err = rb.Request(server.URL)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NoError(t, resp.Err())
+	assert.Equal(t, http.StatusOK, resp.StatusCode())
+	resp.Close()
 }

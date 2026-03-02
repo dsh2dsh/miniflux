@@ -312,6 +312,16 @@ This project is an opinionated fork of Miniflux.
 
   it marks entries, blocked by filter rules, as read, instead of deleting them.
 
+* Permit access to configured list of hosts inside private networks
+
+  With configuration like
+
+  ```
+  FETCHER_ALLOW_PRIVATE_HOSTS=127.0.0.1,10.0.0.1:443
+  ```
+
+  miniflux has access to 127.0.0.1 (any port) and 10.0.0.1 (port 443 only).
+
 ---
 
 Features

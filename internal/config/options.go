@@ -39,9 +39,11 @@ type options struct {
 
 	env envOptions
 
-	root                 *url.URL
-	rootURL              string
-	basePath             string
+	root     *url.URL
+	rootURL  string
+	basePath string
+
+	fetcherPrivateHosts  map[string]bool
 	mediaProxyPrivateKey []byte
 	trustedProxies       map[string]struct{}
 }
@@ -98,6 +100,7 @@ type envOptions struct {
 	FetchNebulaWatchTime           bool     `env:"FETCH_NEBULA_WATCH_TIME"`
 	FetchOdyseeWatchTime           bool     `env:"FETCH_ODYSEE_WATCH_TIME"`
 	FetchYouTubeWatchTime          bool     `env:"FETCH_YOUTUBE_WATCH_TIME"`
+	FetcherAllowPrivateHosts       []string `env:"FETCHER_ALLOW_PRIVATE_HOSTS" validate:"dive,ip|hostname_port"`
 	FetcherAllowPrivateNets        bool     `env:"FETCHER_ALLOW_PRIVATE_NETWORKS"`
 	FilterEntryMaxAgeDays          int      `env:"FILTER_ENTRY_MAX_AGE_DAYS" validate:"min=0"`
 	ForceRefreshInterval           int      `env:"FORCE_REFRESH_INTERVAL" validate:"min=0"`
@@ -425,6 +428,7 @@ func (o *options) sortedOptions(redactSecret bool) []Option {
 		"FETCH_NEBULA_WATCH_TIME":            o.env.FetchNebulaWatchTime,
 		"FETCH_ODYSEE_WATCH_TIME":            o.env.FetchOdyseeWatchTime,
 		"FETCH_YOUTUBE_WATCH_TIME":           o.env.FetchYouTubeWatchTime,
+		"FETCHER_ALLOW_PRIVATE_HOSTS":        strings.Join(o.env.FetcherAllowPrivateHosts, ","),
 		"FETCHER_ALLOW_PRIVATE_NETWORKS":     o.env.FetcherAllowPrivateNets,
 		"FILTER_ENTRY_MAX_AGE_DAYS":          o.env.FilterEntryMaxAgeDays,
 		"FORCE_REFRESH_INTERVAL":             o.env.ForceRefreshInterval,
@@ -504,6 +508,21 @@ func (o *options) String() string {
 
 func FetcherAllowPrivateNetworks() bool {
 	return opts.env.FetcherAllowPrivateNets
+}
+
+func FetcherHostPermitted(address string) bool {
+	if len(opts.env.FetcherAllowPrivateHosts) == 0 {
+		return false
+	}
+
+	if opts.fetcherPrivateHosts == nil {
+		m := make(map[string]bool, len(opts.env.FetcherAllowPrivateHosts))
+		for _, s := range opts.env.FetcherAllowPrivateHosts {
+			m[s] = true
+		}
+		opts.fetcherPrivateHosts = m
+	}
+	return opts.fetcherPrivateHosts[address]
 }
 
 func HTTPS() bool  { return opts.env.HTTPS }
