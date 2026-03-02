@@ -67,7 +67,7 @@ jobs:
 
       - name: "Archive e2e_api.log"
         if: "${{ !cancelled() }}"
-        uses: "actions/upload-artifact@v6"
+        uses: "actions/upload-artifact@v7"
         with:
           name: "e2e_api.log"
           path: "e2e_api.log"
