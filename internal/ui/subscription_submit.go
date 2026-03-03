@@ -39,7 +39,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 	requestBuilder := fetcher.NewRequestBuilder().
 		WithCustomFeedProxyURL(f.ProxyURL).
 		UseCustomApplicationProxyURL(f.FetchViaProxy).
-		WithUserAgent(f.UserAgent, config.HTTPClientUserAgent()).
+		WithUserAgent(f.UserAgent).
 		WithCookie(f.Cookie).
 		WithUsernameAndPassword(f.Username, f.Password).
 		IgnoreTLSErrors(f.AllowSelfSignedCertificates).

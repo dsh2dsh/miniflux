@@ -73,7 +73,7 @@ func (self *Create) FromRequest(ctx context.Context,
 			"error.category_not_found")
 	}
 
-	resp, err := fetcher.RequestFeedCreation(r)
+	resp, err := NewRequestFeedCreation(r).Request(r.FeedURL)
 	if err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err,
 			"error.unable_to_parse_feed",
@@ -100,6 +100,18 @@ func (self *Create) FromRequest(ctx context.Context,
 
 	return self.createFeed(logging.WithLogger(ctx, log), r, resp.EffectiveURL(),
 		resp.ETag(), resp.LastModified(), body)
+}
+
+func NewRequestFeedCreation(r *model.FeedCreationRequest,
+) *fetcher.RequestBuilder {
+	return fetcher.NewRequestBuilder().
+		DisableHTTP2(r.DisableHTTP2).
+		IgnoreTLSErrors(r.AllowSelfSignedCertificates).
+		UseCustomApplicationProxyURL(r.FetchViaProxy).
+		WithCookie(r.Cookie).
+		WithCustomFeedProxyURL(r.ProxyURL).
+		WithUserAgent(r.UserAgent).
+		WithUsernameAndPassword(r.Username, r.Password)
 }
 
 func (self *Create) createFeed(ctx context.Context,

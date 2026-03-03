@@ -129,7 +129,7 @@ func TestRequestBuilder_WithUserAgent(t *testing.T) {
 			t.Cleanup(func() { server.Close() })
 
 			builder := NewRequestBuilder()
-			resp, err := builder.WithUserAgent(tt.userAgent, tt.defaultAgent).Request(server.URL)
+			resp, err := builder.WithUserAgent(tt.userAgent).Request(server.URL)
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			t.Cleanup(func() { resp.Close() })
@@ -329,7 +329,7 @@ func TestRequestBuilder_ChainedMethods(t *testing.T) {
 
 	builder := NewRequestBuilder()
 	resp, err := builder.
-		WithUserAgent("TestAgent/1.0", "DefaultAgent/1.0").
+		WithUserAgent("TestAgent/1.0").
 		WithCookie("test=value").
 		WithETag("etag123").
 		Request(server.URL)

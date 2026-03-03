@@ -29,7 +29,7 @@ func (h *handler) discoverSubscriptions(w http.ResponseWriter, r *http.Request,
 	}
 
 	user := request.User(r)
-	requestBuilder := fetcher.NewRequestDiscovery(&discovery)
+	requestBuilder := NewRequestDiscovery(&discovery)
 
 	s, lerr := subscription.NewSubscriptionFinder(requestBuilder).
 		FindSubscriptions(r.Context(), discovery.URL,
@@ -43,4 +43,16 @@ func (h *handler) discoverSubscriptions(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	json.OK(w, r, s)
+}
+
+func NewRequestDiscovery(d *model.SubscriptionDiscoveryRequest,
+) *fetcher.RequestBuilder {
+	return fetcher.NewRequestBuilder().
+		DisableHTTP2(d.DisableHTTP2).
+		IgnoreTLSErrors(d.AllowSelfSignedCertificates).
+		UseCustomApplicationProxyURL(d.FetchViaProxy).
+		WithCookie(d.Cookie).
+		WithCustomFeedProxyURL(d.ProxyURL).
+		WithUserAgent(d.UserAgent).
+		WithUsernameAndPassword(d.Username, d.Password)
 }

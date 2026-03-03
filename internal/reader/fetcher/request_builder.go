@@ -34,45 +34,12 @@ const (
 var ErrPrivateNetworkHost = errors.New(
 	"reader/fetcher: refusing to access private network host")
 
-func NewRequestDiscovery(d *model.SubscriptionDiscoveryRequest,
-) *RequestBuilder {
-	return NewRequestBuilder().
-		DisableHTTP2(d.DisableHTTP2).
-		IgnoreTLSErrors(d.AllowSelfSignedCertificates).
-		UseCustomApplicationProxyURL(d.FetchViaProxy).
-		WithCookie(d.Cookie).
-		WithCustomFeedProxyURL(d.ProxyURL).
-		WithUserAgent(d.UserAgent, config.HTTPClientUserAgent()).
-		WithUsernameAndPassword(d.Username, d.Password)
-}
-
-func NewRequestFeed(f *model.Feed) *RequestBuilder {
-	return NewRequestBuilder().
-		DisableHTTP2(f.DisableHTTP2).
-		IgnoreTLSErrors(f.AllowSelfSignedCertificates).
-		UseCustomApplicationProxyURL(f.FetchViaProxy).
-		WithCookie(f.Cookie).
-		WithCustomFeedProxyURL(f.ProxyURL).
-		WithUserAgent(f.UserAgent, config.HTTPClientUserAgent()).
-		WithUsernameAndPassword(f.Username, f.Password)
+func Do(req *http.Request) (*ResponseSemaphore, error) {
+	return NewRequestBuilder().Do(req)
 }
 
 func Request(requestURL string) (*ResponseSemaphore, error) {
 	return NewRequestBuilder().Request(requestURL)
-}
-
-func RequestFeedCreation(r *model.FeedCreationRequest) (*ResponseSemaphore,
-	error,
-) {
-	return NewRequestBuilder().
-		DisableHTTP2(r.DisableHTTP2).
-		IgnoreTLSErrors(r.AllowSelfSignedCertificates).
-		UseCustomApplicationProxyURL(r.FetchViaProxy).
-		WithCookie(r.Cookie).
-		WithCustomFeedProxyURL(r.ProxyURL).
-		WithUserAgent(r.UserAgent, config.HTTPClientUserAgent()).
-		WithUsernameAndPassword(r.Username, r.Password).
-		Request(r.FeedURL)
 }
 
 type RequestBuilder struct {
@@ -92,13 +59,26 @@ type RequestBuilder struct {
 }
 
 func NewRequestBuilder() *RequestBuilder {
+	headers := make(http.Header, 2)
+	headers.Set("User-Agent", config.HTTPClientUserAgent())
+
 	return &RequestBuilder{
-		headers:          make(http.Header),
+		headers:          headers,
 		clientProxyURL:   config.HTTPClientProxyURL(),
 		clientTimeout:    config.HTTPClientTimeout(),
 		proxyRotator:     proxyrotator.ProxyRotatorInstance,
 		allowPrivateNets: config.FetcherAllowPrivateNetworks(),
 	}
+}
+
+func NewRequestFeed(f *model.Feed) *RequestBuilder {
+	return NewRequestBuilder().
+		DisableHTTP2(f.DisableHTTP2).
+		IgnoreTLSErrors(f.AllowSelfSignedCertificates).
+		UseCustomApplicationProxyURL(f.FetchViaProxy).
+		WithCookie(f.Cookie).
+		WithCustomFeedProxyURL(f.ProxyURL).
+		WithUsernameAndPassword(f.Username, f.Password)
 }
 
 func (self *RequestBuilder) WithContext(ctx context.Context) *RequestBuilder {
@@ -132,11 +112,9 @@ func (self *RequestBuilder) WithLastModified(lastModified string) *RequestBuilde
 	return self
 }
 
-func (self *RequestBuilder) WithUserAgent(userAgent, defaultUserAgent string) *RequestBuilder {
+func (self *RequestBuilder) WithUserAgent(userAgent string) *RequestBuilder {
 	if userAgent != "" {
 		self.headers.Set("User-Agent", userAgent)
-	} else {
-		self.headers.Set("User-Agent", defaultUserAgent)
 	}
 	return self
 }
@@ -195,15 +173,10 @@ func (self *RequestBuilder) IgnoreTLSErrors(value bool) *RequestBuilder {
 	return self
 }
 
-func (self *RequestBuilder) execute(requestURL string) (*http.Response,
+func (self *RequestBuilder) execute(req *http.Request) (*http.Response,
 	error,
 ) {
 	proxyURL, err := self.proxyURL()
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := self.req(requestURL)
 	if err != nil {
 		return nil, err
 	}
@@ -374,12 +347,27 @@ func (self *RequestBuilder) tlsConfig() *tls.Config {
 	}
 }
 
-func (self *RequestBuilder) req(requestURL string) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(self.Context(), http.MethodGet,
-		requestURL, nil)
+func (self *RequestBuilder) Do(req *http.Request) (*ResponseSemaphore, error) {
+	return NewResponseSemaphore(self, req)
+}
+
+func (self *RequestBuilder) Request(requestURL string) (*ResponseSemaphore,
+	error,
+) {
+	req, err := self.makeRequest(self.Context(), requestURL)
+	if err != nil {
+		return nil, err
+	}
+	return self.Do(req)
+}
+
+func (self *RequestBuilder) makeRequest(ctx context.Context, requestURL string,
+) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("reader/fetcher: create http request: %w", err)
 	}
+
 	req.Header = self.headers.Clone()
 	// Set default Accept header if not already set. Note that for the media proxy
 	// requests, we need to forward the browser Accept header.
@@ -389,14 +377,12 @@ func (self *RequestBuilder) req(requestURL string) (*http.Request, error) {
 	return req, nil
 }
 
-func (self *RequestBuilder) Request(requestURL string) (*ResponseSemaphore,
-	error,
-) {
-	return newResponseSemaphore(self, requestURL)
-}
-
 func (self *RequestBuilder) RequestWithContext(ctx context.Context,
 	requestURL string,
 ) (*ResponseSemaphore, error) {
-	return newResponseSemaphore(self.WithContext(ctx), requestURL)
+	req, err := self.makeRequest(ctx, requestURL)
+	if err != nil {
+		return nil, err
+	}
+	return self.Do(req)
 }

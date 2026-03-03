@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/url"
+	"net/http"
 	"sync"
 	"time"
 
@@ -28,20 +28,15 @@ type ResponseSemaphore struct {
 	release func()
 }
 
-func newResponseSemaphore(r *RequestBuilder, rawURL string,
+func NewResponseSemaphore(r *RequestBuilder, req *http.Request,
 ) (*ResponseSemaphore, error) {
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return nil, fmt.Errorf("reader/fetcher: parse %q: %w", rawURL, err)
-	}
-	hostname := u.Hostname()
-
+	hostname := req.URL.Hostname()
 	if err := limits.Acquire(r.Context(), hostname); err != nil {
 		return nil, err
 	}
 
 	//nolint:bodyclose // ResponseSemaphore.Close() it
-	resp, err := r.execute(rawURL)
+	resp, err := r.execute(req)
 	self := &ResponseSemaphore{
 		ResponseHandler: NewResponseHandler(resp, err),
 		release:         func() { limits.Release(hostname) },
