@@ -29,13 +29,22 @@ import (
 
 const (
 	defaultAcceptHeader = "application/xml, application/atom+xml, application/rss+xml, application/rdf+xml, application/feed+json, text/html, */*;q=0.9"
+	uaHeaderName        = "User-Agent"
 )
 
 var ErrPrivateNetworkHost = errors.New(
 	"reader/fetcher: refusing to access private network host")
 
 func Do(req *http.Request) (*ResponseSemaphore, error) {
-	return NewRequestBuilder().Do(req)
+	resp, err := NewRequestBuilder().Do(req)
+	switch {
+	case err != nil:
+		return nil, err
+	case resp.Err() != nil:
+		resp.Close()
+		return nil, resp.Err()
+	}
+	return resp, nil
 }
 
 func Request(requestURL string) (*ResponseSemaphore, error) {
@@ -60,7 +69,7 @@ type RequestBuilder struct {
 
 func NewRequestBuilder() *RequestBuilder {
 	headers := make(http.Header, 2)
-	headers.Set("User-Agent", config.HTTPClientUserAgent())
+	headers.Set(uaHeaderName, config.HTTPClientUserAgent())
 
 	return &RequestBuilder{
 		headers:          headers,
@@ -114,7 +123,7 @@ func (self *RequestBuilder) WithLastModified(lastModified string) *RequestBuilde
 
 func (self *RequestBuilder) WithUserAgent(userAgent string) *RequestBuilder {
 	if userAgent != "" {
-		self.headers.Set("User-Agent", userAgent)
+		self.headers.Set(uaHeaderName, userAgent)
 	}
 	return self
 }
@@ -348,6 +357,9 @@ func (self *RequestBuilder) tlsConfig() *tls.Config {
 }
 
 func (self *RequestBuilder) Do(req *http.Request) (*ResponseSemaphore, error) {
+	if req.Header.Get(uaHeaderName) == "" {
+		req.Header.Set(uaHeaderName, config.HTTPClientUserAgent())
+	}
 	return NewResponseSemaphore(self, req)
 }
 

@@ -5,18 +5,16 @@ package linkwarden // import "miniflux.app/v2/internal/integration/linkwarden"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
+	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/urllib"
-	"miniflux.app/v2/internal/version"
 )
-
-const defaultClientTimeout = 10 * time.Second
 
 type Client struct {
 	baseURL      string
@@ -38,7 +36,9 @@ func NewClient(baseURL, apiKey string, collectionID *int64) *Client {
 	return &Client{baseURL: baseURL, apiKey: apiKey, collectionID: collectionID}
 }
 
-func (c *Client) CreateBookmark(entryURL, entryTitle string) error {
+func (c *Client) CreateBookmark(ctx context.Context, entryURL,
+	entryTitle string,
+) error {
 	if c.baseURL == "" || c.apiKey == "" {
 		return errors.New("linkwarden: missing base URL or API key")
 	}
@@ -62,30 +62,29 @@ func (c *Client) CreateBookmark(entryURL, entryTitle string) error {
 		return fmt.Errorf("linkwarden: unable to encode request body: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBody))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, apiEndpoint,
+		bytes.NewReader(requestBody))
 	if err != nil {
 		return fmt.Errorf("linkwarden: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 	request.Header.Set("Authorization", "Bearer "+c.apiKey)
 
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return fmt.Errorf("linkwarden: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	responseBody, err := io.ReadAll(response.Body)
+	responseBody, err := io.ReadAll(response.Body())
 	if err != nil {
 		return fmt.Errorf("linkwarden: unable to read response body: %w", err)
 	}
 
-	if response.StatusCode >= 400 {
-		return fmt.Errorf("linkwarden: unable to create link: status=%d body=%s", response.StatusCode, string(responseBody))
+	if response.StatusCode() >= 400 {
+		return fmt.Errorf("linkwarden: unable to create link: status=%d body=%s",
+			response.StatusCode(), string(responseBody))
 	}
-
 	return nil
 }

@@ -7,21 +7,18 @@ package discord // import "miniflux.app/v2/internal/integration/discord"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"miniflux.app/v2/internal/model"
+	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/urllib"
-	"miniflux.app/v2/internal/version"
 )
 
-const (
-	defaultClientTimeout = 10 * time.Second
-	discordMsgColor      = 5793266
-)
+const discordMsgColor = 5793266
 
 type Client struct {
 	webhookURL string
@@ -31,7 +28,9 @@ func NewClient(webhookURL string) *Client {
 	return &Client{webhookURL: webhookURL}
 }
 
-func (c *Client) SendDiscordMsg(feed *model.Feed, entries model.Entries) error {
+func (c *Client) SendDiscordMsg(ctx context.Context, feed *model.Feed,
+	entries model.Entries,
+) error {
 	for _, entry := range entries {
 		requestBody, err := json.Marshal(&discordMessage{
 			Embeds: []discordEmbed{
@@ -65,13 +64,11 @@ func (c *Client) SendDiscordMsg(feed *model.Feed, entries model.Entries) error {
 			return fmt.Errorf("discord: unable to encode request body: %w", err)
 		}
 
-		request, err := http.NewRequest(http.MethodPost, c.webhookURL, bytes.NewReader(requestBody))
+		request, err := http.NewRequestWithContext(ctx, http.MethodPost,
+			c.webhookURL, bytes.NewReader(requestBody))
 		if err != nil {
 			return fmt.Errorf("discord: unable to create request: %w", err)
 		}
-
-		request.Header.Set("Content-Type", "application/json")
-		request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 
 		slog.Debug("Sending Discord notification",
 			slog.String("webhookURL", c.webhookURL),
@@ -79,18 +76,19 @@ func (c *Client) SendDiscordMsg(feed *model.Feed, entries model.Entries) error {
 			slog.String("entry_url", entry.URL),
 		)
 
-		httpClient := &http.Client{Timeout: defaultClientTimeout}
-		response, err := httpClient.Do(request)
+		request.Header.Set("Content-Type", "application/json")
+		response, err := fetcher.Do(request)
 		if err != nil {
 			return fmt.Errorf("discord: unable to send request: %w", err)
 		}
-		defer response.Body.Close()
+		defer response.Close()
 
-		if response.StatusCode >= 400 {
-			return fmt.Errorf("discord: unable to send a notification: url=%s status=%d", c.webhookURL, response.StatusCode)
+		if response.StatusCode() >= 400 {
+			return fmt.Errorf(
+				"discord: unable to send a notification: url=%s status=%d",
+				c.webhookURL, response.StatusCode())
 		}
 	}
-
 	return nil
 }
 

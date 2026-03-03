@@ -8,13 +8,21 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
+	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/model"
 )
 
 func TestCreateBookmark(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("FETCHER_ALLOW_PRIVATE_HOSTS", "127.0.0.1")
+	require.NoError(t, config.Load(""))
+
 	tests := []struct {
 		name           string
 		baseURL        string
@@ -258,19 +266,16 @@ func TestCreateBookmark(t *testing.T) {
 			client := NewClient(baseURL, tt.apiKey, tt.collectionID)
 
 			// Call CreateBookmark
-			err := client.CreateBookmark(tt.entryURL, tt.entryTitle)
+			err := client.CreateBookmark(t.Context(), tt.entryURL, tt.entryTitle)
+			if !tt.wantErr {
+				require.NoError(t, err)
+				return
+			}
 
 			// Check error
-			if tt.wantErr {
-				if err == nil {
-					t.Error("Expected error, got nil")
-				} else if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
-					t.Errorf("Expected error to contain '%s', got '%s'", tt.errContains, err.Error())
-				}
-			} else {
-				if err != nil {
-					t.Errorf("Expected no error, got %v", err)
-				}
+			require.Error(t, err)
+			if tt.errContains != "" {
+				assert.Contains(t, err.Error(), tt.errContains)
 			}
 		})
 	}

@@ -5,16 +5,14 @@ package notion
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
-	"miniflux.app/v2/internal/version"
+	"miniflux.app/v2/internal/reader/fetcher"
 )
-
-const defaultClientTimeout = 10 * time.Second
 
 type Client struct {
 	apiToken string
@@ -25,7 +23,9 @@ func NewClient(apiToken, pageID string) *Client {
 	return &Client{apiToken, pageID}
 }
 
-func (c *Client) UpdateDocument(entryURL, entryTitle string) error {
+func (c *Client) UpdateDocument(ctx context.Context, entryURL,
+	entryTitle string,
+) error {
 	if c.apiToken == "" || c.pageID == "" {
 		return errors.New("notion: missing API token or page ID")
 	}
@@ -47,27 +47,26 @@ func (c *Client) UpdateDocument(entryURL, entryTitle string) error {
 		return fmt.Errorf("notion: unable to encode request body: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodPatch, apiEndpoint, bytes.NewReader(requestBody))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPatch, apiEndpoint,
+		bytes.NewReader(requestBody))
 	if err != nil {
 		return fmt.Errorf("notion: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 	request.Header.Set("Notion-Version", "2022-06-28")
 	request.Header.Set("Authorization", "Bearer "+c.apiToken)
 
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return fmt.Errorf("notion: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("notion: unable to update document: url=%s status=%d", apiEndpoint, response.StatusCode)
+	if response.StatusCode() != http.StatusOK {
+		return fmt.Errorf("notion: unable to update document: url=%s status=%d",
+			apiEndpoint, response.StatusCode())
 	}
-
 	return nil
 }
 

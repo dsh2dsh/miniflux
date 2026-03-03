@@ -439,7 +439,7 @@ func (h *handler) handleWriteItems(w http.ResponseWriter, r *http.Request) {
 			json.ServerError(w, r, err)
 			return
 		}
-		integration.SendEntry(entry, request.User(r))
+		integration.SendEntry(ctx, entry, request.User(r))
 	case "unsaved":
 		log.Debug("[Fever] Mark entry as unsaved")
 		err = h.store.ToggleBookmark(ctx, userID, entryID)

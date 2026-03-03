@@ -4,6 +4,7 @@
 package telegrambot // import "miniflux.app/v2/internal/integration/telegrambot"
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -13,7 +14,10 @@ import (
 	"miniflux.app/v2/internal/urllib"
 )
 
-func PushEntry(feed *model.Feed, entry *model.Entry, botToken, chatID string, topicID *int64, disableWebPagePreview, disableNotification, disableButtons bool) error {
+func PushEntry(ctx context.Context, feed *model.Feed, entry *model.Entry,
+	botToken, chatID string, topicID *int64, disableWebPagePreview,
+	disableNotification, disableButtons bool,
+) error {
 	formattedText := fmt.Sprintf(
 		`<b>%s</b> - <a href=%q>%s</a>`,
 		feed.Title,
@@ -60,6 +64,6 @@ func PushEntry(feed *model.Feed, entry *model.Entry, botToken, chatID string, to
 	}
 
 	client := NewClient(botToken, chatID)
-	_, err := client.SendMessage(message)
+	_, err := client.SendMessage(ctx, message)
 	return err
 }

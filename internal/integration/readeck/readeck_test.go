@@ -9,11 +9,20 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"miniflux.app/v2/internal/config"
 )
 
 func TestCreateBookmark(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("FETCHER_ALLOW_PRIVATE_HOSTS", "127.0.0.1")
+	require.NoError(t, config.Load(""))
+
 	entryURL := "https://example.com/article"
 	entryTitle := "Example Title"
 	entryContent := "<p>Some HTML content</p>"
@@ -220,7 +229,8 @@ func TestCreateBookmark(t *testing.T) {
 			}
 
 			client := NewClient(baseURL, apiKey, tt.labels, tt.onlyURL)
-			err := client.CreateBookmark(tt.entryURL, tt.entryTitle, tt.entryContent)
+			err := client.CreateBookmark(t.Context(), tt.entryURL, tt.entryTitle,
+				tt.entryContent)
 
 			if tt.wantErr {
 				if err == nil {

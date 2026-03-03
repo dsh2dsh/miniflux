@@ -5,17 +5,15 @@ package espial // import "miniflux.app/v2/internal/integration/espial"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
+	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/urllib"
-	"miniflux.app/v2/internal/version"
 )
-
-const defaultClientTimeout = 10 * time.Second
 
 type Client struct {
 	baseURL string
@@ -26,7 +24,9 @@ func NewClient(baseURL, apiKey string) *Client {
 	return &Client{baseURL: baseURL, apiKey: apiKey}
 }
 
-func (c *Client) CreateLink(entryURL, entryTitle, espialTags string) error {
+func (c *Client) CreateLink(ctx context.Context, entryURL, entryTitle,
+	espialTags string,
+) error {
 	if c.baseURL == "" || c.apiKey == "" {
 		return errors.New("espial: missing base URL or API key")
 	}
@@ -46,28 +46,26 @@ func (c *Client) CreateLink(entryURL, entryTitle, espialTags string) error {
 		return fmt.Errorf("espial: unable to encode request body: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBody))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, apiEndpoint,
+		bytes.NewReader(requestBody))
 	if err != nil {
 		return fmt.Errorf("espial: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 	request.Header.Set("Authorization", "ApiKey "+c.apiKey)
-
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return fmt.Errorf("espial: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	if response.StatusCode != http.StatusCreated {
-		responseBody := new(bytes.Buffer)
-		_, _ = responseBody.ReadFrom(response.Body)
-		return fmt.Errorf("espial: unable to create link: url=%s status=%d body=%s", apiEndpoint, response.StatusCode, responseBody.String())
+	if response.StatusCode() != http.StatusCreated {
+		var responseBody bytes.Buffer
+		_ = response.WriteBodyTo(&responseBody)
+		return fmt.Errorf("espial: unable to create link: url=%s status=%d body=%s",
+			apiEndpoint, response.StatusCode(), responseBody.String())
 	}
-
 	return nil
 }
 

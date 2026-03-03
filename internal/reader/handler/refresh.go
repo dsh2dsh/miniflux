@@ -385,7 +385,7 @@ func (self *Refresh) pushIntegrations(ctx context.Context,
 			slog.Any("error", err))
 		return
 	}
-	integration.PushEntries(self.feed, entries, user)
+	integration.PushEntries(ctx, self.feed, entries, user)
 }
 
 func (self *Refresh) userByID(ctx context.Context) (*model.User, error) {

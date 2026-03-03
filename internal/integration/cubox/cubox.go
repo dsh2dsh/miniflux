@@ -12,12 +12,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
-	"miniflux.app/v2/internal/version"
+	"miniflux.app/v2/internal/reader/fetcher"
 )
-
-const defaultClientTimeout = 10 * time.Second
 
 type Client struct {
 	apiLink string
@@ -27,7 +24,7 @@ func NewClient(apiLink string) *Client {
 	return &Client{apiLink: apiLink}
 }
 
-func (c *Client) SaveLink(entryURL string) error {
+func (c *Client) SaveLink(ctx context.Context, entryURL string) error {
 	if c.apiLink == "" {
 		return errors.New("cubox: missing API link")
 	}
@@ -40,29 +37,22 @@ func (c *Client) SaveLink(entryURL string) error {
 		return fmt.Errorf("cubox: unable to encode request body: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), defaultClientTimeout)
-	defer cancel()
-
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.apiLink, bytes.NewReader(requestBody))
 	if err != nil {
 		return fmt.Errorf("cubox: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
-
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return fmt.Errorf("cubox: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	if response.StatusCode != http.StatusOK {
+	if response.StatusCode() != http.StatusOK {
 		return fmt.Errorf("cubox: unable to save link: status=%d",
-			response.StatusCode)
+			response.StatusCode())
 	}
-
 	return nil
 }
 

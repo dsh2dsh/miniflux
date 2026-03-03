@@ -5,18 +5,17 @@ package telegrambot // import "miniflux.app/v2/internal/integration/telegrambot"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
-	"time"
 
-	"miniflux.app/v2/internal/version"
+	"miniflux.app/v2/internal/reader/fetcher"
 )
 
 const (
-	defaultClientTimeout = 10 * time.Second
-	telegramAPIEndpoint  = "https://api.telegram.org"
+	telegramAPIEndpoint = "https://api.telegram.org"
 
 	MarkdownFormatting   = "Markdown"
 	MarkdownV2Formatting = "MarkdownV2"
@@ -36,41 +35,38 @@ func NewClient(botToken, chatID string) *Client {
 }
 
 // Specs: https://core.telegram.org/bots/api#getme
-func (c *Client) GetMe() (*User, error) {
+func (c *Client) GetMe(ctx context.Context) (*User, error) {
 	endpointURL, err := url.JoinPath(telegramAPIEndpoint, "/bot"+c.botToken, "/getMe")
 	if err != nil {
 		return nil, fmt.Errorf("telegram: unable to join base URL and path: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodGet, endpointURL, nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpointURL,
+		nil)
 	if err != nil {
 		return nil, fmt.Errorf("telegram: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Accept", "application/json")
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
-
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("telegram: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
 	var userResponse UserResponse
-	if err := json.NewDecoder(response.Body).Decode(&userResponse); err != nil {
+	if err := json.NewDecoder(response.Body()).Decode(&userResponse); err != nil {
 		return nil, fmt.Errorf("telegram: unable to decode user response: %w", err)
 	}
 
 	if !userResponse.Ok {
 		return nil, fmt.Errorf("telegram: unable to send message: %s (error code is %d)", userResponse.Description, userResponse.ErrorCode)
 	}
-
 	return &userResponse.Result, nil
 }
 
 // Specs: https://core.telegram.org/bots/api#sendmessage
-func (c *Client) SendMessage(message *MessageRequest) (*Message, error) {
+func (c *Client) SendMessage(ctx context.Context, message *MessageRequest) (*Message, error) {
 	endpointURL, err := url.JoinPath(telegramAPIEndpoint, "/bot"+c.botToken, "/sendMessage")
 	if err != nil {
 		return nil, fmt.Errorf("telegram: unable to join base URL and path: %w", err)
@@ -81,31 +77,29 @@ func (c *Client) SendMessage(message *MessageRequest) (*Message, error) {
 		return nil, fmt.Errorf("telegram: unable to encode request body: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodPost, endpointURL, bytes.NewReader(requestBody))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpointURL,
+		bytes.NewReader(requestBody))
 	if err != nil {
 		return nil, fmt.Errorf("telegram: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json")
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("telegram: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
 	var messageResponse MessageResponse
-	if err := json.NewDecoder(response.Body).Decode(&messageResponse); err != nil {
+	if err := json.NewDecoder(response.Body()).Decode(&messageResponse); err != nil {
 		return nil, fmt.Errorf("telegram: unable to decode discovery response: %w", err)
 	}
 
 	if !messageResponse.Ok {
 		return nil, fmt.Errorf("telegram: unable to send message: %s (error code is %d)", messageResponse.Description, messageResponse.ErrorCode)
 	}
-
 	return &messageResponse.Result, nil
 }
 

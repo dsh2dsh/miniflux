@@ -5,17 +5,15 @@ package raindrop // import "miniflux.app/v2/internal/integration/raindrop"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
-	"miniflux.app/v2/internal/version"
+	"miniflux.app/v2/internal/reader/fetcher"
 )
-
-const defaultClientTimeout = 10 * time.Second
 
 type Client struct {
 	token        string
@@ -28,7 +26,9 @@ func NewClient(token, collectionID, tags string) *Client {
 }
 
 // https://developer.raindrop.io/v1/raindrops/single#create-raindrop
-func (c *Client) CreateRaindrop(entryURL, entryTitle string) error {
+func (c *Client) CreateRaindrop(ctx context.Context, entryURL,
+	entryTitle string,
+) error {
 	if c.token == "" {
 		return errors.New("raindrop: missing token")
 	}
@@ -44,26 +44,26 @@ func (c *Client) CreateRaindrop(entryURL, entryTitle string) error {
 		return fmt.Errorf("raindrop: unable to encode request body: %w", err)
 	}
 
-	request, err = http.NewRequest(http.MethodPost, "https://api.raindrop.io/rest/v1/raindrop", bytes.NewReader(requestBodyJson))
+	request, err = http.NewRequestWithContext(ctx, http.MethodPost,
+		"https://api.raindrop.io/rest/v1/raindrop",
+		bytes.NewReader(requestBodyJson))
 	if err != nil {
 		return fmt.Errorf("raindrop: unable to create request: %w", err)
 	}
 	request.Header.Set("Content-Type", "application/json")
 
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 	request.Header.Set("Authorization", "Bearer "+c.token)
 
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return fmt.Errorf("raindrop: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	if response.StatusCode >= 400 {
-		return fmt.Errorf("raindrop: unable to create bookmark: status=%d", response.StatusCode)
+	if response.StatusCode() >= 400 {
+		return fmt.Errorf("raindrop: unable to create bookmark: status=%d",
+			response.StatusCode())
 	}
-
 	return nil
 }
 

@@ -5,19 +5,17 @@ package apprise
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"miniflux.app/v2/internal/model"
+	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/urllib"
-	"miniflux.app/v2/internal/version"
 )
-
-const defaultClientTimeout = 10 * time.Second
 
 type Client struct {
 	servicesURL string
@@ -28,7 +26,9 @@ func NewClient(serviceURL, baseURL string) *Client {
 	return &Client{servicesURL: serviceURL, baseURL: baseURL}
 }
 
-func (c *Client) SendNotification(feed *model.Feed, entries model.Entries) error {
+func (c *Client) SendNotification(ctx context.Context, feed *model.Feed,
+	entries model.Entries,
+) error {
 	if c.baseURL == "" || c.servicesURL == "" {
 		return errors.New("apprise: missing base URL or services URL")
 	}
@@ -49,13 +49,12 @@ func (c *Client) SendNotification(feed *model.Feed, entries model.Entries) error
 			return fmt.Errorf("apprise: unable to encode request body: %w", err)
 		}
 
-		request, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBody))
+		request, err := http.NewRequestWithContext(ctx, http.MethodPost,
+			apiEndpoint, bytes.NewReader(requestBody))
 		if err != nil {
 			return fmt.Errorf("apprise: unable to create request: %w", err)
 		}
-
 		request.Header.Set("Content-Type", "application/json")
-		request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 
 		slog.Debug("Sending Apprise notification",
 			slog.String("apprise_url", c.baseURL),
@@ -65,17 +64,17 @@ func (c *Client) SendNotification(feed *model.Feed, entries model.Entries) error
 			slog.String("entry_url", entry.URL),
 		)
 
-		httpClient := &http.Client{Timeout: defaultClientTimeout}
-		response, err := httpClient.Do(request)
+		response, err := fetcher.Do(request)
 		if err != nil {
 			return fmt.Errorf("apprise: unable to send request: %w", err)
 		}
-		defer response.Body.Close()
+		defer response.Close()
 
-		if response.StatusCode >= 400 {
-			return fmt.Errorf("apprise: unable to send a notification: url=%s status=%d", apiEndpoint, response.StatusCode)
+		if response.StatusCode() >= 400 {
+			return fmt.Errorf(
+				"apprise: unable to send a notification: url=%s status=%d",
+				apiEndpoint, response.StatusCode())
 		}
 	}
-
 	return nil
 }

@@ -5,6 +5,7 @@ package shaarli // import "miniflux.app/v2/internal/integration/shaarli"
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha512"
 	"encoding/base64"
@@ -14,11 +15,9 @@ import (
 	"net/http"
 	"time"
 
+	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/urllib"
-	"miniflux.app/v2/internal/version"
 )
-
-const defaultClientTimeout = 10 * time.Second
 
 type Client struct {
 	baseURL   string
@@ -29,7 +28,8 @@ func NewClient(baseURL, apiSecret string) *Client {
 	return &Client{baseURL: baseURL, apiSecret: apiSecret}
 }
 
-func (c *Client) CreateLink(entryURL, entryTitle string) error {
+func (c *Client) CreateLink(ctx context.Context, entryURL, entryTitle string,
+) error {
 	if c.baseURL == "" || c.apiSecret == "" {
 		return errors.New("shaarli: missing base URL or API secret")
 	}
@@ -48,27 +48,26 @@ func (c *Client) CreateLink(entryURL, entryTitle string) error {
 		return fmt.Errorf("shaarli: unable to encode request body: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBody))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, apiEndpoint,
+		bytes.NewReader(requestBody))
 	if err != nil {
 		return fmt.Errorf("shaarli: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json")
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 	request.Header.Set("Authorization", "Bearer "+c.generateBearerToken())
 
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return fmt.Errorf("shaarli: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	if response.StatusCode != http.StatusCreated {
-		return fmt.Errorf("shaarli: unable to add link: url=%s status=%d", apiEndpoint, response.StatusCode)
+	if response.StatusCode() != http.StatusCreated {
+		return fmt.Errorf("shaarli: unable to add link: url=%s status=%d",
+			apiEndpoint, response.StatusCode())
 	}
-
 	return nil
 }
 

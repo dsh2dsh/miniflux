@@ -5,22 +5,19 @@ package ntfy // import "miniflux.app/v2/internal/integration/ntfy"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
-	"time"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/model"
-	"miniflux.app/v2/internal/version"
+	"miniflux.app/v2/internal/reader/fetcher"
 )
 
-const (
-	defaultClientTimeout = 10 * time.Second
-	defaultNtfyURL       = "https://ntfy.sh"
-)
+const defaultNtfyURL = "https://ntfy.sh"
 
 type Client struct {
 	ntfyURL, ntfyTopic, ntfyApiToken, ntfyUsername, ntfyPassword, ntfyIconURL string
@@ -44,7 +41,9 @@ func NewClient(ntfyURL, ntfyTopic, ntfyApiToken, ntfyUsername, ntfyPassword, ntf
 	}
 }
 
-func (c *Client) SendMessages(feed *model.Feed, entries model.Entries) error {
+func (c *Client) SendMessages(ctx context.Context, feed *model.Feed,
+	entries model.Entries,
+) error {
 	for _, entry := range entries {
 		ntfyMessage := &ntfyMessage{
 			Topic:    c.ntfyTopic,
@@ -75,7 +74,7 @@ func (c *Client) SendMessages(feed *model.Feed, entries model.Entries) error {
 			slog.String("entry_url", ntfyMessage.Click),
 		)
 
-		if err := c.makeRequest(ntfyMessage); err != nil {
+		if err := c.makeRequest(ctx, ntfyMessage); err != nil {
 			return err
 		}
 	}
@@ -83,19 +82,19 @@ func (c *Client) SendMessages(feed *model.Feed, entries model.Entries) error {
 	return nil
 }
 
-func (c *Client) makeRequest(payload any) error {
+func (c *Client) makeRequest(ctx context.Context, payload any) error {
 	requestBody, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("ntfy: unable to encode request body: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodPost, c.ntfyURL, bytes.NewReader(requestBody))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.ntfyURL,
+		bytes.NewReader(requestBody))
 	if err != nil {
 		return fmt.Errorf("ntfy: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 
 	// See https://docs.ntfy.sh/publish/#access-tokens
 	if c.ntfyApiToken != "" {
@@ -107,17 +106,16 @@ func (c *Client) makeRequest(payload any) error {
 		request.SetBasicAuth(c.ntfyUsername, c.ntfyPassword)
 	}
 
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return fmt.Errorf("ntfy: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	if response.StatusCode >= 400 {
-		return fmt.Errorf("ntfy: incorrect response status code %d for url %s", response.StatusCode, c.ntfyURL)
+	if response.StatusCode() >= 400 {
+		return fmt.Errorf("ntfy: incorrect response status code %d for url %s",
+			response.StatusCode(), c.ntfyURL)
 	}
-
 	return nil
 }
 

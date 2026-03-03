@@ -4,22 +4,20 @@
 package pinboard // import "miniflux.app/v2/internal/integration/pinboard"
 
 import (
+	"context"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
-	"time"
 
-	"miniflux.app/v2/internal/version"
+	"miniflux.app/v2/internal/reader/fetcher"
 )
 
 var (
 	errPostNotFound       = errors.New("pinboard: post not found")
 	errMissingCredentials = errors.New("pinboard: missing auth token")
 )
-
-const defaultClientTimeout = 10 * time.Second
 
 type Client struct {
 	authToken string
@@ -29,13 +27,15 @@ func NewClient(authToken string) *Client {
 	return &Client{authToken: authToken}
 }
 
-func (c *Client) CreateBookmark(entryURL, entryTitle, pinboardTags string, markAsUnread bool) error {
+func (c *Client) CreateBookmark(ctx context.Context, entryURL, entryTitle,
+	pinboardTags string, markAsUnread bool,
+) error {
 	if c.authToken == "" {
 		return errMissingCredentials
 	}
 
 	// We check if the url is already bookmarked to avoid overriding existing data.
-	post, err := c.getBookmark(entryURL)
+	post, err := c.getBookmark(ctx, entryURL)
 
 	if err != nil && errors.Is(err, errPostNotFound) {
 		post = NewPost(entryURL, entryTitle)
@@ -54,29 +54,30 @@ func (c *Client) CreateBookmark(entryURL, entryTitle, pinboardTags string, markA
 	post.AddValues(values)
 
 	apiEndpoint := "https://api.pinboard.in/v1/posts/add?" + values.Encode()
-	request, err := http.NewRequest(http.MethodGet, apiEndpoint, nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, apiEndpoint,
+		nil)
 	if err != nil {
 		return fmt.Errorf("pinboard: unable to create request: %w", err)
 	}
 
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
-
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return fmt.Errorf("pinboard: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	if response.StatusCode >= 400 {
-		return fmt.Errorf("pinboard: unable to create a bookmark: url=%s status=%d", apiEndpoint, response.StatusCode)
+	if response.StatusCode() >= 400 {
+		return fmt.Errorf(
+			"pinboard: unable to create a bookmark: url=%s status=%d",
+			apiEndpoint, response.StatusCode())
 	}
-
 	return nil
 }
 
 // getBookmark fetches a bookmark from Pinboard. https://www.pinboard.in/api/#posts_get
-func (c *Client) getBookmark(entryURL string) (*Post, error) {
+func (c *Client) getBookmark(ctx context.Context, entryURL string) (*Post,
+	error,
+) {
 	if c.authToken == "" {
 		return nil, errMissingCredentials
 	}
@@ -86,26 +87,25 @@ func (c *Client) getBookmark(entryURL string) (*Post, error) {
 	values.Add("url", entryURL)
 
 	apiEndpoint := "https://api.pinboard.in/v1/posts/get?" + values.Encode()
-	request, err := http.NewRequest(http.MethodGet, apiEndpoint, nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, apiEndpoint,
+		nil)
 	if err != nil {
 		return nil, fmt.Errorf("pinboard: unable to create request: %w", err)
 	}
 
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
-
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("pinboard: unable fetch bookmark: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	if response.StatusCode >= 400 {
-		return nil, fmt.Errorf("pinboard: unable to fetch bookmark, status=%d", response.StatusCode)
+	if response.StatusCode() >= 400 {
+		return nil, fmt.Errorf("pinboard: unable to fetch bookmark, status=%d",
+			response.StatusCode())
 	}
 
 	var results posts
-	err = xml.NewDecoder(response.Body).Decode(&results)
+	err = xml.NewDecoder(response.Body()).Decode(&results)
 	if err != nil {
 		return nil, fmt.Errorf("pinboard: unable to decode XML: %w", err)
 	}
@@ -113,6 +113,5 @@ func (c *Client) getBookmark(entryURL string) (*Post, error) {
 	if len(results.Posts) == 0 {
 		return nil, errPostNotFound
 	}
-
 	return &results.Posts[0], nil
 }

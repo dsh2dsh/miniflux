@@ -4,6 +4,7 @@
 package integration // import "miniflux.app/v2/internal/integration"
 
 import (
+	"context"
 	"log/slog"
 
 	"miniflux.app/v2/internal/integration/apprise"
@@ -38,7 +39,7 @@ import (
 )
 
 // SendEntry sends the entry to third-party providers when the user click on "Save".
-func SendEntry(entry *model.Entry, user *model.User) {
+func SendEntry(ctx context.Context, entry *model.Entry, user *model.User) {
 	userIntegrations := user.Integration()
 	if userIntegrations.BetulaEnabled {
 		slog.Debug("Sending entry to Betula",
@@ -49,6 +50,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 
 		client := betula.NewClient(userIntegrations.BetulaURL, userIntegrations.BetulaToken)
 		err := client.CreateBookmark(
+			ctx,
 			entry.URL,
 			entry.Title,
 			entry.Tags,
@@ -72,6 +74,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 
 		client := pinboard.NewClient(userIntegrations.PinboardToken)
 		err := client.CreateBookmark(
+			ctx,
 			entry.URL,
 			entry.Title,
 			userIntegrations.PinboardTags,
@@ -95,7 +98,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 		)
 
 		client := instapaper.NewClient(userIntegrations.InstapaperUsername, userIntegrations.InstapaperPassword)
-		if err := client.AddURL(entry.URL, entry.Title); err != nil {
+		if err := client.AddURL(ctx, entry.URL, entry.Title); err != nil {
 			slog.Error("Unable to send entry to Instapaper",
 				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
@@ -123,7 +126,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 			userIntegrations.WallabagOnlyURL,
 		)
 
-		if err := client.CreateEntry(entry.URL, entry.Title, entry.Content); err != nil {
+		if err := client.CreateEntry(ctx, entry.URL, entry.Title, entry.Content); err != nil {
 			slog.Error("Unable to send entry to Wallabag",
 				slog.Int64("user_id", user.ID),
 				slog.String("user_tags", userIntegrations.WallabagTags),
@@ -145,7 +148,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 			userIntegrations.NotionToken,
 			userIntegrations.NotionPageID,
 		)
-		if err := client.UpdateDocument(entry.URL, entry.Title); err != nil {
+		if err := client.UpdateDocument(ctx, entry.URL, entry.Title); err != nil {
 			slog.Error("Unable to send entry to Notion",
 				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
@@ -167,7 +170,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 			userIntegrations.NunuxKeeperAPIKey,
 		)
 
-		if err := client.AddEntry(entry.URL, entry.Title, entry.Content); err != nil {
+		if err := client.AddEntry(ctx, entry.URL, entry.Title, entry.Content); err != nil {
 			slog.Error("Unable to send entry to NunuxKeeper",
 				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
@@ -189,7 +192,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 			userIntegrations.EspialAPIKey,
 		)
 
-		if err := client.CreateLink(entry.URL, entry.Title, userIntegrations.EspialTags); err != nil {
+		if err := client.CreateLink(ctx, entry.URL, entry.Title, userIntegrations.EspialTags); err != nil {
 			slog.Error("Unable to send entry to Espial",
 				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
@@ -213,7 +216,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 			userIntegrations.LinkAcePrivate,
 			userIntegrations.LinkAceCheckDisabled,
 		)
-		if err := client.AddURL(entry.URL, entry.Title); err != nil {
+		if err := client.AddURL(ctx, entry.URL, entry.Title); err != nil {
 			slog.Error("Unable to send entry to LinkAce",
 				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
@@ -236,7 +239,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 			userIntegrations.LinkdingTags,
 			userIntegrations.LinkdingMarkAsUnread,
 		)
-		if err := client.CreateBookmark(entry.URL, entry.Title); err != nil {
+		if err := client.CreateBookmark(ctx, entry.URL, entry.Title); err != nil {
 			slog.Error("Unable to send entry to Linkding",
 				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
@@ -259,7 +262,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 			userIntegrations.LinktacoTags,
 			userIntegrations.LinktacoVisibility,
 		)
-		if err := client.CreateBookmark(entry.URL, entry.Title, entry.Content); err != nil {
+		if err := client.CreateBookmark(ctx, entry.URL, entry.Title, entry.Content); err != nil {
 			slog.Error("Unable to send entry to LinkTaco",
 				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
@@ -287,7 +290,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 			userIntegrations.LinkwardenAPIKey,
 			userIntegrations.LinkwardenCollectionID,
 		)
-		if err := client.CreateBookmark(entry.URL, entry.Title); err != nil {
+		if err := client.CreateBookmark(ctx, entry.URL, entry.Title); err != nil {
 			attrs = append(attrs, slog.Any("error", err))
 			slog.Error("Unable to send entry to Linkwarden", attrs...)
 		}
@@ -306,7 +309,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 			userIntegrations.ReadeckLabels,
 			userIntegrations.ReadeckOnlyURL,
 		)
-		if err := client.CreateBookmark(entry.URL, entry.Title, entry.Content); err != nil {
+		if err := client.CreateBookmark(ctx, entry.URL, entry.Title, entry.Content); err != nil {
 			slog.Error("Unable to send entry to Readeck",
 				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
@@ -327,7 +330,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 			userIntegrations.ReadwiseAPIKey,
 		)
 
-		if err := client.CreateDocument(entry.URL); err != nil {
+		if err := client.CreateDocument(ctx, entry.URL); err != nil {
 			slog.Error("Unable to send entry to Readwise",
 				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
@@ -346,7 +349,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 
 		client := cubox.NewClient(userIntegrations.CuboxAPILink)
 
-		if err := client.SaveLink(entry.URL); err != nil {
+		if err := client.SaveLink(ctx, entry.URL); err != nil {
 			slog.Error("Unable to send entry to Cubox",
 				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
@@ -369,7 +372,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 			userIntegrations.ShioriPassword,
 		)
 
-		if err := client.CreateBookmark(entry.URL, entry.Title); err != nil {
+		if err := client.CreateBookmark(ctx, entry.URL, entry.Title); err != nil {
 			slog.Error("Unable to send entry to Shiori",
 				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
@@ -391,7 +394,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 			userIntegrations.ShaarliAPISecret,
 		)
 
-		if err := client.CreateLink(entry.URL, entry.Title); err != nil {
+		if err := client.CreateLink(ctx, entry.URL, entry.Title); err != nil {
 			slog.Error("Unable to send entry to Shaarli",
 				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
@@ -407,7 +410,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 			slog.Int64("entry_id", entry.ID),
 			slog.String("entry_url", entry.URL))
 
-		if err := archiveorg.NewClient().SendURL(entry.URL); err != nil {
+		if err := archiveorg.NewClient().SendURL(ctx, entry.URL); err != nil {
 			slog.Error("Unable to send entry to Archive.org",
 				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
@@ -433,7 +436,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 		)
 
 		webhookClient := webhook.NewClient(webhookURL, userIntegrations.WebhookSecret)
-		if err := webhookClient.SendSaveEntryWebhookEvent(entry); err != nil {
+		if err := webhookClient.SendSaveEntryWebhookEvent(ctx, entry); err != nil {
 			slog.Error("Unable to send entry to Webhook",
 				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
@@ -452,7 +455,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 		)
 
 		client := omnivore.NewClient(userIntegrations.OmnivoreAPIKey, userIntegrations.OmnivoreURL)
-		if err := client.SaveURL(entry.URL); err != nil {
+		if err := client.SaveURL(ctx, entry.URL); err != nil {
 			slog.Error("Unable to send entry to Omnivore",
 				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
@@ -475,7 +478,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 			userIntegrations.KarakeepURL,
 			userIntegrations.KarakeepTags,
 		)
-		if err := client.SaveURL(entry.URL); err != nil {
+		if err := client.SaveURL(ctx, entry.URL); err != nil {
 			slog.Error("Unable to send entry to Karakeep",
 				slog.Int64("user_id", user.ID),
 				slog.String("user_tags", userIntegrations.KarakeepTags),
@@ -494,7 +497,7 @@ func SendEntry(entry *model.Entry, user *model.User) {
 		)
 
 		client := raindrop.NewClient(userIntegrations.RaindropToken, userIntegrations.RaindropCollectionID, userIntegrations.RaindropTags)
-		if err := client.CreateRaindrop(entry.URL, entry.Title); err != nil {
+		if err := client.CreateRaindrop(ctx, entry.URL, entry.Title); err != nil {
 			slog.Error("Unable to send entry to Raindrop",
 				slog.Int64("user_id", user.ID),
 				slog.Int64("entry_id", entry.ID),
@@ -506,7 +509,9 @@ func SendEntry(entry *model.Entry, user *model.User) {
 }
 
 // PushEntries pushes a list of entries to activated third-party providers during feed refreshes.
-func PushEntries(feed *model.Feed, entries model.Entries, user *model.User) {
+func PushEntries(ctx context.Context, feed *model.Feed, entries model.Entries,
+	user *model.User,
+) {
 	userIntegrations := user.Integration()
 	if userIntegrations.MatrixBotEnabled {
 		slog.Debug("Sending new entries to Matrix",
@@ -516,6 +521,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, user *model.User) {
 		)
 
 		err := matrixbot.PushEntries(
+			ctx,
 			feed,
 			entries,
 			userIntegrations.MatrixBotURL,
@@ -549,7 +555,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, user *model.User) {
 		)
 
 		webhookClient := webhook.NewClient(webhookURL, userIntegrations.WebhookSecret)
-		if err := webhookClient.SendNewEntriesWebhookEvent(feed, entries); err != nil {
+		if err := webhookClient.SendNewEntriesWebhookEvent(ctx, feed, entries); err != nil {
 			slog.Warn("Unable to send new entries to Webhook",
 				slog.Int64("user_id", user.ID),
 				slog.Int("nb_entries", len(entries)),
@@ -583,7 +589,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, user *model.User) {
 			feed.NtfyPriority,
 		)
 
-		if err := client.SendMessages(feed, entries); err != nil {
+		if err := client.SendMessages(ctx, feed, entries); err != nil {
 			slog.Warn("Unable to send new entries to Ntfy", slog.Any("error", err))
 		}
 	}
@@ -605,7 +611,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, user *model.User) {
 			userIntegrations.AppriseURL,
 		)
 
-		if err := client.SendNotification(feed, entries); err != nil {
+		if err := client.SendNotification(ctx, feed, entries); err != nil {
 			slog.Warn("Unable to send new entries to Apprise", slog.Any("error", err))
 		}
 	}
@@ -621,7 +627,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, user *model.User) {
 			userIntegrations.DiscordWebhookLink,
 		)
 
-		if err := client.SendDiscordMsg(feed, entries); err != nil {
+		if err := client.SendDiscordMsg(ctx, feed, entries); err != nil {
 			slog.Warn("Unable to send new entries to Discord", slog.Any("error", err))
 		}
 	}
@@ -637,7 +643,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, user *model.User) {
 			userIntegrations.SlackWebhookLink,
 		)
 
-		if err := client.SendSlackMsg(feed, entries); err != nil {
+		if err := client.SendSlackMsg(ctx, feed, entries); err != nil {
 			slog.Warn("Unable to send new entries to Slack", slog.Any("error", err))
 		}
 	}
@@ -657,7 +663,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, user *model.User) {
 			userIntegrations.PushoverPrefix,
 		)
 
-		if err := client.SendMessages(feed, entries); err != nil {
+		if err := client.SendMessages(ctx, feed, entries); err != nil {
 			slog.Warn("Unable to send new entries to Pushover", slog.Any("error", err))
 		}
 	}
@@ -672,6 +678,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, user *model.User) {
 			)
 
 			if err := telegrambot.PushEntry(
+				ctx,
 				feed,
 				entry,
 				userIntegrations.TelegramBotToken,
@@ -706,7 +713,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, user *model.User) {
 				slog.String("entry_url", entry.URL),
 			)
 
-			if err := client.CreateBookmark(entry.URL, entry.Title, entry.Content); err != nil {
+			if err := client.CreateBookmark(ctx, entry.URL, entry.Title, entry.Content); err != nil {
 				slog.Error("Unable to send entry to Readeck",
 					slog.Int64("user_id", user.ID),
 					slog.Int64("entry_id", entry.ID),

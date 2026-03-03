@@ -385,7 +385,7 @@ func (h *handler) editTagHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, entry := range entries {
-		integration.SendEntry(entry, user)
+		integration.SendEntry(ctx, entry, user)
 	}
 	sendOkayResponse(w)
 }

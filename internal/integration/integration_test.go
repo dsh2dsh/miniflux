@@ -34,7 +34,7 @@ func TestSendEntryLogsLinkwardenCollectionID(t *testing.T) {
 		},
 	}
 
-	SendEntry(entry, &user)
+	SendEntry(t.Context(), entry, &user)
 
 	out := buf.String()
 	if !strings.Contains(out, `"collection_id":12345`) {
@@ -62,7 +62,7 @@ func TestSendEntryLogsLinkwardenWithoutCollectionID(t *testing.T) {
 		},
 	}
 
-	SendEntry(entry, &user)
+	SendEntry(t.Context(), entry, &user)
 
 	out := buf.String()
 	if strings.Contains(out, "collection_id") {

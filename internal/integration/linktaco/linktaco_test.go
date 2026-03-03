@@ -8,11 +8,20 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"miniflux.app/v2/internal/config"
 )
 
 func TestCreateBookmark(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("FETCHER_ALLOW_PRIVATE_HOSTS", "127.0.0.1")
+	require.NoError(t, config.Load(""))
+
 	tests := []struct {
 		name           string
 		apiToken       string
@@ -254,7 +263,8 @@ func TestCreateBookmark(t *testing.T) {
 			}
 
 			// Call CreateBookmark
-			err := client.CreateBookmark(tt.entryURL, tt.entryTitle, tt.entryContent)
+			err := client.CreateBookmark(t.Context(), tt.entryURL, tt.entryTitle,
+				tt.entryContent)
 
 			// Check error expectations
 			if tt.wantErr {
@@ -387,7 +397,8 @@ func TestGraphQLMutation(t *testing.T) {
 		visibility: "PUBLIC",
 	}
 
-	err := client.CreateBookmark("https://example.com", "Test Title", "Test Content")
+	err := client.CreateBookmark(t.Context(), "https://example.com", "Test Title",
+		"Test Content")
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -418,7 +429,8 @@ func BenchmarkCreateBookmark(b *testing.B) {
 	// Run benchmark
 	b.ResetTimer()
 	for b.Loop() {
-		_ = client.CreateBookmark("https://example.com", "Test Title", "Test Content")
+		_ = client.CreateBookmark(b.Context(), "https://example.com", "Test Title",
+			"Test Content")
 	}
 }
 

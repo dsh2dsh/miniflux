@@ -4,15 +4,12 @@
 package archiveorg
 
 import (
+	"context"
 	"fmt"
-	"net/http"
 	"net/url"
-	"time"
 
-	"miniflux.app/v2/internal/version"
+	"miniflux.app/v2/internal/reader/fetcher"
 )
-
-const defaultClientTimeout = 30 * time.Second
 
 // See https://docs.google.com/document/d/1Nsv52MvSjbLb2PCpHlat0gkzw0EvtSgpKHu4mk0MnrA/edit?tab=t.0
 const options = "delay_wb_availability=1&if_not_archived_within=15d"
@@ -23,25 +20,17 @@ func NewClient() *Client {
 	return &Client{}
 }
 
-func (c *Client) SendURL(entryURL string) error {
+func (c *Client) SendURL(ctx context.Context, entryURL string) error {
 	requestURL := "https://web.archive.org/save/" + url.QueryEscape(entryURL) + "?" + options
-	request, err := http.NewRequest(http.MethodGet, requestURL, nil)
-	if err != nil {
-		return fmt.Errorf("archiveorg: unable to create request: %w", err)
-	}
-
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
-
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Request(requestURL)
 	if err != nil {
 		return fmt.Errorf("archiveorg: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	if response.StatusCode >= 400 {
-		return fmt.Errorf("archiveorg: unexpected status code: url=%s status=%d", requestURL, response.StatusCode)
+	if response.StatusCode() >= 400 {
+		return fmt.Errorf("archiveorg: unexpected status code: url=%s status=%d",
+			requestURL, response.StatusCode())
 	}
-
 	return nil
 }

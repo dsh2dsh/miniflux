@@ -4,6 +4,7 @@
 package matrixbot // import "miniflux.app/v2/internal/integration/matrixbot"
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -11,14 +12,17 @@ import (
 )
 
 // PushEntries pushes entries to matrix chat using integration settings provided
-func PushEntries(feed *model.Feed, entries model.Entries, matrixBaseURL, matrixUsername, matrixPassword, matrixRoomID string) error {
+func PushEntries(ctx context.Context, feed *model.Feed, entries model.Entries,
+	matrixBaseURL, matrixUsername, matrixPassword, matrixRoomID string,
+) error {
 	client := NewClient(matrixBaseURL)
-	discovery, err := client.DiscoverEndpoints()
+	discovery, err := client.DiscoverEndpoints(ctx)
 	if err != nil {
 		return err
 	}
 
-	loginResponse, err := client.Login(discovery.HomeServerInformation.BaseURL, matrixUsername, matrixPassword)
+	loginResponse, err := client.Login(ctx,
+		discovery.HomeServerInformation.BaseURL, matrixUsername, matrixPassword)
 	if err != nil {
 		return err
 	}
@@ -34,6 +38,7 @@ func PushEntries(feed *model.Feed, entries model.Entries, matrixBaseURL, matrixU
 	}
 
 	_, err = client.SendFormattedTextMessage(
+		ctx,
 		discovery.HomeServerInformation.BaseURL,
 		loginResponse.AccessToken,
 		matrixRoomID,

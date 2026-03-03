@@ -5,17 +5,15 @@ package matrixbot // import "miniflux.app/v2/internal/integration/matrixbot"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
-	"time"
 
 	"miniflux.app/v2/internal/crypto"
-	"miniflux.app/v2/internal/version"
+	"miniflux.app/v2/internal/reader/fetcher"
 )
-
-const defaultClientTimeout = 10 * time.Second
 
 type Client struct {
 	matrixBaseURL string
@@ -26,41 +24,42 @@ func NewClient(matrixBaseURL string) *Client {
 }
 
 // Specs: https://spec.matrix.org/v1.8/client-server-api/#getwell-knownmatrixclient
-func (c *Client) DiscoverEndpoints() (*DiscoveryEndpointResponse, error) {
+func (c *Client) DiscoverEndpoints(ctx context.Context,
+) (*DiscoveryEndpointResponse, error) {
 	endpointURL, err := url.JoinPath(c.matrixBaseURL, "/.well-known/matrix/client")
 	if err != nil {
 		return nil, fmt.Errorf("matrix: unable to join base URL and path: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodGet, endpointURL, nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpointURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("matrix: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Accept", "application/json")
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
-
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("matrix: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	if response.StatusCode >= 400 {
-		return nil, fmt.Errorf("matrix: unexpected response from %s status code is %d", endpointURL, response.StatusCode)
+	if response.StatusCode() >= 400 {
+		return nil, fmt.Errorf(
+			"matrix: unexpected response from %s status code is %d",
+			endpointURL, response.StatusCode())
 	}
 
 	var discoveryEndpointResponse DiscoveryEndpointResponse
-	if err := json.NewDecoder(response.Body).Decode(&discoveryEndpointResponse); err != nil {
+	if err := json.NewDecoder(response.Body()).Decode(&discoveryEndpointResponse); err != nil {
 		return nil, fmt.Errorf("matrix: unable to decode discovery response: %w", err)
 	}
-
 	return &discoveryEndpointResponse, nil
 }
 
 // Specs https://spec.matrix.org/v1.8/client-server-api/#post_matrixclientv3login
-func (c *Client) Login(homeServerURL, matrixUsername, matrixPassword string) (*LoginResponse, error) {
+func (c *Client) Login(ctx context.Context, homeServerURL, matrixUsername,
+	matrixPassword string,
+) (*LoginResponse, error) {
 	endpointURL, err := url.JoinPath(homeServerURL, "/_matrix/client/v3/login")
 	if err != nil {
 		return nil, fmt.Errorf("matrix: unable to join base URL and path: %w", err)
@@ -80,36 +79,38 @@ func (c *Client) Login(homeServerURL, matrixUsername, matrixPassword string) (*L
 		return nil, fmt.Errorf("matrix: unable to encode request body: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodPost, endpointURL, bytes.NewReader(requestBody))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpointURL,
+		bytes.NewReader(requestBody))
 	if err != nil {
 		return nil, fmt.Errorf("matrix: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json")
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("matrix: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	if response.StatusCode >= 400 {
-		return nil, fmt.Errorf("matrix: unexpected response from %s status code is %d", endpointURL, response.StatusCode)
+	if response.StatusCode() >= 400 {
+		return nil, fmt.Errorf(
+			"matrix: unexpected response from %s status code is %d",
+			endpointURL, response.StatusCode())
 	}
 
 	var loginResponse LoginResponse
-	if err := json.NewDecoder(response.Body).Decode(&loginResponse); err != nil {
+	if err := json.NewDecoder(response.Body()).Decode(&loginResponse); err != nil {
 		return nil, fmt.Errorf("matrix: unable to decode login response: %w", err)
 	}
-
 	return &loginResponse, nil
 }
 
 // Specs https://spec.matrix.org/v1.8/client-server-api/#put_matrixclientv3roomsroomidsendeventtypetxnid
-func (c *Client) SendFormattedTextMessage(homeServerURL, accessToken, roomID, textMessage, formattedMessage string) (*RoomEventResponse, error) {
+func (c *Client) SendFormattedTextMessage(ctx context.Context, homeServerURL,
+	accessToken, roomID, textMessage, formattedMessage string,
+) (*RoomEventResponse, error) {
 	txnID := crypto.GenerateRandomStringHex(10)
 	endpointURL, err := url.JoinPath(homeServerURL, "/_matrix/client/v3/rooms/", roomID, "/send/m.room.message/", txnID)
 	if err != nil {
@@ -128,32 +129,32 @@ func (c *Client) SendFormattedTextMessage(homeServerURL, accessToken, roomID, te
 		return nil, fmt.Errorf("matrix: unable to encode request body: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodPut, endpointURL, bytes.NewReader(requestBody))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPut, endpointURL,
+		bytes.NewReader(requestBody))
 	if err != nil {
 		return nil, fmt.Errorf("matrix: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json")
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 	request.Header.Set("Authorization", "Bearer "+accessToken)
 
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("matrix: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	if response.StatusCode >= 400 {
-		return nil, fmt.Errorf("matrix: unexpected response from %s status code is %d", endpointURL, response.StatusCode)
+	if response.StatusCode() >= 400 {
+		return nil, fmt.Errorf(
+			"matrix: unexpected response from %s status code is %d",
+			endpointURL, response.StatusCode())
 	}
 
 	var eventResponse RoomEventResponse
-	if err := json.NewDecoder(response.Body).Decode(&eventResponse); err != nil {
+	if err := json.NewDecoder(response.Body()).Decode(&eventResponse); err != nil {
 		return nil, fmt.Errorf("matrix: unable to decode event response: %w", err)
 	}
-
 	return &eventResponse, nil
 }
 

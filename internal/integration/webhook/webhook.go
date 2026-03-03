@@ -5,6 +5,7 @@ package webhook // import "miniflux.app/v2/internal/integration/webhook"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,12 +14,10 @@ import (
 
 	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/model"
-	"miniflux.app/v2/internal/version"
+	"miniflux.app/v2/internal/reader/fetcher"
 )
 
 const (
-	defaultClientTimeout = 10 * time.Second
-
 	NewEntriesEventType = "new_entries"
 	SaveEntryEventType  = "save_entry"
 )
@@ -32,8 +31,10 @@ func NewClient(webhookURL, webhookSecret string) *Client {
 	return &Client{webhookURL, webhookSecret}
 }
 
-func (c *Client) SendSaveEntryWebhookEvent(entry *model.Entry) error {
-	return c.makeRequest(SaveEntryEventType, &WebhookSaveEntryEvent{
+func (c *Client) SendSaveEntryWebhookEvent(ctx context.Context,
+	entry *model.Entry,
+) error {
+	return c.makeRequest(ctx, SaveEntryEventType, &WebhookSaveEntryEvent{
 		EventType: SaveEntryEventType,
 		Entry: &WebhookEntry{
 			ID:          entry.ID,
@@ -67,7 +68,9 @@ func (c *Client) SendSaveEntryWebhookEvent(entry *model.Entry) error {
 	})
 }
 
-func (c *Client) SendNewEntriesWebhookEvent(feed *model.Feed, entries model.Entries) error {
+func (c *Client) SendNewEntriesWebhookEvent(ctx context.Context,
+	feed *model.Feed, entries model.Entries,
+) error {
 	if len(entries) == 0 {
 		return nil
 	}
@@ -95,7 +98,7 @@ func (c *Client) SendNewEntriesWebhookEvent(feed *model.Feed, entries model.Entr
 		}
 	}
 
-	return c.makeRequest(NewEntriesEventType, &WebhookNewEntriesEvent{
+	return c.makeRequest(ctx, NewEntriesEventType, &WebhookNewEntriesEvent{
 		EventType: NewEntriesEventType,
 		Feed: &WebhookFeed{
 			ID:         feed.ID,
@@ -111,7 +114,8 @@ func (c *Client) SendNewEntriesWebhookEvent(feed *model.Feed, entries model.Entr
 	})
 }
 
-func (c *Client) makeRequest(eventType string, payload any) error {
+func (c *Client) makeRequest(ctx context.Context, eventType string, payload any,
+) error {
 	if c.webhookURL == "" {
 		return errors.New(`webhook: missing webhook URL`)
 	}
@@ -121,27 +125,26 @@ func (c *Client) makeRequest(eventType string, payload any) error {
 		return fmt.Errorf("webhook: unable to encode request body: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodPost, c.webhookURL, bytes.NewReader(requestBody))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.webhookURL,
+		bytes.NewReader(requestBody))
 	if err != nil {
 		return fmt.Errorf("webhook: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 	request.Header.Set("X-Miniflux-Signature", crypto.GenerateSHA256Hmac(c.webhookSecret, requestBody))
 	request.Header.Set("X-Miniflux-Event-Type", eventType)
 
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return fmt.Errorf("webhook: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	if response.StatusCode >= 400 {
-		return fmt.Errorf("webhook: incorrect response status code %d for url %s", response.StatusCode, c.webhookURL)
+	if response.StatusCode() >= 400 {
+		return fmt.Errorf("webhook: incorrect response status code %d for url %s",
+			response.StatusCode(), c.webhookURL)
 	}
-
 	return nil
 }
 

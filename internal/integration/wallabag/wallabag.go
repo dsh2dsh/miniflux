@@ -5,19 +5,17 @@ package wallabag // import "miniflux.app/v2/internal/integration/wallabag"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
+	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/urllib"
-	"miniflux.app/v2/internal/version"
 )
-
-const defaultClientTimeout = 10 * time.Second
 
 type Client struct {
 	baseURL      string
@@ -41,20 +39,25 @@ func NewClient(baseURL, clientID, clientSecret, username, password, tags string,
 	}
 }
 
-func (c *Client) CreateEntry(entryURL, entryTitle, entryContent string) error {
+func (c *Client) CreateEntry(ctx context.Context, entryURL, entryTitle,
+	entryContent string,
+) error {
 	if c.baseURL == "" || c.clientID == "" || c.clientSecret == "" || c.username == "" || c.password == "" {
 		return errors.New("wallabag: missing base URL, client ID, client secret, username or password")
 	}
 
-	accessToken, err := c.getAccessToken()
+	accessToken, err := c.getAccessToken(ctx)
 	if err != nil {
 		return err
 	}
 
-	return c.createEntry(accessToken, entryURL, entryTitle, entryContent, c.tags)
+	return c.createEntry(ctx, accessToken, entryURL, entryTitle, entryContent,
+		c.tags)
 }
 
-func (c *Client) createEntry(accessToken, entryURL, entryTitle, entryContent, tags string) error {
+func (c *Client) createEntry(ctx context.Context, accessToken, entryURL,
+	entryTitle, entryContent, tags string,
+) error {
 	apiEndpoint, err := urllib.JoinBaseURLAndPath(c.baseURL, "/api/entries.json")
 	if err != nil {
 		return fmt.Errorf("wallabag: unable to generate entries endpoint: %w", err)
@@ -74,31 +77,30 @@ func (c *Client) createEntry(accessToken, entryURL, entryTitle, entryContent, ta
 		return fmt.Errorf("wallabag: unable to encode request body: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBody))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, apiEndpoint,
+		bytes.NewReader(requestBody))
 	if err != nil {
 		return fmt.Errorf("wallabag: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json")
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 	request.Header.Set("Authorization", "Bearer "+accessToken)
 
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return fmt.Errorf("wallabag: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	if response.StatusCode >= 400 {
-		return fmt.Errorf("wallabag: unable to get save entry: url=%s status=%d", apiEndpoint, response.StatusCode)
+	if response.StatusCode() >= 400 {
+		return fmt.Errorf("wallabag: unable to get save entry: url=%s status=%d",
+			apiEndpoint, response.StatusCode())
 	}
-
 	return nil
 }
 
-func (c *Client) getAccessToken() (string, error) {
+func (c *Client) getAccessToken(ctx context.Context) (string, error) {
 	values := url.Values{}
 	values.Add("grant_type", "password")
 	values.Add("client_id", c.clientID)
@@ -111,31 +113,31 @@ func (c *Client) getAccessToken() (string, error) {
 		return "", fmt.Errorf("wallabag: unable to generate token endpoint: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodPost, apiEndpoint, strings.NewReader(values.Encode()))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, apiEndpoint,
+		strings.NewReader(values.Encode()))
 	if err != nil {
 		return "", fmt.Errorf("wallabag: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	request.Header.Set("Accept", "application/json")
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return "", fmt.Errorf("wallabag: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	if response.StatusCode >= 400 {
-		return "", fmt.Errorf("wallabag: unable to get access token: url=%s status=%d", apiEndpoint, response.StatusCode)
+	if response.StatusCode() >= 400 {
+		return "", fmt.Errorf(
+			"wallabag: unable to get access token: url=%s status=%d",
+			apiEndpoint, response.StatusCode())
 	}
 
 	var responseBody tokenResponse
-	if err := json.NewDecoder(response.Body).Decode(&responseBody); err != nil {
+	if err := json.NewDecoder(response.Body()).Decode(&responseBody); err != nil {
 		return "", fmt.Errorf("wallabag: unable to decode token response: %w", err)
 	}
-
 	return responseBody.AccessToken, nil
 }
 

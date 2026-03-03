@@ -119,8 +119,8 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 	// Step 5) Check if the website URL can use RSS-Bridge.
 	if rssBridgeURL != "" {
 		log.Debug("Try to detect feeds with RSS-Bridge")
-		subscriptions, lerr := f.findSubscriptionsFromRSSBridge(log, websiteURL,
-			rssBridgeURL, rssBridgeToken)
+		subscriptions, lerr := f.findSubscriptionsFromRSSBridge(ctx, log,
+			websiteURL, rssBridgeURL, rssBridgeToken)
 		if lerr != nil {
 			return nil, lerr
 		}
@@ -253,15 +253,15 @@ func (f *SubscriptionFinder) findSubscriptionsFromWellKnownURLs(
 	return subscriptions
 }
 
-func (f *SubscriptionFinder) findSubscriptionsFromRSSBridge(log *slog.Logger,
-	websiteURL, rssBridgeURL, rssBridgeToken string,
+func (f *SubscriptionFinder) findSubscriptionsFromRSSBridge(ctx context.Context,
+	log *slog.Logger, websiteURL, rssBridgeURL, rssBridgeToken string,
 ) (Subscriptions, *locale.LocalizedErrorWrapper) {
 	log = log.With(
 		slog.String("rssbridge_url", rssBridgeURL),
 		slog.String("rssbridge_token", rssBridgeToken))
 	log.Debug("Trying to detect feeds using RSS-Bridge")
 
-	bridges, err := rssbridge.DetectBridges(rssBridgeURL, rssBridgeToken,
+	bridges, err := rssbridge.DetectBridges(ctx, rssBridgeURL, rssBridgeToken,
 		websiteURL)
 	if err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err,

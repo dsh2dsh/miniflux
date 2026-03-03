@@ -5,18 +5,17 @@ package linktaco // import "miniflux.app/v2/internal/integration/linktaco"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
-	"miniflux.app/v2/internal/version"
+	"miniflux.app/v2/internal/reader/fetcher"
 )
 
 const (
-	defaultClientTimeout = 10 * time.Second
 	defaultGraphQLURL    = "https://api.linktaco.com/query"
 	maxTags              = 10
 	maxDescriptionLength = 500
@@ -43,7 +42,9 @@ func NewClient(apiToken, orgSlug, tags, visibility string) *Client {
 	}
 }
 
-func (c *Client) CreateBookmark(entryURL, entryTitle, entryContent string) error {
+func (c *Client) CreateBookmark(ctx context.Context, entryURL, entryTitle,
+	entryContent string,
+) error {
 	if c.apiToken == "" || c.orgSlug == "" {
 		return errors.New("linktaco: missing API token or organization slug")
 	}
@@ -95,24 +96,24 @@ func (c *Client) CreateBookmark(entryURL, entryTitle, entryContent string) error
 		return fmt.Errorf("linktaco: unable to encode request body: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodPost, c.graphqlURL, bytes.NewReader(requestBody))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.graphqlURL,
+		bytes.NewReader(requestBody))
 	if err != nil {
 		return fmt.Errorf("linktaco: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 	request.Header.Set("Authorization", "Bearer "+c.apiToken)
 
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return fmt.Errorf("linktaco: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	if response.StatusCode >= 400 {
-		return fmt.Errorf("linktaco: unable to create bookmark: status=%d", response.StatusCode)
+	if response.StatusCode() >= 400 {
+		return fmt.Errorf("linktaco: unable to create bookmark: status=%d",
+			response.StatusCode())
 	}
 
 	var graphqlResponse struct {
@@ -120,7 +121,7 @@ func (c *Client) CreateBookmark(entryURL, entryTitle, entryContent string) error
 		Errors []json.RawMessage `json:"errors"`
 	}
 
-	if err := json.NewDecoder(response.Body).Decode(&graphqlResponse); err != nil {
+	if err := json.NewDecoder(response.Body()).Decode(&graphqlResponse); err != nil {
 		return fmt.Errorf("linktaco: unable to decode response: %w", err)
 	}
 
@@ -142,6 +143,5 @@ func (c *Client) CreateBookmark(entryURL, entryTitle, entryContent string) error
 		}
 		return fmt.Errorf("linktaco: %s", errorMsg)
 	}
-
 	return nil
 }

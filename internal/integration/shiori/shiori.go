@@ -5,17 +5,15 @@ package shiori // import "miniflux.app/v2/internal/integration/shiori"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
+	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/urllib"
-	"miniflux.app/v2/internal/version"
 )
-
-const defaultClientTimeout = 10 * time.Second
 
 type Client struct {
 	baseURL  string
@@ -27,12 +25,14 @@ func NewClient(baseURL, username, password string) *Client {
 	return &Client{baseURL: baseURL, username: username, password: password}
 }
 
-func (c *Client) CreateBookmark(entryURL, entryTitle string) error {
+func (c *Client) CreateBookmark(ctx context.Context, entryURL,
+	entryTitle string,
+) error {
 	if c.baseURL == "" || c.username == "" || c.password == "" {
 		return errors.New("shiori: missing base URL, username or password")
 	}
 
-	token, err := c.authenticate()
+	token, err := c.authenticate(ctx)
 	if err != nil {
 		return fmt.Errorf("shiori: unable to authenticate: %w", err)
 	}
@@ -55,31 +55,29 @@ func (c *Client) CreateBookmark(entryURL, entryTitle string) error {
 		return fmt.Errorf("shiori: unable to encode request body: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBody))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, apiEndpoint,
+		bytes.NewReader(requestBody))
 	if err != nil {
 		return fmt.Errorf("shiori: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 	request.Header.Set("Authorization", "Bearer "+token)
 
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return fmt.Errorf("shiori: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("shiori: unable to create bookmark: url=%s status=%d", apiEndpoint, response.StatusCode)
+	if response.StatusCode() != http.StatusOK {
+		return fmt.Errorf("shiori: unable to create bookmark: url=%s status=%d",
+			apiEndpoint, response.StatusCode())
 	}
-
 	return nil
 }
 
-func (c *Client) authenticate() (string, error) {
+func (c *Client) authenticate(ctx context.Context) (string, error) {
 	apiEndpoint, err := urllib.JoinBaseURLAndPath(c.baseURL, "/api/v1/auth/login")
 	if err != nil {
 		return "", fmt.Errorf("shiori: invalid API endpoint: %w", err)
@@ -90,29 +88,28 @@ func (c *Client) authenticate() (string, error) {
 		return "", fmt.Errorf("shiori: unable to encode request body: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodPost, apiEndpoint, bytes.NewReader(requestBody))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, apiEndpoint,
+		bytes.NewReader(requestBody))
 	if err != nil {
 		return "", fmt.Errorf("shiori: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json")
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return "", fmt.Errorf("shiori: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	if response.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("shiori: unable to authenticate: url=%s status=%d", apiEndpoint, response.StatusCode)
+	if response.StatusCode() != http.StatusOK {
+		return "", fmt.Errorf("shiori: unable to authenticate: url=%s status=%d",
+			apiEndpoint, response.StatusCode())
 	}
 
 	var authResponse authResponse
-	if err := json.NewDecoder(response.Body).Decode(&authResponse); err != nil {
+	if err := json.NewDecoder(response.Body()).Decode(&authResponse); err != nil {
 		return "", fmt.Errorf("shiori: unable to decode response: %w", err)
 	}
 	return authResponse.Message.Token, nil

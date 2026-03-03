@@ -8,11 +8,20 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"miniflux.app/v2/internal/config"
 )
 
 func TestCreateEntry(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("FETCHER_ALLOW_PRIVATE_HOSTS", "127.0.0.1")
+	require.NoError(t, config.Load(""))
+
 	entryURL := "https://example.com"
 	entryTitle := "title"
 	entryContent := "content"
@@ -250,7 +259,8 @@ func TestCreateEntry(t *testing.T) {
 			client := NewClient(serverURL, tt.clientID, tt.clientSecret, tt.username, tt.password, tt.tags, tt.onlyURL)
 
 			// Call CreateBookmark
-			err := client.CreateEntry(tt.entryURL, tt.entryTitle, tt.entryContent)
+			err := client.CreateEntry(t.Context(), tt.entryURL, tt.entryTitle,
+				tt.entryContent)
 
 			// Check error expectations
 			if tt.wantErr {

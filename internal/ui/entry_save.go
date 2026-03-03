@@ -28,6 +28,6 @@ func (h *handler) saveEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	integration.SendEntry(entry, user)
+	integration.SendEntry(r.Context(), entry, user)
 	json.Created(w, r, map[string]string{"message": "saved"})
 }

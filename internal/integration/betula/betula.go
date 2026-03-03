@@ -4,17 +4,15 @@
 package betula // import "miniflux.app/v2/internal/integration/betula"
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
+	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/urllib"
-	"miniflux.app/v2/internal/version"
 )
-
-const defaultClientTimeout = 10 * time.Second
 
 type Client struct {
 	url   string
@@ -25,7 +23,9 @@ func NewClient(url, token string) *Client {
 	return &Client{url: url, token: token}
 }
 
-func (c *Client) CreateBookmark(entryURL, entryTitle string, tags []string) error {
+func (c *Client) CreateBookmark(ctx context.Context, entryURL,
+	entryTitle string, tags []string,
+) error {
 	apiEndpoint, err := urllib.JoinBaseURLAndPath(c.url, "/save-link")
 	if err != nil {
 		return fmt.Errorf("betula: unable to generate save-link endpoint: %w", err)
@@ -36,24 +36,22 @@ func (c *Client) CreateBookmark(entryURL, entryTitle string, tags []string) erro
 	values.Add("title", entryTitle)
 	values.Add("tags", strings.Join(tags, ","))
 
-	request, err := http.NewRequest(http.MethodPost, apiEndpoint+"?"+values.Encode(), nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		apiEndpoint+"?"+values.Encode(), nil)
 	if err != nil {
 		return fmt.Errorf("betula: unable to create request: %w", err)
 	}
 
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 	request.AddCookie(&http.Cookie{Name: "betula-token", Value: c.token})
-
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return fmt.Errorf("betula: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	if response.StatusCode >= 400 {
-		return fmt.Errorf("betula: unable to create bookmark: url=%s status=%d", apiEndpoint, response.StatusCode)
+	if response.StatusCode() >= 400 {
+		return fmt.Errorf("betula: unable to create bookmark: url=%s status=%d",
+			apiEndpoint, response.StatusCode())
 	}
-
 	return nil
 }

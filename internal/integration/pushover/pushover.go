@@ -4,22 +4,19 @@
 package pushover // import "miniflux.app/v2/internal/integration/pushover"
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
-	"time"
 
 	"miniflux.app/v2/internal/model"
-	"miniflux.app/v2/internal/version"
+	"miniflux.app/v2/internal/reader/fetcher"
 )
 
-const (
-	defaultClientTimeout = 10 * time.Second
-	defaultPushoverURL   = "https://api.pushover.net"
-)
+const defaultPushoverURL = "https://api.pushover.net"
 
 type Client struct {
 	prefix string
@@ -71,7 +68,9 @@ func NewClient(user, token string, priority int, device, urlPrefix string) *Clie
 	}
 }
 
-func (c *Client) SendMessages(feed *model.Feed, entries model.Entries) error {
+func (c *Client) SendMessages(ctx context.Context, feed *model.Feed,
+	entries model.Entries,
+) error {
 	if c.token == "" || c.user == "" {
 		return errors.New("pushover token and user are required")
 	}
@@ -93,7 +92,7 @@ func (c *Client) SendMessages(feed *model.Feed, entries model.Entries) error {
 			slog.String("entry_url", msg.URL),
 		)
 
-		if err := c.makeRequest(msg); err != nil {
+		if err := c.makeRequest(ctx, msg); err != nil {
 			return fmt.Errorf("pushover: unable to send message: %w", err)
 		}
 	}
@@ -101,39 +100,37 @@ func (c *Client) SendMessages(feed *model.Feed, entries model.Entries) error {
 	return nil
 }
 
-func (c *Client) makeRequest(payload *message) error {
+func (c *Client) makeRequest(ctx context.Context, payload *message) error {
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("pushover: unable to encode request body: %w", err)
 	}
+
 	url := c.prefix + "/1/messages.json"
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url,
+		bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("pushover: unable to create request: %w", err)
 	}
 
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "Miniflux/"+version.Version)
-
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	resp, err := httpClient.Do(req)
+	resp, err := fetcher.Do(req)
 	if err != nil {
 		return fmt.Errorf("pushover: unable to send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Close()
 
-	if resp.StatusCode >= http.StatusBadRequest {
-		errorMessage := resp.Status
+	if resp.StatusCode() >= http.StatusBadRequest {
+		errorMessage := resp.Status()
 
 		var errResp errorResponse
-		if err := json.NewDecoder(resp.Body).Decode(&errResp); err == nil {
+		if err := json.NewDecoder(resp.Body()).Decode(&errResp); err == nil {
 			if len(errResp.Errors) > 0 {
 				errorMessage = strings.Join(errResp.Errors, ",")
 			}
 		}
-
-		return fmt.Errorf("pushover: API error: status=%d %s", resp.StatusCode, errorMessage)
+		return fmt.Errorf("pushover: API error: status=%d %s",
+			resp.StatusCode(), errorMessage)
 	}
-
 	return nil
 }

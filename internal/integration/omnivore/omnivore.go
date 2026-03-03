@@ -5,17 +5,15 @@ package omnivore // import "miniflux.app/v2/internal/integration/omnivore"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"miniflux.app/v2/internal/crypto"
-	"miniflux.app/v2/internal/version"
+	"miniflux.app/v2/internal/reader/fetcher"
 )
-
-const defaultClientTimeout = 10 * time.Second
 
 const defaultApiEndpoint = "https://api-prod.omnivore.app/api/graphql"
 
@@ -50,7 +48,7 @@ type successResponse struct {
 }
 
 type Client struct {
-	wrapped     *http.Client
+	wrapped     *fetcher.RequestBuilder
 	apiEndpoint string
 	apiToken    string
 }
@@ -60,11 +58,14 @@ func NewClient(apiToken, apiEndpoint string) *Client {
 		apiEndpoint = defaultApiEndpoint
 	}
 
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	return &Client{wrapped: httpClient, apiEndpoint: apiEndpoint, apiToken: apiToken}
+	return &Client{
+		wrapped:     fetcher.NewRequestBuilder(),
+		apiEndpoint: apiEndpoint,
+		apiToken:    apiToken,
+	}
 }
 
-func (c *Client) SaveURL(url string) error {
+func (c *Client) SaveURL(ctx context.Context, url string) error {
 	payload := map[string]any{
 		"query": mutation,
 		"variables": map[string]any{
@@ -79,41 +80,46 @@ func (c *Client) SaveURL(url string) error {
 	if err != nil {
 		return fmt.Errorf("integration/omnivore: failed marshal: %w", err)
 	}
-	req, err := http.NewRequest(http.MethodPost, c.apiEndpoint, bytes.NewReader(b))
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.apiEndpoint,
+		bytes.NewReader(b))
 	if err != nil {
 		return fmt.Errorf("integration/omnivore: %w", err)
 	}
 
 	req.Header.Set("Authorization", c.apiToken)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "Miniflux/"+version.Version)
 
 	resp, err := c.wrapped.Do(req)
 	if err != nil {
 		return fmt.Errorf("integration/omnivore: %w", err)
 	}
+	defer resp.Close()
 
-	defer resp.Body.Close()
-	b, err = io.ReadAll(resp.Body)
+	b, err = io.ReadAll(resp.Body())
 	if err != nil {
 		return fmt.Errorf("omnivore: failed to parse response: %w", err)
 	}
 
-	if resp.StatusCode >= 400 {
+	if resp.StatusCode() >= 400 {
 		var errResponse errorResponse
 		if err = json.Unmarshal(b, &errResponse); err != nil {
-			return fmt.Errorf("omnivore: failed to save URL: status=%d %s", resp.StatusCode, string(b))
+			return fmt.Errorf("omnivore: failed to save URL: status=%d %s",
+				resp.StatusCode(), string(b))
 		}
 		if len(errResponse.Errors) > 0 {
-			return fmt.Errorf("omnivore: failed to save URL: status=%d %s", resp.StatusCode, errResponse.Errors[0].Message)
+			return fmt.Errorf("omnivore: failed to save URL: status=%d %s",
+				resp.StatusCode(), errResponse.Errors[0].Message)
 		}
-		return fmt.Errorf("omnivore: failed to save URL: status=%d %s", resp.StatusCode, string(b))
+		return fmt.Errorf("omnivore: failed to save URL: status=%d %s",
+			resp.StatusCode(), string(b))
 	}
 
 	var successResp successResponse
 	if err = json.Unmarshal(b, &successResp); err != nil {
-		return fmt.Errorf("omnivore: failed to parse response, however the request appears successful, is the url correct?: status=%d %s", resp.StatusCode, string(b))
+		return fmt.Errorf(
+			"omnivore: failed to parse response, however the request appears successful, is the url correct?: status=%d %s",
+			resp.StatusCode(), string(b))
 	}
-
 	return nil
 }

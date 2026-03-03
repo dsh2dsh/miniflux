@@ -7,19 +7,16 @@ package readwise // import "miniflux.app/v2/internal/integration/readwise"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
-	"miniflux.app/v2/internal/version"
+	"miniflux.app/v2/internal/reader/fetcher"
 )
 
-const (
-	readwiseApiEndpoint  = "https://readwise.io/api/v3/save/"
-	defaultClientTimeout = 10 * time.Second
-)
+const readwiseApiEndpoint = "https://readwise.io/api/v3/save/"
 
 type Client struct {
 	apiKey string
@@ -29,7 +26,7 @@ func NewClient(apiKey string) *Client {
 	return &Client{apiKey: apiKey}
 }
 
-func (c *Client) CreateDocument(entryURL string) error {
+func (c *Client) CreateDocument(ctx context.Context, entryURL string) error {
 	if c.apiKey == "" {
 		return errors.New("readwise: missing API key")
 	}
@@ -41,26 +38,25 @@ func (c *Client) CreateDocument(entryURL string) error {
 		return fmt.Errorf("readwise: unable to encode request body: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodPost, readwiseApiEndpoint, bytes.NewReader(requestBody))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		readwiseApiEndpoint, bytes.NewReader(requestBody))
 	if err != nil {
 		return fmt.Errorf("readwise: unable to create request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("User-Agent", "Miniflux/"+version.Version)
 	request.Header.Set("Authorization", "Token "+c.apiKey)
 
-	httpClient := &http.Client{Timeout: defaultClientTimeout}
-	response, err := httpClient.Do(request)
+	response, err := fetcher.Do(request)
 	if err != nil {
 		return fmt.Errorf("readwise: unable to send request: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Close()
 
-	if response.StatusCode >= 400 {
-		return fmt.Errorf("readwise: unable to create document: url=%s status=%d", readwiseApiEndpoint, response.StatusCode)
+	if response.StatusCode() >= 400 {
+		return fmt.Errorf("readwise: unable to create document: url=%s status=%d",
+			readwiseApiEndpoint, response.StatusCode())
 	}
-
 	return nil
 }
 
