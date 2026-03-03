@@ -19,8 +19,8 @@ github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ3
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/dsh2dsh/bluemonday/v2 v2.3.4 h1:7wMlTO3+wBPDMal/S+x1lqAp+5swAMKKYbMwdKN9VIU=
-github.com/dsh2dsh/bluemonday/v2 v2.3.4/go.mod h1:YHNywuAGVBnRk8V+ipJVv8RYQ1uns4qzxRa1mnSFW1w=
+github.com/dsh2dsh/bluemonday/v2 v2.3.5 h1:zBIKgXqXjSCiPLuanHj1i/p1Nb1L4KCcTACmgZD7fPE=
+github.com/dsh2dsh/bluemonday/v2 v2.3.5/go.mod h1:+m4OE1MsDBT4CWnsrOok3P2zbEXolQZDMq+ABIhfAZU=
 github.com/dsh2dsh/expx-dotenv v1.4.0 h1:GLDENXzl79jsPLUemIVzSc7SrhJonAM8enTxe60D7ds=
 github.com/dsh2dsh/expx-dotenv v1.4.0/go.mod h1:GBgZKlYrqEnUetmP2NMnKj7lVc1TTQIOV0wQbGQrxmA=
 github.com/dsh2dsh/gofeed/v2 v2.4.1 h1:tPp45+FUs4fZTYO2e2zjs1+0skJ9o4PkUxu71e+HZI8=
