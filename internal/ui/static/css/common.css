@@ -1394,11 +1394,9 @@ article.category-has-unread {
         color: inherit;
         background: inherit;
         border: inherit;
+        margin-top: 1em;
         padding: 0;
         white-space: pre-wrap;
-    }
-    details {
-        margin-top: 1em;
     }
 }
 

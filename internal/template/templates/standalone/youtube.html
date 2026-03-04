@@ -1,8 +1,5 @@
 <div class="youtube">
-    {{ .Description }}
-
-    <details class="video" name="youtube-iframe">
-        <summary>Embedded Youtube video</summary>
+    <div>
         <iframe
           src="{{ .IframeSrc }}"
           width="{{ or .Width 640 }}"
@@ -14,5 +11,7 @@
           referrerpolicy="strict-origin-when-cross-origin"
           credentialless>
         </iframe>
-    </details>
+    </div>
+
+    {{ .Description }}
 </div>
