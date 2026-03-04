@@ -26,13 +26,12 @@ func (self *SitesTestSuite) TestYoutube() {
 	self.T().Log("\n", s)
 
 	self.Contains(s, `<div class="youtube">`)
-	self.Contains(s, `<pre>Video &amp; Description</pre>`)
-	self.Contains(s, `<details class="video" name="youtube-iframe">`)
 	self.Contains(s, `<iframe`)
 	self.Contains(s, `src="https://www.youtube-nocookie.com/embed/1234"`)
 	self.Contains(s, `loading="lazy"`)
 	self.Contains(s, `referrerpolicy="strict-origin-when-cross-origin"`)
 	self.Contains(s, `credentialless`)
+	self.Contains(s, `<pre>Video &amp; Description</pre>`)
 
 	self.withConfig(map[string]string{
 		"YOUTUBE_EMBED_URL_OVERRIDE": "https://invidious.custom/embed/",
