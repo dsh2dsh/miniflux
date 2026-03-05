@@ -396,10 +396,10 @@ func TestDenyDialToPrivate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.allow {
-				require.NoError(t, denyDialToPrivate("", tt.address, nil))
+				require.NoError(t, denyDialToPrivate(t.Context(), "", tt.address, nil))
 				return
 			}
-			require.ErrorIs(t, denyDialToPrivate("", tt.address, nil),
+			require.ErrorIs(t, denyDialToPrivate(t.Context(), "", tt.address, nil),
 				ErrPrivateNetworkHost)
 		})
 	}
@@ -422,6 +422,7 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 	resp, err := NewRequestBuilder().Request(server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
+	t.Log(resp.Err())
 	require.ErrorIs(t, resp.Err(), ErrPrivateNetworkHost)
 
 	t.Setenv("FETCHER_ALLOW_PRIVATE_NETWORKS", "1")

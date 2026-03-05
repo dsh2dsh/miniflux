@@ -273,7 +273,7 @@ func withoutRedirects(*http.Request, []*http.Request) error {
 func (self *RequestBuilder) transport(proxyURL *url.URL) http.RoundTripper {
 	dialer := &net.Dialer{Timeout: self.Timeout()}
 	if !self.allowPrivateNets {
-		dialer.Control = denyDialToPrivate
+		dialer.ControlContext = denyDialToPrivate
 	}
 
 	transport := &http.Transport{
@@ -307,7 +307,9 @@ func (self *RequestBuilder) transport(proxyURL *url.URL) http.RoundTripper {
 	return gzhttp.Transport(transport)
 }
 
-func denyDialToPrivate(network, address string, _ syscall.RawConn) error {
+func denyDialToPrivate(ctx context.Context, network, address string,
+	_ syscall.RawConn,
+) error {
 	host, _, err := net.SplitHostPort(address)
 	if err != nil {
 		return fmt.Errorf("%w: split %q: %w", ErrPrivateNetworkHost, address, err)
@@ -329,10 +331,16 @@ func denyDialToPrivate(network, address string, _ syscall.RawConn) error {
 		return nil
 	}
 
-	ok := config.FetcherHostPermitted(address) ||
-		config.FetcherHostPermitted(host)
+	var reqURL string
+	if req := requestFromContext(ctx); req != nil {
+		reqURL = req.URL.String()
+	}
+
+	ok := config.FetcherHostPermitted(address, reqURL) ||
+		config.FetcherHostPermitted(host, reqURL)
 	if !ok {
-		return fmt.Errorf("%w: access denied: %s", ErrPrivateNetworkHost, address)
+		return fmt.Errorf("%w: address=%q url=%q", ErrPrivateNetworkHost, address,
+			reqURL)
 	}
 	return nil
 }
@@ -360,7 +368,9 @@ func (self *RequestBuilder) Do(req *http.Request) (*ResponseSemaphore, error) {
 	if req.Header.Get(uaHeaderName) == "" {
 		req.Header.Set(uaHeaderName, config.HTTPClientUserAgent())
 	}
-	return NewResponseSemaphore(self, req)
+
+	return NewResponseSemaphore(self,
+		req.WithContext(contextWithRequest(req.Context(), req)))
 }
 
 func (self *RequestBuilder) Request(requestURL string) (*ResponseSemaphore,

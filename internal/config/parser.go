@@ -24,7 +24,7 @@ func (p *Parser) ParseEnvironmentVariables() (*options, error) {
 	if err := env.Parse(p.env()); err != nil {
 		return nil, fmt.Errorf("config: failed parse env vars: %w", err)
 	} else if err := p.opts.init(); err != nil {
-		return nil, fmt.Errorf("failed parse env vars: %w", err)
+		return nil, fmt.Errorf("config: failed parse options: %w", err)
 	}
 	return p.opts, nil
 }

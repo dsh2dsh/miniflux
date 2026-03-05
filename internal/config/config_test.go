@@ -988,3 +988,11 @@ func TestLoadYAML_findHostLimits(t *testing.T) {
 		})
 	}
 }
+
+func TestLoadYAML_privateHosts(t *testing.T) {
+	os.Clearenv()
+	require.NoError(t, LoadYAML("testdata/private_hosts.yaml", ""))
+	assert.Equal(t, map[string][]string{
+		"192.168.0.1:443": {"https://locahost/rss-bridge/"},
+	}, opts.yaml.PrivateHosts)
+}

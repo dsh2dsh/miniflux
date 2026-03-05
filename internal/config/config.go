@@ -39,7 +39,7 @@ func LoadYAML(filename, envName string) error {
 		return fmt.Errorf("config: reading %q: %w", filename, err)
 	}
 
-	if err := yaml.Unmarshal(b, cfg.opts); err != nil {
+	if err := yaml.Unmarshal(b, &cfg.opts.yaml); err != nil {
 		return fmt.Errorf("config: parse yaml %q: %w", filename, err)
 	}
 	return parseEnvFile(cfg, envName)

@@ -1,0 +1,3 @@
+privateHosts:
+  "192.168.0.1:443":
+    - "https://locahost/rss-bridge/"

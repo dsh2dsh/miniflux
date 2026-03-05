@@ -35,9 +35,8 @@ type Option struct {
 
 // options contains configuration options.
 type options struct {
-	HostLimits map[string]HostLimits `yaml:"host_limits" validate:"dive,keys,required,endkeys,required"`
-
-	env envOptions
+	env  envOptions
+	yaml yamlOptions
 
 	root     *url.URL
 	rootURL  string
@@ -46,11 +45,6 @@ type options struct {
 	fetcherPrivateHosts  map[string]bool
 	mediaProxyPrivateKey []byte
 	trustedProxies       map[string]struct{}
-}
-
-type HostLimits struct {
-	Connections int64   `yaml:"connections" validate:"omitempty,min=0"`
-	Rate        float64 `yaml:"rate" validate:"omitempty,min=0"`
 }
 
 func (self *HostLimits) withDefaults(connections int64, rate float64,
@@ -173,7 +167,9 @@ func NewOptions() *options {
 	maxConns := max(4, runtime.GOMAXPROCS(0))
 
 	return &options{
-		HostLimits: map[string]HostLimits{},
+		yaml: yamlOptions{
+			HostLimits: map[string]HostLimits{},
+		},
 
 		env: envOptions{
 			LogFile:                        "stderr",
@@ -251,8 +247,10 @@ func (o *options) init() (err error) {
 }
 
 func (o *options) validate() error {
-	if err := Validator().Struct(&o.env); err != nil {
-		return fmt.Errorf("config: failed validate: %w", err)
+	for _, ref := range [...]any{&o.env, &o.yaml} {
+		if err := Validator().Struct(ref); err != nil {
+			return fmt.Errorf("validate: %w", err)
+		}
 	}
 
 	if o.env.DisableLocalAuth {
@@ -510,19 +508,33 @@ func FetcherAllowPrivateNetworks() bool {
 	return opts.env.FetcherAllowPrivateNets
 }
 
-func FetcherHostPermitted(address string) bool {
-	if len(opts.env.FetcherAllowPrivateHosts) == 0 {
+func FetcherHostPermitted(address, reqURL string) bool {
+	if len(opts.env.FetcherAllowPrivateHosts) != 0 {
+		m := opts.fetcherPrivateHosts
+		if m == nil {
+			m = make(map[string]bool, len(opts.env.FetcherAllowPrivateHosts))
+			for _, s := range opts.env.FetcherAllowPrivateHosts {
+				m[s] = true
+			}
+			opts.fetcherPrivateHosts = m
+		}
+		if m[address] {
+			return true
+		}
+	}
+
+	if reqURL == "" {
 		return false
 	}
 
-	if opts.fetcherPrivateHosts == nil {
-		m := make(map[string]bool, len(opts.env.FetcherAllowPrivateHosts))
-		for _, s := range opts.env.FetcherAllowPrivateHosts {
-			m[s] = true
-		}
-		opts.fetcherPrivateHosts = m
+	m := opts.yaml.PrivateHosts
+	if len(m) == 0 {
+		return false
 	}
-	return opts.fetcherPrivateHosts[address]
+
+	return slices.ContainsFunc(m[address], func(prefix string) bool {
+		return strings.HasPrefix(reqURL, prefix)
+	})
 }
 
 func HTTPS() bool  { return opts.env.HTTPS }
@@ -872,7 +884,7 @@ func Logging() []Log {
 
 func FindHostLimits(hostname string) (found HostLimits) {
 	for hostname != "" {
-		if limits, ok := opts.HostLimits[hostname]; ok {
+		if limits, ok := opts.yaml.HostLimits[hostname]; ok {
 			found = limits
 			break
 		}

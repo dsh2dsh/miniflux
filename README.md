@@ -322,6 +322,17 @@ This project is an opinionated fork of Miniflux.
 
   miniflux has access to 127.0.0.1 (any port) and 10.0.0.1 (port 443 only).
 
+  Access to private hosts also can be configured using YAML config like:
+
+  ```yaml
+  privateHosts:
+    "192.168.0.1:443":
+      - "https://example.com/rss-bridge/"
+  ```
+
+  This configuration permits access to `192.168.0.1:443` only if requested URL
+  string begins with `https://example.com/rss-bridge/`.
+
 ---
 
 Features
