@@ -48,6 +48,7 @@ var (
 	errEmptyFeedTitle   = errors.New("googlereader: empty feed title")
 	errFeedNotFound     = errors.New("googlereader: feed not found")
 	errCategoryNotFound = errors.New("googlereader: category not found")
+	errSimultaneously   = fmt.Errorf("googlereader: %s and %s should not be supplied simultaneously", keptUnreadStreamSuffix, readStreamSuffix)
 )
 
 // Serve handles Google Reader API calls.
@@ -80,12 +81,12 @@ func checkAndSimplifyTags(addTags, removeTags []Stream) (map[StreamType]bool, er
 		switch s.Type {
 		case ReadStream:
 			if _, ok := tags[KeptUnreadStream]; ok {
-				return nil, fmt.Errorf("googlereader: %s and %s should not be supplied simultaneously", keptUnreadStreamSuffix, readStreamSuffix)
+				return nil, errSimultaneously
 			}
 			tags[ReadStream] = true
 		case KeptUnreadStream:
 			if _, ok := tags[ReadStream]; ok {
-				return nil, fmt.Errorf("googlereader: %s and %s should not be supplied simultaneously", keptUnreadStreamSuffix, readStreamSuffix)
+				return nil, errSimultaneously
 			}
 			tags[ReadStream] = false
 		case StarredStream:
@@ -100,12 +101,12 @@ func checkAndSimplifyTags(addTags, removeTags []Stream) (map[StreamType]bool, er
 		switch s.Type {
 		case ReadStream:
 			if _, ok := tags[ReadStream]; ok {
-				return nil, fmt.Errorf("googlereader: %s and %s should not be supplied simultaneously", keptUnreadStreamSuffix, readStreamSuffix)
+				return nil, errSimultaneously
 			}
 			tags[ReadStream] = false
 		case KeptUnreadStream:
 			if _, ok := tags[ReadStream]; ok {
-				return nil, fmt.Errorf("googlereader: %s and %s should not be supplied simultaneously", keptUnreadStreamSuffix, readStreamSuffix)
+				return nil, errSimultaneously
 			}
 			tags[ReadStream] = true
 		case StarredStream:
@@ -737,10 +738,12 @@ func (h *handler) streamItemContentsHandler(w http.ResponseWriter,
 		Author: user.Username,
 	}
 
-	userReadingList := fmt.Sprintf(userStreamPrefix, user.ID) + readingListStreamSuffix
-	userRead := fmt.Sprintf(userStreamPrefix, user.ID) + readStreamSuffix
-	userStarred := fmt.Sprintf(userStreamPrefix, user.ID) + starredStreamSuffix
+	streamPrefix := fmt.Sprintf(userStreamPrefix, user.ID)
+	userReadingList := streamPrefix + readingListStreamSuffix
+	userRead := streamPrefix + readStreamSuffix
+	userStarred := streamPrefix + starredStreamSuffix
 
+	labelPrefix := fmt.Sprintf(userLabelPrefix, user.ID)
 	items := make([]contentItem, len(entries))
 	for i, entry := range entries {
 		enclosures := make([]contentItemEnclosure, len(entry.Enclosures()))
@@ -754,8 +757,7 @@ func (h *handler) streamItemContentsHandler(w http.ResponseWriter,
 		categories := make([]string, 0, 4)
 		categories = append(categories, userReadingList)
 		if entry.Feed.Category.Title != "" {
-			categories = append(categories,
-				fmt.Sprintf(userLabelPrefix, user.ID)+entry.Feed.Category.Title)
+			categories = append(categories, labelPrefix+entry.Feed.Category.Title)
 		}
 		if entry.Status == model.EntryStatusRead {
 			categories = append(categories, userRead)
@@ -931,9 +933,11 @@ func (h *handler) tagListHandler(w http.ResponseWriter, r *http.Request) {
 	result.Tags = append(result.Tags, subscriptionCategoryResponse{
 		ID: fmt.Sprintf(userStreamPrefix, userID) + starredStreamSuffix,
 	})
+
+	labelPrefix := fmt.Sprintf(userLabelPrefix, userID)
 	for _, category := range categories {
 		result.Tags = append(result.Tags, subscriptionCategoryResponse{
-			ID:    fmt.Sprintf(userLabelPrefix, userID) + category.Title,
+			ID:    labelPrefix + category.Title,
 			Label: category.Title,
 			Type:  "folder",
 		})
@@ -966,6 +970,7 @@ func (h *handler) subscriptionListHandler(w http.ResponseWriter,
 	result := subscriptionsResponse{
 		Subscriptions: make([]subscriptionResponse, len(feeds)),
 	}
+	labelPrefix := fmt.Sprintf(userLabelPrefix, userID)
 	for i, feed := range feeds {
 		result.Subscriptions[i] = subscriptionResponse{
 			ID:    feedPrefix + strconv.FormatInt(feed.ID, 10),
@@ -973,7 +978,7 @@ func (h *handler) subscriptionListHandler(w http.ResponseWriter,
 			URL:   feed.FeedURL,
 			Categories: []subscriptionCategoryResponse{
 				{
-					ID:    fmt.Sprintf(userLabelPrefix, userID) + feed.Category.Title,
+					ID:    labelPrefix + feed.Category.Title,
 					Label: feed.Category.Title,
 					Type:  "folder",
 				},
