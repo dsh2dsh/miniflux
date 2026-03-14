@@ -62,7 +62,7 @@ jobs:
           PGPASSWORD: "postgres"
         run: |
           createuser -U postgres -e miniflux
-          make e2e
+          make -f BSDmakefile e2e
           dropuser -U postgres -e miniflux || true
 
       - name: "Archive e2e_api.log"
