@@ -1,3 +1,5 @@
+MAKECMD=	${MAKE} -f BSDmakefile
+
 .PHONY: e2e kill-e2e clean-e2e clean-e2e-error
 e2e:
 	dropdb --if-exists -U postgres miniflux_test
@@ -5,8 +7,8 @@ e2e:
 		-T template0 miniflux_test
 	go run ./cmd/api -local
 	go test -v -count=1 -tags e2e ${E2E_TEST_ARGS} ./internal/api || \
-		${MAKE} clean-e2e-error
-	${MAKE} clean-e2e
+		${MAKECMD} clean-e2e-error
+	${MAKECMD} clean-e2e
 
 kill-e2e:
 	[ -f "e2e_api.pid" ]
