@@ -195,7 +195,7 @@ func (self *RequestBuilder) execute(req *http.Request) (*http.Response,
 		proxyURLRedacted = proxyURL.Redacted()
 	}
 
-	log := logging.FromContext(self.Context())
+	log := logging.FromContext(req.Context())
 	log.Debug("Making outgoing request",
 		slog.Bool("customized", self.customizedClient),
 		slog.String("method", req.Method),
@@ -402,7 +402,7 @@ func (self *RequestBuilder) makeRequest(ctx context.Context, requestURL string,
 func (self *RequestBuilder) RequestWithContext(ctx context.Context,
 	requestURL string,
 ) (*ResponseSemaphore, error) {
-	req, err := self.makeRequest(ctx, requestURL)
+	req, err := self.WithContext(ctx).makeRequest(ctx, requestURL)
 	if err != nil {
 		return nil, err
 	}

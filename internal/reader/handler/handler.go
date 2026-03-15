@@ -73,7 +73,7 @@ func (self *Create) FromRequest(ctx context.Context,
 			"error.category_not_found")
 	}
 
-	resp, err := NewRequestFeedCreation(r).Request(r.FeedURL)
+	resp, err := NewRequestFeedCreation(r).RequestWithContext(ctx, r.FeedURL)
 	if err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err,
 			"error.unable_to_parse_feed",
