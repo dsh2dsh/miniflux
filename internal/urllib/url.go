@@ -6,14 +6,9 @@ package urllib // import "miniflux.app/v2/internal/urllib"
 import (
 	"errors"
 	"fmt"
-	"net"
-	"net/netip"
 	"net/url"
-	"slices"
 	"strings"
 )
-
-var rfc6598SharedAddressSpacePrefix = netip.MustParsePrefix("100.64.0.0/10")
 
 // IsRelativePath reports whether the link is a relative path (no scheme, host, or scheme-relative // form).
 func IsRelativePath(link string) bool {
@@ -155,37 +150,4 @@ func JoinBaseURLAndPath(baseURL, path string) (string, error) {
 	}
 
 	return finalURL, nil
-}
-
-// ResolvesToPrivateIP resolves a hostname and reports whether any resolved IP address is non-public.
-func ResolvesToPrivateIP(host string) (bool, error) {
-	ips, err := net.LookupIP(host)
-	if err != nil {
-		return false, fmt.Errorf("urllib: %w", err)
-	}
-
-	if slices.ContainsFunc(ips, isNonPublicIP) {
-		return true, nil
-	}
-
-	return false, nil
-}
-
-// isNonPublicIP returns true if the given IP is private, loopback,
-// link-local, multicast, or unspecified.
-func isNonPublicIP(ip net.IP) bool {
-	if ip == nil {
-		return true
-	}
-
-	if addr, ok := netip.AddrFromSlice(ip); ok && rfc6598SharedAddressSpacePrefix.Contains(addr.Unmap()) {
-		return true
-	}
-
-	return ip.IsPrivate() ||
-		ip.IsLoopback() ||
-		ip.IsLinkLocalUnicast() ||
-		ip.IsLinkLocalMulticast() ||
-		ip.IsMulticast() ||
-		ip.IsUnspecified()
 }
