@@ -45,36 +45,6 @@ func TestDictWithInvalidMap(t *testing.T) {
 	}
 }
 
-func TestTruncateWithShortTexts(t *testing.T) {
-	scenarios := []string{"Short text", "Короткий текст"}
-
-	for _, input := range scenarios {
-		result := truncate(input, 25)
-		if result != input {
-			t.Fatalf(`Unexpected output, got %q instead of %q`, result, input)
-		}
-
-		result = truncate(input, len(input))
-		if result != input {
-			t.Fatalf(`Unexpected output, got %q instead of %q`, result, input)
-		}
-	}
-}
-
-func TestTruncateWithLongTexts(t *testing.T) {
-	scenarios := map[string]string{
-		"This is a really pretty long English text": "This is a really pretty l…",
-		"Это реально очень длинный русский текст":   "Это реально очень длинный…",
-	}
-
-	for input, expected := range scenarios {
-		result := truncate(input, 25)
-		if result != expected {
-			t.Fatalf(`Unexpected output, got %q instead of %q`, result, expected)
-		}
-	}
-}
-
 func TestIsEmail(t *testing.T) {
 	if !isEmail("user@domain.tld") {
 		t.Fatal(`This email is valid and should returns true`)

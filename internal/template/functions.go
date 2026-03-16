@@ -59,7 +59,6 @@ func (self *funcMap) Map() template.FuncMap {
 		"startsWith":         strings.HasPrefix,
 		"stylesheet":         self.stylesheet,
 		"theme_color":        model.ThemeColor,
-		"truncate":           truncate,
 		"urlEncode":          url.PathEscape,
 
 		"csp": func() *contentSecurityPolicy { return self.csp },
@@ -170,13 +169,6 @@ func dict(values ...any) (map[string]any, error) {
 		dict[key] = values[i+1]
 	}
 	return dict, nil
-}
-
-func truncate(str string, maxLen int) string {
-	if runes := []rune(str); len(runes) > maxLen {
-		return string(runes[:maxLen]) + "…"
-	}
-	return str
 }
 
 func isEmail(str string) bool {
