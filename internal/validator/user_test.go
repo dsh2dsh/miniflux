@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"miniflux.app/v2/internal/locale"
+	"miniflux.app/v2/internal/model"
 )
 
 func TestValidateUsername(t *testing.T) {
@@ -167,5 +168,24 @@ func TestValidateMediaPlaybackRate(t *testing.T) {
 		if err := validateMediaPlaybackRate(rate); err == nil {
 			t.Errorf("expected invalid rate %.2f to fail", rate)
 		}
+	}
+}
+
+func TestValidateUserModificationAllowsClearingFilterRules(t *testing.T) {
+	req := &model.UserModificationRequest{
+		BlockFilterEntryRules: new(string),
+		KeepFilterEntryRules:  new(string),
+	}
+	if err := ValidateUserModification(t.Context(), nil, 0, req); err != nil {
+		t.Fatalf("expected empty filter rules to be accepted, got %v", err)
+	}
+}
+
+func TestValidateUserModificationRejectsInvalidNonEmptyFilterRule(t *testing.T) {
+	req := &model.UserModificationRequest{
+		BlockFilterEntryRules: new("EntryTitle=["),
+	}
+	if err := ValidateUserModification(t.Context(), nil, 0, req); err == nil {
+		t.Fatal("expected invalid non-empty filter rules to be rejected")
 	}
 }
