@@ -32,8 +32,8 @@ func hasHTTPPrefix(inputURL string) bool {
 
 // IsAbsoluteURL reports whether the link is absolute.
 func IsAbsoluteURL(inputURL string) bool {
-	if hasHTTPPrefix(inputURL) {
-		return true
+	if !hasHTTPPrefix(inputURL) {
+		return false
 	}
 	parsedURL, err := url.Parse(inputURL)
 	if err != nil {

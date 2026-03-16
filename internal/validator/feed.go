@@ -10,6 +10,7 @@ import (
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/filter"
 	"miniflux.app/v2/internal/storage"
+	"miniflux.app/v2/internal/urllib"
 )
 
 // ValidateFeedCreation validates feed creation.
@@ -20,7 +21,7 @@ func ValidateFeedCreation(ctx context.Context, store *storage.Storage,
 		return locale.NewLocalizedError("error.feed_mandatory_fields")
 	}
 
-	if !IsValidURL(r.FeedURL) {
+	if !urllib.IsAbsoluteURL(r.FeedURL) {
 		return locale.NewLocalizedError("error.invalid_feed_url")
 	}
 
@@ -32,7 +33,7 @@ func ValidateFeedCreation(ctx context.Context, store *storage.Storage,
 		return locale.NewLocalizedError("error.feed_category_not_found")
 	}
 
-	if r.ProxyURL != "" && !IsValidURL(r.ProxyURL) {
+	if r.ProxyURL != "" && !urllib.IsAbsoluteURL(r.ProxyURL) {
 		return locale.NewLocalizedError("error.invalid_feed_proxy_url")
 	}
 
@@ -61,7 +62,7 @@ func ValidateFeedModification(ctx context.Context, store *storage.Storage,
 			return locale.NewLocalizedError("error.feed_url_not_empty")
 		}
 
-		if !IsValidURL(*r.FeedURL) {
+		if !urllib.IsAbsoluteURL(*r.FeedURL) {
 			return locale.NewLocalizedError("error.invalid_feed_url")
 		}
 
@@ -75,7 +76,7 @@ func ValidateFeedModification(ctx context.Context, store *storage.Storage,
 			return locale.NewLocalizedError("error.site_url_not_empty")
 		}
 
-		if !IsValidURL(*r.SiteURL) {
+		if !urllib.IsAbsoluteURL(*r.SiteURL) {
 			return locale.NewLocalizedError("error.invalid_site_url")
 		}
 	}
@@ -97,7 +98,7 @@ func ValidateFeedModification(ctx context.Context, store *storage.Storage,
 			return locale.NewLocalizedError("error.proxy_url_not_empty")
 		}
 
-		if !IsValidURL(*r.ProxyURL) {
+		if !urllib.IsAbsoluteURL(*r.ProxyURL) {
 			return locale.NewLocalizedError("error.invalid_feed_proxy_url")
 		}
 	}
