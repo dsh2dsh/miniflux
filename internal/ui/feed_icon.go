@@ -27,7 +27,7 @@ func (h *handler) showFeedIcon(w http.ResponseWriter, r *http.Request) {
 		WithHeader("Content-Security-Policy",
 			response.ContentSecurityPolicyForUntrustedContent).
 		WithHeader("Content-Type", icon.MimeType).
-		WithBody(icon.Content)
+		WithBodyAsBytes(icon.Content)
 
 	if icon.MimeType != "image/svg+xml" {
 		resp.WithoutCompression()

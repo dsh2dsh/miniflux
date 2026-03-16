@@ -22,7 +22,7 @@ func (h *handler) showBinaryFile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer f.Close()
 
-	resp := response.New(w, r).WithLongCaching().WithBody(f)
+	resp := response.New(w, r).WithLongCaching().WithBodyAsReader(f)
 	switch filepath.Ext(filename) {
 	case ".png":
 		resp.WithoutCompression().

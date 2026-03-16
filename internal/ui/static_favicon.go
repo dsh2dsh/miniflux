@@ -29,7 +29,7 @@ func (h *handler) showFavicon(w http.ResponseWriter, r *http.Request) {
 
 		b.WithHeader("Content-Type", "image/x-icon")
 		b.WithoutCompression()
-		b.WithBody(f)
+		b.WithBodyAsReader(f)
 		b.Write()
 	})
 }

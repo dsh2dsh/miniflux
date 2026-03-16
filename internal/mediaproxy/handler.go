@@ -161,7 +161,7 @@ func Serve(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		b.WithBody(resp.Body())
+		b.WithBodyAsReader(resp.Body())
 		b.WithoutCompression()
 		b.Write()
 	})

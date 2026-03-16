@@ -51,6 +51,26 @@ func (b *Builder) WithBody(body any) *Builder {
 	return b
 }
 
+// WithBodyAsBytes uses the given bytes to build the response.
+func (b *Builder) WithBodyAsBytes(body []byte) *Builder {
+	return b.WithBody(body)
+}
+
+// WithBodyAsBytes uses the given error to build the response.
+func (b *Builder) WithBodyAsError(body error) *Builder {
+	return b.WithBody(body)
+}
+
+// WithBodyAsString uses the given string to build the response.
+func (b *Builder) WithBodyAsString(body string) *Builder {
+	return b.WithBody(body)
+}
+
+// WithBodyAsReader uses the given reader to build the response.
+func (b *Builder) WithBodyAsReader(body io.Reader) *Builder {
+	return b.WithBody(body)
+}
+
 // WithAttachment forces the document to be downloaded by the web browser.
 func (b *Builder) WithAttachment(filename string) *Builder {
 	b.headers["Content-Disposition"] = "attachment; filename=" + filename

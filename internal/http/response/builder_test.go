@@ -4,6 +4,7 @@
 package response // import "miniflux.app/v2/internal/http/response"
 
 import (
+	"bytes"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -117,7 +118,7 @@ func TestBuildResponseWithError(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		New(w, r).WithBody(errors.New("Some error")).Write()
+		New(w, r).WithBodyAsError(errors.New("Some error")).Write()
 	})
 
 	handler.ServeHTTP(w, r)
@@ -138,7 +139,7 @@ func TestBuildResponseWithByteBody(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		New(w, r).WithBody([]byte("body")).Write()
+		New(w, r).WithBodyAsBytes([]byte("body")).Write()
 	})
 
 	handler.ServeHTTP(w, r)
@@ -160,7 +161,7 @@ func TestBuildResponseWithCachingEnabled(t *testing.T) {
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		New(w, r).WithCaching("etag", 1*time.Minute, func(b *Builder) {
-			b.WithBody("cached body")
+			b.WithBodyAsString("cached body")
 			b.Write()
 		})
 	})
@@ -201,7 +202,7 @@ func TestBuildResponseWithCachingAndEtag(t *testing.T) {
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		New(w, r).WithCaching("etag", 1*time.Minute, func(b *Builder) {
-			b.WithBody("cached body")
+			b.WithBodyAsString("cached body")
 			b.Write()
 		})
 	})
@@ -238,7 +239,7 @@ func TestBuildResponseWithCompression(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		New(w, r).WithBody([]byte("body")).Write()
+		New(w, r).WithBodyAsBytes([]byte("body")).Write()
 	})
 
 	handler.ServeHTTP(w, r)
@@ -253,10 +254,24 @@ func TestBuildResponseWithCompressionDisabled(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		New(w, r).WithBody([]byte("body")).WithoutCompression().Write()
+		New(w, r).WithBodyAsBytes([]byte("body")).WithoutCompression().Write()
 	})
 
 	handler.ServeHTTP(w, r)
 	resp := w.Result()
 	assert.NotEmpty(t, resp.Header.Get(gzhttp.HeaderNoCompression))
+}
+
+func TestBuildResponseWithReaderBody(t *testing.T) {
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
+	require.NoError(t, err)
+	require.NotNil(t, r)
+
+	w := httptest.NewRecorder()
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		New(w, r).WithBodyAsReader(bytes.NewBufferString("body")).Write()
+	})
+
+	handler.ServeHTTP(w, r)
+	assert.Equal(t, "body", w.Body.String())
 }

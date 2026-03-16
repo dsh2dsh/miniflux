@@ -12,7 +12,7 @@ func (h *handler) userStylesheet(w http.ResponseWriter, r *http.Request) {
 	response.New(w, r).
 		WithLongCaching().
 		WithHeader("Content-Type", "text/css; charset=utf-8").
-		WithBody(user.Stylesheet).
+		WithBodyAsString(user.Stylesheet).
 		Write()
 }
 
@@ -21,6 +21,6 @@ func (h *handler) userJavascript(w http.ResponseWriter, r *http.Request) {
 	response.New(w, r).
 		WithLongCaching().
 		WithHeader("Content-Type", "text/javascript; charset=utf-8").
-		WithBody(user.CustomJS).
+		WithBodyAsString(user.CustomJS).
 		Write()
 }

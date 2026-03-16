@@ -24,6 +24,6 @@ func (h *handler) showJavascript(w http.ResponseWriter, r *http.Request) {
 		WithHeader("Content-Encoding", "gzip").
 		WithLongCaching().
 		WithHeader("Content-Type", "text/javascript; charset=utf-8").
-		WithBody(compressed).
+		WithBodyAsBytes(compressed).
 		Write()
 }

@@ -230,7 +230,7 @@ func (h *handler) clientLogin(w http.ResponseWriter, r *http.Request) {
 
 	response.New(w, r).
 		WithHeader("Content-Type", "text/plain; charset=UTF-8").
-		WithBody(result.String()).
+		WithBodyAsString(result.String()).
 		Write()
 }
 

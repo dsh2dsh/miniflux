@@ -24,6 +24,6 @@ func (h *handler) showStylesheet(w http.ResponseWriter, r *http.Request) {
 		WithHeader("Content-Encoding", "gzip").
 		WithLongCaching().
 		WithHeader("Content-Type", "text/css; charset=utf-8").
-		WithBody(compressed).
+		WithBodyAsBytes(compressed).
 		Write()
 }

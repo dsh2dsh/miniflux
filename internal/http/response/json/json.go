@@ -31,7 +31,7 @@ func OK(w http.ResponseWriter, r *http.Request, body any) {
 
 	response.New(w, r).
 		WithHeader(contentType, contentTypeHeader).
-		WithBody(responseBody).
+		WithBodyAsBytes(responseBody).
 		Write()
 }
 
@@ -46,7 +46,7 @@ func Created(w http.ResponseWriter, r *http.Request, body any) {
 	response.New(w, r).
 		WithStatus(http.StatusCreated).
 		WithHeader(contentType, contentTypeHeader).
-		WithBody(responseBody).
+		WithBodyAsBytes(responseBody).
 		Write()
 }
 
@@ -98,7 +98,7 @@ func ServerError(w http.ResponseWriter, r *http.Request, err error) {
 	response.New(w, r).
 		WithStatus(statusCode).
 		WithHeader(contentType, contentTypeHeader).
-		WithBody(body).
+		WithBodyAsBytes(body).
 		Write()
 }
 
@@ -115,7 +115,7 @@ func BadRequest(w http.ResponseWriter, r *http.Request, err error) {
 	response.New(w, r).
 		WithStatus(statusCode).
 		WithHeader(contentType, contentTypeHeader).
-		WithBody(body).
+		WithBodyAsBytes(body).
 		Write()
 }
 
@@ -147,7 +147,7 @@ func Unauthorized(w http.ResponseWriter, r *http.Request) {
 	response.New(w, r).
 		WithStatus(statusCode).
 		WithHeader(contentType, contentTypeHeader).
-		WithBody(body).
+		WithBodyAsBytes(body).
 		Write()
 }
 
@@ -164,7 +164,7 @@ func Forbidden(w http.ResponseWriter, r *http.Request) {
 	response.New(w, r).
 		WithStatus(statusCode).
 		WithHeader(contentType, contentTypeHeader).
-		WithBody(body).
+		WithBodyAsBytes(body).
 		Write()
 }
 
@@ -181,7 +181,7 @@ func NotFound(w http.ResponseWriter, r *http.Request) {
 	response.New(w, r).
 		WithStatus(statusCode).
 		WithHeader(contentType, contentTypeHeader).
-		WithBody(body).
+		WithBodyAsBytes(body).
 		Write()
 }
 

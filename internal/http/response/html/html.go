@@ -66,7 +66,7 @@ func ServerError(w http.ResponseWriter, r *http.Request, err error) {
 			response.ContentSecurityPolicyForUntrustedContent).
 		WithHeader(contentType, textPlain).
 		WithHeader(cacheControl, cacheNoCache).
-		WithBody(html.EscapeString(err.Error())).
+		WithBodyAsString(html.EscapeString(err.Error())).
 		Write()
 }
 
@@ -80,7 +80,7 @@ func BadRequest(w http.ResponseWriter, r *http.Request, err error) {
 			response.ContentSecurityPolicyForUntrustedContent).
 		WithHeader(contentType, textPlain).
 		WithHeader(cacheControl, cacheNoCache).
-		WithBody(html.EscapeString(err.Error())).
+		WithBodyAsString(html.EscapeString(err.Error())).
 		Write()
 }
 
@@ -107,7 +107,7 @@ func Forbidden(w http.ResponseWriter, r *http.Request) {
 		WithStatus(statusCode).
 		WithHeader(contentType, textHTML).
 		WithHeader(cacheControl, cacheNoCache).
-		WithBody("Access Forbidden").
+		WithBodyAsString("Access Forbidden").
 		Write()
 }
 
@@ -119,7 +119,7 @@ func NotFound(w http.ResponseWriter, r *http.Request) {
 		WithStatus(statusCode).
 		WithHeader(contentType, textHTML).
 		WithHeader(cacheControl, cacheNoCache).
-		WithBody("Page Not Found").
+		WithBodyAsString("Page Not Found").
 		Write()
 }
 
@@ -139,7 +139,7 @@ func RequestedRangeNotSatisfiable(w http.ResponseWriter, r *http.Request,
 		WithHeader(contentType, textHTML).
 		WithHeader(cacheControl, cacheNoCache).
 		WithHeader("Content-Range", contentRange).
-		WithBody("Range Not Satisfiable").
+		WithBodyAsString("Range Not Satisfiable").
 		Write()
 }
 
