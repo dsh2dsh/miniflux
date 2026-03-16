@@ -62,7 +62,6 @@ type RequestBuilder struct {
 	disableHTTP2     bool
 	proxyRotator     *proxyrotator.ProxyRotator
 	feedProxyURL     string
-	allowPrivateNets bool
 
 	customizedClient bool
 }
@@ -72,11 +71,10 @@ func NewRequestBuilder() *RequestBuilder {
 	headers.Set(uaHeaderName, config.HTTPClientUserAgent())
 
 	return &RequestBuilder{
-		headers:          headers,
-		clientProxyURL:   config.HTTPClientProxyURL(),
-		clientTimeout:    config.HTTPClientTimeout(),
-		proxyRotator:     proxyrotator.ProxyRotatorInstance,
-		allowPrivateNets: config.FetcherAllowPrivateNetworks(),
+		headers:        headers,
+		clientProxyURL: config.HTTPClientProxyURL(),
+		clientTimeout:  config.HTTPClientTimeout(),
+		proxyRotator:   proxyrotator.ProxyRotatorInstance,
 	}
 }
 
@@ -272,7 +270,7 @@ func withoutRedirects(*http.Request, []*http.Request) error {
 
 func (self *RequestBuilder) transport(proxyURL *url.URL) http.RoundTripper {
 	dialer := &net.Dialer{Timeout: self.Timeout()}
-	if !self.allowPrivateNets {
+	if !config.FetcherAllowPrivateNetworks() {
 		dialer.ControlContext = denyDialToPrivate
 	}
 
@@ -325,7 +323,8 @@ func denyDialToPrivate(ctx context.Context, network, address string,
 		addr.IsLoopback() ||
 		addr.IsMulticast() ||
 		addr.IsPrivate() ||
-		addr.IsUnspecified()
+		addr.IsUnspecified() ||
+		config.FetcherDeniedNetwork(addr.Unmap())
 
 	if !private {
 		return nil

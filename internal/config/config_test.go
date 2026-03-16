@@ -4,6 +4,7 @@
 package config // import "miniflux.app/v2/internal/config"
 
 import (
+	"net/netip"
 	"os"
 	"testing"
 
@@ -995,4 +996,66 @@ func TestLoadYAML_privateHosts(t *testing.T) {
 	assert.Equal(t, map[string][]string{
 		"192.168.0.1:443": {"https://locahost/rss-bridge/"},
 	}, opts.yaml.PrivateHosts)
+}
+
+func TestFetcherDenyNetworks(t *testing.T) {
+	opts := parseEnvironmentVariables(t)
+	denyNetworks := func() []string {
+		nets := make([]string, len(opts.env.FetcherDenyNetworks))
+		for i, p := range opts.env.FetcherDenyNetworks {
+			nets[i] = p.String()
+		}
+		return nets
+	}
+	assert.Equal(t, []string{"100.64.0.0/10"}, denyNetworks())
+
+	os.Clearenv()
+	t.Setenv("FETCHER_DENY_NETWORKS", "1.0.0.0/8,2.0.0.0/24")
+	opts = parseEnvironmentVariables(t)
+	assert.Equal(t, []string{"1.0.0.0/8", "2.0.0.0/24"}, denyNetworks())
+}
+
+func TestFetcherDeniedNetwork(t *testing.T) {
+	tests := []struct {
+		name     string
+		networks string
+		addr     string
+		expected bool
+	}{
+		{
+			name:     "deny 100.64.0.1",
+			addr:     "100.64.0.1",
+			expected: true,
+		},
+		{
+			name:     "allow 1.0.0.1",
+			addr:     "1.0.0.1",
+			expected: false,
+		},
+		{
+			name:     "deny 1.0.0.1",
+			networks: "1.0.0.0/8,2.1.0.0/24",
+			addr:     "1.0.0.1",
+			expected: true,
+		},
+		{
+			name:     "allow 100.64.0.1",
+			networks: "1.0.0.0/8,2.1.3.0/24",
+			addr:     "100.64.0.1",
+			expected: false,
+		},
+	}
+
+	os.Clearenv()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			addr, err := netip.ParseAddr(tt.addr)
+			require.NoError(t, err)
+
+			t.Setenv("FETCHER_DENY_NETWORKS", tt.networks)
+			require.NoError(t, Load(""))
+
+			assert.Equal(t, tt.expected, FetcherDeniedNetwork(addr))
+		})
+	}
 }

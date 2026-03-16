@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"net/netip"
 	"net/url"
 	"runtime"
 	"slices"
@@ -94,7 +95,7 @@ type envOptions struct {
 	FetchNebulaWatchTime           bool     `env:"FETCH_NEBULA_WATCH_TIME"`
 	FetchOdyseeWatchTime           bool     `env:"FETCH_ODYSEE_WATCH_TIME"`
 	FetchYouTubeWatchTime          bool     `env:"FETCH_YOUTUBE_WATCH_TIME"`
-	FetcherAllowPrivateHosts       []string `env:"FETCHER_ALLOW_PRIVATE_HOSTS" validate:"dive,ip|hostname_port"`
+	FetcherAllowPrivateHosts       []string `env:"FETCHER_ALLOW_PRIVATE_HOSTS" validate:"dive,required,ip|hostname_port"`
 	FetcherAllowPrivateNets        bool     `env:"FETCHER_ALLOW_PRIVATE_NETWORKS"`
 	FilterEntryMaxAgeDays          int      `env:"FILTER_ENTRY_MAX_AGE_DAYS" validate:"min=0"`
 	ForceRefreshInterval           int      `env:"FORCE_REFRESH_INTERVAL" validate:"min=0"`
@@ -151,8 +152,9 @@ type envOptions struct {
 	YouTubeApiKey                  string   `env:"YOUTUBE_API_KEY"`
 	YouTubeEmbedUrlOverride        *url.URL `env:"YOUTUBE_EMBED_URL_OVERRIDE" envDefault:"https://www.youtube-nocookie.com/embed/"`
 
-	PollingErrorLimit int           `env:"POLLING_PARSING_ERROR_LIMIT" validate:"min=0"`
-	PollingErrorRetry time.Duration `env:"POLLING_ERROR_RETRY" validate:"min=0"`
+	FetcherDenyNetworks []netip.Prefix `env:"FETCHER_DENY_NETWORKS"`
+	PollingErrorLimit   int            `env:"POLLING_PARSING_ERROR_LIMIT" validate:"min=0"`
+	PollingErrorRetry   time.Duration  `env:"POLLING_ERROR_RETRY" validate:"min=0"`
 }
 
 type Log struct {
@@ -211,6 +213,10 @@ func NewOptions() *options {
 			ConnectionsPerServer:           8,
 			RateLimitPerServer:             10,
 			TrustedProxies:                 []string{"127.0.0.1"},
+
+			FetcherDenyNetworks: []netip.Prefix{
+				netip.MustParsePrefix("100.64.0.0/10"),
+			},
 		},
 
 		rootURL: defaultBaseURL,
@@ -394,6 +400,11 @@ func (o *options) sortedOptions(redactSecret bool) []Option {
 		mediaProxyPrivateKeyValue = "<binary-data>"
 	}
 
+	fetcherDenyNetworks := make([]string, len(o.env.FetcherDenyNetworks))
+	for i, p := range o.env.FetcherDenyNetworks {
+		fetcherDenyNetworks[i] = p.String()
+	}
+
 	keyValues := map[string]any{
 		"ADMIN_PASSWORD":                     secretValue(o.env.AdminPassword, redactSecret),
 		"ADMIN_USERNAME":                     o.env.AdminUsername,
@@ -428,6 +439,7 @@ func (o *options) sortedOptions(redactSecret bool) []Option {
 		"FETCH_YOUTUBE_WATCH_TIME":           o.env.FetchYouTubeWatchTime,
 		"FETCHER_ALLOW_PRIVATE_HOSTS":        strings.Join(o.env.FetcherAllowPrivateHosts, ","),
 		"FETCHER_ALLOW_PRIVATE_NETWORKS":     o.env.FetcherAllowPrivateNets,
+		"FETCHER_DENY_NETWORKS":              strings.Join(fetcherDenyNetworks, ","),
 		"FILTER_ENTRY_MAX_AGE_DAYS":          o.env.FilterEntryMaxAgeDays,
 		"FORCE_REFRESH_INTERVAL":             o.env.ForceRefreshInterval,
 		"HTTPS":                              !o.env.DisableHSTS,
@@ -506,6 +518,15 @@ func (o *options) String() string {
 
 func FetcherAllowPrivateNetworks() bool {
 	return opts.env.FetcherAllowPrivateNets
+}
+
+func FetcherDeniedNetwork(ip netip.Addr) bool {
+	for _, p := range opts.env.FetcherDenyNetworks {
+		if p.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 func FetcherHostPermitted(address, reqURL string) bool {

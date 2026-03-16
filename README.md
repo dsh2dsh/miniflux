@@ -333,6 +333,13 @@ This project is an opinionated fork of Miniflux.
   This configuration permits access to `192.168.0.1:443` only if requested URL
   string begins with `https://example.com/rss-bridge/`.
 
+* Deny access to configured list of IP networks.
+
+  `FETCHER_DENY_NETWORKS` contains list of forbidded networks. Default value is
+  `100.64.0.0/10`. The fetcher isn't allowed to access any IP address from that
+  list, like it can't access private networks. Exclusions can be configured
+  using `FETCHER_ALLOW_PRIVATE_HOSTS` or `privateHosts` (see above).
+
 ---
 
 Features
