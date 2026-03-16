@@ -27,11 +27,11 @@ const (
 )
 
 // OK creates a new HTML response with a 200 status code.
-func OK(w http.ResponseWriter, r *http.Request, body any) {
+func OK(w http.ResponseWriter, r *http.Request, body []byte) {
 	response.New(w, r).
 		WithHeader(contentType, textHTML).
 		WithHeader(cacheControl, cacheNoCache).
-		WithBody(body).
+		WithBodyAsBytes(body).
 		Write()
 }
 

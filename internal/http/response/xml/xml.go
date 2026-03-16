@@ -15,20 +15,20 @@ const (
 )
 
 // OK writes a standard XML response with a status 200 OK.
-func OK(w http.ResponseWriter, r *http.Request, body any) {
+func OK(w http.ResponseWriter, r *http.Request, body string) {
 	response.New(w, r).
 		WithHeader(contentType, textXML).
-		WithBody(body).
+		WithBodyAsString(body).
 		Write()
 }
 
 // Attachment forces the XML document to be downloaded by the web browser.
 func Attachment(w http.ResponseWriter, r *http.Request, filename string,
-	body any,
+	body string,
 ) {
 	response.New(w, r).
 		WithHeader(contentType, textXML).
 		WithAttachment(filename).
-		WithBody(body).
+		WithBodyAsString(body).
 		Write()
 }

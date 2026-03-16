@@ -19,7 +19,7 @@ func TestOKResponse(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		OK(w, r, "Some HTML")
+		OK(w, r, []byte("Some HTML"))
 	})
 
 	handler.ServeHTTP(w, r)
