@@ -57,6 +57,7 @@ func proxifyAbsoluteURL(m *mux.ServeMux, mimeType, mediaURL string) string {
 		return mediaURL
 	}
 
+	mimeType = strings.ToLower(mimeType)
 	i := slices.IndexFunc(config.MediaProxyResourceTypes(),
 		func(mediaType string) bool {
 			return strings.HasPrefix(mimeType, mediaType+"/")
