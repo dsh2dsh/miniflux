@@ -30,7 +30,7 @@ func hasHTTPPrefix(inputURL string) bool {
 	return strings.HasPrefix(inputURL, "https://") || strings.HasPrefix(inputURL, "http://")
 }
 
-// IsAbsoluteURL reports whether the link is absolute.
+// IsAbsoluteURL reports whether the link is absolute and starts with an HTTP or HTTPS scheme.
 func IsAbsoluteURL(inputURL string) bool {
 	if !hasHTTPPrefix(inputURL) {
 		return false
