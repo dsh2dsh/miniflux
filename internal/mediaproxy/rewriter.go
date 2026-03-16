@@ -48,7 +48,7 @@ func proxifyAbsoluteURL(m *mux.ServeMux, mimeType, mediaURL string) string {
 	}
 
 	u, err := url.Parse(mediaURL)
-	if err != nil {
+	if err != nil || !u.IsAbs() || u.Hostname() == "" {
 		return mediaURL
 	}
 
@@ -173,9 +173,10 @@ func (self *proxyRewriter) schemeOk(scheme string) bool {
 	case strings.EqualFold(scheme, "data"):
 		return false
 	case self.mode == "all":
-		return true
+		return strings.EqualFold(scheme, "http") ||
+			strings.EqualFold(scheme, "https")
 	}
-	return self.mode != "none" && !strings.EqualFold(scheme, "https")
+	return self.mode != "none" && strings.EqualFold(scheme, "http")
 }
 
 func (self *proxyRewriter) proxify(u *url.URL) *url.URL {
