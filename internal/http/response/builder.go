@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/klauspost/compress/gzhttp"
@@ -82,18 +83,23 @@ func (b *Builder) WithoutCompression() *Builder {
 }
 
 // WithCaching adds caching headers to the response.
-func (b *Builder) WithCaching(etag string, duration time.Duration, callback func(*Builder)) {
+func (b *Builder) WithCaching(contentHash string, duration time.Duration,
+	callback func(*Builder),
+) {
+	etag := `"` + contentHash + `"`
 	b.headers["ETag"] = etag
 	b.headers["Cache-Control"] = "public"
 	b.headers["Expires"] = time.Now().Add(duration).UTC().Format(http.TimeFormat)
 
-	if etag == b.r.Header.Get("If-None-Match") {
-		b.statusCode = http.StatusNotModified
-		b.body = nil
-		b.Write()
-	} else {
+	ifNoneMatch := strings.TrimSpace(b.r.Header.Get("If-None-Match"))
+	if ifNoneMatch != etag {
 		callback(b)
+		return
 	}
+
+	b.statusCode = http.StatusNotModified
+	b.body = nil
+	b.Write()
 }
 
 func (b *Builder) WithLongCaching() *Builder {

@@ -193,7 +193,7 @@ func TestBuildResponseWithCachingEnabled(t *testing.T) {
 
 func TestBuildResponseWithCachingAndEtag(t *testing.T) {
 	r, err := http.NewRequest(http.MethodGet, "/", nil)
-	r.Header.Set("If-None-Match", "etag")
+	r.Header.Set("If-None-Match", `"etag"`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,10 +210,8 @@ func TestBuildResponseWithCachingAndEtag(t *testing.T) {
 	handler.ServeHTTP(w, r)
 	resp := w.Result()
 
-	expectedStatusCode := http.StatusNotModified
-	if resp.StatusCode != expectedStatusCode {
-		t.Fatalf(`Unexpected status code, got %d instead of %d`, resp.StatusCode, expectedStatusCode)
-	}
+	assert.Equal(t, http.StatusNotModified, resp.StatusCode,
+		"Unexpected status code")
 
 	expectedBody := ``
 	actualBody := w.Body.String()
