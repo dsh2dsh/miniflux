@@ -15,6 +15,7 @@ import (
 
 	"miniflux.app/v2/internal/http/middleware"
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
@@ -30,7 +31,7 @@ func CORS(next http.Handler) http.Handler {
 			"X-Auth-Token, Authorization, Content-Type, Accept")
 		if r.Method == http.MethodOptions {
 			w.Header().Set("Access-Control-Max-Age", "3600")
-			w.WriteHeader(http.StatusOK)
+			response.NoContent(w, r)
 			return
 		}
 		next.ServeHTTP(w, r)
