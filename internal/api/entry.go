@@ -14,6 +14,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/integration"
 	"miniflux.app/v2/internal/mediaproxy"
@@ -204,7 +205,7 @@ func (h *handler) setEntryStatus(w http.ResponseWriter, r *http.Request) {
 		json.ServerError(w, r, err)
 		return
 	}
-	json.NoContent(w, r)
+	response.NoContent(w, r)
 }
 
 func (h *handler) toggleBookmark(w http.ResponseWriter, r *http.Request) {
@@ -214,7 +215,7 @@ func (h *handler) toggleBookmark(w http.ResponseWriter, r *http.Request) {
 		json.ServerError(w, r, err)
 		return
 	}
-	json.NoContent(w, r)
+	response.NoContent(w, r)
 }
 
 func (h *handler) saveEntry(w http.ResponseWriter, r *http.Request) {
@@ -238,7 +239,7 @@ func (h *handler) saveEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	integration.SendEntry(r.Context(), entry, user)
-	json.Accepted(w, r)
+	response.Accepted(w, r)
 }
 
 func (h *handler) updateEntry(w http.ResponseWriter, r *http.Request) {
@@ -405,7 +406,7 @@ func (h *handler) flushHistory(w http.ResponseWriter, r *http.Request) {
 		json.ServerError(w, r, err)
 		return
 	}
-	json.Accepted(w, r)
+	response.Accepted(w, r)
 }
 
 func configureFilters(builder *storage.EntryQueryBuilder, r *http.Request) {

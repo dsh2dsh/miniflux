@@ -50,21 +50,6 @@ func Created(w http.ResponseWriter, r *http.Request, body any) {
 		Write()
 }
 
-// NoContent sends a no content response to the client.
-func NoContent(w http.ResponseWriter, r *http.Request) {
-	response.New(w, r).
-		WithStatus(http.StatusNoContent).
-		WithHeader(contentType, contentTypeHeader).
-		Write()
-}
-
-func Accepted(w http.ResponseWriter, r *http.Request) {
-	response.New(w, r).
-		WithStatus(http.StatusAccepted).
-		WithHeader(contentType, contentTypeHeader).
-		Write()
-}
-
 // ServerError sends an internal error to the client.
 func ServerError(w http.ResponseWriter, r *http.Request, err error) {
 	log := logging.FromContext(r.Context()).With(

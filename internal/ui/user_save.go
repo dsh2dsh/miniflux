@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
@@ -17,7 +18,7 @@ import (
 func (h *handler) saveUser(w http.ResponseWriter, r *http.Request) {
 	user := request.User(r)
 	if !user.IsAdmin {
-		html.Forbidden(w, r)
+		response.Forbidden(w, r)
 		return
 	}
 
@@ -60,7 +61,7 @@ func (h *handler) saveUser(w http.ResponseWriter, r *http.Request) {
 
 	_, err := h.store.CreateUser(r.Context(), &createRequest)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 	h.redirect(w, r, "users")
@@ -71,10 +72,10 @@ func (h *handler) showSaveUserError(w http.ResponseWriter, r *http.Request,
 ) {
 	v := h.View(r)
 	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	} else if !v.User().IsAdmin {
-		html.Forbidden(w, r)
+		response.Forbidden(w, r)
 		return
 	}
 

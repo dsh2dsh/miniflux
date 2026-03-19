@@ -11,7 +11,7 @@ import (
 
 	"miniflux.app/v2/internal/http/cookie"
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/oauth2"
@@ -45,7 +45,7 @@ func (h *handler) oauth2Redirect(w http.ResponseWriter, r *http.Request) {
 			SetOAuth2State(auth.State()).
 			SetOAuth2CodeVerifier(auth.CodeVerifier()).
 			Commit(ctx)
-		html.Redirect(w, r, auth.RedirectURL())
+		response.Redirect(w, r, auth.RedirectURL())
 		return
 	}
 
@@ -58,7 +58,7 @@ func (h *handler) oauth2Redirect(w http.ResponseWriter, r *http.Request) {
 		h.redirect(w, r, "login")
 		return
 	}
-	html.Redirect(w, r, auth.RedirectURL())
+	response.Redirect(w, r, auth.RedirectURL())
 }
 
 func (h *handler) setSessionDataCookie(w http.ResponseWriter,

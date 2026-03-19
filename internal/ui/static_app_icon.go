@@ -9,7 +9,7 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
+
 	"miniflux.app/v2/internal/ui/static"
 )
 
@@ -17,7 +17,7 @@ func (h *handler) showBinaryFile(w http.ResponseWriter, r *http.Request) {
 	filename := request.RouteStringParam(r, "filename")
 	f, err := static.OpenBinaryFile(filename)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 	defer f.Close()

@@ -9,7 +9,7 @@ import (
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/ui/session"
@@ -46,7 +46,7 @@ func (h *handler) oauth2Unlink(w http.ResponseWriter, r *http.Request) {
 	user := request.User(r)
 	hasPassword, err := h.store.HasPassword(ctx, user.ID)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 
@@ -62,7 +62,7 @@ func (h *handler) oauth2Unlink(w http.ResponseWriter, r *http.Request) {
 
 	authProvider.UnsetUserProfileID(user)
 	if err := h.store.UpdateUser(ctx, user); err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 

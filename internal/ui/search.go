@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
@@ -37,11 +38,11 @@ func (h *handler) showSearchPage(w http.ResponseWriter, r *http.Request) {
 		var err error
 		entries, count, err = v.WaitEntriesCount(query)
 		if err != nil {
-			html.ServerError(w, r, err)
+			response.ServerError(w, r, err)
 			return
 		}
 	} else if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 

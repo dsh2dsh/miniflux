@@ -4,7 +4,8 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/html"
+
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/session"
 )
@@ -26,5 +27,5 @@ func (h *handler) switchTheme(w http.ResponseWriter, r *http.Request,
 ) {
 	s := session.New(h.store, r)
 	s.SetTheme(themeFn(request.User(r))).Commit(r.Context())
-	html.NoContent(w, r)
+	response.NoContent(w, r)
 }

@@ -9,6 +9,7 @@ import (
 	"net/url"
 
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
@@ -29,7 +30,7 @@ func (h *handler) renderTagEntries(w http.ResponseWriter, r *http.Request,
 ) {
 	tagName, err := url.PathUnescape(request.RouteStringParam(r, "tagName"))
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 
@@ -61,7 +62,7 @@ func (h *handler) renderTagEntries(w http.ResponseWriter, r *http.Request,
 
 	entries, count, err := v.WaitEntriesCount(query)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 

@@ -16,7 +16,6 @@ import (
 	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/reader/rewrite"
@@ -47,20 +46,20 @@ func Serve(w http.ResponseWriter, r *http.Request) {
 
 	encodedURL := request.RouteStringParam(r, "encodedURL")
 	if encodedURL == "" {
-		html.BadRequest(w, r, errors.New("no URL provided"))
+		response.BadRequest(w, r, errors.New("no URL provided"))
 		return
 	}
 
 	encodedDigest := request.RouteStringParam(r, "encodedDigest")
 	decodedDigest, err := base64.URLEncoding.DecodeString(encodedDigest)
 	if err != nil {
-		html.BadRequest(w, r, errors.New("unable to decode this digest"))
+		response.BadRequest(w, r, errors.New("unable to decode this digest"))
 		return
 	}
 
 	decodedURL, err := base64.URLEncoding.DecodeString(encodedURL)
 	if err != nil {
-		html.BadRequest(w, r, errors.New("unable to decode this URL"))
+		response.BadRequest(w, r, errors.New("unable to decode this URL"))
 		return
 	}
 
@@ -69,13 +68,13 @@ func Serve(w http.ResponseWriter, r *http.Request) {
 	expectedMAC := mac.Sum(nil)
 
 	if !hmac.Equal(decodedDigest, expectedMAC) {
-		html.Forbidden(w, r)
+		response.Forbidden(w, r)
 		return
 	}
 
 	u, err := url.Parse(string(decodedURL))
 	if err != nil {
-		html.BadRequest(w, r, errors.New("invalid URL provided"))
+		response.BadRequest(w, r, errors.New("invalid URL provided"))
 		return
 	}
 
@@ -85,7 +84,7 @@ func Serve(w http.ResponseWriter, r *http.Request) {
 	case u.Hostname() == "":
 		fallthrough
 	case !u.IsAbs():
-		html.BadRequest(w, r, errors.New("invalid URL provided"))
+		response.BadRequest(w, r, errors.New("invalid URL provided"))
 		return
 	}
 
@@ -128,7 +127,7 @@ func Serve(w http.ResponseWriter, r *http.Request) {
 	case http.StatusRequestedRangeNotSatisfiable:
 		log.Warn("MediaProxy: "+http.StatusText(statusCode),
 			slog.Int("status_code", statusCode))
-		html.RequestedRangeNotSatisfiable(w, r, resp.Header("Content-Range"))
+		response.RequestedRangeNotSatisfiable(w, r, resp.Header("Content-Range"))
 		return
 
 	case http.StatusOK, http.StatusPartialContent:

@@ -7,6 +7,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/mediaproxy"
 	"miniflux.app/v2/internal/model"
@@ -22,10 +23,10 @@ func (h *handler) inlineEntry(w http.ResponseWriter, r *http.Request) {
 		WithoutStatus(model.EntryStatusRemoved).
 		GetEntry(r.Context())
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	} else if entry == nil {
-		html.NotFound(w, r)
+		response.NotFound(w, r)
 		return
 	}
 
@@ -71,17 +72,17 @@ func (h *handler) downloadEntry(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err := g.Wait(); err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	} else if entry == nil || feed == nil {
-		html.NotFound(w, r)
+		response.NotFound(w, r)
 		return
 	}
 
 	err := processor.ProcessEntryWebPage(r.Context(), feed, entry, user,
 		sanitizer.WithRewriteURL(mediaproxy.New(h.router).RewriteURL))
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 

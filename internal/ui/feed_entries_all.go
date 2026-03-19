@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
@@ -38,10 +39,10 @@ func (h *handler) showFeedEntriesAllPage(w http.ResponseWriter,
 
 	entries, count, err := v.WaitEntriesCount(query)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	} else if feed == nil {
-		html.NotFound(w, r)
+		response.NotFound(w, r)
 		return
 	}
 

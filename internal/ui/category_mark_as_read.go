@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/html"
+
+	"miniflux.app/v2/internal/http/response"
 )
 
 func (h *handler) markCategoryAsRead(w http.ResponseWriter, r *http.Request) {
@@ -18,7 +19,7 @@ func (h *handler) markCategoryAsRead(w http.ResponseWriter, r *http.Request) {
 	_, err := h.store.MarkCategoryAsRead(r.Context(), userID, id,
 		time.Now())
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 	h.redirect(w, r, "categories")

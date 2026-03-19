@@ -7,7 +7,8 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/html"
+
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/xml"
 	"miniflux.app/v2/internal/reader/opml"
 )
@@ -16,7 +17,7 @@ func (h *handler) exportFeeds(w http.ResponseWriter, r *http.Request) {
 	opmlExport, err := opml.NewHandler(h.store).Export(r.Context(),
 		request.UserID(r))
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 	xml.Attachment(w, r, "feeds.opml", opmlExport)

@@ -9,6 +9,7 @@ import (
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
@@ -48,13 +49,13 @@ func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
 
 	feed, err := h.store.FeedByID(ctx, user.ID, feedID)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 
 	err = h.store.UpdateFeed(ctx, f.Merge(feed))
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 	h.redirect(w, r, "feedEntries", "feedID", feedID)
@@ -79,10 +80,10 @@ func (h *handler) showUpdateFeedError(w http.ResponseWriter, r *http.Request,
 	})
 
 	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	} else if feed == nil {
-		html.NotFound(w, r)
+		response.NotFound(w, r)
 		return
 	}
 

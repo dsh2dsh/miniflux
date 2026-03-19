@@ -12,7 +12,7 @@ import (
 	"miniflux.app/v2/internal/http/cookie"
 	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/http/securecookie"
 	"miniflux.app/v2/internal/logging"
@@ -97,7 +97,7 @@ func (m *middleware) redirectToLogin(w http.ResponseWriter, r *http.Request) {
 	if err := setLoginRedirect(w, m.secureCookie, redirect); err != nil {
 		log.Error("Unable to set login redirect", slog.Any("error", err))
 	}
-	html.Redirect(w, r, route.Path(m.router, "login"))
+	response.Redirect(w, r, route.Path(m.router, "login"))
 }
 
 func (m *middleware) handleAppSession(next http.Handler) http.Handler {
@@ -143,7 +143,7 @@ func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
 
 		user, err := m.store.UserByUsername(ctx, username)
 		if err != nil {
-			html.ServerError(w, r, err)
+			response.ServerError(w, r, err)
 			return
 		}
 
@@ -151,7 +151,7 @@ func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
 			if !config.IsAuthProxyUserCreationAllowed() {
 				log.Debug(
 					"[AuthProxy] User doesn't exist and user creation is not allowed")
-				html.Forbidden(w, r)
+				response.Forbidden(w, r)
 				return
 			}
 
@@ -159,7 +159,7 @@ func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
 				Username: username,
 			})
 			if err != nil {
-				html.ServerError(w, r, err)
+				response.ServerError(w, r, err)
 				return
 			}
 		}
@@ -167,7 +167,7 @@ func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
 		sess, err := m.store.CreateAppSessionForUser(r.Context(), user,
 			r.UserAgent(), clientIP)
 		if err != nil {
-			html.ServerError(w, r, err)
+			response.ServerError(w, r, err)
 			return
 		}
 
@@ -176,11 +176,11 @@ func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
 			slog.String("session_id", sess.ID))
 
 		if err := m.store.SetLastLogin(r.Context(), user.ID); err != nil {
-			html.ServerError(w, r, err)
+			response.ServerError(w, r, err)
 			return
 		}
 
 		http.SetCookie(w, cookie.NewSession(sess.ID))
-		html.Redirect(w, r, route.Path(m.router, user.DefaultHomePage))
+		response.Redirect(w, r, route.Path(m.router, user.DefaultHomePage))
 	})
 }

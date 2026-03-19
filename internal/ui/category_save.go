@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
@@ -23,7 +24,7 @@ func (h *handler) saveCategory(w http.ResponseWriter, r *http.Request) {
 	if lerr == nil {
 		_, err := h.store.CreateCategory(r.Context(), userID, &createRequest)
 		if err != nil {
-			html.ServerError(w, r, err)
+			response.ServerError(w, r, err)
 			return
 		}
 		h.redirect(w, r, "categories")
@@ -32,7 +33,7 @@ func (h *handler) saveCategory(w http.ResponseWriter, r *http.Request) {
 
 	v := h.View(r)
 	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 

@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/validator"
@@ -104,7 +105,7 @@ func (h *handler) markUserAsRead(w http.ResponseWriter, r *http.Request) {
 		json.ServerError(w, r, err)
 		return
 	}
-	json.NoContent(w, r)
+	response.NoContent(w, r)
 }
 
 func (h *handler) getIntegrationsStatus(w http.ResponseWriter, r *http.Request,
@@ -197,5 +198,5 @@ func (h *handler) removeUser(w http.ResponseWriter, r *http.Request) {
 		json.NotFound(w, r)
 		return
 	}
-	json.NoContent(w, r)
+	response.NoContent(w, r)
 }

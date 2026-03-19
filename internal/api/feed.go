@@ -13,6 +13,7 @@ import (
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
@@ -70,7 +71,7 @@ func (h *handler) refreshFeed(w http.ResponseWriter, r *http.Request) {
 		json.ServerError(w, r, err)
 		return
 	}
-	json.NoContent(w, r)
+	response.NoContent(w, r)
 }
 
 func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
@@ -92,7 +93,7 @@ func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
 		slog.Int64("user_id", userID))
 
 	h.pool.Wakeup()
-	json.NoContent(w, r)
+	response.NoContent(w, r)
 }
 
 func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
@@ -149,7 +150,7 @@ func (h *handler) markFeedAsRead(w http.ResponseWriter, r *http.Request) {
 		json.NotFound(w, r)
 		return
 	}
-	json.NoContent(w, r)
+	response.NoContent(w, r)
 }
 
 func (h *handler) getCategoryFeeds(w http.ResponseWriter, r *http.Request) {
@@ -222,5 +223,5 @@ func (h *handler) removeFeed(w http.ResponseWriter, r *http.Request) {
 		json.NotFound(w, r)
 		return
 	}
-	json.NoContent(w, r)
+	response.NoContent(w, r)
 }

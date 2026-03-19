@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/http/response"
 )
 
 func (h *handler) removeFeed(w http.ResponseWriter, r *http.Request) {
@@ -16,10 +16,10 @@ func (h *handler) removeFeed(w http.ResponseWriter, r *http.Request) {
 
 	affected, err := h.store.RemoveFeed(r.Context(), userID, id)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	} else if !affected {
-		html.NotFound(w, r)
+		response.NotFound(w, r)
 		return
 	}
 	h.redirect(w, r, "feeds")

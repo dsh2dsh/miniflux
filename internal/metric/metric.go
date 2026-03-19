@@ -14,7 +14,8 @@ import (
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/html"
+
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/storage"
 )
@@ -85,7 +86,7 @@ func Handler(store *storage.Storage) http.Handler {
 		}
 		if err := store.Metrics(ctx, fromDB); err != nil {
 			log.Error("unable collect storage metrics", slog.Any("error", err))
-			html.ServerError(w, r, err)
+			response.ServerError(w, r, err)
 			return
 		}
 		promHandler.ServeHTTP(w, r)

@@ -11,7 +11,7 @@ import (
 	hmw "miniflux.app/v2/internal/http/middleware"
 	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/http/securecookie"
@@ -288,13 +288,13 @@ func (h *handler) redirect(w http.ResponseWriter, r *http.Request,
 	if boosted := r.Header.Get("HX-Boosted"); boosted != "" {
 		log.Debug("redirect using HX-Location", slog.String("hx-boosted", boosted))
 		w.Header().Set("HX-Location", location)
-		html.NoContent(w, r)
+		response.NoContent(w, r)
 		return
 	}
 
 	if accept := r.Header.Get("Accept"); accept != "application/json" {
 		log.Debug("redirect using HTTP redirect", slog.String("accept", accept))
-		html.Redirect(w, r, location)
+		response.Redirect(w, r, location)
 		return
 	}
 

@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/model"
 )
@@ -30,10 +31,10 @@ func (h *handler) showCategoryFeedsPage(w http.ResponseWriter, r *http.Request,
 	})
 
 	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	} else if category == nil {
-		html.NotFound(w, r)
+		response.NotFound(w, r)
 		return
 	}
 

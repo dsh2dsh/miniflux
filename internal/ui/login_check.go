@@ -12,6 +12,7 @@ import (
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/cookie"
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/securecookie"
 	"miniflux.app/v2/internal/locale"
@@ -59,7 +60,7 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.store.UserByUsername(ctx, f.Username)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	} else if user == nil {
 		log.Warn("User not found")
@@ -72,12 +73,12 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 	sess, err := h.store.CreateAppSessionForUser(ctx, user, r.UserAgent(),
 		clientIP)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 
 	if err := h.store.SetLastLogin(ctx, user.ID); err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 
@@ -99,7 +100,7 @@ func (h *handler) redirectHome(w http.ResponseWriter, r *http.Request,
 
 	if redirect != "" {
 		log.Debug("Redirect back to original page", slog.String("uri", redirect))
-		html.Redirect(w, r, redirect)
+		response.Redirect(w, r, redirect)
 		return
 	}
 

@@ -6,6 +6,7 @@ package ui // import "miniflux.app/v2/internal/ui"
 import (
 	"net/http"
 
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/ui/form"
 )
@@ -13,7 +14,7 @@ import (
 func (h *handler) showCreateAPIKeyPage(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r)
 	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 

@@ -14,7 +14,7 @@ import (
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/cookie"
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
@@ -87,7 +87,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 				slog.String("field", profile.Key),
 				slog.String("value", profile.ID),
 				slog.Any("error", err))
-			html.ServerError(w, r, err)
+			response.ServerError(w, r, err)
 			return
 		}
 
@@ -110,7 +110,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 
 		authProvider.PopulateUserWithProfileID(user, profile)
 		if err := h.store.UpdateUser(ctx, user); err != nil {
-			html.ServerError(w, r, err)
+			response.ServerError(w, r, err)
 			return
 		}
 
@@ -121,22 +121,19 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.store.UserByField(ctx, profile.Key, profile.ID)
 	if err != nil {
-		html.ServerError(w, r, fmt.Errorf(
-			"ui: fetch user by OAuth2 profile (%q = %q): %w",
-			profile.Key, profile.ID, err))
+		response.ServerError(w, r, fmt.Errorf("ui: fetch user by OAuth2 profile (%q = %q): %w", profile.Key, profile.ID, err))
 		return
 	}
 
 	if user == nil {
 		if !config.IsOAuth2UserCreationAllowed() {
-			html.Forbidden(w, r)
+			response.Forbidden(w, r)
 			return
 		}
 
 		if h.store.UserExists(ctx, profile.Username) {
 			printer := locale.NewPrinter(request.UserLanguage(r))
-			html.BadRequest(w, r, errors.New(
-				printer.Print("error.user_already_exists")))
+			response.BadRequest(w, r, errors.New(printer.Print("error.user_already_exists")))
 			return
 		}
 
@@ -147,7 +144,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 
 		user, err = h.store.CreateUser(ctx, createRequest)
 		if err != nil {
-			html.ServerError(w, r, err)
+			response.ServerError(w, r, err)
 			return
 		}
 	}
@@ -155,7 +152,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 	clientIP := request.ClientIP(r)
 	s, err := h.store.CreateAppSessionForUser(ctx, user, r.UserAgent(), clientIP)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 
@@ -169,7 +166,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 		slog.String("session_id", s.ID))
 
 	if err := h.store.SetLastLogin(ctx, user.ID); err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 

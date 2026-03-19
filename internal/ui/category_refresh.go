@@ -10,7 +10,8 @@ import (
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/html"
+
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/ui/session"
 )
@@ -56,7 +57,7 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request,
 		WithoutDisabledFeeds().
 		ResetNextCheckAt(r.Context())
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return 0
 	}
 

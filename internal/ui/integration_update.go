@@ -10,7 +10,7 @@ import (
 
 	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/ui/form"
 	"miniflux.app/v2/internal/ui/session"
@@ -40,7 +40,7 @@ func (h *handler) updateIntegration(w http.ResponseWriter, r *http.Request) {
 		if f.GoogleReaderPassword != "" {
 			pw, err := crypto.HashPassword(f.GoogleReaderPassword)
 			if err != nil {
-				html.ServerError(w, r, err)
+				response.ServerError(w, r, err)
 				return
 			}
 			i.GoogleReaderPassword = pw
@@ -73,7 +73,7 @@ func (h *handler) updateIntegration(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.store.UpdateUser(ctx, user); err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 

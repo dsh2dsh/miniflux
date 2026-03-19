@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
@@ -38,20 +39,20 @@ func (h *handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 
 	category, err := h.store.Category(r.Context(), userID, id)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	} else if category == nil {
-		html.NotFound(w, r)
+		response.NotFound(w, r)
 		return
 	}
 
 	modifyRequest.Patch(category)
 	affected, err := h.store.UpdateCategory(r.Context(), category)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	} else if !affected {
-		html.NotFound(w, r)
+		response.NotFound(w, r)
 		return
 	}
 	h.redirect(w, r, "categoryFeeds", "categoryID", id)
@@ -70,10 +71,10 @@ func (h *handler) showUpdateCategoryError(w http.ResponseWriter,
 	})
 
 	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	} else if category == nil {
-		html.NotFound(w, r)
+		response.NotFound(w, r)
 		return
 	}
 

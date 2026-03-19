@@ -8,17 +8,17 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/http/response"
 )
 
 func (h *handler) deleteAPIKey(w http.ResponseWriter, r *http.Request) {
 	id := request.RouteInt64Param(r, "keyID")
 	affected, err := h.store.DeleteAPIKey(r.Context(), request.UserID(r), id)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	} else if !affected {
-		html.ServerError(w, r, errors.New("API Key not found"))
+		response.ServerError(w, r, errors.New("API Key not found"))
 		return
 	}
 	h.redirect(w, r, "apiKeys")

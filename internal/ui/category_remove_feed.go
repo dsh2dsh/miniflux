@@ -8,7 +8,7 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/logging"
 )
 
@@ -26,19 +26,19 @@ func (h *handler) removeCategoryFeed(w http.ResponseWriter, r *http.Request) {
 			slog.Int64("category_id", categoryID),
 			slog.Int64("feed_id", feedID),
 			slog.Any("error", err))
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	} else if !exists {
-		html.NotFound(w, r)
+		response.NotFound(w, r)
 		return
 	}
 
 	affected, err := h.store.RemoveFeed(r.Context(), userID, feedID)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	} else if !affected {
-		html.NotFound(w, r)
+		response.NotFound(w, r)
 		return
 	}
 	h.redirect(w, r, "categoryFeeds", "categoryID", categoryID)

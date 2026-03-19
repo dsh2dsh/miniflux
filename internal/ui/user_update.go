@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
@@ -25,13 +26,13 @@ func (h *handler) updateUser(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	} else if !v.User().IsAdmin {
-		html.Forbidden(w, r)
+		response.Forbidden(w, r)
 		return
 	} else if user == nil {
-		html.NotFound(w, r)
+		response.NotFound(w, r)
 		return
 	}
 
@@ -58,7 +59,7 @@ func (h *handler) updateUser(w http.ResponseWriter, r *http.Request) {
 	userForm.Merge(user)
 	err := h.store.UpdateUser(r.Context(), user)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 	h.redirect(w, r, "users")

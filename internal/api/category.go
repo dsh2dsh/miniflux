@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
@@ -93,7 +94,7 @@ func (h *handler) markCategoryAsRead(w http.ResponseWriter, r *http.Request) {
 		json.NotFound(w, r)
 		return
 	}
-	json.NoContent(w, r)
+	response.NoContent(w, r)
 }
 
 func (h *handler) getCategories(w http.ResponseWriter, r *http.Request) {
@@ -129,7 +130,7 @@ func (h *handler) removeCategory(w http.ResponseWriter, r *http.Request) {
 		json.NotFound(w, r)
 		return
 	}
-	json.NoContent(w, r)
+	response.NoContent(w, r)
 }
 
 func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request) {
@@ -153,5 +154,5 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request) {
 		slog.Int64("category_id", id))
 
 	h.pool.Wakeup()
-	json.NoContent(w, r)
+	response.NoContent(w, r)
 }

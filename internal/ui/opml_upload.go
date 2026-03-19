@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/reader/fetcher"
@@ -17,7 +18,7 @@ import (
 func (h *handler) uploadOPML(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r)
 	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 
@@ -56,7 +57,7 @@ func (h *handler) uploadOPML(w http.ResponseWriter, r *http.Request) {
 func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r)
 	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 
@@ -72,7 +73,7 @@ func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
 
 	responseHandler, err := fetcher.Request(opmlURL)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 	defer responseHandler.Close()

@@ -8,7 +8,8 @@ import (
 
 	"miniflux.app/v2/internal/http/cookie"
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/html"
+
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/storage"
 )
@@ -42,7 +43,7 @@ func (self *UserSession) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	user, sess, err := self.store.UserSession(ctx, id)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 	}
 
 	if sess == nil {

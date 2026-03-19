@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
@@ -64,7 +65,7 @@ func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 	user := request.User(r)
 	err := h.store.UpdateUser(r.Context(), f.Merge(user))
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 
@@ -102,7 +103,7 @@ func (h *handler) showUpdateSettingsError(w http.ResponseWriter,
 	})
 
 	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 

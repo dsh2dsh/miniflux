@@ -18,6 +18,7 @@ import (
 	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/http/cookie"
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/http/route"
@@ -370,32 +371,32 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, cookie.ExpiredSessionData())
 	http.SetCookie(w, cookie.NewSession(s.ID))
-	json.NoContent(w, r)
+	response.NoContent(w, r)
 }
 
 func (h *handler) renameCredential(w http.ResponseWriter, r *http.Request) {
 	v := h.View(r)
 	if err := v.Wait(); err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 
 	credentialHandleEncoded := request.RouteStringParam(r, "credentialHandle")
 	credentialHandle, err := hex.DecodeString(credentialHandleEncoded)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 
 	cred_uid, cred, err := h.store.WebAuthnCredentialByHandle(
 		r.Context(), credentialHandle)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 
 	if cred_uid != v.User().ID {
-		html.Forbidden(w, r)
+		response.Forbidden(w, r)
 		return
 	}
 
@@ -411,14 +412,14 @@ func (h *handler) saveCredential(w http.ResponseWriter, r *http.Request) {
 	credentialHandleEncoded := request.RouteStringParam(r, "credentialHandle")
 	credentialHandle, err := hex.DecodeString(credentialHandleEncoded)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 
 	newName := r.FormValue("name")
 	err = h.store.WebAuthnUpdateName(r.Context(), credentialHandle, newName)
 	if err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 	h.redirect(w, r, "settings")
@@ -444,7 +445,7 @@ func (h *handler) deleteCredential(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NoContent(w, r)
+	response.NoContent(w, r)
 }
 
 func (h *handler) deleteAllCredentials(w http.ResponseWriter, r *http.Request) {
@@ -454,5 +455,5 @@ func (h *handler) deleteAllCredentials(w http.ResponseWriter, r *http.Request) {
 		json.ServerError(w, r, err)
 		return
 	}
-	json.NoContent(w, r)
+	response.NoContent(w, r)
 }

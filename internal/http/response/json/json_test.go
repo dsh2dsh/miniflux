@@ -78,39 +78,6 @@ func TestCreatedResponse(t *testing.T) {
 	}
 }
 
-func TestNoContentResponse(t *testing.T) {
-	r, err := http.NewRequest(http.MethodGet, "/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	w := httptest.NewRecorder()
-
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		NoContent(w, r)
-	})
-
-	handler.ServeHTTP(w, r)
-	resp := w.Result()
-
-	expectedStatusCode := http.StatusNoContent
-	if resp.StatusCode != expectedStatusCode {
-		t.Fatalf(`Unexpected status code, got %d instead of %d`, resp.StatusCode, expectedStatusCode)
-	}
-
-	expectedBody := ``
-	actualBody := w.Body.String()
-	if actualBody != expectedBody {
-		t.Fatalf(`Unexpected body, got %s instead of %s`, actualBody, expectedBody)
-	}
-
-	expectedContentType := contentTypeHeader
-	actualContentType := resp.Header.Get("Content-Type")
-	if actualContentType != expectedContentType {
-		t.Fatalf(`Unexpected content type, got %q instead of %q`, actualContentType, expectedContentType)
-	}
-}
-
 func TestServerErrorResponse(t *testing.T) {
 	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {

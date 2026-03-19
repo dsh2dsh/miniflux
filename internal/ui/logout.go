@@ -8,14 +8,15 @@ import (
 
 	"miniflux.app/v2/internal/http/cookie"
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/html"
+
+	"miniflux.app/v2/internal/http/response"
 )
 
 func (h *handler) logout(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	sess := request.Session(r)
 	if err := h.store.RemoveAppSessionByID(ctx, sess.ID); err != nil {
-		html.ServerError(w, r, err)
+		response.ServerError(w, r, err)
 		return
 	}
 

@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/validator"
@@ -59,5 +60,5 @@ func (h *handler) deleteAPIKey(w http.ResponseWriter, r *http.Request) {
 		json.NotFound(w, r)
 		return
 	}
-	json.NoContent(w, r)
+	response.NoContent(w, r)
 }
