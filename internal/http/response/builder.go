@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/klauspost/compress/gzhttp"
+
+	"miniflux.app/v2/internal/logging"
 )
 
 const longCacheControl = "public, max-age=31536000, immutable"
@@ -126,9 +128,13 @@ func (b *Builder) Write() {
 		b.writeHeaders()
 		_, err := io.Copy(b.w, v)
 		if err != nil {
-			slog.Error("Unable to write response body", slog.Any("error", err))
+			b.logger().Error("Unable to write response body", slog.Any("error", err))
 		}
 	}
+}
+
+func (b *Builder) logger() *slog.Logger {
+	return logging.FromContext(b.r.Context())
 }
 
 func (b *Builder) writeHeaders() {
@@ -146,7 +152,7 @@ func (b *Builder) writeHeaders() {
 func (b *Builder) write(data []byte) {
 	b.writeHeaders()
 	if _, err := b.w.Write(data); err != nil {
-		slog.Error("http/response: unable to write response",
+		b.logger().Error("http/response: unable to write response",
 			slog.Any("error", err))
 	}
 }
