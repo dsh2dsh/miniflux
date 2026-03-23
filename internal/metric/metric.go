@@ -20,6 +20,12 @@ import (
 	"miniflux.app/v2/internal/storage"
 )
 
+// Status label values for histogram metrics.
+const (
+	StatusSuccess = "success"
+	StatusError   = "error"
+)
+
 // Prometheus Metrics.
 var (
 	BackgroundFeedRefreshDuration = prometheus.NewHistogramVec(

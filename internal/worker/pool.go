@@ -258,9 +258,9 @@ func (self *Pool) refreshFeed(job *queueItem) (*model.FeedRefreshed, error) {
 	}
 
 	if config.HasMetricsCollector() {
-		status := "success"
+		status := metric.StatusSuccess
 		if err != nil {
-			status = "error"
+			status = metric.StatusError
 		}
 		metric.BackgroundFeedRefreshDuration.
 			WithLabelValues(status).

@@ -237,9 +237,9 @@ func (self *FeedProcessor) Scrape(ctx context.Context, entry *model.Entry,
 	baseURL, content, err := scraper.ScrapeWebsite(ctx, builder, entry.URL,
 		self.feed.ScraperRules)
 	if config.HasMetricsCollector() {
-		status := "success"
+		status := metric.StatusSuccess
 		if err != nil {
-			status = "error"
+			status = metric.StatusError
 		}
 		metric.ScraperRequestDuration.
 			WithLabelValues(status).
