@@ -12,17 +12,14 @@ import (
 
 type ctxRequestId struct{}
 
-var requestIdKey ctxRequestId = struct{}{}
-
-func genRequestId() uint64 {
-	return atomic.AddUint64(&nextRequestId, 1)
-}
-
-var nextRequestId uint64
+var (
+	requestIdKey  ctxRequestId = struct{}{}
+	nextRequestId atomic.Uint64
+)
 
 func RequestId(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		id := genRequestId()
+		id := nextRequestId.Add(1)
 		ctx := context.WithValue(r.Context(), requestIdKey,
 			strconv.FormatUint(id, 10))
 		ctx = logging.WithLogger(ctx,
