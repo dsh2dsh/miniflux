@@ -10,7 +10,7 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/json"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/validator"
 )
@@ -18,8 +18,9 @@ import (
 type entriesStatusSetter func(ctx context.Context, userID int64, status string,
 	entryIDs []int64) (int, error)
 
-func (h *handler) updateEntriesStatus(w http.ResponseWriter, r *http.Request) {
-	handleEntriesStatus(w, r, h.setEntriesStatus)
+func (h *handler) updateEntriesStatus(w http.ResponseWriter, r *http.Request,
+) (int, error) {
+	return handleEntriesStatus(w, r, h.setEntriesStatus)
 }
 
 func (h *handler) setEntriesStatus(ctx context.Context, userID int64,
@@ -28,8 +29,10 @@ func (h *handler) setEntriesStatus(ctx context.Context, userID int64,
 	return len(entryIDs), h.store.SetEntriesStatus(ctx, userID, entryIDs, status)
 }
 
-func (h *handler) updateEntriesStatusCount(w http.ResponseWriter, r *http.Request) {
-	handleEntriesStatus(w, r, h.setEntriesStatusCount)
+func (h *handler) updateEntriesStatusCount(w http.ResponseWriter,
+	r *http.Request,
+) (int, error) {
+	return handleEntriesStatus(w, r, h.setEntriesStatusCount)
 }
 
 func (h *handler) setEntriesStatusCount(ctx context.Context, userID int64,
@@ -38,22 +41,20 @@ func (h *handler) setEntriesStatusCount(ctx context.Context, userID int64,
 	return h.store.SetEntriesStatusCount(ctx, userID, entryIDs, status)
 }
 
-func handleEntriesStatus(w http.ResponseWriter, r *http.Request,
+func handleEntriesStatus(_ http.ResponseWriter, r *http.Request,
 	statusSetterFunc entriesStatusSetter,
-) {
+) (int, error) {
 	update, err := decodeEntriesStatusUpdate(r)
 	if err != nil {
-		json.BadRequest(w, r, err)
-		return
+		return 0, response.WrapBadRequest(err)
 	}
 
 	count, err := statusSetterFunc(r.Context(), request.UserID(r), update.Status,
 		update.EntryIDs)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return 0, response.WrapServerError(err)
 	}
-	json.OK(w, r, count)
+	return count, nil
 }
 
 func decodeEntriesStatusUpdate(r *http.Request,

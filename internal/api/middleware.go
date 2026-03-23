@@ -16,7 +16,6 @@ import (
 	"miniflux.app/v2/internal/http/middleware"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/storage"
@@ -47,7 +46,7 @@ func requestUser(next http.Handler) http.Handler {
 				"[API] No Basic HTTP Authentication header sent with the request",
 				slog.Bool("authentication_failed", true))
 			w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-			json.Unauthorized(w, r)
+			response.UnauthorizedJSON(w, r)
 			return
 		}
 
@@ -93,12 +92,12 @@ func (self *keyAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	user, apiKey, err := self.store.UserAPIKey(ctx, token)
 	if err != nil {
-		json.ServerError(w, r, err)
+		response.ServerErrorJSON(w, r, err)
 		return
 	} else if user == nil {
 		log.Warn("[API] No user found with the provided API key",
 			slog.Bool("authentication_failed", true))
-		json.Unauthorized(w, r)
+		response.UnauthorizedJSON(w, r)
 		return
 	}
 	middleware.AccessLogUser(ctx, user)
@@ -133,7 +132,7 @@ func (self *keyAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := g.Wait(); err != nil {
-		json.ServerError(w, r, err)
+		response.ServerErrorJSON(w, r, err)
 		return
 	}
 	self.next.ServeHTTP(w, r.WithContext(request.WithUser(ctx, user)))
@@ -174,7 +173,7 @@ func (self *basicAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Warn(
 			"[API] No Basic HTTP Authentication header sent with the request",
 			slog.Bool("authentication_failed", true))
-		json.Unauthorized(w, r)
+		response.UnauthorizedJSON(w, r)
 		return
 	}
 
@@ -182,7 +181,7 @@ func (self *basicAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Warn(
 			"[API] Empty username or password provided during Basic HTTP Authentication",
 			slog.Bool("authentication_failed", true))
-		json.Unauthorized(w, r)
+		response.UnauthorizedJSON(w, r)
 		return
 	}
 	log = log.With(slog.String("username", username))
@@ -194,7 +193,7 @@ func (self *basicAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Warn(
 				"[API] Invalid username or password provided during Basic HTTP Authentication",
 				slog.Bool("authentication_failed", true))
-			json.Unauthorized(w, r)
+			response.UnauthorizedJSON(w, r)
 			return fmt.Errorf("%w: %w", errNotFound, err)
 		}
 		return nil
@@ -208,15 +207,15 @@ func (self *basicAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if err := g.Wait(); err != nil {
 		if errors.Is(err, errNotFound) {
-			json.Unauthorized(w, r)
+			response.UnauthorizedJSON(w, r)
 		} else {
-			json.ServerError(w, r, err)
+			response.ServerErrorJSON(w, r, err)
 		}
 		return
 	} else if user == nil {
 		log.Warn("[API] User not found while using Basic HTTP Authentication",
 			slog.Bool("authentication_failed", true))
-		json.Unauthorized(w, r)
+		response.UnauthorizedJSON(w, r)
 		return
 	}
 	middleware.AccessLogUser(ctx, user)
@@ -230,7 +229,7 @@ func (self *basicAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if lastLoginAt == nil || time.Since(*lastLoginAt) > 5*time.Minute {
 		if err := self.store.SetLastLogin(ctx, user.ID); err != nil {
 			log.Error("[API] failed set last login", slog.Any("error", err))
-			json.ServerError(w, r, err)
+			response.ServerErrorJSON(w, r, err)
 			return
 		}
 	}

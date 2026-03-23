@@ -11,192 +11,169 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/validator"
 )
 
-func (h *handler) currentUser(w http.ResponseWriter, r *http.Request) {
-	json.OK(w, r, request.User(r))
+func (h *handler) currentUser(w http.ResponseWriter, r *http.Request,
+) (*model.User, error) {
+	return request.User(r), nil
 }
 
-func (h *handler) createUser(w http.ResponseWriter, r *http.Request) {
+func (h *handler) createUser(w http.ResponseWriter, r *http.Request,
+) (*model.User, error) {
 	if !request.IsAdminUser(r) {
-		json.Forbidden(w, r)
-		return
+		return nil, response.ErrForbidden
 	}
 
 	var createRequest model.UserCreationRequest
 	if err := json_parser.NewDecoder(r.Body).Decode(&createRequest); err != nil {
-		json.BadRequest(w, r, err)
-		return
+		return nil, response.WrapBadRequest(err)
 	}
 
 	ctx := r.Context()
 	lerr := validator.ValidateUserCreationWithPassword(ctx, h.store,
 		&createRequest)
 	if lerr != nil {
-		json.BadRequest(w, r, lerr.Error())
-		return
+		return nil, response.WrapBadRequest(lerr.Error())
 	}
 
 	user, err := h.store.CreateUser(ctx, &createRequest)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, err
 	}
-	json.Created(w, r, user)
+	return user, nil
 }
 
-func (h *handler) updateUser(w http.ResponseWriter, r *http.Request) {
+func (h *handler) updateUser(w http.ResponseWriter, r *http.Request,
+) (*model.User, error) {
 	id := request.RouteInt64Param(r, "userID")
 	var m model.UserModificationRequest
 	if err := json_parser.NewDecoder(r.Body).Decode(&m); err != nil {
-		json.BadRequest(w, r, err)
-		return
+		return nil, response.WrapBadRequest(err)
 	}
 
 	ctx := r.Context()
 	user, err := h.store.UserByID(ctx, id)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, err
 	} else if user == nil {
-		json.NotFound(w, r)
-		return
+		return nil, response.ErrNotFound
 	}
 
 	if !request.IsAdminUser(r) {
 		if user.ID != request.UserID(r) {
-			json.Forbidden(w, r)
-			return
+			return nil, response.ErrForbidden
 		}
 
 		if m.IsAdmin != nil && *m.IsAdmin {
-			json.BadRequest(w, r, errors.New(
+			return nil, response.WrapBadRequest(errors.New(
 				"only administrators can change permissions of standard users"))
-			return
 		}
 	}
 
 	lerr := validator.ValidateUserModification(ctx, h.store, user.ID, &m)
 	if lerr != nil {
-		json.BadRequest(w, r, lerr.Error())
-		return
+		return nil, response.WrapBadRequest(lerr.Error())
 	}
 
 	m.Patch(user)
 	if err = h.store.UpdateUser(ctx, user); err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, err
 	}
-	json.Created(w, r, user)
+	return user, nil
 }
 
-func (h *handler) markUserAsRead(w http.ResponseWriter, r *http.Request) {
+func (h *handler) markUserAsRead(w http.ResponseWriter, r *http.Request) error {
 	id := request.RouteInt64Param(r, "userID")
 	if id != request.UserID(r) {
-		json.Forbidden(w, r)
-		return
+		return response.ErrForbidden
 	}
 
 	user := request.User(r)
 	if err := h.store.MarkAllAsRead(r.Context(), user.ID); err != nil {
-		json.ServerError(w, r, err)
-		return
+		return err
 	}
-	response.NoContent(w, r)
+	return nil
 }
 
 func (h *handler) getIntegrationsStatus(w http.ResponseWriter, r *http.Request,
-) {
+) (*integrationsStatusResponse, error) {
 	user := request.User(r)
-	json.OK(w, r, integrationsStatusResponse{
-		HasIntegrations: user.HasSaveEntry(),
-	})
+	return &integrationsStatusResponse{HasIntegrations: user.HasSaveEntry()}, nil
 }
 
-func (h *handler) users(w http.ResponseWriter, r *http.Request) {
+func (h *handler) users(w http.ResponseWriter, r *http.Request,
+) (model.Users, error) {
 	if !request.IsAdminUser(r) {
-		json.Forbidden(w, r)
-		return
+		return nil, response.ErrForbidden
 	}
 
 	users, err := h.store.Users(r.Context())
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, err
 	}
 
 	users.UseTimezone(request.UserTimezone(r))
-	json.OK(w, r, users)
+	return users, nil
 }
 
-func (h *handler) userByID(w http.ResponseWriter, r *http.Request) {
+func (h *handler) userByID(w http.ResponseWriter, r *http.Request,
+) (*model.User, error) {
 	if !request.IsAdminUser(r) {
-		json.Forbidden(w, r)
-		return
+		return nil, response.ErrForbidden
 	}
 
 	username := request.RouteStringParam(r, "userID")
 	if username == "" {
-		json.NotFound(w, r)
-		return
+		return nil, response.ErrNotFound
 	}
 
 	userID, err := strconv.ParseInt(username, 10, 64)
 	if err != nil {
-		h.userByUsername(w, r, username)
-		return
+		return h.userByUsername(w, r, username)
 	}
 
 	user, err := h.store.UserByID(r.Context(), userID)
 	if err != nil {
-		json.BadRequest(w, r, errors.New(
+		return nil, response.WrapBadRequest(errors.New(
 			"unable to fetch this user from the database"))
-		return
 	} else if user == nil {
-		json.NotFound(w, r)
-		return
+		return nil, response.ErrNotFound
 	}
 
 	user.UseTimezone(request.UserTimezone(r))
-	json.OK(w, r, user)
+	return user, nil
 }
 
-func (h *handler) userByUsername(w http.ResponseWriter, r *http.Request,
+func (h *handler) userByUsername(_ http.ResponseWriter, r *http.Request,
 	username string,
-) {
+) (*model.User, error) {
 	user, err := h.store.UserByUsername(r.Context(), username)
 	if err != nil {
-		json.BadRequest(w, r, errors.New(
+		return nil, response.WrapBadRequest(errors.New(
 			"unable to fetch this user from the database"))
-		return
 	} else if user == nil {
-		json.NotFound(w, r)
-		return
+		return nil, response.ErrNotFound
 	}
 
 	user.UseTimezone(request.UserTimezone(r))
-	json.OK(w, r, user)
+	return user, nil
 }
 
-func (h *handler) removeUser(w http.ResponseWriter, r *http.Request) {
+func (h *handler) removeUser(w http.ResponseWriter, r *http.Request) error {
 	userID := request.RouteInt64Param(r, "userID")
 	if !request.IsAdminUser(r) {
-		json.Forbidden(w, r)
-		return
+		return response.ErrForbidden
 	} else if userID == request.UserID(r) {
-		json.BadRequest(w, r, errors.New("you cannot remove yourself"))
-		return
+		return response.WrapBadRequest(errors.New("you cannot remove yourself"))
 	}
 
 	affected, err := h.store.RemoveUser(r.Context(), userID)
 	if err != nil {
-		json.ServerError(w, r, err)
+		return err
 	} else if !affected {
-		json.NotFound(w, r)
-		return
+		return response.ErrNotFound
 	}
-	response.NoContent(w, r)
+	return nil
 }

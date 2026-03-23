@@ -8,7 +8,7 @@ import (
 	"runtime"
 
 	"miniflux.app/v2/internal/http/mux"
-	"miniflux.app/v2/internal/http/response/json"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/template"
 	"miniflux.app/v2/internal/version"
@@ -38,60 +38,85 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 		templates: t,
 	}
 
-	m.HandleFunc("POST /users", handler.createUser).
-		HandleFunc("GET /users", handler.users).
-		HandleFunc("GET /users/{userID}", handler.userByID).
-		HandleFunc("PUT /users/{userID}", handler.updateUser).
-		HandleFunc("DELETE /users/{userID}", handler.removeUser).
-		HandleFunc("/users/{userID}/mark-all-as-read", handler.markUserAsRead).
-		HandleFunc("/me", handler.currentUser).
-		HandleFunc("POST /categories", handler.createCategory).
-		HandleFunc("GET /categories", handler.getCategories).
-		HandleFunc("PUT /categories/{categoryID}", handler.updateCategory).
-		HandleFunc("DELETE /categories/{categoryID}", handler.removeCategory).
+	m.HandleFunc("POST /users", response.CreatedJSON(handler.createUser)).
+		HandleFunc("GET /users", response.JSON(handler.users)).
+		HandleFunc("GET /users/{userID}", response.JSON(handler.userByID)).
+		HandleFunc("PUT /users/{userID}",
+			response.CreatedJSON(handler.updateUser)).
+		HandleFunc("DELETE /users/{userID}",
+			response.NoContentJSON(handler.removeUser)).
+		HandleFunc("/users/{userID}/mark-all-as-read",
+			response.NoContentJSON(handler.markUserAsRead)).
+		HandleFunc("/me", response.JSON(handler.currentUser)).
+		HandleFunc("POST /categories",
+			response.CreatedJSON(handler.createCategory)).
+		HandleFunc("GET /categories", response.JSON(handler.getCategories)).
+		HandleFunc("PUT /categories/{categoryID}",
+			response.CreatedJSON(handler.updateCategory)).
+		HandleFunc("DELETE /categories/{categoryID}",
+			response.NoContentJSON(handler.removeCategory)).
 		HandleFunc("/categories/{categoryID}/mark-all-as-read",
-			handler.markCategoryAsRead).
-		HandleFunc("/categories/{categoryID}/feeds", handler.getCategoryFeeds).
-		HandleFunc("/categories/{categoryID}/refresh", handler.refreshCategory).
-		HandleFunc("/categories/{categoryID}/entries", handler.getCategoryEntries).
+			response.NoContentJSON(handler.markCategoryAsRead)).
+		HandleFunc("/categories/{categoryID}/feeds",
+			response.JSON(handler.getCategoryFeeds)).
+		HandleFunc("/categories/{categoryID}/refresh",
+			response.NoContentJSON(handler.refreshCategory)).
+		HandleFunc("/categories/{categoryID}/entries",
+			response.JSON(handler.getCategoryEntries)).
 		HandleFunc("/categories/{categoryID}/entries/{entryID}",
-			handler.getCategoryEntry).
-		HandleFunc("/discover", handler.discoverSubscriptions).
-		HandleFunc("POST /feeds", handler.createFeed).
-		HandleFunc("GET /feeds", handler.getFeeds).
-		HandleFunc("GET /feeds/counters", handler.fetchCounters).
-		HandleFunc("PUT /feeds/refresh", handler.refreshAllFeeds).
-		HandleFunc("/feeds/{feedID}/refresh", handler.refreshFeed).
-		HandleFunc("GET /feeds/{feedID}", handler.getFeed).
-		HandleFunc("PUT /feeds/{feedID}", handler.updateFeed).
-		HandleFunc("DELETE /feeds/{feedID}", handler.removeFeed).
-		HandleFunc("/feeds/{feedID}/icon", handler.getIconByFeedID).
-		HandleFunc("/feeds/{feedID}/mark-all-as-read", handler.markFeedAsRead).
+			response.JSON(handler.getCategoryEntry)).
+		HandleFunc("/discover", response.JSON(handler.discoverSubscriptions)).
+		HandleFunc("POST /feeds", response.CreatedJSON(handler.createFeed)).
+		HandleFunc("GET /feeds", response.JSON(handler.getFeeds)).
+		HandleFunc("GET /feeds/counters", response.JSON(handler.fetchCounters)).
+		HandleFunc("PUT /feeds/refresh",
+			response.NoContentJSON(handler.refreshAllFeeds)).
+		HandleFunc("/feeds/{feedID}/refresh",
+			response.NoContentJSON(handler.refreshFeed)).
+		HandleFunc("GET /feeds/{feedID}", response.JSON(handler.getFeed)).
+		HandleFunc("PUT /feeds/{feedID}",
+			response.CreatedJSON(handler.updateFeed)).
+		HandleFunc("DELETE /feeds/{feedID}",
+			response.NoContentJSON(handler.removeFeed)).
+		HandleFunc("/feeds/{feedID}/icon",
+			response.JSON(handler.getIconByFeedID)).
+		HandleFunc("/feeds/{feedID}/mark-all-as-read",
+			response.NoContentJSON(handler.markFeedAsRead)).
 		HandleFunc("/export", handler.exportFeeds).
-		HandleFunc("/import", handler.importFeeds).
-		HandleFunc("POST /import/entries", handler.importEntries).
-		HandleFunc("/feeds/{feedID}/entries", handler.getFeedEntries).
-		HandleFunc("/feeds/{feedID}/entries/{entryID}", handler.getFeedEntry).
-		HandleFunc("GET /entries", handler.getEntries).
-		HandleFunc("PUT /entries", handler.setEntryStatus).
-		HandleFunc("GET /entries/{entryID}", handler.getEntry).
-		HandleFunc("PUT /entries/{entryID}", handler.updateEntry).
-		HandleFunc("/entries/{entryID}/bookmark", handler.toggleBookmark).
-		HandleFunc("/entries/{entryID}/save", handler.saveEntry).
-		HandleFunc("/entries/{entryID}/fetch-content", handler.fetchContent).
+		HandleFunc("/import", response.CreatedJSON(handler.importFeeds)).
+		HandleFunc("POST /import/entries",
+			response.CreatedJSON(handler.importEntries)).
+		HandleFunc("/feeds/{feedID}/entries",
+			response.JSON(handler.getFeedEntries)).
+		HandleFunc("/feeds/{feedID}/entries/{entryID}",
+			response.JSON(handler.getFeedEntry)).
+		HandleFunc("GET /entries", response.JSON(handler.getEntries)).
+		HandleFunc("PUT /entries", response.NoContentJSON(handler.setEntryStatus)).
+		HandleFunc("GET /entries/{entryID}", response.JSON(handler.getEntry)).
+		HandleFunc("PUT /entries/{entryID}",
+			response.CreatedJSON(handler.updateEntry)).
+		HandleFunc("/entries/{entryID}/bookmark",
+			response.NoContentJSON(handler.toggleBookmark)).
+		HandleFunc("/entries/{entryID}/save",
+			response.AcceptedJSON(handler.saveEntry)).
+		HandleFunc("/entries/{entryID}/fetch-content",
+			response.JSON(handler.fetchContent)).
 		HandleFunc("PUT /entries/{entryID}/enclosure/{at}",
-			handler.updateEnclosureAt).
-		HandleFunc("/flush-history", handler.flushHistory).
-		HandleFunc("/icons/{iconID}", handler.getIconByIconID).
-		HandleFunc("/integrations/status", handler.getIntegrationsStatus).
-		HandleFunc("/version", handler.versionHandler).
-		HandleFunc("POST /api-keys", handler.createAPIKey).
-		HandleFunc("GET /api-keys", handler.getAPIKeys).
-		HandleFunc("/api-keys/{apiKeyID}", handler.deleteAPIKey)
+			response.NoContentJSON(handler.updateEnclosureAt)).
+		HandleFunc("/flush-history", response.AcceptedJSON(handler.flushHistory)).
+		HandleFunc("/icons/{iconID}", response.JSON(handler.getIconByIconID)).
+		HandleFunc("/integrations/status",
+			response.JSON(handler.getIntegrationsStatus)).
+		HandleFunc("/version", response.JSON(handler.versionHandler)).
+		HandleFunc("POST /api-keys", response.CreatedJSON(handler.createAPIKey)).
+		HandleFunc("GET /api-keys", response.JSON(handler.getAPIKeys)).
+		HandleFunc("/api-keys/{apiKeyID}",
+			response.NoContentJSON(handler.deleteAPIKey))
 }
 
-func (h *handler) versionHandler(w http.ResponseWriter, r *http.Request) {
-	json.OK(w, r, &VersionResponse{
+func (h *handler) versionHandler(w http.ResponseWriter, r *http.Request,
+) (*VersionResponse, error) {
+	return &VersionResponse{
 		Version:   version.Version,
 		Commit:    version.Commit,
 		BuildDate: version.BuildDate,
@@ -99,5 +124,5 @@ func (h *handler) versionHandler(w http.ResponseWriter, r *http.Request) {
 		Compiler:  runtime.Compiler,
 		Arch:      runtime.GOARCH,
 		OS:        runtime.GOOS,
-	})
+	}, nil
 }

@@ -27,13 +27,18 @@ type Builder struct {
 }
 
 // New creates a new response builder.
-func New(w http.ResponseWriter, r *http.Request) *Builder {
-	return &Builder{
+func New(w http.ResponseWriter, r *http.Request, opts ...Option) *Builder {
+	b := &Builder{
 		w:          w,
 		r:          r,
 		statusCode: http.StatusOK,
 		headers:    make(map[string]string),
 	}
+
+	for _, fn := range opts {
+		fn(b)
+	}
+	return b
 }
 
 // WithStatus uses the given status code to build the response.

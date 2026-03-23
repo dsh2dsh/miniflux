@@ -12,7 +12,6 @@ import (
 	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/http/securecookie"
 	"miniflux.app/v2/internal/logging"
@@ -56,7 +55,8 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 		m.HandleFunc("/favicon.ico", h.showFavicon)
 		m.NameHandleFunc("/feed-icon/{externalIconID}", h.showFeedIcon, "feedIcon")
 		m.NameHandleFunc("/js/{name}", h.showJavascript, "javascript")
-		m.NameHandleFunc("/manifest.json", h.showWebManifest, "webManifest")
+		m.NameHandleFunc("/manifest.json", response.JSON(h.showWebManifest),
+			"webManifest")
 		m.NameHandleFunc("/offline", h.showOfflinePage, "offline")
 		m.HandleFunc("/robots.txt", robotsTxt)
 
@@ -66,10 +66,10 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 
 		// WebAuthn flow
 		if config.WebAuthn() {
-			m.NameHandleFunc("/webauthn/login/begin", h.beginLogin,
+			m.NameHandleFunc("/webauthn/login/begin", response.JSON(h.beginLogin),
 				"webauthnLoginBegin")
-			m.NameHandleFunc("/webauthn/login/finish", h.finishLogin,
-				"webauthnLoginFinish")
+			m.NameHandleFunc("/webauthn/login/finish",
+				response.NoContentJSON(h.finishLogin), "webauthnLoginFinish")
 		}
 
 		m.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", mediaproxy.Serve,
@@ -95,8 +95,10 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 	m.Group(func(m *mux.ServeMux) {
 		m.Use(mw.userNoRedirect(), mw.handleAppSession)
 
-		m.NameHandleFunc("/mark-all-as-read", h.markAllAsRead, "markAllAsRead")
-		m.NameHandleFunc("/history/flush", h.flushHistory, "flushHistory")
+		m.NameHandleFunc("/mark-all-as-read", response.JSON(h.markAllAsRead),
+			"markAllAsRead")
+		m.NameHandleFunc("/history/flush", response.JSON(h.flushHistory),
+			"flushHistory")
 
 		m.NameHandleFunc("POST /session/theme/dark", h.switchDark, "switchDark")
 		m.NameHandleFunc("POST /session/theme/light", h.switchLight, "switchLight")
@@ -104,27 +106,28 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 			"switchLightDark")
 
 		// Entry pages.
-		m.NameHandleFunc("/entry/{entryID}/bookmark", h.toggleBookmark,
-			"toggleBookmark")
+		m.NameHandleFunc("/entry/{entryID}/bookmark",
+			response.JSON(h.toggleBookmark), "toggleBookmark")
 		m.NameHandleFunc("/entry/{entryID}/inline", h.inlineEntry, "inlineEntry")
-		m.NameHandleFunc("/entry/{entryID}/save", h.saveEntry, "saveEntry")
+		m.NameHandleFunc("/entry/{entryID}/save",
+			response.CreatedJSON(h.saveEntry), "saveEntry")
 		m.NameHandleFunc("/entry/{entryID}/save-progression/{at}",
-			h.saveEnclosureProgression, "saveEnclosureProgression")
+			response.CreatedJSON(h.saveEnclosureProgression), "saveEnclosureProgression")
 
-		m.NameHandleFunc("/entries/status", h.updateEntriesStatus,
+		m.NameHandleFunc("/entries/status", response.JSON(h.updateEntriesStatus),
 			"updateEntriesStatus")
-		m.NameHandleFunc("/entries/status/count", h.updateEntriesStatusCount,
-			"updateEntriesStatusCount")
+		m.NameHandleFunc("/entries/status/count",
+			response.JSON(h.updateEntriesStatusCount), "updateEntriesStatusCount")
 
 		m.NameHandleFunc("/feed/{feedID}/entry/{entryID}/download", h.downloadEntry,
 			"downloadEntry")
 
 		if config.WebAuthn() {
 			// WebAuthn flow
-			m.NameHandleFunc("/webauthn/deleteall", h.deleteAllCredentials,
-				"webauthnDeleteAll")
-			m.NameHandleFunc("/webauthn/{credentialHandle}/delete", h.deleteCredential,
-				"webauthnDelete")
+			m.NameHandleFunc("/webauthn/deleteall",
+				response.NoContentJSON(h.deleteAllCredentials), "webauthnDeleteAll")
+			m.NameHandleFunc("/webauthn/{credentialHandle}/delete",
+				response.NoContentJSON(h.deleteCredential), "webauthnDelete")
 		}
 	})
 
@@ -250,10 +253,10 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 
 	if config.WebAuthn() {
 		// WebAuthn flow
-		m.NameHandleFunc("/webauthn/register/begin", h.beginRegistration,
-			"webauthnRegisterBegin")
-		m.NameHandleFunc("/webauthn/register/finish", h.finishRegistration,
-			"webauthnRegisterFinish")
+		m.NameHandleFunc("/webauthn/register/begin",
+			response.JSON(h.beginRegistration), "webauthnRegisterBegin")
+		m.NameHandleFunc("/webauthn/register/finish",
+			response.JSON(h.finishRegistration), "webauthnRegisterFinish")
 		m.NameHandleFunc("/webauthn/{credentialHandle}/rename", h.renameCredential,
 			"webauthnRename")
 		m.NameHandleFunc("/webauthn/{credentialHandle}/save", h.saveCredential,
@@ -278,6 +281,10 @@ func robotsTxt(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type redirectResponse struct {
+	URL string `json:"url"`
+}
+
 func (h *handler) redirect(w http.ResponseWriter, r *http.Request,
 	name string, args ...any,
 ) {
@@ -299,8 +306,5 @@ func (h *handler) redirect(w http.ResponseWriter, r *http.Request,
 	}
 
 	log.Debug("redirect using JSON payload")
-	resp := struct {
-		URL string `json:"url"`
-	}{URL: location}
-	json.OK(w, r, &resp)
+	response.MarshalJSON(w, r, &redirectResponse{URL: location})
 }

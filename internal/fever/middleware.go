@@ -11,7 +11,7 @@ import (
 
 	"miniflux.app/v2/internal/http/middleware"
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/json"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/storage"
 )
@@ -25,7 +25,7 @@ func requestUser(next http.Handler) http.Handler {
 				slog.Bool("authentication_failed", true),
 				slog.String("client_ip", request.ClientIP(r)),
 				slog.String("user_agent", r.UserAgent()))
-			json.OK(w, r, newAuthFailureResponse())
+			response.MarshalJSON(w, r, newAuthFailureResponse())
 			return
 		}
 
@@ -71,14 +71,14 @@ func (self *keyAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Error("[Fever] Unable to fetch user by API key",
 			slog.Bool("authentication_failed", true),
 			slog.Any("error", err))
-		json.OK(w, r, newAuthFailureResponse())
+		response.MarshalJSON(w, r, newAuthFailureResponse())
 		return
 	}
 
 	if user == nil || !user.Integration().FeverEnabled {
 		log.Warn("[Fever] No user found with the API key provided",
 			slog.Bool("authentication_failed", true))
-		json.OK(w, r, newAuthFailureResponse())
+		response.MarshalJSON(w, r, newAuthFailureResponse())
 		return
 	}
 	middleware.AccessLogUser(ctx, user)
@@ -93,7 +93,7 @@ func (self *keyAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if userLastLogin == nil || time.Since(*userLastLogin) > 5*time.Minute {
 		if err := self.store.SetLastLogin(ctx, user.ID); err != nil {
 			log.Error("[Fever] Failed set last login", slog.Any("error", err))
-			json.OK(w, r, newAuthFailureResponse())
+			response.MarshalJSON(w, r, newAuthFailureResponse())
 			return
 		}
 	}

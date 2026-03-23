@@ -15,7 +15,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/integration"
 	"miniflux.app/v2/internal/mediaproxy"
 	"miniflux.app/v2/internal/model"
@@ -28,90 +27,93 @@ import (
 
 func (h *handler) getEntryFromBuilder(w http.ResponseWriter, r *http.Request,
 	b *storage.EntryQueryBuilder,
-) {
+) (*model.Entry, error) {
 	entry, err := b.GetEntry(r.Context())
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, err
 	} else if entry == nil {
-		json.NotFound(w, r)
-		return
+		return nil, response.ErrNotFound
 	}
 
 	entry.Content = mediaproxy.RewriteDocumentWithAbsoluteProxyURL(h.router,
 		entry.Content)
 	mediaproxy.ProxifyEnclosures(h.router, entry.Enclosures())
-	json.OK(w, r, entry)
+	return entry, nil
 }
 
-func (h *handler) getFeedEntry(w http.ResponseWriter, r *http.Request) {
+func (h *handler) getFeedEntry(w http.ResponseWriter, r *http.Request,
+) (*model.Entry, error) {
 	feedID := request.RouteInt64Param(r, "feedID")
 	id := request.RouteInt64Param(r, "entryID")
-	h.getEntryFromBuilder(w, r, h.store.NewEntryQueryBuilder(request.UserID(r)).
-		WithFeedID(feedID).
-		WithEntryID(id).
-		WithoutStatus(model.EntryStatusRemoved))
+	return h.getEntryFromBuilder(w, r,
+		h.store.NewEntryQueryBuilder(request.UserID(r)).
+			WithFeedID(feedID).
+			WithEntryID(id).
+			WithoutStatus(model.EntryStatusRemoved))
 }
 
-func (h *handler) getCategoryEntry(w http.ResponseWriter, r *http.Request) {
+func (h *handler) getCategoryEntry(w http.ResponseWriter, r *http.Request,
+) (*model.Entry, error) {
 	categoryID := request.RouteInt64Param(r, "categoryID")
 	id := request.RouteInt64Param(r, "entryID")
-	h.getEntryFromBuilder(w, r, h.store.NewEntryQueryBuilder(request.UserID(r)).
-		WithCategoryID(categoryID).
-		WithEntryID(id).
-		WithoutStatus(model.EntryStatusRemoved))
+	return h.getEntryFromBuilder(w, r,
+		h.store.NewEntryQueryBuilder(request.UserID(r)).
+			WithCategoryID(categoryID).
+			WithEntryID(id).
+			WithoutStatus(model.EntryStatusRemoved))
 }
 
-func (h *handler) getEntry(w http.ResponseWriter, r *http.Request) {
+func (h *handler) getEntry(w http.ResponseWriter, r *http.Request,
+) (*model.Entry, error) {
 	id := request.RouteInt64Param(r, "entryID")
-	h.getEntryFromBuilder(w, r, h.store.NewEntryQueryBuilder(request.UserID(r)).
-		WithEntryID(id).
-		WithoutStatus(model.EntryStatusRemoved))
+	return h.getEntryFromBuilder(w, r,
+		h.store.NewEntryQueryBuilder(request.UserID(r)).
+			WithEntryID(id).
+			WithoutStatus(model.EntryStatusRemoved))
 }
 
-func (h *handler) getFeedEntries(w http.ResponseWriter, r *http.Request) {
+func (h *handler) getFeedEntries(w http.ResponseWriter, r *http.Request,
+) (*entriesResponse, error) {
 	feedID := request.RouteInt64Param(r, "feedID")
-	h.findEntries(w, r, feedID, 0)
+	return h.findEntries(w, r, feedID, 0)
 }
 
-func (h *handler) getCategoryEntries(w http.ResponseWriter, r *http.Request) {
+func (h *handler) getCategoryEntries(w http.ResponseWriter, r *http.Request,
+) (*entriesResponse, error) {
 	id := request.RouteInt64Param(r, "categoryID")
-	h.findEntries(w, r, 0, id)
+	return h.findEntries(w, r, 0, id)
 }
 
-func (h *handler) getEntries(w http.ResponseWriter, r *http.Request) {
-	h.findEntries(w, r, 0, 0)
+func (h *handler) getEntries(w http.ResponseWriter, r *http.Request,
+) (*entriesResponse, error) {
+	return h.findEntries(w, r, 0, 0)
 }
 
-func (h *handler) findEntries(w http.ResponseWriter, r *http.Request, feedID,
+func (h *handler) findEntries(_ http.ResponseWriter, r *http.Request, feedID,
 	categoryID int64,
-) {
+) (*entriesResponse, error) {
 	statuses := request.QueryStringParamList(r, "status")
 	for _, status := range statuses {
 		if err := validator.ValidateEntryStatus(status); err != nil {
-			json.BadRequest(w, r, err)
-			return
+			return nil, response.WrapBadRequest(err)
 		}
 	}
 
 	order := request.QueryStringParam(r, "order", model.DefaultSortingOrder)
 	if err := validator.ValidateEntryOrder(order); err != nil {
-		json.BadRequest(w, r, err)
-		return
+		return nil, response.WrapBadRequest(err)
 	}
 
 	direction := request.QueryStringParam(r, "direction",
 		model.DefaultSortingDirection)
 	if err := validator.ValidateDirection(direction); err != nil {
-		json.BadRequest(w, r, err)
-		return
+		return nil, response.WrapBadRequest(err)
 	}
 
 	limit := request.QueryIntParam(r, "limit", 100)
 	offset := request.QueryIntParam(r, "offset", 0)
 	if err := validator.ValidateRange(offset, limit); err != nil {
-		json.BadRequest(w, r, err)
-		return
+		return nil, response.WrapBadRequest(err)
 	}
 
 	g, ctx := errgroup.WithContext(r.Context())
@@ -172,56 +174,51 @@ func (h *handler) findEntries(w http.ResponseWriter, r *http.Request, feedID,
 
 	if err := g.Wait(); err != nil {
 		if errors.Is(err, errInvalid) {
-			json.BadRequest(w, r, err)
-		} else {
-			json.ServerError(w, r, err)
+			return nil, response.WrapBadRequest(err)
 		}
-		return
+		return nil, err //nolint:wrapcheck // from our package inside Go
 	}
 
 	for i := range entries {
 		entries[i].Content = mediaproxy.RewriteDocumentWithAbsoluteProxyURL(
 			h.router, entries[i].Content)
 	}
-	json.OK(w, r, &entriesResponse{Total: count, Entries: entries})
+	return &entriesResponse{Total: count, Entries: entries}, nil
 }
 
-func (h *handler) setEntryStatus(w http.ResponseWriter, r *http.Request) {
+func (h *handler) setEntryStatus(w http.ResponseWriter, r *http.Request) error {
 	var updateRequest model.EntriesStatusUpdateRequest
 	if err := json_parser.NewDecoder(r.Body).Decode(&updateRequest); err != nil {
-		json.BadRequest(w, r, err)
-		return
+		return response.WrapBadRequest(err)
 	}
 
 	err := validator.ValidateEntriesStatusUpdateRequest(&updateRequest)
 	if err != nil {
-		json.BadRequest(w, r, err)
-		return
+		return response.WrapBadRequest(err)
 	}
 
 	err = h.store.SetEntriesStatus(r.Context(), request.UserID(r),
 		updateRequest.EntryIDs, updateRequest.Status)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return err
 	}
-	response.NoContent(w, r)
+	return nil
 }
 
-func (h *handler) toggleBookmark(w http.ResponseWriter, r *http.Request) {
+func (h *handler) toggleBookmark(w http.ResponseWriter, r *http.Request) error {
 	id := request.RouteInt64Param(r, "entryID")
 	err := h.store.ToggleBookmark(r.Context(), request.UserID(r), id)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return err
 	}
-	response.NoContent(w, r)
+	return nil
 }
 
-func (h *handler) saveEntry(w http.ResponseWriter, r *http.Request) {
+func (h *handler) saveEntry(w http.ResponseWriter, r *http.Request) error {
 	user := request.User(r)
 	if !user.HasSaveEntry() {
-		json.BadRequest(w, r, errors.New("no third-party integration enabled"))
+		return response.WrapBadRequest(errors.New(
+			"no third-party integration enabled"))
 	}
 
 	id := request.RouteInt64Param(r, "entryID")
@@ -231,27 +228,24 @@ func (h *handler) saveEntry(w http.ResponseWriter, r *http.Request) {
 		WithoutStatus(model.EntryStatusRemoved).
 		GetEntry(r.Context())
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return err
 	} else if entry == nil {
-		json.NotFound(w, r)
-		return
+		return response.ErrNotFound
 	}
 
 	integration.SendEntry(r.Context(), entry, user)
-	response.Accepted(w, r)
+	return nil
 }
 
-func (h *handler) updateEntry(w http.ResponseWriter, r *http.Request) {
+func (h *handler) updateEntry(w http.ResponseWriter, r *http.Request,
+) (*model.Entry, error) {
 	var updateRequest model.EntryUpdateRequest
 	if err := json_parser.NewDecoder(r.Body).Decode(&updateRequest); err != nil {
-		json.BadRequest(w, r, err)
-		return
+		return nil, response.WrapBadRequest(err)
 	}
 
 	if err := validator.ValidateEntryModification(&updateRequest); err != nil {
-		json.BadRequest(w, r, err)
-		return
+		return nil, response.WrapBadRequest(err)
 	}
 
 	userID := request.UserID(r)
@@ -263,40 +257,34 @@ func (h *handler) updateEntry(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	entry, err := entryBuilder.GetEntry(ctx)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, err
 	} else if entry == nil {
-		json.NotFound(w, r)
-		return
+		return nil, response.ErrNotFound
 	}
 
 	updateRequest.Patch(entry)
 	if err := processor.UpdateEntry(request.User(r), entry); err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, err
 	}
 
 	err = h.store.UpdateEntryTitleAndContent(ctx, entry)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, err
 	}
-	json.Created(w, r, entry)
+	return entry, nil
 }
 
-func (h *handler) importEntries(w http.ResponseWriter, r *http.Request) {
+func (h *handler) importEntries(w http.ResponseWriter, r *http.Request,
+) (*entriesResponse, error) {
 	var importReq model.ImportEntries
 	if err := json_parser.NewDecoder(r.Body).Decode(&importReq); err != nil {
-		json.BadRequest(w, r, err)
-		return
+		return nil, response.WrapBadRequest(err)
 	}
 
 	if importReq.FeedURL == "" {
-		json.BadRequest(w, r, errors.New("empty feed URL"))
-		return
+		return nil, response.WrapBadRequest(errors.New("empty feed URL"))
 	} else if len(importReq.Entries) == 0 {
-		json.BadRequest(w, r, errors.New("empty entries list"))
-		return
+		return nil, response.WrapBadRequest(errors.New("empty entries list"))
 	}
 
 	ctx := r.Context()
@@ -304,27 +292,23 @@ func (h *handler) importEntries(w http.ResponseWriter, r *http.Request) {
 
 	feed, err := h.store.FeedByURL(ctx, user.ID, importReq.FeedURL)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, err
 	} else if feed == nil {
-		json.BadRequest(w, r, errors.New("feed does not exists"))
-		return
+		return nil, response.WrapBadRequest(errors.New("feed does not exists"))
 	}
 
 	entries := make(model.Entries, len(importReq.Entries))
 	for i := range importReq.Entries {
 		importEntry := importReq.Entries[i]
 		if importEntry.URL == "" {
-			json.BadRequest(w, r, errors.New("url is required"))
-			return
+			return nil, response.WrapBadRequest(errors.New("url is required"))
 		}
 
 		if importEntry.Status == "" {
 			importEntry.Status = model.EntryStatusRead
 		}
 		if err := validator.ValidateEntryStatus(importEntry.Status); err != nil {
-			json.BadRequest(w, r, err)
-			return
+			return nil, response.WrapBadRequest(err)
 		}
 
 		entry := model.NewEntryFrom(importEntry)
@@ -337,13 +321,13 @@ func (h *handler) importEntries(w http.ResponseWriter, r *http.Request) {
 
 	_, err = h.store.StoreFeedEntries(ctx, user.ID, feed.ID, entries, true)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, err
 	}
-	json.Created(w, r, &entriesResponse{Total: len(entries), Entries: entries})
+	return &entriesResponse{Total: len(entries), Entries: entries}, nil
 }
 
-func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
+func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request,
+) (*entryContentResponse, error) {
 	userID := request.UserID(r)
 	entryID := request.RouteInt64Param(r, "entryID")
 	builder := h.store.NewEntryQueryBuilder(userID).
@@ -353,34 +337,28 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 
 	entry, err := builder.GetEntry(ctx)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, err
 	} else if entry == nil {
-		json.NotFound(w, r)
-		return
+		return nil, response.ErrNotFound
 	}
 
 	feed, err := h.store.FeedByID(ctx, userID, entry.FeedID)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, err
 	} else if feed == nil {
-		json.NotFound(w, r)
-		return
+		return nil, response.ErrNotFound
 	}
 
 	user := request.User(r)
 	if request.QueryBoolParam(r, "update_content", false) {
 		err := processor.ProcessEntryWebPage(ctx, feed, entry, user)
 		if err != nil {
-			json.ServerError(w, r, err)
-			return
+			return nil, err
 		}
 
 		err = h.store.UpdateEntryTitleAndContent(ctx, entry)
 		if err != nil {
-			json.ServerError(w, r, err)
-			return
+			return nil, err
 		}
 		entry.Content = mediaproxy.RewriteDocumentWithAbsoluteProxyURL(h.router,
 			entry.Content)
@@ -389,24 +367,22 @@ func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
 			sanitizer.WithRewriteURL(
 				mediaproxy.New(h.router).WithAbsoluteProxy().RewriteURL))
 		if err != nil {
-			json.ServerError(w, r, err)
-			return
+			return nil, err
 		}
 	}
 
-	json.OK(w, r, entryContentResponse{
+	return &entryContentResponse{
 		Content:     entry.Content,
 		ReadingTime: entry.ReadingTime,
-	})
+	}, nil
 }
 
-func (h *handler) flushHistory(w http.ResponseWriter, r *http.Request) {
+func (h *handler) flushHistory(w http.ResponseWriter, r *http.Request) error {
 	err := h.store.FlushHistory(r.Context(), request.UserID(r))
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return err
 	}
-	response.Accepted(w, r)
+	return nil
 }
 
 func configureFilters(builder *storage.EntryQueryBuilder, r *http.Request) {

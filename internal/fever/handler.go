@@ -4,6 +4,7 @@
 package fever // import "miniflux.app/v2/internal/fever"
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -14,7 +15,7 @@ import (
 
 	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/json"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/integration"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/mediaproxy"
@@ -40,25 +41,25 @@ type handler struct {
 func (h *handler) serve(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case request.HasQueryParam(r, "groups"):
-		h.handleGroups(w, r)
+		response.JSON(h.handleGroups)(w, r)
 	case request.HasQueryParam(r, "feeds"):
-		h.handleFeeds(w, r)
+		response.JSON(h.handleFeeds)(w, r)
 	case request.HasQueryParam(r, "favicons"):
-		h.handleFavicons(w, r)
+		response.JSON(h.handleFavicons)(w, r)
 	case request.HasQueryParam(r, "unread_item_ids"):
-		h.handleUnreadItems(w, r)
+		response.JSON(h.handleUnreadItems)(w, r)
 	case request.HasQueryParam(r, "saved_item_ids"):
-		h.handleSavedItems(w, r)
+		response.JSON(h.handleSavedItems)(w, r)
 	case request.HasQueryParam(r, "items"):
-		h.handleItems(w, r)
+		response.JSON(h.handleItems)(w, r)
 	case r.FormValue("mark") == "item":
-		h.handleWriteItems(w, r)
+		response.JSON(h.handleWriteItems)(w, r)
 	case r.FormValue("mark") == "feed":
-		h.handleWriteFeeds(w, r)
+		response.JSON(h.handleWriteFeeds)(w, r)
 	case r.FormValue("mark") == "group":
-		h.handleWriteGroups(w, r)
+		response.JSON(h.handleWriteGroups)(w, r)
 	default:
-		json.OK(w, r, newBaseResponse())
+		response.MarshalJSON(w, r, newBaseResponse())
 	}
 }
 
@@ -81,7 +82,8 @@ an is_spark equal to 0.
 The “Sparks” super group is not included in this response and is composed of all feeds with an
 is_spark equal to 1.
 */
-func (h *handler) handleGroups(w http.ResponseWriter, r *http.Request) {
+func (h *handler) handleGroups(w http.ResponseWriter, r *http.Request,
+) (*groupsResponse, error) {
 	ctx := r.Context()
 	userID := request.UserID(r)
 	logging.FromContext(ctx).Debug("[Fever] Fetching groups",
@@ -89,24 +91,22 @@ func (h *handler) handleGroups(w http.ResponseWriter, r *http.Request) {
 
 	categories, err := h.store.Categories(ctx, userID)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, response.WrapServerError(err)
 	}
 
 	feeds, err := h.store.Feeds(ctx, userID)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, response.WrapServerError(err)
 	}
 
-	result := groupsResponse{Groups: make([]group, len(categories))}
+	result := &groupsResponse{Groups: make([]group, len(categories))}
 	for i, category := range categories {
 		result.Groups[i] = group{ID: category.ID, Title: category.Title}
 	}
 
 	result.FeedsGroups = h.buildFeedGroups(feeds)
 	result.SetCommonValues()
-	json.OK(w, r, result)
+	return result, nil
 }
 
 /*
@@ -133,7 +133,8 @@ should be limited to feeds with an is_spark equal to 0.
 
 For the “Sparks” super group the items should be limited to feeds with an is_spark equal to 1.
 */
-func (h *handler) handleFeeds(w http.ResponseWriter, r *http.Request) {
+func (h *handler) handleFeeds(w http.ResponseWriter, r *http.Request,
+) (*feedsResponse, error) {
 	ctx := r.Context()
 	userID := request.UserID(r)
 	logging.FromContext(ctx).Debug("[Fever] Fetching feeds",
@@ -141,11 +142,10 @@ func (h *handler) handleFeeds(w http.ResponseWriter, r *http.Request) {
 
 	feeds, err := h.store.Feeds(ctx, userID)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, response.WrapServerError(err)
 	}
 
-	result := feedsResponse{Feeds: make([]feed, len(feeds))}
+	result := &feedsResponse{Feeds: make([]feed, len(feeds))}
 	for i, f := range feeds {
 		subscription := feed{
 			ID:          f.ID,
@@ -164,7 +164,7 @@ func (h *handler) handleFeeds(w http.ResponseWriter, r *http.Request) {
 
 	result.FeedsGroups = h.buildFeedGroups(feeds)
 	result.SetCommonValues()
-	json.OK(w, r, result)
+	return result, nil
 }
 
 /*
@@ -186,7 +186,8 @@ A PHP/HTML example:
 
 	echo '<img src="data:'.$favicon['data'].'">';
 */
-func (h *handler) handleFavicons(w http.ResponseWriter, r *http.Request) {
+func (h *handler) handleFavicons(w http.ResponseWriter, r *http.Request,
+) (*faviconsResponse, error) {
 	ctx := r.Context()
 	userID := request.UserID(r)
 	logging.FromContext(ctx).Debug("[Fever] Fetching favicons",
@@ -194,16 +195,15 @@ func (h *handler) handleFavicons(w http.ResponseWriter, r *http.Request) {
 
 	icons, err := h.store.Icons(ctx, userID)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, response.WrapServerError(err)
 	}
 
-	result := faviconsResponse{Favicons: make([]favicon, len(icons))}
+	result := &faviconsResponse{Favicons: make([]favicon, len(icons))}
 	for i, icon := range icons {
 		result.Favicons[i] = favicon{ID: icon.ID, Data: icon.DataURL()}
 	}
 	result.SetCommonValues()
-	json.OK(w, r, result)
+	return result, nil
 }
 
 /*
@@ -236,7 +236,8 @@ Three optional arguments control determine the items included in the response.
 	Use the with_ids argument with a comma-separated list of item ids to request (a maximum of 50) specific items.
 	(added in API version 2)
 */
-func (h *handler) handleItems(w http.ResponseWriter, r *http.Request) {
+func (h *handler) handleItems(w http.ResponseWriter, r *http.Request,
+) (*itemsResponse, error) {
 	ctx := r.Context()
 	userID := request.UserID(r)
 	log := logging.FromContext(ctx).With(
@@ -286,7 +287,7 @@ func (h *handler) handleItems(w http.ResponseWriter, r *http.Request) {
 		return err
 	})
 
-	var result itemsResponse
+	result := &itemsResponse{}
 	g.Go(func() (err error) {
 		result.Total, err = h.store.NewEntryQueryBuilder(userID).
 			WithoutStatus(model.EntryStatusRemoved).
@@ -295,8 +296,7 @@ func (h *handler) handleItems(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err := g.Wait(); err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, response.WrapServerError(err)
 	}
 
 	result.Items = make([]item, len(entries))
@@ -326,7 +326,7 @@ func (h *handler) handleItems(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result.SetCommonValues()
-	json.OK(w, r, result)
+	return result, nil
 }
 
 /*
@@ -337,7 +337,8 @@ A request with the unread_item_ids argument will return one additional member:
 
 	unread_item_ids (string/comma-separated list of positive integers)
 */
-func (h *handler) handleUnreadItems(w http.ResponseWriter, r *http.Request) {
+func (h *handler) handleUnreadItems(w http.ResponseWriter, r *http.Request,
+) (*unreadResponse, error) {
 	ctx := r.Context()
 	userID := request.UserID(r)
 	logging.FromContext(ctx).Debug("[Fever] Fetching unread items",
@@ -347,8 +348,7 @@ func (h *handler) handleUnreadItems(w http.ResponseWriter, r *http.Request) {
 		WithStatus(model.EntryStatusUnread).
 		GetEntryIDs(ctx)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, response.WrapServerError(err)
 	}
 
 	itemIDs := make([]string, len(rawEntryIDs))
@@ -356,9 +356,9 @@ func (h *handler) handleUnreadItems(w http.ResponseWriter, r *http.Request) {
 		itemIDs[i] = strconv.FormatInt(entryID, 10)
 	}
 
-	result := unreadResponse{ItemIDs: strings.Join(itemIDs, ",")}
+	result := &unreadResponse{ItemIDs: strings.Join(itemIDs, ",")}
 	result.SetCommonValues()
-	json.OK(w, r, result)
+	return result, nil
 }
 
 /*
@@ -369,7 +369,8 @@ with the remote Fever installation.
 
 	saved_item_ids (string/comma-separated list of positive integers)
 */
-func (h *handler) handleSavedItems(w http.ResponseWriter, r *http.Request) {
+func (h *handler) handleSavedItems(_ http.ResponseWriter, r *http.Request,
+) (*savedResponse, error) {
 	ctx := r.Context()
 	userID := request.UserID(r)
 	logging.FromContext(ctx).Debug("[Fever] Fetching saved items",
@@ -379,8 +380,7 @@ func (h *handler) handleSavedItems(w http.ResponseWriter, r *http.Request) {
 		WithStarred(true).
 		GetEntryIDs(ctx)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, response.WrapServerError(err)
 	}
 
 	itemsIDs := make([]string, len(entryIDs))
@@ -390,7 +390,7 @@ func (h *handler) handleSavedItems(w http.ResponseWriter, r *http.Request) {
 
 	result := &savedResponse{ItemIDs: strings.Join(itemsIDs, ",")}
 	result.SetCommonValues()
-	json.OK(w, r, result)
+	return result, nil
 }
 
 /*
@@ -398,7 +398,8 @@ mark=item
 as=? where ? is replaced with read, saved or unsaved
 id=? where ? is replaced with the id of the item to modify
 */
-func (h *handler) handleWriteItems(w http.ResponseWriter, r *http.Request) {
+func (h *handler) handleWriteItems(w http.ResponseWriter, r *http.Request,
+) (*baseResponse, error) {
 	ctx := r.Context()
 	userID := request.UserID(r)
 	log := logging.FromContext(ctx).With(slog.Int64("user_id", userID))
@@ -406,7 +407,7 @@ func (h *handler) handleWriteItems(w http.ResponseWriter, r *http.Request) {
 
 	entryID := request.FormInt64Value(r, "id")
 	if entryID <= 0 {
-		return
+		return nil, response.WrapBadRequest(fmt.Errorf("invalid id=%v", entryID))
 	}
 
 	entry, err := h.store.NewEntryQueryBuilder(userID).
@@ -414,12 +415,10 @@ func (h *handler) handleWriteItems(w http.ResponseWriter, r *http.Request) {
 		WithoutStatus(model.EntryStatusRemoved).
 		GetEntry(ctx)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, response.WrapServerError(err)
 	} else if entry == nil {
 		log.Debug("[Fever] Entry not found", slog.Int64("entry_id", entryID))
-		json.OK(w, r, newBaseResponse())
-		return
+		return new(newBaseResponse()), nil
 	}
 	log = log.With(slog.Int64("entry_id", entryID))
 
@@ -436,8 +435,7 @@ func (h *handler) handleWriteItems(w http.ResponseWriter, r *http.Request) {
 		log.Debug("[Fever] Mark entry as saved")
 		err := h.store.ToggleBookmark(ctx, userID, entryID)
 		if err != nil {
-			json.ServerError(w, r, err)
-			return
+			return nil, response.WrapServerError(err)
 		}
 		integration.SendEntry(ctx, entry, request.User(r))
 	case "unsaved":
@@ -445,10 +443,9 @@ func (h *handler) handleWriteItems(w http.ResponseWriter, r *http.Request) {
 		err = h.store.ToggleBookmark(ctx, userID, entryID)
 	}
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, response.WrapServerError(err)
 	}
-	json.OK(w, r, newBaseResponse())
+	return new(newBaseResponse()), nil
 }
 
 /*
@@ -457,7 +454,8 @@ as=read
 id=? where ? is replaced with the id of the feed or group to modify
 before=? where ? is replaced with the Unix timestamp of the the local client’s most recent items API request
 */
-func (h *handler) handleWriteFeeds(w http.ResponseWriter, r *http.Request) {
+func (h *handler) handleWriteFeeds(w http.ResponseWriter, r *http.Request,
+) (*baseResponse, error) {
 	userID := request.UserID(r)
 	feedID := request.FormInt64Value(r, "id")
 	before := time.Unix(request.FormInt64Value(r, "before"), 0)
@@ -470,14 +468,14 @@ func (h *handler) handleWriteFeeds(w http.ResponseWriter, r *http.Request) {
 	log.Debug("[Fever] Mark feed as read before a given date")
 
 	if feedID <= 0 {
-		return
+		return nil, response.WrapBadRequest(fmt.Errorf("invalid id=%v", feedID))
 	}
 
 	_, err := h.store.MarkFeedAsRead(ctx, userID, feedID, before)
 	if err != nil {
 		log.Error("[Fever] Unable to mark feed as read", slog.Any("error", err))
 	}
-	json.OK(w, r, newBaseResponse())
+	return new(newBaseResponse()), nil
 }
 
 /*
@@ -486,7 +484,8 @@ as=read
 id=? where ? is replaced with the id of the feed or group to modify
 before=? where ? is replaced with the Unix timestamp of the the local client’s most recent items API request
 */
-func (h *handler) handleWriteGroups(w http.ResponseWriter, r *http.Request) {
+func (h *handler) handleWriteGroups(w http.ResponseWriter, r *http.Request,
+) (*baseResponse, error) {
 	userID := request.UserID(r)
 	groupID := request.FormInt64Value(r, "id")
 	before := time.Unix(request.FormInt64Value(r, "before"), 0)
@@ -499,7 +498,7 @@ func (h *handler) handleWriteGroups(w http.ResponseWriter, r *http.Request) {
 	log.Debug("[Fever] Mark group as read before a given date")
 
 	if groupID < 0 {
-		return
+		return nil, response.WrapBadRequest(fmt.Errorf("invalid id=%v", groupID))
 	}
 
 	var err error
@@ -511,7 +510,7 @@ func (h *handler) handleWriteGroups(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Error("[Fever] Unable to mark group as read", slog.Any("error", err))
 	}
-	json.OK(w, r, newBaseResponse())
+	return new(newBaseResponse()), nil
 }
 
 /*

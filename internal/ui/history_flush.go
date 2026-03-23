@@ -7,14 +7,14 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/json"
+	"miniflux.app/v2/internal/http/response"
 )
 
-func (h *handler) flushHistory(w http.ResponseWriter, r *http.Request) {
+func (h *handler) flushHistory(w http.ResponseWriter, r *http.Request,
+) (string, error) {
 	err := h.store.FlushHistory(r.Context(), request.UserID(r))
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return "", response.WrapServerError(err)
 	}
-	json.OK(w, r, "OK")
+	return "OK", nil
 }

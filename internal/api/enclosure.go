@@ -9,21 +9,19 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/validator"
 )
 
-func (h *handler) updateEnclosureAt(w http.ResponseWriter, r *http.Request) {
+func (h *handler) updateEnclosureAt(w http.ResponseWriter, r *http.Request,
+) error {
 	var data model.EnclosureUpdateRequest
 	if err := stdjson.NewDecoder(r.Body).Decode(&data); err != nil {
-		json.BadRequest(w, r, err)
-		return
+		return response.WrapBadRequest(err)
 	}
 
 	if err := validator.ValidateEnclosureUpdateRequest(&data); err != nil {
-		json.BadRequest(w, r, err)
-		return
+		return response.WrapBadRequest(err)
 	}
 
 	enclosure := model.Enclosure{MediaProgression: data.MediaProgression}
@@ -33,11 +31,9 @@ func (h *handler) updateEnclosureAt(w http.ResponseWriter, r *http.Request) {
 	ok, err := h.store.UpdateEnclosureAt(r.Context(), request.UserID(r), entryID,
 		&enclosure, int(at))
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return err
 	} else if !ok {
-		json.NotFound(w, r)
-		return
+		return response.ErrNotFound
 	}
-	response.NoContent(w, r)
+	return nil
 }

@@ -8,23 +8,21 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/json"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/validator"
 )
 
 func (h *handler) saveEnclosureProgression(w http.ResponseWriter,
 	r *http.Request,
-) {
+) (map[string]string, error) {
 	var data model.EnclosureUpdateRequest
 	if err := stdjson.NewDecoder(r.Body).Decode(&data); err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, response.WrapServerError(err)
 	}
 
 	if err := validator.ValidateEnclosureUpdateRequest(&data); err != nil {
-		json.BadRequest(w, r, err)
-		return
+		return nil, response.WrapBadRequest(err)
 	}
 
 	enclosure := model.Enclosure{MediaProgression: data.MediaProgression}
@@ -34,11 +32,9 @@ func (h *handler) saveEnclosureProgression(w http.ResponseWriter,
 	ok, err := h.store.UpdateEnclosureAt(r.Context(), request.UserID(r), entryID,
 		&enclosure, int(at))
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, response.WrapServerError(err)
 	} else if !ok {
-		json.NotFound(w, r)
-		return
+		return nil, response.ErrNotFound
 	}
-	json.Created(w, r, map[string]string{"message": "saved"})
+	return map[string]string{"message": "saved"}, nil
 }

@@ -8,7 +8,7 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/json"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/reader/subscription"
@@ -16,16 +16,14 @@ import (
 )
 
 func (h *handler) discoverSubscriptions(w http.ResponseWriter, r *http.Request,
-) {
+) (subscription.Subscriptions, error) {
 	var discovery model.SubscriptionDiscoveryRequest
 	if err := json_parser.NewDecoder(r.Body).Decode(&discovery); err != nil {
-		json.BadRequest(w, r, err)
-		return
+		return nil, response.WrapBadRequest(err)
 	}
 
 	if lerr := validator.ValidateSubscriptionDiscovery(&discovery); lerr != nil {
-		json.BadRequest(w, r, lerr.Error())
-		return
+		return nil, response.WrapBadRequest(lerr.Error())
 	}
 
 	user := request.User(r)
@@ -36,13 +34,11 @@ func (h *handler) discoverSubscriptions(w http.ResponseWriter, r *http.Request,
 			user.Integration().RSSBridgeURLIfEnabled(),
 			user.Integration().RSSBridgeTokenIfEnabled())
 	if lerr != nil {
-		json.ServerError(w, r, lerr)
-		return
+		return nil, lerr
 	} else if len(s) == 0 {
-		json.NotFound(w, r)
-		return
+		return nil, response.ErrNotFound
 	}
-	json.OK(w, r, s)
+	return s, nil
 }
 
 func NewRequestDiscovery(d *model.SubscriptionDiscoveryRequest,

@@ -12,17 +12,16 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/json"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/validator"
 )
 
-func (h *handler) createCategory(w http.ResponseWriter, r *http.Request) {
+func (h *handler) createCategory(w http.ResponseWriter, r *http.Request,
+) (*model.Category, error) {
 	var createRequest model.CategoryCreationRequest
 	if err := json_parser.NewDecoder(r.Body).Decode(&createRequest); err != nil {
-		json.BadRequest(w, r, err)
-		return
+		return nil, response.WrapBadRequest(err)
 	}
 
 	userID := request.UserID(r)
@@ -30,75 +29,67 @@ func (h *handler) createCategory(w http.ResponseWriter, r *http.Request) {
 	lerr := validator.ValidateCategoryCreation(ctx, h.store, userID,
 		&createRequest)
 	if lerr != nil {
-		json.BadRequest(w, r, lerr.Error())
-		return
+		return nil, response.WrapBadRequest(lerr.Error())
 	}
 
 	category, err := h.store.CreateCategory(ctx, userID, &createRequest)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, err
 	}
-	json.Created(w, r, category)
+	return category, nil
 }
 
-func (h *handler) updateCategory(w http.ResponseWriter, r *http.Request) {
+func (h *handler) updateCategory(w http.ResponseWriter, r *http.Request,
+) (*model.Category, error) {
 	userID := request.UserID(r)
 	id := request.RouteInt64Param(r, "categoryID")
 	ctx := r.Context()
 
 	category, err := h.store.Category(ctx, userID, id)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, err
 	} else if category == nil {
-		json.NotFound(w, r)
-		return
+		return nil, response.ErrNotFound
 	}
 
 	var modifyRequest model.CategoryModificationRequest
 	if err := json_parser.NewDecoder(r.Body).Decode(&modifyRequest); err != nil {
-		json.BadRequest(w, r, err)
-		return
+		return nil, response.WrapBadRequest(err)
 	}
 
 	lerr := validator.ValidateCategoryModification(ctx, h.store, userID,
 		category.ID, &modifyRequest)
 	if lerr != nil {
-		json.BadRequest(w, r, lerr.Error())
-		return
+		return nil, response.WrapBadRequest(lerr.Error())
 	}
 
 	modifyRequest.Patch(category)
 	affected, err := h.store.UpdateCategory(ctx, category)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, err
 	} else if !affected {
-		json.NotFound(w, r)
-		return
+		return nil, response.ErrNotFound
 	}
-	json.Created(w, r, category)
+	return category, nil
 }
 
-func (h *handler) markCategoryAsRead(w http.ResponseWriter, r *http.Request) {
+func (h *handler) markCategoryAsRead(w http.ResponseWriter, r *http.Request,
+) error {
 	userID := request.UserID(r)
 	id := request.RouteInt64Param(r, "categoryID")
 
 	affected, err := h.store.MarkCategoryAsRead(r.Context(), userID, id,
 		time.Now())
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return err
 	} else if !affected {
-		json.NotFound(w, r)
-		return
+		return response.ErrNotFound
 	}
-	response.NoContent(w, r)
+	return nil
 }
 
-func (h *handler) getCategories(w http.ResponseWriter, r *http.Request) {
-	var categories []model.Category
+func (h *handler) getCategories(w http.ResponseWriter, r *http.Request,
+) (categories []model.Category, _ error) {
 	var err error
 	includeCounts := request.QueryStringParam(r, "counts", "false")
 
@@ -111,29 +102,27 @@ func (h *handler) getCategories(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, err
 	}
-	json.OK(w, r, categories)
+	return categories, nil
 }
 
-func (h *handler) removeCategory(w http.ResponseWriter, r *http.Request) {
+func (h *handler) removeCategory(w http.ResponseWriter, r *http.Request) error {
 	userID := request.UserID(r)
 	id := request.RouteInt64Param(r, "categoryID")
 
 	affected, err := h.store.RemoveCategory(r.Context(), userID, id)
 	if err != nil {
-		json.ServerError(w, r, fmt.Errorf(
-			"api: unable remove category id=%v user_id=%v: %w", id, userID, err))
-		return
+		return fmt.Errorf("api: unable remove category id=%v user_id=%v: %w",
+			id, userID, err)
 	} else if !affected {
-		json.NotFound(w, r)
-		return
+		return response.ErrNotFound
 	}
-	response.NoContent(w, r)
+	return nil
 }
 
-func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request) {
+func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request,
+) error {
 	userID := request.UserID(r)
 	id := request.RouteInt64Param(r, "categoryID")
 	ctx := r.Context()
@@ -144,8 +133,7 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request) {
 		WithoutDisabledFeeds().
 		ResetNextCheckAt(ctx)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return err
 	}
 
 	logging.FromContext(ctx).Info(
@@ -154,5 +142,5 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request) {
 		slog.Int64("category_id", id))
 
 	h.pool.Wakeup()
-	response.NoContent(w, r)
+	return nil
 }

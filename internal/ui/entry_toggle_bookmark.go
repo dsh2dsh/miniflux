@@ -7,15 +7,15 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/json"
+	"miniflux.app/v2/internal/http/response"
 )
 
-func (h *handler) toggleBookmark(w http.ResponseWriter, r *http.Request) {
+func (h *handler) toggleBookmark(w http.ResponseWriter, r *http.Request,
+) (string, error) {
 	id := request.RouteInt64Param(r, "entryID")
 	err := h.store.ToggleBookmark(r.Context(), request.UserID(r), id)
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return "", response.WrapServerError(err)
 	}
-	json.OK(w, r, "OK")
+	return "OK", nil
 }

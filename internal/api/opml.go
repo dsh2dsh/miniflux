@@ -7,8 +7,7 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/json"
-	"miniflux.app/v2/internal/http/response/xml"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/reader/opml"
 )
 
@@ -16,21 +15,23 @@ func (h *handler) exportFeeds(w http.ResponseWriter, r *http.Request) {
 	opmlHandler := opml.NewHandler(h.store)
 	opmlExport, err := opmlHandler.Export(r.Context(), request.UserID(r))
 	if err != nil {
-		json.ServerError(w, r, err)
+		response.ServerErrorJSON(w, r, err)
 		return
 	}
-	xml.OK(w, r, opmlExport)
+
+	response.New(w, r).
+		WithHeader("Content-Type", "text/xml; charset=utf-8").
+		WithBodyAsString(opmlExport).
+		Write()
 }
 
-func (h *handler) importFeeds(w http.ResponseWriter, r *http.Request) {
+func (h *handler) importFeeds(w http.ResponseWriter, r *http.Request,
+) (*importFeedsResponse, error) {
 	opmlHandler := opml.NewHandler(h.store)
 	err := opmlHandler.Import(r.Context(), request.UserID(r), r.Body)
 	defer r.Body.Close()
 	if err != nil {
-		json.ServerError(w, r, err)
-		return
+		return nil, err
 	}
-	json.Created(w, r, importFeedsResponse{
-		Message: "Feeds imported successfully",
-	})
+	return &importFeedsResponse{Message: "Feeds imported successfully"}, nil
 }
