@@ -44,6 +44,7 @@ func (self *UserSession) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	user, sess, err := self.store.UserSession(ctx, id)
 	if err != nil {
 		response.ServerError(w, r, err)
+		return
 	}
 
 	if sess == nil {

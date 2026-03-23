@@ -348,7 +348,6 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) error {
 
 	http.SetCookie(w, cookie.ExpiredSessionData())
 	http.SetCookie(w, cookie.NewSession(s.ID))
-	response.NoContent(w, r)
 	return nil
 }
 

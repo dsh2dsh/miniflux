@@ -19,19 +19,21 @@ import (
 func (h *handler) refreshCategoryEntriesPage(w http.ResponseWriter,
 	r *http.Request,
 ) {
-	id := h.refreshCategory(w, r)
-	h.redirect(w, r, "categoryEntries", "categoryID", id)
+	if id, ok := h.refreshCategory(w, r); ok {
+		h.redirect(w, r, "categoryEntries", "categoryID", id)
+	}
 }
 
 func (h *handler) refreshCategoryFeedsPage(w http.ResponseWriter,
 	r *http.Request,
 ) {
-	id := h.refreshCategory(w, r)
-	h.redirect(w, r, "categoryFeeds", "categoryID", id)
+	if id, ok := h.refreshCategory(w, r); ok {
+		h.redirect(w, r, "categoryFeeds", "categoryID", id)
+	}
 }
 
 func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request,
-) int64 {
+) (int64, bool) {
 	userID := request.UserID(r)
 	categoryID := request.RouteInt64Param(r, "categoryID")
 	printer := locale.NewPrinter(request.UserLanguage(r))
@@ -46,7 +48,7 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request,
 		time := config.ForceRefreshInterval()
 		sess.NewFlashErrorMessage(printer.Plural(
 			"alert.too_many_feeds_refresh", time, time))
-		return categoryID
+		return categoryID, true
 	}
 
 	// We allow the end-user to force refresh all its feeds in this category
@@ -58,7 +60,7 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request,
 		ResetNextCheckAt(r.Context())
 	if err != nil {
 		response.ServerError(w, r, err)
-		return 0
+		return 0, false
 	}
 
 	slog.Info(
@@ -69,5 +71,5 @@ func (h *handler) refreshCategory(w http.ResponseWriter, r *http.Request,
 	sess.SetLastForceRefresh().
 		NewFlashMessage(printer.Print("alert.background_feed_refresh"))
 	h.pool.Wakeup()
-	return categoryID
+	return categoryID, true
 }
