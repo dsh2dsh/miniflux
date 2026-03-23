@@ -66,3 +66,11 @@ func RequestedRangeNotSatisfiable(w http.ResponseWriter, r *http.Request,
 func ServerError(w http.ResponseWriter, r *http.Request, err error) {
 	WrapServerError(err).Serve(w, r)
 }
+
+// Text writes a standard text response with a status 200 OK.
+func Text(w http.ResponseWriter, r *http.Request, body string) {
+	New(w, r).
+		WithHeader(contentType, textPlain).
+		WithBodyAsString(body).
+		Write()
+}

@@ -6,6 +6,8 @@ package googlereader // import "miniflux.app/v2/internal/googlereader"
 import (
 	"fmt"
 	"net/http"
+
+	"miniflux.app/v2/internal/http/response"
 )
 
 type loginResponse struct {
@@ -117,15 +119,11 @@ type contentItemOrigin struct {
 	HTMLUrl  string `json:"htmlUrl"`
 }
 
-func sendUnauthorizedResponse(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "text/plain")
-	w.Header().Set("X-Reader-Google-Bad-Token", "true")
-	w.WriteHeader(http.StatusUnauthorized)
-	_, _ = w.Write([]byte("Unauthorized"))
-}
-
-func sendOkayResponse(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("OK"))
+func sendUnauthorizedResponse(w http.ResponseWriter, r *http.Request) {
+	response.New(w, r).
+		WithStatus(http.StatusUnauthorized).
+		WithHeader("X-Reader-Google-Bad-Token", "true").
+		WithHeader("Content-Type", "text/plain; charset=utf-8").
+		WithBodyAsString("Unauthorized").
+		Write()
 }

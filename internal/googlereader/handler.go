@@ -226,11 +226,7 @@ func (h *handler) clientLogin(w http.ResponseWriter, r *http.Request) {
 		response.MarshalJSON(w, r, &result)
 		return
 	}
-
-	response.New(w, r).
-		WithHeader("Content-Type", "text/plain; charset=UTF-8").
-		WithBodyAsString(result.String()).
-		Write()
+	response.Text(w, r, result.String())
 }
 
 func (h *handler) tokenHandler(w http.ResponseWriter, r *http.Request) {
@@ -258,12 +254,7 @@ func (h *handler) tokenHandler(w http.ResponseWriter, r *http.Request) {
 	log.Debug("[GoogleReader] Token handler",
 		slog.Int64("user_id", request.UserID(r)),
 		slog.String("token", token))
-
-	w.Header().Add("Content-Type", "text/plain; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write([]byte(token)); err != nil {
-		response.ServerErrorJSON(w, r, err)
-	}
+	response.Text(w, r, token)
 }
 
 func (h *handler) editTagHandler(w http.ResponseWriter, r *http.Request) {
@@ -388,7 +379,7 @@ func (h *handler) editTagHandler(w http.ResponseWriter, r *http.Request) {
 	for _, entry := range entries {
 		integration.SendEntry(ctx, entry, user)
 	}
-	sendOkayResponse(w)
+	response.Text(w, r, "OK")
 }
 
 func (h *handler) quickAddHandler(w http.ResponseWriter, r *http.Request,
@@ -672,7 +663,7 @@ func (h *handler) editSubscriptionHandler(w http.ResponseWriter,
 		return
 	}
 
-	sendOkayResponse(w)
+	response.Text(w, r, "OK")
 }
 
 func (h *handler) streamItemContentsHandler(w http.ResponseWriter,
@@ -833,7 +824,7 @@ func (h *handler) disableTagHandler(w http.ResponseWriter, r *http.Request) {
 		response.ServerErrorJSON(w, r, err)
 		return
 	}
-	sendOkayResponse(w)
+	response.Text(w, r, "OK")
 }
 
 func (h *handler) renameTagHandler(w http.ResponseWriter, r *http.Request) {
@@ -902,7 +893,7 @@ func (h *handler) renameTagHandler(w http.ResponseWriter, r *http.Request) {
 		response.NotFoundJSON(w, r)
 		return
 	}
-	sendOkayResponse(w)
+	response.Text(w, r, "OK")
 }
 
 func (h *handler) tagListHandler(w http.ResponseWriter, r *http.Request,
@@ -1271,5 +1262,5 @@ func (h *handler) markAllAsReadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	sendOkayResponse(w)
+	response.Text(w, r, "OK")
 }

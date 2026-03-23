@@ -138,3 +138,24 @@ func TestServerErrorResponse(t *testing.T) {
 		"500 "+http.StatusText(resp.StatusCode)+": "+html.EscapeString(errorString),
 		w.Body.String(), "Unexpected body")
 }
+
+func TestTextResponse(t *testing.T) {
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+
+	const body = "Some plain text"
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		Text(w, r, body)
+	})
+
+	handler.ServeHTTP(w, r)
+	resp := w.Result()
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode, "Unexpected status code")
+	assert.Equal(t, textPlain, resp.Header.Get(contentType),
+		"Unexpected content type")
+	assert.Equal(t, body, w.Body.String(), "Unexpected body")
+}
