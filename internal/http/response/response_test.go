@@ -159,3 +159,26 @@ func TestTextResponse(t *testing.T) {
 		"Unexpected content type")
 	assert.Equal(t, body, w.Body.String(), "Unexpected body")
 }
+
+func TestHTML(t *testing.T) {
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
+	require.NoError(t, err)
+
+	const body = "Some HTML"
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		HTML(w, r, []byte(body))
+	})
+
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	resp := w.Result()
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode, "Unexpected status code")
+	assert.Equal(t, textHTML, resp.Header.Get(contentType),
+		"Unexpected content type")
+	assert.Equal(t, cacheNoCache, resp.Header.Get(cacheControl),
+		"Unexpected Cache-Control")
+	assert.Equal(t, body, w.Body.String(), "Unexpected body")
+}

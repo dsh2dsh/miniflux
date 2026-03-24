@@ -13,7 +13,6 @@ import (
 	"miniflux.app/v2/internal/http/cookie"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/securecookie"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/logging"
@@ -32,7 +31,7 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 
 	if config.DisableLocalAuth() {
 		log.Warn("blocking local auth login attempt, local auth is disabled")
-		html.OK(w, r, v.Render("login"))
+		response.HTML(w, r, v.Render("login"))
 		return
 	}
 
@@ -47,14 +46,14 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 		translatedErrorMessage := lerr.Translate(request.UserLanguage(r))
 		log.Warn("Validation error during login check",
 			slog.Any("error", translatedErrorMessage))
-		html.OK(w, r, v.Render("login"))
+		response.HTML(w, r, v.Render("login"))
 		return
 	}
 
 	err := h.store.CheckPassword(ctx, f.Username, f.Password)
 	if err != nil {
 		log.Warn("Incorrect username or password", slog.Any("error", err))
-		html.OK(w, r, v.Render("login"))
+		response.HTML(w, r, v.Render("login"))
 		return
 	}
 
@@ -64,7 +63,7 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	} else if user == nil {
 		log.Warn("User not found")
-		html.OK(w, r, v.Render("login"))
+		response.HTML(w, r, v.Render("login"))
 		return
 	}
 	log.Info("User authenticated successfully with username/password",

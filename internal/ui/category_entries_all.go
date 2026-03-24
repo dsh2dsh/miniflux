@@ -9,7 +9,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
 )
@@ -54,5 +53,5 @@ func (h *handler) showCategoryEntriesAllPage(w http.ResponseWriter,
 			route.Path(h.router, "categoryEntriesAll", "categoryID", id),
 			count, offset, user.EntriesPerPage)).
 		Set("showOnlyUnreadEntries", false)
-	html.OK(w, r, v.Render("category_entries"))
+	response.HTML(w, r, v.Render("category_entries"))
 }

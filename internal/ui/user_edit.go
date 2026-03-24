@@ -9,7 +9,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
 )
@@ -44,5 +43,5 @@ func (h *handler) showEditUserPage(w http.ResponseWriter, r *http.Request) {
 	v.Set("menu", "settings").
 		Set("form", userForm).
 		Set("selected_user", user)
-	html.OK(w, r, v.Render("edit_user"))
+	response.HTML(w, r, v.Render("edit_user"))
 }

@@ -8,7 +8,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
 )
@@ -57,5 +56,5 @@ func (h *handler) showSearchPage(w http.ResponseWriter, r *http.Request) {
 		Set("total", count).
 		Set("pagination", pagination).
 		Set("showOnlyUnreadEntries", unreadOnly)
-	html.OK(w, r, v.Render("search"))
+	response.HTML(w, r, v.Render("search"))
 }

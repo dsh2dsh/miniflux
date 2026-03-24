@@ -11,7 +11,6 @@ import (
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
 )
@@ -52,5 +51,5 @@ func (h *handler) bookmarklet(w http.ResponseWriter, r *http.Request) {
 		Set("categories", categories).
 		Set("defaultUserAgent", config.HTTPClientUserAgent()).
 		Set("hasProxyConfigured", config.HasHTTPClientProxyURLConfigured())
-	html.OK(w, r, v.Render("add_subscription"))
+	response.HTML(w, r, v.Render("add_subscription"))
 }

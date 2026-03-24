@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/reader/opml"
@@ -41,14 +40,14 @@ func (h *handler) uploadOPML(w http.ResponseWriter, r *http.Request) {
 	if fileHeader.Size == 0 {
 		lerr := locale.NewLocalizedError("error.empty_file")
 		v.Set("errorMessage", lerr.Translate(v.User().Language))
-		html.OK(w, r, v.Render("import"))
+		response.HTML(w, r, v.Render("import"))
 		return
 	}
 
 	err = opml.NewHandler(h.store).Import(r.Context(), v.UserID(), file)
 	if err != nil {
 		v.Set("errorMessage", err)
-		html.OK(w, r, v.Render("import"))
+		response.HTML(w, r, v.Render("import"))
 		return
 	}
 	h.redirect(w, r, "feeds")
@@ -85,7 +84,7 @@ func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
 			slog.String("opml_file_url", opmlURL),
 			slog.Any("error", lerr))
 		v.Set("errorMessage", lerr.Translate(v.User().Language))
-		html.OK(w, r, v.Render("import"))
+		response.HTML(w, r, v.Render("import"))
 		return
 	}
 
@@ -93,7 +92,7 @@ func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
 		responseHandler.Body())
 	if err != nil {
 		v.Set("errorMessage", err)
-		html.OK(w, r, v.Render("import"))
+		response.HTML(w, r, v.Render("import"))
 		return
 	}
 	h.redirect(w, r, "feeds")

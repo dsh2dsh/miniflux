@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
@@ -85,5 +84,5 @@ func (h *handler) showSettingsPage(w http.ResponseWriter, r *http.Request) {
 		Set("categories_sorting_options", model.CategoriesSortingOptions()).
 		Set("countWebAuthnCerts", webAuthnCount).
 		Set("webAuthnCerts", creds)
-	html.OK(w, r, v.Render("settings"))
+	response.HTML(w, r, v.Render("settings"))
 }

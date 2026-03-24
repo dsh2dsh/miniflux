@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
-	"miniflux.app/v2/internal/http/response/html"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/ui/view"
 )
 
@@ -19,5 +19,5 @@ func (h *handler) showLoginPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v := view.New(h.tpl, r, nil)
-	html.OK(w, r, v.Render("login"))
+	response.HTML(w, r, v.Render("login"))
 }

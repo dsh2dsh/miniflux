@@ -9,7 +9,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/model"
 )
 
@@ -42,5 +41,5 @@ func (h *handler) showCategoryFeedsPage(w http.ResponseWriter, r *http.Request,
 		Set("category", category).
 		Set("feeds", feeds).
 		Set("total", len(feeds))
-	html.OK(w, r, v.Render("category_feeds"))
+	response.HTML(w, r, v.Render("category_feeds"))
 }

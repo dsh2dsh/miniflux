@@ -8,7 +8,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
@@ -27,7 +26,7 @@ func (h *handler) saveUser(w http.ResponseWriter, r *http.Request) {
 		h.showSaveUserError(w, r, func(v *View) {
 			v.Set("form", f).
 				Set("errorMessage", lerr.Translate(v.User().Language))
-			html.OK(w, r, v.Render("create_user"))
+			response.HTML(w, r, v.Render("create_user"))
 		})
 		return
 	}
@@ -37,7 +36,7 @@ func (h *handler) saveUser(w http.ResponseWriter, r *http.Request) {
 			lerr := locale.NewLocalizedError("error.user_already_exists")
 			v.Set("form", f).
 				Set("errorMessage", lerr.Translate(v.User().Language))
-			html.OK(w, r, v.Render("create_user"))
+			response.HTML(w, r, v.Render("create_user"))
 		})
 		return
 	}
@@ -54,7 +53,7 @@ func (h *handler) saveUser(w http.ResponseWriter, r *http.Request) {
 		h.showSaveUserError(w, r, func(v *View) {
 			v.Set("form", f).
 				Set("errorMessage", lerr.Translate(v.User().Language))
-			html.OK(w, r, v.Render("create_user"))
+			response.HTML(w, r, v.Render("create_user"))
 		})
 		return
 	}

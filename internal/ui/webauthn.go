@@ -19,7 +19,6 @@ import (
 	"miniflux.app/v2/internal/http/cookie"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
@@ -382,7 +381,7 @@ func (h *handler) renameCredential(w http.ResponseWriter, r *http.Request) {
 	v.Set("menu", "settings").
 		Set("form", webauthnForm).
 		Set("cred", cred)
-	html.OK(w, r, v.Render("webauthn_rename"))
+	response.HTML(w, r, v.Render("webauthn_rename"))
 }
 
 func (h *handler) saveCredential(w http.ResponseWriter, r *http.Request) {

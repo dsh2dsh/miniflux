@@ -10,7 +10,6 @@ import (
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/version"
 )
 
@@ -45,5 +44,5 @@ func (h *handler) showAboutPage(w http.ResponseWriter, r *http.Request) {
 		Set("postgres_version", dbVersion).
 		Set("db_usage", dbSize).
 		Set("go_version", runtime.Version())
-	html.OK(w, r, v.Render("about"))
+	response.HTML(w, r, v.Render("about"))
 }

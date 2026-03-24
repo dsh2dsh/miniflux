@@ -7,7 +7,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
 )
@@ -71,5 +70,5 @@ func (h *handler) renderAuthorEntries(w http.ResponseWriter, r *http.Request,
 				url.PathEscape(authorName)),
 			count, offset, user.EntriesPerPage)).
 		Set("showOnlyUnreadEntries", unread)
-	html.OK(w, r, v.Render("author_entries"))
+	response.HTML(w, r, v.Render("author_entries"))
 }

@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/ui/form"
 )
 
@@ -23,5 +22,5 @@ func (h *handler) showCreateUserPage(w http.ResponseWriter, r *http.Request) {
 
 	v.Set("form", &form.UserForm{}).
 		Set("menu", "settings")
-	html.OK(w, r, v.Render("create_user"))
+	response.HTML(w, r, v.Render("create_user"))
 }

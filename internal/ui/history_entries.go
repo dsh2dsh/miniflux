@@ -8,7 +8,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
 )
@@ -37,5 +36,5 @@ func (h *handler) showHistoryPage(w http.ResponseWriter, r *http.Request) {
 		Set("pagination", getPagination(route.Path(h.router, "history"),
 			count, offset, user.EntriesPerPage)).
 		Set("showOnlyUnreadEntries", false)
-	html.OK(w, r, v.Render("history_entries"))
+	response.HTML(w, r, v.Render("history_entries"))
 }

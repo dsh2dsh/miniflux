@@ -9,7 +9,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
 )
@@ -42,5 +41,5 @@ func (h *handler) showEditCategoryPage(w http.ResponseWriter, r *http.Request) {
 	v.Set("menu", "categories").
 		Set("form", categoryForm).
 		Set("category", category)
-	html.OK(w, r, v.Render("edit_category"))
+	response.HTML(w, r, v.Render("edit_category"))
 }

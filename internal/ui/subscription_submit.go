@@ -14,7 +14,6 @@ import (
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/mediaproxy"
@@ -31,7 +30,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 	if lerr := f.Validate(); lerr != nil {
 		h.showSubscriptionError(w, r, f, nil, func(v *View) {
 			v.Set("errorMessage", lerr.Translate(v.User().Language))
-			html.OK(w, r, v.Render("add_subscription"))
+			response.HTML(w, r, v.Render("add_subscription"))
 		})
 		return
 	}
@@ -53,7 +52,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 		user.Integration().RSSBridgeTokenIfEnabled())
 	if lerr != nil {
 		h.showSubscriptionError(w, r, f, lerr, func(v *View) {
-			html.OK(w, r, v.Render("add_subscription"))
+			response.HTML(w, r, v.Render("add_subscription"))
 		})
 		return
 	}
@@ -64,7 +63,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 		h.showSubscriptionError(w, r, f, nil, func(v *View) {
 			lerr := locale.NewLocalizedError("error.subscription_not_found")
 			v.Set("errorMessage", lerr.Translate(v.User().Language))
-			html.OK(w, r, v.Render("add_subscription"))
+			response.HTML(w, r, v.Render("add_subscription"))
 		})
 
 	case n == 1 && finder.IsFeedAlreadyDownloaded():
@@ -96,7 +95,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 			})
 		if lerr != nil {
 			h.showSubscriptionError(w, r, f, lerr, func(v *View) {
-				html.OK(w, r, v.Render("add_subscription"))
+				response.HTML(w, r, v.Render("add_subscription"))
 			})
 			return
 		}
@@ -126,7 +125,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 			})
 		if lerr != nil {
 			h.showSubscriptionError(w, r, f, lerr, func(v *View) {
-				html.OK(w, r, v.Render("add_subscription"))
+				response.HTML(w, r, v.Render("add_subscription"))
 			})
 			return
 		}
@@ -135,7 +134,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 	case n > 1:
 		h.showSubscriptionError(w, r, f, nil, func(v *View) {
 			v.Set("subscriptions", subscriptions)
-			html.OK(w, r, v.Render("choose_subscription"))
+			response.HTML(w, r, v.Render("choose_subscription"))
 		})
 	}
 }

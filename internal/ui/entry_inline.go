@@ -8,7 +8,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/mediaproxy"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/processor"
@@ -47,7 +46,7 @@ func (h *handler) inlineEntry(w http.ResponseWriter, r *http.Request) {
 		Set("errorMessage", errorMsg).
 		Set("safeContent", template.HTML(content)).
 		Set("user", request.User(r))
-	html.OK(w, r, v.Render("entry_inline"))
+	response.HTML(w, r, v.Render("entry_inline"))
 }
 
 func (h *handler) downloadEntry(w http.ResponseWriter, r *http.Request) {
@@ -90,5 +89,5 @@ func (h *handler) downloadEntry(w http.ResponseWriter, r *http.Request) {
 		Set("entry", entry).
 		Set("safeContent", template.HTML(entry.Content)).
 		Set("user", request.User(r))
-	html.OK(w, r, v.Render("entry_download"))
+	response.HTML(w, r, v.Render("entry_download"))
 }

@@ -9,7 +9,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
@@ -43,7 +42,7 @@ func (h *handler) updateUser(w http.ResponseWriter, r *http.Request) {
 
 	if lerr := userForm.ValidateModification(); lerr != nil {
 		v.Set("errorMessage", lerr.Translate(v.User().Language))
-		html.OK(w, r, v.Render("edit_user"))
+		response.HTML(w, r, v.Render("edit_user"))
 		return
 	}
 
@@ -52,7 +51,7 @@ func (h *handler) updateUser(w http.ResponseWriter, r *http.Request) {
 	if alreadyExists {
 		lerr := locale.NewLocalizedError("error.user_already_exists")
 		v.Set("errorMessage", lerr.Translate(v.User().Language))
-		html.OK(w, r, v.Render("edit_user"))
+		response.HTML(w, r, v.Render("edit_user"))
 		return
 	}
 

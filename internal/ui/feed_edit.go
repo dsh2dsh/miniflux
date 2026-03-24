@@ -10,7 +10,6 @@ import (
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
 )
@@ -82,5 +81,5 @@ func (h *handler) showEditFeedPage(w http.ResponseWriter, r *http.Request) {
 		Set("feed", feed).
 		Set("defaultUserAgent", config.HTTPClientUserAgent()).
 		Set("hasProxyConfigured", config.HasHTTPClientProxyURLConfigured())
-	html.OK(w, r, v.Render("edit_feed"))
+	response.HTML(w, r, v.Render("edit_feed"))
 }

@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/model"
 )
 
@@ -32,5 +31,5 @@ func (h *handler) showUsersPage(w http.ResponseWriter, r *http.Request) {
 	users.UseTimezone(v.User().Timezone)
 	v.Set("users", users).
 		Set("menu", "settings")
-	html.OK(w, r, v.Render("users"))
+	response.HTML(w, r, v.Render("users"))
 }

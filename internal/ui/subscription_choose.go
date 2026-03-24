@@ -10,7 +10,6 @@ import (
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/model"
 	feedHandler "miniflux.app/v2/internal/reader/handler"
 	"miniflux.app/v2/internal/ui/form"
@@ -24,7 +23,7 @@ func (h *handler) showChooseSubscriptionPage(w http.ResponseWriter,
 		h.showCreateFeedError(w, r, func(v *View) {
 			v.Set("form", f).
 				Set("errorMessage", lerr.Translate(v.User().Language))
-			html.OK(w, r, v.Render("add_subscription"))
+			response.HTML(w, r, v.Render("add_subscription"))
 		})
 		return
 	}
@@ -55,7 +54,7 @@ func (h *handler) showChooseSubscriptionPage(w http.ResponseWriter,
 		h.showCreateFeedError(w, r, func(v *View) {
 			v.Set("form", f).
 				Set("errorMessage", lerr.Translate(v.User().Language))
-			html.OK(w, r, v.Render("add_subscription"))
+			response.HTML(w, r, v.Render("add_subscription"))
 		})
 		return
 	}

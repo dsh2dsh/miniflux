@@ -10,7 +10,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
 )
@@ -57,5 +56,5 @@ func (h *handler) showFeedEntriesPage(w http.ResponseWriter, r *http.Request) {
 			route.Path(h.router, "feedEntries", "feedID", feedID), count, offset,
 			user.EntriesPerPage)).
 		Set("showOnlyUnreadEntries", true)
-	html.OK(w, r, v.Render("feed_entries"))
+	response.HTML(w, r, v.Render("feed_entries"))
 }

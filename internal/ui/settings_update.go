@@ -9,7 +9,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
@@ -45,7 +44,7 @@ func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		h.showUpdateSettingsError(w, r, func(v *View) {
 			v.Set("form", f).
 				Set("errorMessage", lerr.Translate(v.User().Language))
-			html.OK(w, r, v.Render("settings"))
+			response.HTML(w, r, v.Render("settings"))
 		})
 		return
 	}
@@ -57,7 +56,7 @@ func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		h.showUpdateSettingsError(w, r, func(v *View) {
 			v.Set("form", f).
 				Set("errorMessage", lerr.Translate(v.User().Language))
-			html.OK(w, r, v.Render("settings"))
+			response.HTML(w, r, v.Render("settings"))
 		})
 		return
 	}

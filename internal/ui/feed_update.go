@@ -10,7 +10,6 @@ import (
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
 	"miniflux.app/v2/internal/validator"
@@ -42,7 +41,7 @@ func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
 		h.showUpdateFeedError(w, r, func(v *View) {
 			v.Set("form", f).
 				Set("errorMessage", lerr.Translate(v.User().Language))
-			html.OK(w, r, v.Render("edit_feed"))
+			response.HTML(w, r, v.Render("edit_feed"))
 		})
 		return
 	}

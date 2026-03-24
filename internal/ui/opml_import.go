@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 )
 
 func (h *handler) showImportPage(w http.ResponseWriter, r *http.Request) {
@@ -18,5 +17,5 @@ func (h *handler) showImportPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v.Set("menu", "feeds")
-	html.OK(w, r, v.Render("import"))
+	response.HTML(w, r, v.Render("import"))
 }

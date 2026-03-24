@@ -9,7 +9,6 @@ import (
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
 )
@@ -35,5 +34,5 @@ func (h *handler) showAddSubscriptionPage(w http.ResponseWriter,
 		Set("defaultUserAgent", config.HTTPClientUserAgent()).
 		Set("form", &form.SubscriptionForm{CategoryID: 0}).
 		Set("hasProxyConfigured", config.HasHTTPClientProxyURLConfigured())
-	html.OK(w, r, v.Render("add_subscription"))
+	response.HTML(w, r, v.Render("add_subscription"))
 }

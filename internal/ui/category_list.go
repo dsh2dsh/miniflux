@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/model"
 )
 
@@ -29,5 +28,5 @@ func (h *handler) showCategoryListPage(w http.ResponseWriter, r *http.Request) {
 	v.Set("menu", "categories").
 		Set("categories", categories).
 		Set("total", len(categories))
-	html.OK(w, r, v.Render("categories"))
+	response.HTML(w, r, v.Render("categories"))
 }

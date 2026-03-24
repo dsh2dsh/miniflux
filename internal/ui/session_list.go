@@ -9,7 +9,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/model"
 )
 
@@ -31,5 +30,5 @@ func (h *handler) showSessionsPage(w http.ResponseWriter, r *http.Request) {
 	v.Set("menu", "settings").
 		Set("currentSessionToken", request.SessionID(r)).
 		Set("sessions", sessions)
-	html.OK(w, r, v.Render("sessions"))
+	response.HTML(w, r, v.Render("sessions"))
 }

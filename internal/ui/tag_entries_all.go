@@ -10,7 +10,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
 )
@@ -75,5 +74,5 @@ func (h *handler) renderTagEntries(w http.ResponseWriter, r *http.Request,
 			route.Path(h.router, "tagEntriesAll", "tagName", url.PathEscape(tagName)),
 			count, offset, user.EntriesPerPage)).
 		Set("showOnlyUnreadEntries", unread)
-	html.OK(w, r, v.Render("tag_entries"))
+	response.HTML(w, r, v.Render("tag_entries"))
 }

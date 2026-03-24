@@ -22,6 +22,7 @@ const (
 	cacheNoCache  = "no-cache, max-age=0, must-revalidate, no-store"
 	contentSecPol = "Content-Security-Policy"
 	contentType   = "Content-Type"
+	textHTML      = "text/html; charset=utf-8"
 	textPlain     = "text/plain; charset=utf-8"
 )
 
@@ -72,5 +73,14 @@ func Text(w http.ResponseWriter, r *http.Request, body string) {
 	New(w, r).
 		WithHeader(contentType, textPlain).
 		WithBodyAsString(body).
+		Write()
+}
+
+// HTML creates a new HTML response with a 200 status code.
+func HTML(w http.ResponseWriter, r *http.Request, body []byte) {
+	New(w, r).
+		WithHeader(contentType, textHTML).
+		WithHeader(cacheControl, cacheNoCache).
+		WithBodyAsBytes(body).
 		Write()
 }

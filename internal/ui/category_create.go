@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 )
 
 func (h *handler) showCreateCategoryPage(w http.ResponseWriter,
@@ -20,5 +19,5 @@ func (h *handler) showCreateCategoryPage(w http.ResponseWriter,
 	}
 
 	v.Set("menu", "categories")
-	html.OK(w, r, v.Render("create_category"))
+	response.HTML(w, r, v.Render("create_category"))
 }

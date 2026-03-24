@@ -9,7 +9,6 @@ import (
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
-	"miniflux.app/v2/internal/http/response/html"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/model"
 )
@@ -59,7 +58,7 @@ func (h *handler) showUnreadPage(w http.ResponseWriter, r *http.Request) {
 		Set("showOnlyUnreadEntries", true).
 		Set("total", v.CountUnread()).
 		Set("updateEntriesStatus", h.router.NamedPath("updateEntriesStatus"))
-	html.OK(w, r, v.Render("unread_entries"))
+	response.HTML(w, r, v.Render("unread_entries"))
 }
 
 func lastEntry(entries model.Entries) *model.Entry {
