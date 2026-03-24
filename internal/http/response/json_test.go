@@ -27,7 +27,7 @@ func TestJSON_ok(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "Unexpected status code")
 	//nolint:testifylint // not a JSON
-	assert.Equal(t, resp.Header.Get(contentType), applicationJSON,
+	assert.Equal(t, applicationJSON, resp.Header.Get(contentType),
 		"Unexpected content type")
 	assert.JSONEq(t, `{"key":"value"}`, w.Body.String(), "Unexpected body")
 }
@@ -49,7 +49,7 @@ func TestJSON_created(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, resp.StatusCode, "Unexpected status code")
 	//nolint:testifylint // not a JSON
-	assert.Equal(t, resp.Header.Get(contentType), applicationJSON,
+	assert.Equal(t, applicationJSON, resp.Header.Get(contentType),
 		"Unexpected content type")
 	assert.JSONEq(t, `{"key":"value"}`, w.Body.String(), "Unexpected body")
 }
@@ -73,7 +73,7 @@ func TestJSON_error(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode,
 		"Unexpected status code")
 	//nolint:testifylint // not a JSON
-	assert.Equal(t, resp.Header.Get(contentType), applicationJSON,
+	assert.Equal(t, applicationJSON, resp.Header.Get(contentType),
 		"Unexpected content type")
 	assert.JSONEq(t, `{"error_message":"`+errorString+`"}`, w.Body.String(),
 		"Unexpected body")
@@ -98,7 +98,7 @@ func TestJSON_badRequest(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode,
 		"Unexpected status code")
 	//nolint:testifylint // not a JSON
-	assert.Equal(t, resp.Header.Get(contentType), applicationJSON,
+	assert.Equal(t, applicationJSON, resp.Header.Get(contentType),
 		"Unexpected content type")
 	assert.JSONEq(t, `{"error_message":"`+errorString+`"}`, w.Body.String(),
 		"Unexpected body")
@@ -122,7 +122,7 @@ func TestJSON_unauthorized(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode,
 		"Unexpected status code")
 	//nolint:testifylint // not a JSON
-	assert.Equal(t, resp.Header.Get(contentType), applicationJSON,
+	assert.Equal(t, applicationJSON, resp.Header.Get(contentType),
 		"Unexpected content type")
 	assert.JSONEq(t, `{"error_message":"Unauthorized"}`, w.Body.String(),
 		"Unexpected body")
@@ -146,7 +146,7 @@ func TestJSON_forbidden(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, resp.StatusCode,
 		"Unexpected status code")
 	//nolint:testifylint // not a JSON
-	assert.Equal(t, resp.Header.Get(contentType), applicationJSON,
+	assert.Equal(t, applicationJSON, resp.Header.Get(contentType),
 		"Unexpected content type")
 	assert.JSONEq(t, `{"error_message":"Forbidden"}`, w.Body.String(),
 		"Unexpected body")
@@ -170,7 +170,7 @@ func TestJSON_notFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, resp.StatusCode,
 		"Unexpected status code")
 	//nolint:testifylint // not a JSON
-	assert.Equal(t, resp.Header.Get(contentType), applicationJSON,
+	assert.Equal(t, applicationJSON, resp.Header.Get(contentType),
 		"Unexpected content type")
 	assert.JSONEq(t, `{"error_message":"Not Found"}`, w.Body.String(),
 		"Unexpected body")
@@ -194,7 +194,7 @@ func TestJSON_invalid(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode,
 		"Unexpected status code")
 	//nolint:testifylint // not a JSON
-	assert.Equal(t, resp.Header.Get(contentType), applicationJSON,
+	assert.Equal(t, applicationJSON, resp.Header.Get(contentType),
 		"Unexpected content type")
 	assert.JSONEq(t, `{"error_message":"json: unsupported type: chan int"}`,
 		w.Body.String(), "Unexpected body")
@@ -236,7 +236,7 @@ func TestNoContentJSON_error(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode,
 		"Unexpected status code")
 	//nolint:testifylint // not a JSON
-	assert.Equal(t, resp.Header.Get(contentType), applicationJSON,
+	assert.Equal(t, applicationJSON, resp.Header.Get(contentType),
 		"Unexpected content type")
 	assert.JSONEq(t, `{"error_message":"`+errorString+`"}`, w.Body.String(),
 		"Unexpected body")
