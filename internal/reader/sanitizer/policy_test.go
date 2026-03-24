@@ -540,3 +540,17 @@ func TestSanitizeContent(t *testing.T) {
 		})
 	}
 }
+
+func TestIframeAllowList(t *testing.T) {
+	pageURL, err := url.Parse("https://example.org/")
+	require.NoError(t, err)
+
+	for _, domain := range allowIframes {
+		t.Run(domain, func(t *testing.T) {
+			s := SanitizeContent(
+				`<iframe src="https://`+domain+`/video/test"></iframe>`,
+				pageURL)
+			assert.Contains(t, s, `<iframe `)
+		})
+	}
+}
