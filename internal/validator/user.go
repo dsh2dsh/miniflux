@@ -73,8 +73,8 @@ func ValidateUserModification(ctx context.Context, store *storage.Storage,
 	}
 
 	if r.EntryDirection != nil {
-		if err := validateEntryDirection(*r.EntryDirection); err != nil {
-			return err
+		if err := ValidateDirection(*r.EntryDirection); err != nil {
+			return locale.NewLocalizedError("error.invalid_entry_direction")
 		}
 	}
 
@@ -216,13 +216,6 @@ func validateTimezone(ctx context.Context, store *storage.Storage,
 
 	if _, found := timezones[timezone]; !found {
 		return locale.NewLocalizedError("error.invalid_timezone")
-	}
-	return nil
-}
-
-func validateEntryDirection(direction string) *locale.LocalizedError {
-	if direction != "asc" && direction != "desc" {
-		return locale.NewLocalizedError("error.invalid_entry_direction")
 	}
 	return nil
 }
