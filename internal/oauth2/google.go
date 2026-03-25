@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"miniflux.app/v2/internal/model"
 
@@ -59,6 +60,10 @@ func (g *googleProvider) GetProfile(ctx context.Context, code, codeVerifier stri
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("google: unexpected status code %d from userinfo endpoint", resp.StatusCode)
+	}
+
 	var user googleProfile
 	decoder := json.NewDecoder(resp.Body)
 	if err := decoder.Decode(&user); err != nil {
@@ -75,6 +80,10 @@ func (g *googleProvider) PopulateUserCreationWithProfileID(user *model.UserCreat
 
 func (g *googleProvider) PopulateUserWithProfileID(user *model.User, profile *Profile) {
 	user.GoogleID = profile.ID
+}
+
+func (g *googleProvider) GetUserProfileID(user *model.User) string {
+	return user.GoogleID
 }
 
 func (g *googleProvider) UnsetUserProfileID(user *model.User) {
