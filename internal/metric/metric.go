@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -67,8 +68,11 @@ func RegisterMetrics(store *storage.Storage) {
 }
 
 func Handler(store *storage.Storage) http.Handler {
+	var (
+		lastStorageMetricsAt time.Time
+		mu                   sync.Mutex
+	)
 	promHandler := promhttp.Handler()
-	var lastStorageMetricsAt time.Time
 
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -83,13 +87,17 @@ func Handler(store *storage.Storage) http.Handler {
 			return
 		}
 
+		var fromDB bool
+		mu.Lock()
 		d := time.Since(lastStorageMetricsAt)
-		fromDB := d >= config.MetricsRefreshInterval()
-		log.Debug("Collecting storage metrics",
-			slog.Duration("elapsed", d), slog.Bool("from_db", fromDB))
-		if fromDB {
+		if d >= config.MetricsRefreshInterval() {
+			fromDB = true
 			lastStorageMetricsAt = time.Now()
 		}
+		mu.Unlock()
+
+		log.Debug("Collecting storage metrics",
+			slog.Duration("elapsed", d), slog.Bool("from_db", fromDB))
 		if err := store.Metrics(ctx, fromDB); err != nil {
 			log.Error("unable collect storage metrics", slog.Any("error", err))
 			response.ServerError(w, r, err)
