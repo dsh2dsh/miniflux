@@ -14,6 +14,13 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// Google OAuth2 API documentation: https://developers.google.com/identity/protocols/oauth2
+const (
+	googleAuthURL     = "https://accounts.google.com/o/oauth2/v2/auth"
+	googleTokenURL    = "https://oauth2.googleapis.com/token"
+	googleUserInfoURL = "https://www.googleapis.com/oauth2/v3/userinfo"
+)
+
 type googleProfile struct {
 	Sub   string `json:"sub"`
 	Email string `json:"email"`
@@ -36,8 +43,8 @@ func (g *googleProvider) GetConfig() *oauth2.Config {
 		ClientSecret: g.clientSecret,
 		Scopes:       []string{"email"},
 		Endpoint: oauth2.Endpoint{
-			AuthURL:  "https://accounts.google.com/o/oauth2/auth",
-			TokenURL: "https://accounts.google.com/o/oauth2/token",
+			AuthURL:  googleAuthURL,
+			TokenURL: googleTokenURL,
 		},
 	}
 }
@@ -54,7 +61,7 @@ func (g *googleProvider) GetProfile(ctx context.Context, code, codeVerifier stri
 	}
 
 	client := conf.Client(ctx, token)
-	resp, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
+	resp, err := client.Get(googleUserInfoURL)
 	if err != nil {
 		return nil, fmt.Errorf("google: failed to get user info: %w", err)
 	}
