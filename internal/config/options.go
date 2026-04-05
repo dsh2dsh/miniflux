@@ -134,7 +134,7 @@ type envOptions struct {
 	Oauth2Provider                 string   `env:"OAUTH2_PROVIDER" validate:"omitempty,oneof=oidc google"`
 	Oauth2RedirectURL              string   `env:"OAUTH2_REDIRECT_URL" validate:"omitempty,url"`
 	Oauth2UserCreationAllowed      bool     `env:"OAUTH2_USER_CREATION"`
-	OidcDiscoveryEndpoint          string   `env:"OAUTH2_OIDC_DISCOVERY_ENDPOINT" validate:"omitempty,url"`
+	OidcDiscoveryEndpoint          string   `env:"OAUTH2_OIDC_DISCOVERY_ENDPOINT" validate:"required_if=Oauth2Provider oidc,omitempty,url"`
 	OidcProviderName               string   `env:"OAUTH2_OIDC_PROVIDER_NAME"`
 	Operators                      []string `env:"OPERATORS"`
 	PollingFrequency               int      `env:"POLLING_FREQUENCY" validate:"min=1"`

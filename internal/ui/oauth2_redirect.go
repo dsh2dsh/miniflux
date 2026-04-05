@@ -38,7 +38,7 @@ func (h *handler) oauth2Redirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	auth := oauth2.GenerateAuthorization(authProvider.GetConfig())
+	auth := oauth2.GenerateAuthorization(authProvider.Config())
 	if s := request.Session(r); s != nil {
 		r = r.WithContext(request.WithSession(ctx, s))
 		session.New(h.store, r).

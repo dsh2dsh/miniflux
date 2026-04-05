@@ -52,9 +52,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 	stateInvalid := subtle.ConstantTimeCompare([]byte(state),
 		[]byte(wantState)) == 0
 	if stateInvalid {
-		log.Warn("Invalid OAuth2 state value received",
-			slog.String("expected", wantState),
-			slog.String("received", state))
+		log.Warn("Invalid OAuth2 state value received")
 		h.redirect(w, r, "login")
 		return
 	}
@@ -68,7 +66,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	profile, err := authProvider.GetProfile(ctx, code,
+	profile, err := authProvider.Profile(ctx, code,
 		sessionData.OAuth2CodeVerifier)
 	if err != nil {
 		log.Warn("Unable to get OAuth2 profile from provider",
@@ -108,7 +106,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		existingProfileID := authProvider.GetUserProfileID(user)
+		existingProfileID := authProvider.UserProfileID(user)
 		if existingProfileID != "" && existingProfileID != profile.ID {
 			log.Error("Oauth2 user cannot be associated because this user is already linked to a different identity",
 				slog.Int64("user_id", user.ID),

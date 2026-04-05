@@ -458,7 +458,9 @@ UPDATE entries
     WHERE status = $2
           AND changed_at < now () - $3::interval
           AND starred IS FALSE
-    ORDER BY changed_at ASC LIMIT $4
+    ORDER BY changed_at ASC
+    FOR UPDATE SKIP LOCKED
+    LIMIT $4
  )`,
 		model.EntryStatusRemoved, status,
 		strconv.FormatInt(int64(days), 10)+" days", limit)

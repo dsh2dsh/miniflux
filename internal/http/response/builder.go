@@ -95,7 +95,7 @@ func (b *Builder) WithCaching(contentHash string, duration time.Duration,
 ) {
 	etag := `"` + contentHash + `"`
 	b.headers["ETag"] = etag
-	b.headers["Cache-Control"] = "public"
+	b.headers["Cache-Control"] = "public, immutable"
 	b.headers["Expires"] = time.Now().Add(duration).UTC().Format(http.TimeFormat)
 
 	ifNoneMatch := strings.TrimSpace(b.r.Header.Get("If-None-Match"))

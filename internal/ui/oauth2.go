@@ -13,6 +13,7 @@ import (
 func getOAuth2Manager(ctx context.Context) *oauth2.Manager {
 	return oauth2.NewManager(
 		ctx,
+		config.OAuth2Provider(),
 		config.OAuth2ClientID(),
 		config.OAuth2ClientSecret(),
 		config.OAuth2RedirectURL(),

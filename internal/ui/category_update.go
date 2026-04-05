@@ -31,7 +31,7 @@ func (h *handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 		h.showUpdateCategoryError(w, r, func(v *View) {
 			v.Set("form", f).
 				Set("errorMessage", lerr.Translate(v.User().Language))
-			response.HTML(w, r, v.Render("create_category"))
+			response.HTML(w, r, v.Render("edit_category"))
 		})
 		return
 	}
