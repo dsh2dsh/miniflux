@@ -144,6 +144,13 @@ func (self *EntryQueryBuilder) AfterEntryID(entryID int64) *EntryQueryBuilder {
 // WithEntryIDs filter by entry IDs.
 func (self *EntryQueryBuilder) WithEntryIDs(entryIDs []int64,
 ) *EntryQueryBuilder {
+	switch len(entryIDs) {
+	case 0:
+		return self
+	case 1:
+		return self.WithEntryID(entryIDs[0])
+	}
+
 	self.appendCondition("e.id = ANY($", entryIDs, ")")
 	return self
 }
@@ -181,10 +188,16 @@ func (self *EntryQueryBuilder) WithStatus(status string) *EntryQueryBuilder {
 }
 
 // WithStatuses filter by a list of entry statuses.
-func (self *EntryQueryBuilder) WithStatuses(statuses []string) *EntryQueryBuilder {
-	if len(statuses) > 0 {
-		self.appendCondition("e.status = ANY($", statuses, ")")
+func (self *EntryQueryBuilder) WithStatuses(statuses []string,
+) *EntryQueryBuilder {
+	switch len(statuses) {
+	case 0:
+		return self
+	case 1:
+		return self.WithStatus(statuses[0])
 	}
+
+	self.appendCondition("e.status = ANY($", statuses, ")")
 	return self
 }
 
