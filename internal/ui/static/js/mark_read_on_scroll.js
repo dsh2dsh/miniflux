@@ -119,14 +119,13 @@ class MarkReadOnScroll {
     }
   }
 
-  restart() {
+  stop() {
     if (this.timeoutId > 0) {
       clearTimeout(this.timeoutId);
       this.timeoutId = 0;
     }
     this.observer.disconnect();
     this.lastAdded = this.firstScrolled = this.lastScrolled = undefined;
-    this.addEntries();
   }
 }
 
