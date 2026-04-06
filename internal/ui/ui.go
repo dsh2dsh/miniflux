@@ -95,7 +95,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 	m.Group(func(m *mux.ServeMux) {
 		m.Use(mw.userNoRedirect(), mw.handleAppSession)
 
-		m.NameHandleFunc("/mark-all-as-read", response.JSON(h.markAllAsRead),
+		m.NameHandleFunc("POST /mark-all-as-read", response.JSON(h.markAllAsRead),
 			"markAllAsRead")
 		m.NameHandleFunc("/history/flush", response.JSON(h.flushHistory),
 			"flushHistory")
@@ -168,7 +168,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 		"feedEntries")
 	m.NameHandleFunc("/feed/{feedID}/entries/all", h.showFeedEntriesAllPage,
 		"feedEntriesAll")
-	m.NameHandleFunc("/feed/{feedID}/mark-all-as-read", h.markFeedAsRead,
+	m.NameHandleFunc("POST /feed/{feedID}/mark-all-as-read", h.markFeedAsRead,
 		"markFeedAsRead")
 
 	m.NameHandleFunc("GET /feed/{feedID}/authors/{authorName}",
@@ -188,6 +188,8 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 	m.NameHandleFunc("/category/save", h.saveCategory, "saveCategory")
 	m.NameHandleFunc("/category/{categoryID}/feeds", h.showCategoryFeedsPage,
 		"categoryFeeds")
+	m.NameHandleFunc("POST /category/{categoryID}/feed/{feedID}/mark-all-as-read",
+		h.markFeedAsRead, "markCategoryFeedAsRead")
 	m.NameHandleFunc("/category/{categoryID}/feed/{feedID}/remove",
 		h.removeCategoryFeed, "removeCategoryFeed")
 	m.NameHandleFunc("/category/{categoryID}/feeds/refresh",
@@ -206,7 +208,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 		"updateCategory")
 	m.NameHandleFunc("/category/{categoryID}/remove", h.removeCategory,
 		"removeCategory")
-	m.NameHandleFunc("/category/{categoryID}/mark-all-as-read",
+	m.NameHandleFunc("POST /category/{categoryID}/mark-all-as-read",
 		h.markCategoryAsRead, "markCategoryAsRead")
 
 	// User pages.

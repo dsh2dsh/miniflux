@@ -21,5 +21,12 @@ func (h *handler) markFeedAsRead(w http.ResponseWriter, r *http.Request) {
 		response.ServerError(w, r, err)
 		return
 	}
-	h.redirect(w, r, "feeds")
+
+	if catId := request.RouteStringParam(r, "categoryID"); catId == "" {
+		h.redirect(w, r, "feeds")
+		return
+	}
+
+	h.redirect(w, r, "categoryFeeds", "categoryID",
+		request.RouteInt64Param(r, "categoryID"))
 }
