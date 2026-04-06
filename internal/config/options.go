@@ -70,9 +70,9 @@ type envOptions struct {
 	BaseURL                        string   `env:"BASE_URL" validate:"required"`
 	BatchSize                      int      `env:"BATCH_SIZE" validate:"min=1"`
 	BlockMarkRead                  bool     `env:"BLOCK_MARK_READ"`
-	CertDomain                     string   `env:"CERT_DOMAIN"`
-	CertFile                       string   `env:"CERT_FILE" validate:"omitempty,filepath"`
-	CertKeyFile                    string   `env:"KEY_FILE" validate:"omitempty,filepath"`
+	CertDomain                     string   `env:"CERT_DOMAIN" validate:"excluded_with_all=CertFile CertKeyFile"`
+	CertFile                       string   `env:"CERT_FILE" validate:"required_with=CertKeyFile,omitempty,filepath"`
+	CertKeyFile                    string   `env:"KEY_FILE" validate:"required_with=CertFile,omitempty,filepath"`
 	CleanupArchiveBatchSize        int      `env:"CLEANUP_ARCHIVE_BATCH_SIZE" validate:"min=1"`
 	CleanupArchiveReadDays         int      `env:"CLEANUP_ARCHIVE_READ_DAYS" validate:"min=0"`
 	CleanupArchiveUnreadDays       int      `env:"CLEANUP_ARCHIVE_UNREAD_DAYS" validate:"min=0"`
@@ -83,7 +83,7 @@ type envOptions struct {
 	CreateAdmin                    bool     `env:"CREATE_ADMIN"`
 	DatabaseConnectionLifetime     int      `env:"DATABASE_CONNECTION_LIFETIME" validate:"gt=0"`
 	DatabaseMaxConns               int      `env:"DATABASE_MAX_CONNS" validate:"min=1"`
-	DatabaseMinConns               int      `env:"DATABASE_MIN_CONNS" validate:"min=0"`
+	DatabaseMinConns               int      `env:"DATABASE_MIN_CONNS" validate:"min=0,ltefield=DatabaseMaxConns"`
 	DatabaseURL                    string   `env:"DATABASE_URL" validate:"required"`
 	DatabaseURLFile                *string  `env:"DATABASE_URL_FILE,file"`
 	DisableAPI                     bool     `env:"DISABLE_API"`
@@ -122,10 +122,10 @@ type envOptions struct {
 	MediaProxyResourceTypes        []string `env:"MEDIA_PROXY_RESOURCE_TYPES" validate:"omitempty,dive,oneof=image video audio"`
 	MetricsAllowedNetworks         []string `env:"METRICS_ALLOWED_NETWORKS" validate:"dive,required"`
 	MetricsCollector               bool     `env:"METRICS_COLLECTOR"`
-	MetricsPassword                string   `env:"METRICS_PASSWORD"`
+	MetricsPassword                string   `env:"METRICS_PASSWORD" validate:"required_with=MetricsUsername"`
 	MetricsPasswordFile            *string  `env:"METRICS_PASSWORD_FILE,file"`
 	MetricsRefreshInterval         int      `env:"METRICS_REFRESH_INTERVAL" validate:"min=1"`
-	MetricsUsername                string   `env:"METRICS_USERNAME"`
+	MetricsUsername                string   `env:"METRICS_USERNAME" validate:"required_with=MetricsPassword"`
 	MetricsUsernameFile            *string  `env:"METRICS_USERNAME_FILE,file"`
 	Oauth2ClientID                 string   `env:"OAUTH2_CLIENT_ID"`
 	Oauth2ClientIDFile             *string  `env:"OAUTH2_CLIENT_ID_FILE,file"`
@@ -143,7 +143,7 @@ type envOptions struct {
 	RateLimitPerServer             float64  `env:"RATE_LIMIT_PER_SERVER" validate:"min=0"`
 	RunMigrations                  bool     `env:"RUN_MIGRATIONS"`
 	SchedulerRoundRobinMaxInterval int      `env:"SCHEDULER_ROUND_ROBIN_MAX_INTERVAL" validate:"min=1"`
-	SchedulerRoundRobinMinInterval int      `env:"SCHEDULER_ROUND_ROBIN_MIN_INTERVAL" validate:"min=1"`
+	SchedulerRoundRobinMinInterval int      `env:"SCHEDULER_ROUND_ROBIN_MIN_INTERVAL" validate:"min=1,ltefield=SchedulerRoundRobinMaxInterval"`
 	Testing                        bool     `env:"TESTING"`
 	TrustedProxies                 []string `env:"TRUSTED_PROXIES" validate:"dive,required,ip"`
 	Watchdog                       bool     `env:"WATCHDOG"`
@@ -227,6 +227,7 @@ func (o *options) init() (err error) {
 	if o.env.Port != "" {
 		o.env.ListenAddr = ":" + o.env.Port
 	}
+	o.applyFileStrings()
 
 	if err := o.validate(); err != nil {
 		return err
@@ -235,7 +236,6 @@ func (o *options) init() (err error) {
 	o.env.HttpClientMaxBodySize *= 1024 * 1024
 	o.env.MediaProxyResourceTypes = uniqStringList(o.env.MediaProxyResourceTypes)
 
-	o.applyFileStrings()
 	if err = o.applyPrivateKeys(); err != nil {
 		return err
 	}

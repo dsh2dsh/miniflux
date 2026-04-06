@@ -201,6 +201,7 @@ func TestDefaultDatabaseMinConnsValue(t *testing.T) {
 
 func TestDatabaseMinConns(t *testing.T) {
 	os.Clearenv()
+	t.Setenv("DATABASE_MAX_CONNS", "42")
 	t.Setenv("DATABASE_MIN_CONNS", "42")
 	opts := parseEnvironmentVariables(t)
 	assert.Equal(t, 42, opts.env.DatabaseMinConns)
@@ -232,6 +233,7 @@ func TestCertFile(t *testing.T) {
 	os.Clearenv()
 	const expected = "foobar"
 	t.Setenv("CERT_FILE", expected)
+	t.Setenv("KEY_FILE", expected)
 	opts := parseEnvironmentVariables(t)
 	assert.Equal(t, expected, opts.env.CertFile)
 }
@@ -245,6 +247,7 @@ func TestDefaultCertFileValue(t *testing.T) {
 func TestKeyFile(t *testing.T) {
 	os.Clearenv()
 	const expected = "foobar"
+	t.Setenv("CERT_FILE", expected)
 	t.Setenv("KEY_FILE", expected)
 	opts := parseEnvironmentVariables(t)
 	assert.Equal(t, expected, opts.env.CertKeyFile)
@@ -1058,4 +1061,169 @@ func TestFetcherDeniedNetwork(t *testing.T) {
 			assert.Equal(t, tt.expected, FetcherDeniedNetwork(addr))
 		})
 	}
+}
+
+func TestValidateOIDCProviderRequiresDiscoveryEndpoint(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("OAUTH2_PROVIDER", "oidc")
+	err := Load("")
+	require.Error(t, err,
+		"Expected error when OIDC provider is set without discovery endpoint")
+	assert.ErrorContains(t, err, "OAUTH2_OIDC_DISCOVERY_ENDPOINT")
+}
+
+func TestValidateOIDCProviderWithDiscoveryEndpoint(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("OAUTH2_PROVIDER", "oidc")
+	t.Setenv("OAUTH2_OIDC_DISCOVERY_ENDPOINT", "https://example.com/.well-known/openid-configuration")
+	require.NoError(t, Load(""))
+}
+
+func TestValidateDisableLocalAuthWithoutAlternative(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("DISABLE_LOCAL_AUTH", "1")
+	err := Load("")
+	require.Error(t, err,
+		"Expected error when local auth is disabled without alternative")
+	assert.ErrorContains(t, err, "DISABLE_LOCAL_AUTH is enabled")
+}
+
+func TestValidateDisableLocalAuthWithOAuth2ButNoUserCreation(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("DISABLE_LOCAL_AUTH", "1")
+	t.Setenv("OAUTH2_PROVIDER", "oidc")
+	t.Setenv("OAUTH2_OIDC_DISCOVERY_ENDPOINT", "https://example.com/.well-known/openid-configuration")
+	err := Load("")
+	require.Error(t, err,
+		"Expected error when local auth is disabled with OAuth2 but without user creation")
+	assert.ErrorContains(t, err, "DISABLE_LOCAL_AUTH is enabled")
+}
+
+func TestValidateDisableLocalAuthWithOAuth2AndUserCreation(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("DISABLE_LOCAL_AUTH", "1")
+	t.Setenv("OAUTH2_PROVIDER", "oidc")
+	t.Setenv("OAUTH2_OIDC_DISCOVERY_ENDPOINT", "https://example.com/.well-known/openid-configuration")
+	t.Setenv("OAUTH2_USER_CREATION", "1")
+	require.NoError(t, Load(""))
+}
+
+func TestValidateDisableLocalAuthWithAuthProxyButNoUserCreation(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("DISABLE_LOCAL_AUTH", "1")
+	t.Setenv("AUTH_PROXY_HEADER", "X-Forwarded-User")
+	t.Setenv("AUTH_PROXY_USER_CREATION", "0")
+	err := Load("")
+	require.Error(t, err,
+		"Expected error when local auth is disabled with auth proxy but without user creation")
+	assert.ErrorContains(t, err, "DISABLE_LOCAL_AUTH is enabled")
+}
+
+func TestValidateDisableLocalAuthWithAuthProxyAndUserCreation(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("DISABLE_LOCAL_AUTH", "1")
+	t.Setenv("AUTH_PROXY_HEADER", "X-Forwarded-User")
+	t.Setenv("AUTH_PROXY_USER_CREATION", "1")
+	require.NoError(t, Load(""))
+}
+
+func TestValidateCertFileMissingKeyFile(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("CERT_FILE", "/path/to/cert.pem")
+	err := Load("")
+	require.Error(t, err,
+		"Expected error when CERT_FILE is set without KEY_FILE")
+	assert.ErrorContains(t, err, "KEY_FILE")
+}
+
+func TestValidateKeyFileMissingCertFile(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("KEY_FILE", "/path/to/key.pem")
+	err := Load("")
+	require.Error(t, err,
+		"Expected error when KEY_FILE is set without CERT_FILE")
+	assert.ErrorContains(t, err, "CERT_FILE")
+}
+
+func TestValidateCertFileAndKeyFile(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("CERT_FILE", "/path/to/cert.pem")
+	t.Setenv("KEY_FILE", "/path/to/key.pem")
+	require.NoError(t, Load(""))
+}
+
+func TestValidateCertDomainAndCertFileMutuallyExclusive(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("CERT_DOMAIN", "example.com")
+	t.Setenv("CERT_FILE", "/path/to/cert.pem")
+	t.Setenv("KEY_FILE", "/path/to/key.pem")
+	err := Load("")
+	require.Error(t, err,
+		"Expected error when both CERT_DOMAIN and CERT_FILE are set")
+	assert.ErrorContains(t, err, "CERT_DOMAIN")
+}
+
+func TestValidateCertDomainAlone(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("CERT_DOMAIN", "example.com")
+	require.NoError(t, Load(""))
+}
+
+func TestValidateMetricsUsernameWithoutPassword(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("METRICS_USERNAME", "admin")
+	err := Load("")
+	require.Error(t, err,
+		"Expected error when METRICS_USERNAME is set without METRICS_PASSWORD")
+	assert.ErrorContains(t, err, "METRICS_PASSWORD")
+}
+
+func TestValidateMetricsPasswordWithoutUsername(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("METRICS_PASSWORD", "secret")
+	err := Load("")
+	require.Error(t, err,
+		"Expected error when METRICS_PASSWORD is set without METRICS_USERNAME")
+	assert.ErrorContains(t, err, "METRICS_USERNAME")
+}
+
+func TestValidateMetricsUsernameAndPassword(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("METRICS_USERNAME", "admin")
+	t.Setenv("METRICS_PASSWORD", "secret")
+	require.NoError(t, Load(""))
+}
+
+func TestValidateDatabaseMinConnsGreaterThanMaxConns(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("DATABASE_MIN_CONNS", "25")
+	t.Setenv("DATABASE_MAX_CONNS", "10")
+	err := Load("")
+	require.Error(t, err,
+		"Expected error when DATABASE_MIN_CONNS > DATABASE_MAX_CONNS")
+	assert.ErrorContains(t, err, "DATABASE_MIN_CONNS")
+}
+
+func TestValidateDatabaseMinConnsEqualToMaxConns(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("DATABASE_MIN_CONNS", "10")
+	t.Setenv("DATABASE_MAX_CONNS", "10")
+	require.NoError(t, Load(""))
+}
+
+func TestValidateSchedulerRoundRobinMinGreaterThanMax(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("SCHEDULER_ROUND_ROBIN_MIN_INTERVAL", "1440")
+	t.Setenv("SCHEDULER_ROUND_ROBIN_MAX_INTERVAL", "60")
+	err := Load("")
+	require.Error(t, err,
+		"Expected error when SCHEDULER_ROUND_ROBIN_MIN_INTERVAL > SCHEDULER_ROUND_ROBIN_MAX_INTERVAL")
+	assert.ErrorContains(t, err, "SCHEDULER_ROUND_ROBIN_MIN_INTERVAL")
+}
+
+func TestValidateSchedulerRoundRobinMinLessThanMax(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("SCHEDULER_ROUND_ROBIN_MIN_INTERVAL", "60")
+	t.Setenv("SCHEDULER_ROUND_ROBIN_MAX_INTERVAL", "1440")
+	require.NoError(t, Load(""))
 }
