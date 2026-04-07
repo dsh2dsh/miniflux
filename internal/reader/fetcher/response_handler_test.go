@@ -6,6 +6,7 @@ package fetcher // import "miniflux.app/v2/internal/reader/fetcher"
 import (
 	"net/http"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -73,9 +74,10 @@ func TestIsModified(t *testing.T) {
 
 func TestRetryDelay(t *testing.T) {
 	tests := [...]struct {
-		name        string
-		retryHeader string
-		wantDelay   time.Duration
+		name            string
+		retryHeader     string
+		retryHeaderFunc func() string
+		wantDelay       time.Duration
 	}{
 		{
 			name:      "empty header",
@@ -96,26 +98,36 @@ func TestRetryDelay(t *testing.T) {
 			wantDelay:   0,
 		},
 		{
-			name:        "HTTP-date",
-			retryHeader: time.Now().Add(42 * time.Second).Format(time.RFC1123),
-			wantDelay:   41 * time.Second,
+			name: "HTTP-date",
+			retryHeaderFunc: func() string {
+				return time.Now().Add(42 * time.Second).Format(time.RFC1123)
+			},
+			wantDelay: 42 * time.Second,
 		},
 		{
-			name:        "past HTTP-date",
-			retryHeader: time.Now().Add(-42 * time.Second).Format(time.RFC1123),
-			wantDelay:   0,
+			name: "past HTTP-date",
+			retryHeaderFunc: func() string {
+				return time.Now().Add(-42 * time.Second).Format(time.RFC1123)
+			},
+			wantDelay: 0,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Log("Retry-After:", tt.retryHeader)
+		testFunc := func(t *testing.T) {
 			header := http.Header{}
-			header.Add("Retry-After", tt.retryHeader)
+			switch {
+			case tt.retryHeader != "":
+				header.Add("Retry-After", tt.retryHeader)
+			case tt.retryHeaderFunc != nil:
+				header.Add("Retry-After", tt.retryHeaderFunc())
+			}
+			t.Log("        now:", time.Now().Format(time.RFC1123))
+			t.Log("Retry-After:", header.Get("Retry-After"))
 			resp := ResponseHandler{httpResponse: &http.Response{Header: header}}
-			assert.Equal(t, tt.wantDelay,
-				resp.parseRetryDelay().Truncate(time.Second))
-		})
+			assert.Equal(t, tt.wantDelay, resp.parseRetryDelay())
+		}
+		t.Run(tt.name, func(t *testing.T) { synctest.Test(t, testFunc) })
 	}
 }
 
