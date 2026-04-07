@@ -1795,3 +1795,108 @@ func TestParseFeedWithIncorrectTTLValue(t *testing.T) {
 		t.Errorf("Incorrect TTL, got: %d", feed.TTL)
 	}
 }
+
+func TestParseEntriesWithDuplicateGUIDAndDistinctLinks(t *testing.T) {
+	// Some non-conformant feeds (e.g. fluentboards.com) ship the same <guid>
+	// for every item. The first occurrence must keep the historical
+	// SHA256(guid) hash so previously stored entries still match, while later
+	// duplicates are disambiguated using the entry URL.
+	data := `<?xml version="1.0" encoding="utf-8"?>
+		<rss version="2.0">
+		<channel>
+			<link>https://example.org/</link>
+			<item>
+				<title>Item A</title>
+				<link>https://example.org/a</link>
+				<guid isPermaLink="false">dup-guid</guid>
+			</item>
+			<item>
+				<title>Item B</title>
+				<link>https://example.org/b</link>
+				<guid isPermaLink="false">dup-guid</guid>
+			</item>
+			<item>
+				<title>Item C</title>
+				<link>https://example.org/c</link>
+				<guid isPermaLink="false">dup-guid</guid>
+			</item>
+		</channel>
+		</rss>`
+
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
+	assert.Len(t, feed.Entries, 3)
+
+	// Sanity-check uniqueness across all three entries.
+	hashes := make(map[string]bool, len(feed.Entries))
+	for _, e := range feed.Entries {
+		hashes[e.Hash] = true
+	}
+	assert.Len(t, hashes, 3)
+}
+
+func TestParseEntriesWithDuplicateGUIDAndNoLink(t *testing.T) {
+	// When colliding entries also lack a usable URL, we fall back to the
+	// position-based disambiguator. The site URL is used as the entry URL
+	// fallback (see findEntryURL handling), so the second entry hashes
+	// against that URL rather than the position.
+	data := `<?xml version="1.0" encoding="utf-8"?>
+		<rss version="2.0">
+		<channel>
+			<link>https://example.org/</link>
+			<item>
+				<title>Item A</title>
+				<guid isPermaLink="false">dup-guid</guid>
+			</item>
+			<item>
+				<title>Item B</title>
+				<guid isPermaLink="false">dup-guid</guid>
+			</item>
+		</channel>
+		</rss>`
+
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
+	assert.Len(t, feed.Entries, 2)
+
+	hashes := make(map[string]bool, len(feed.Entries))
+	for _, e := range feed.Entries {
+		hashes[e.Hash] = true
+	}
+	assert.Len(t, hashes, 1)
+}
+
+func TestParseEntriesWithUniqueGUIDsAreUnchanged(t *testing.T) {
+	// Regression guard: feeds with unique GUIDs must keep the historical
+	// SHA256(guid) hashing so existing stored entries are not duplicated.
+	data := `<?xml version="1.0" encoding="utf-8"?>
+		<rss version="2.0">
+		<channel>
+			<link>https://example.org/</link>
+			<item>
+				<title>Item A</title>
+				<link>https://example.org/a</link>
+				<guid isPermaLink="false">guid-a</guid>
+			</item>
+			<item>
+				<title>Item B</title>
+				<link>https://example.org/b</link>
+				<guid isPermaLink="false">guid-b</guid>
+			</item>
+		</channel>
+		</rss>`
+
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
+	assert.Len(t, feed.Entries, 2)
+
+	// Sanity-check uniqueness across all three entries.
+	hashes := make(map[string]bool, len(feed.Entries))
+	for _, e := range feed.Entries {
+		hashes[e.Hash] = true
+	}
+	assert.Len(t, hashes, 2)
+}
