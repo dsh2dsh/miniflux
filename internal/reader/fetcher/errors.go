@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"miniflux.app/v2/internal/locale"
@@ -92,6 +93,10 @@ func (self *ResponseHandler) localizeStatusCode() *locale.LocalizedErrorWrapper 
 		return nil
 	}
 
+	if lerr := self.CloudflareChallenge(); lerr != nil {
+		return lerr
+	}
+
 	if key, ok := translatedStatusCodes[statusCode]; ok {
 		return locale.NewLocalizedErrorWrapper(self.badStatusErr(), key)
 	}
@@ -114,6 +119,20 @@ func (self *ResponseHandler) badStatusErr() *ErrBadStatus {
 		ContentType: self.ContentType(),
 		Body:        self.content,
 	}
+}
+
+func (self ResponseHandler) CloudflareChallenge() *locale.LocalizedErrorWrapper {
+	statusCode := self.StatusCode()
+	cf := statusCode == http.StatusForbidden &&
+		strings.EqualFold(self.Header("cf-mitigated"), "challenge") &&
+		strings.HasPrefix(strings.ToLower(self.ContentType()), "text/html")
+	if !cf {
+		return nil
+	}
+
+	err := fmt.Errorf("reader/fetcher: blocked by Cloudflare challenge: %w",
+		self.badStatusErr())
+	return locale.NewLocalizedErrorWrapper(err, "error.http_cloudflare_challenge")
 }
 
 type ErrTooManyRequests struct {

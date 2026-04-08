@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsModified(t *testing.T) {
@@ -199,6 +200,106 @@ func TestCacheControlMaxAgeInMinutes(t *testing.T) {
 			if tc.ExpectedMinutes != rh.CacheControlMaxAgeInMinutes() {
 				t.Errorf("Expected %d, got %d for scenario %q", tc.ExpectedMinutes, rh.CacheControlMaxAgeInMinutes(), name)
 			}
+		})
+	}
+}
+
+func TestCloudflareChallenge(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+		headers    map[string]string
+		expected   bool
+	}{
+		{
+			name:       "403 with cf-mitigated challenge and html",
+			statusCode: http.StatusForbidden,
+			headers: map[string]string{
+				"Cf-Mitigated": "challenge",
+				"Content-Type": "text/html; charset=UTF-8",
+			},
+			expected: true,
+		},
+		{
+			name:       "cf-mitigated challenge header on 200",
+			statusCode: http.StatusOK,
+			headers: map[string]string{
+				"Cf-Mitigated": "challenge",
+				"Content-Type": "text/html",
+			},
+		},
+		{
+			name:       "403 cf-mitigated challenge without html",
+			statusCode: http.StatusForbidden,
+			headers: map[string]string{
+				"Cf-Mitigated": "challenge",
+				"Content-Type": "application/json",
+			},
+		},
+		{
+			name:       "403 from cloudflare with html but no challenge signal",
+			statusCode: http.StatusForbidden,
+			headers: map[string]string{
+				"Server":       "cloudflare",
+				"Cf-Ray":       "8abc123def456-IAD",
+				"Content-Type": "text/html; charset=UTF-8",
+			},
+		},
+		{
+			name:       "503 from cloudflare with html but no challenge signal",
+			statusCode: http.StatusServiceUnavailable,
+			headers: map[string]string{
+				"Server":       "cloudflare",
+				"Cf-Ray":       "8abc123def456-IAD",
+				"Content-Type": "text/html",
+			},
+		},
+		{
+			name:       "403 from non-cloudflare server",
+			statusCode: http.StatusForbidden,
+			headers: map[string]string{
+				"Server":       "nginx",
+				"Content-Type": "text/html",
+			},
+		},
+		{
+			name:       "500 from cloudflare with html",
+			statusCode: http.StatusInternalServerError,
+			headers: map[string]string{
+				"Server":       "cloudflare",
+				"Cf-Ray":       "8abc123def456-IAD",
+				"Content-Type": "text/html",
+			},
+		},
+		{
+			name:       "200 OK from cloudflare",
+			statusCode: http.StatusOK,
+			headers: map[string]string{
+				"Server":       "cloudflare",
+				"Cf-Ray":       "8abc123def456-IAD",
+				"Content-Type": "application/rss+xml",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := http.Header{}
+			for k, v := range tt.headers {
+				h.Set(k, v)
+			}
+			resp := http.Response{StatusCode: tt.statusCode, Header: h}
+			responseHandler := ResponseHandler{httpResponse: &resp}
+
+			lerr := responseHandler.CloudflareChallenge()
+			if !tt.expected {
+				assert.Nil(t, lerr)
+				return
+			}
+
+			require.Error(t, lerr)
+			var badStatusErr *ErrBadStatus
+			assert.ErrorAs(t, lerr, &badStatusErr)
 		})
 	}
 }
