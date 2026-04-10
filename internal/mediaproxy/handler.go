@@ -151,7 +151,7 @@ func Serve(w http.ResponseWriter, r *http.Request) {
 		b.WithHeader("Content-Type", resp.Header("Content-Type"))
 
 		if filename := path.Base(u.EscapedPath()); filename != "" {
-			b.WithHeader("Content-Disposition", `inline; filename="`+filename+`"`)
+			b.WithInline(filename)
 		}
 
 		for _, name := range proxyResponseHeaders {

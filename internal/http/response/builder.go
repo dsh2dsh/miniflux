@@ -6,6 +6,7 @@ package response // import "miniflux.app/v2/internal/http/response"
 import (
 	"io"
 	"log/slog"
+	"mime"
 	"net/http"
 	"strings"
 	"time"
@@ -79,7 +80,25 @@ func (b *Builder) WithBodyAsReader(body io.Reader) *Builder {
 
 // WithAttachment forces the document to be downloaded by the web browser.
 func (b *Builder) WithAttachment(filename string) *Builder {
-	b.headers["Content-Disposition"] = "attachment; filename=" + filename
+	b.headers["Content-Disposition"] = formatContentDisposition("attachment", filename)
+	return b
+}
+
+func formatContentDisposition(dispositionType, filename string) string {
+	if filename == "" {
+		return dispositionType
+	}
+
+	if value := mime.FormatMediaType(dispositionType, map[string]string{"filename": filename}); value != "" {
+		return value
+	}
+
+	return dispositionType
+}
+
+// WithInline suggests an inline filename for the current response.
+func (b *Builder) WithInline(filename string) *Builder {
+	b.headers["Content-Disposition"] = formatContentDisposition("inline", filename)
 	return b
 }
 

@@ -6,6 +6,7 @@ package response // import "miniflux.app/v2/internal/http/response"
 import (
 	"bytes"
 	"errors"
+	"mime"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -106,6 +107,102 @@ func TestBuildResponseWithAttachment(t *testing.T) {
 	actual := resp.Header.Get("Content-Disposition")
 	if actual != expected {
 		t.Fatalf(`Unexpected header value, got %q instead of %q`, actual, expected)
+	}
+}
+
+func TestBuildResponseWithAttachmentEscapesFilename(t *testing.T) {
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
+	require.NoError(t, err)
+	require.NotNil(t, r)
+
+	w := httptest.NewRecorder()
+	require.NotNil(t, w)
+
+	const filename = `a";filename="malware.exe`
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		New(w, r).WithAttachment(filename).Write()
+	})
+
+	handler.ServeHTTP(w, r)
+	resp := w.Result()
+	require.NotNil(t, resp)
+
+	mediaType, params, err := mime.ParseMediaType(
+		resp.Header.Get("Content-Disposition"))
+	require.NoError(t, err)
+	require.NotEmpty(t, params)
+	assert.Equal(t, "attachment", mediaType, "Unexpected media type")
+	assert.Equal(t, filename, params["filename"], "Unexpected filename")
+}
+
+func TestBuildResponseWithInlineEscapesFilename(t *testing.T) {
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
+	require.NoError(t, err)
+	require.NotNil(t, r)
+
+	w := httptest.NewRecorder()
+	require.NotNil(t, w)
+
+	const filename = `a";filename="malware.exe`
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		New(w, r).WithInline(filename).Write()
+	})
+
+	handler.ServeHTTP(w, r)
+	resp := w.Result()
+	require.NotNil(t, resp)
+
+	mediaType, params, err := mime.ParseMediaType(
+		resp.Header.Get("Content-Disposition"))
+	require.NoError(t, err)
+	require.NotEmpty(t, params)
+	assert.Equal(t, "inline", mediaType, "Unexpected media type")
+	assert.Equal(t, filename, params["filename"], "Unexpected filename")
+}
+
+func TestFormatContentDisposition(t *testing.T) {
+	tests := []struct {
+		name            string
+		dispositionType string
+		filename        string
+		expected        string
+	}{
+		{
+			name:            "empty filename returns bare type",
+			dispositionType: "inline",
+			expected:        "inline",
+		},
+		{
+			name:            "simple filename",
+			dispositionType: "attachment",
+			filename:        "photo.jpg",
+			expected:        `attachment; filename=photo.jpg`,
+		},
+		{
+			name:            "filename with double quote",
+			dispositionType: "inline",
+			filename:        `a";filename="malware.exe`,
+			expected:        `inline; filename="a\";filename=\"malware.exe"`,
+		},
+		{
+			name:            "filename with spaces",
+			dispositionType: "attachment",
+			filename:        "my file.txt",
+			expected:        `attachment; filename="my file.txt"`,
+		},
+		{
+			name:            "non-ASCII filename",
+			dispositionType: "attachment",
+			filename:        "café.png",
+			expected:        `attachment; filename*=utf-8''caf%C3%A9.png`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected,
+				formatContentDisposition(tt.dispositionType, tt.filename))
+		})
 	}
 }
 
