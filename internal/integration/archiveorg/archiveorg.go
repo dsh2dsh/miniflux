@@ -22,7 +22,7 @@ func NewClient() *Client {
 
 func (c *Client) SendURL(ctx context.Context, entryURL string) error {
 	requestURL := "https://web.archive.org/save/" + url.QueryEscape(entryURL) + "?" + options
-	response, err := fetcher.Request(requestURL)
+	response, err := fetcher.Request(requestURL, fetcher.WithPrivateNetworks())
 	if err != nil {
 		return fmt.Errorf("archiveorg: unable to send request: %w", err)
 	}

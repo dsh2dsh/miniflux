@@ -47,7 +47,7 @@ func (c *Client) CreateDocument(ctx context.Context, entryURL string) error {
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Token "+c.apiKey)
 
-	response, err := fetcher.Do(request)
+	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
 	if err != nil {
 		return fmt.Errorf("readwise: unable to send request: %w", err)
 	}

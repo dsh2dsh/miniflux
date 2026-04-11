@@ -35,8 +35,8 @@ const (
 var ErrPrivateNetworkHost = errors.New(
 	"reader/fetcher: refusing to access private network host")
 
-func Do(req *http.Request) (*ResponseSemaphore, error) {
-	resp, err := NewRequestBuilder().Do(req)
+func Do(req *http.Request, opts ...Option) (*ResponseSemaphore, error) {
+	resp, err := NewRequestBuilder(opts...).Do(req)
 	switch {
 	case err != nil:
 		return nil, err
@@ -47,8 +47,8 @@ func Do(req *http.Request) (*ResponseSemaphore, error) {
 	return resp, nil
 }
 
-func Request(requestURL string) (*ResponseSemaphore, error) {
-	return NewRequestBuilder().Request(requestURL)
+func Request(requestURL string, opts ...Option) (*ResponseSemaphore, error) {
+	return NewRequestBuilder(opts...).Request(requestURL)
 }
 
 type RequestBuilder struct {
@@ -62,20 +62,27 @@ type RequestBuilder struct {
 	disableHTTP2     bool
 	proxyRotator     *proxyrotator.ProxyRotator
 	feedProxyURL     string
+	allowPrivateNets bool
 
 	customizedClient bool
 }
 
-func NewRequestBuilder() *RequestBuilder {
+func NewRequestBuilder(opts ...Option) *RequestBuilder {
 	headers := make(http.Header, 2)
 	headers.Set(uaHeaderName, config.HTTPClientUserAgent())
 
-	return &RequestBuilder{
-		headers:        headers,
-		clientProxyURL: config.HTTPClientProxyURL(),
-		clientTimeout:  config.HTTPClientTimeout(),
-		proxyRotator:   proxyrotator.ProxyRotatorInstance,
+	self := &RequestBuilder{
+		headers:          headers,
+		allowPrivateNets: config.FetcherAllowPrivateNetworks(),
+		clientProxyURL:   config.HTTPClientProxyURL(),
+		clientTimeout:    config.HTTPClientTimeout(),
+		proxyRotator:     proxyrotator.ProxyRotatorInstance,
 	}
+
+	for _, opt := range opts {
+		opt(self)
+	}
+	return self
 }
 
 func NewRequestFeed(f *model.Feed) *RequestBuilder {
@@ -180,6 +187,14 @@ func (self *RequestBuilder) IgnoreTLSErrors(value bool) *RequestBuilder {
 	return self
 }
 
+func (self *RequestBuilder) WithPrivateNetworks() *RequestBuilder {
+	if !self.allowPrivateNets {
+		self.allowPrivateNets = true
+		self.customizedClient = true
+	}
+	return self
+}
+
 func (self *RequestBuilder) execute(req *http.Request) (*http.Response,
 	error,
 ) {
@@ -270,7 +285,7 @@ func withoutRedirects(*http.Request, []*http.Request) error {
 
 func (self *RequestBuilder) transport(proxyURL *url.URL) http.RoundTripper {
 	dialer := &net.Dialer{Timeout: self.Timeout()}
-	if !config.FetcherAllowPrivateNetworks() {
+	if !self.allowPrivateNets && proxyURL == nil {
 		dialer.ControlContext = denyDialToPrivate
 	}
 

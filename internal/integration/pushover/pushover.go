@@ -114,7 +114,7 @@ func (c *Client) makeRequest(ctx context.Context, payload *message) error {
 	}
 
 	req.Header.Add("Content-Type", "application/json")
-	resp, err := fetcher.Do(req)
+	resp, err := fetcher.Do(req, fetcher.WithPrivateNetworks())
 	if err != nil {
 		return fmt.Errorf("pushover: unable to send request: %w", err)
 	}

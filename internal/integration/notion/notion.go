@@ -57,7 +57,7 @@ func (c *Client) UpdateDocument(ctx context.Context, entryURL,
 	request.Header.Set("Notion-Version", "2022-06-28")
 	request.Header.Set("Authorization", "Bearer "+c.apiToken)
 
-	response, err := fetcher.Do(request)
+	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
 	if err != nil {
 		return fmt.Errorf("notion: unable to send request: %w", err)
 	}

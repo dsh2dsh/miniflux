@@ -77,7 +77,7 @@ func (c *Client) SendDiscordMsg(ctx context.Context, feed *model.Feed,
 		)
 
 		request.Header.Set("Content-Type", "application/json")
-		response, err := fetcher.Do(request)
+		response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
 		if err != nil {
 			return fmt.Errorf("discord: unable to send request: %w", err)
 		}

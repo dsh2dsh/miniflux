@@ -64,7 +64,7 @@ func (c *Client) CreateBookmark(ctx context.Context, entryURL,
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Bearer "+token)
 
-	response, err := fetcher.Do(request)
+	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
 	if err != nil {
 		return fmt.Errorf("shiori: unable to send request: %w", err)
 	}
@@ -97,7 +97,7 @@ func (c *Client) authenticate(ctx context.Context) (string, error) {
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json")
 
-	response, err := fetcher.Do(request)
+	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
 	if err != nil {
 		return "", fmt.Errorf("shiori: unable to send request: %w", err)
 	}

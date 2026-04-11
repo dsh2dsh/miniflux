@@ -62,7 +62,7 @@ func (c *Client) CreateBookmark(ctx context.Context, entryURL,
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Token "+c.apiKey)
 
-	response, err := fetcher.Do(request)
+	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
 	if err != nil {
 		return fmt.Errorf("linkding: unable to send request: %w", err)
 	}

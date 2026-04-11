@@ -59,7 +59,7 @@ func NewClient(apiToken, apiEndpoint string) *Client {
 	}
 
 	return &Client{
-		wrapped:     fetcher.NewRequestBuilder(),
+		wrapped:     fetcher.NewRequestBuilder().WithPrivateNetworks(),
 		apiEndpoint: apiEndpoint,
 		apiToken:    apiToken,
 	}

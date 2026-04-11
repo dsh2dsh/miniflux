@@ -58,7 +58,7 @@ func (c *Client) CreateLink(ctx context.Context, entryURL, entryTitle string,
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("Authorization", "Bearer "+c.generateBearerToken())
 
-	response, err := fetcher.Do(request)
+	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
 	if err != nil {
 		return fmt.Errorf("shaarli: unable to send request: %w", err)
 	}

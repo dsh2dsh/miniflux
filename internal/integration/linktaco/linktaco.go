@@ -105,7 +105,7 @@ func (c *Client) CreateBookmark(ctx context.Context, entryURL, entryTitle,
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Bearer "+c.apiToken)
 
-	response, err := fetcher.Do(request)
+	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
 	if err != nil {
 		return fmt.Errorf("linktaco: unable to send request: %w", err)
 	}

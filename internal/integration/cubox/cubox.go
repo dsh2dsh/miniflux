@@ -43,7 +43,7 @@ func (c *Client) SaveLink(ctx context.Context, entryURL string) error {
 	}
 
 	request.Header.Set("Content-Type", "application/json")
-	response, err := fetcher.Do(request)
+	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
 	if err != nil {
 		return fmt.Errorf("cubox: unable to send request: %w", err)
 	}

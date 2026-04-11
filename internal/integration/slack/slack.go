@@ -82,7 +82,7 @@ func (c *Client) SendSlackMsg(ctx context.Context, feed *model.Feed,
 			slog.String("entry_url", entry.URL),
 		)
 
-		response, err := fetcher.Do(request)
+		response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
 		if err != nil {
 			return fmt.Errorf("slack: unable to send request: %w", err)
 		}

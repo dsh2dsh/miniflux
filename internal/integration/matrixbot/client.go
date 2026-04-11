@@ -37,7 +37,7 @@ func (c *Client) DiscoverEndpoints(ctx context.Context,
 	}
 
 	request.Header.Set("Accept", "application/json")
-	response, err := fetcher.Do(request)
+	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
 	if err != nil {
 		return nil, fmt.Errorf("matrix: unable to send request: %w", err)
 	}
@@ -88,7 +88,7 @@ func (c *Client) Login(ctx context.Context, homeServerURL, matrixUsername,
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json")
 
-	response, err := fetcher.Do(request)
+	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
 	if err != nil {
 		return nil, fmt.Errorf("matrix: unable to send request: %w", err)
 	}
@@ -139,7 +139,7 @@ func (c *Client) SendFormattedTextMessage(ctx context.Context, homeServerURL,
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("Authorization", "Bearer "+accessToken)
 
-	response, err := fetcher.Do(request)
+	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
 	if err != nil {
 		return nil, fmt.Errorf("matrix: unable to send request: %w", err)
 	}

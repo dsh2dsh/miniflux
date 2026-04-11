@@ -43,7 +43,7 @@ func (c *Client) CreateBookmark(ctx context.Context, entryURL,
 	}
 
 	request.AddCookie(&http.Cookie{Name: "betula-token", Value: c.token})
-	response, err := fetcher.Do(request)
+	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
 	if err != nil {
 		return fmt.Errorf("betula: unable to send request: %w", err)
 	}

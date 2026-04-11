@@ -60,7 +60,7 @@ func (c *Client) CreateBookmark(ctx context.Context, entryURL, entryTitle,
 		return fmt.Errorf("pinboard: unable to create request: %w", err)
 	}
 
-	response, err := fetcher.Do(request)
+	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
 	if err != nil {
 		return fmt.Errorf("pinboard: unable to send request: %w", err)
 	}
@@ -93,7 +93,7 @@ func (c *Client) getBookmark(ctx context.Context, entryURL string) (*Post,
 		return nil, fmt.Errorf("pinboard: unable to create request: %w", err)
 	}
 
-	response, err := fetcher.Do(request)
+	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
 	if err != nil {
 		return nil, fmt.Errorf("pinboard: unable fetch bookmark: %w", err)
 	}
