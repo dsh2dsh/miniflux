@@ -24,6 +24,7 @@ func (self *contentSecurityPolicy) Content(user *model.User) string {
 	}
 
 	var policy strings.Builder
+	policy.Grow(350)
 	for key, value := range policies {
 		if policy.Len() != 0 {
 			policy.WriteByte(' ')
