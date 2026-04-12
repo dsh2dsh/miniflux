@@ -196,7 +196,10 @@ func (self *RequestBuilder) WithPrivateNetworks() *RequestBuilder {
 }
 
 func (self *RequestBuilder) WithIntegrationDefaults() *RequestBuilder {
-	return self.WithPrivateNetworks()
+	if config.IntegrationAllowPrivateNetworks() {
+		return self.WithPrivateNetworks()
+	}
+	return self
 }
 
 func (self *RequestBuilder) execute(req *http.Request) (*http.Response,

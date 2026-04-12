@@ -436,6 +436,9 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode())
 	resp.Close()
 
+	t.Setenv("INTEGRATION_ALLOW_PRIVATE_NETWORKS", "1")
+	require.NoError(t, config.Load(""))
+
 	rb = NewRequestBuilder().WithIntegrationDefaults()
 	require.NotNil(t, rb)
 	assert.True(t, rb.customizedClient)
@@ -447,6 +450,7 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode())
 	resp.Close()
 
+	t.Setenv("INTEGRATION_ALLOW_PRIVATE_NETWORKS", "0")
 	t.Setenv("FETCHER_ALLOW_PRIVATE_NETWORKS", "1")
 	require.NoError(t, config.Load(""))
 

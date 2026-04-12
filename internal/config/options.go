@@ -106,6 +106,7 @@ type envOptions struct {
 	HttpClientTimeout              int      `env:"HTTP_CLIENT_TIMEOUT" validate:"min=1"`
 	HttpClientUserAgent            string   `env:"HTTP_CLIENT_USER_AGENT"`
 	HttpServerTimeout              int      `env:"HTTP_SERVER_TIMEOUT" validate:"min=1"`
+	IntegrationPrivateNets         bool     `env:"INTEGRATION_ALLOW_PRIVATE_NETWORKS"`
 	InvidiousInstance              string   `env:"INVIDIOUS_INSTANCE"`
 	ListenAddr                     string   `env:"LISTEN_ADDR" validate:"required,hostname|hostname_port"`
 	LogDateTime                    bool     `env:"LOG_DATE_TIME"`
@@ -923,3 +924,7 @@ func SortedOptions(redactSecret bool) []Option {
 func String() string { return opts.String() }
 
 func BlockMarkRead() bool { return opts.env.BlockMarkRead }
+
+func IntegrationAllowPrivateNetworks() bool {
+	return opts.env.IntegrationPrivateNets
+}
