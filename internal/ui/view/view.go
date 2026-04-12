@@ -22,7 +22,7 @@ type View struct {
 }
 
 // New returns a new view with default parameters.
-func New(tpl *template.Engine, r *http.Request, sess *session.Session) *View {
+func New(tpl *template.Engine, r *http.Request) *View {
 	theme := request.UserTheme(r)
 	v := &View{
 		tpl: tpl,
@@ -36,7 +36,7 @@ func New(tpl *template.Engine, r *http.Request, sess *session.Session) *View {
 		},
 	}
 
-	if sess != nil {
+	if sess := session.FromContext(r.Context()); sess != nil {
 		v.session = sess
 		v.Set("flashMessage", sess.FlashMessage(request.FlashMessage(r))).
 			Set("flashErrorMessage",
@@ -53,8 +53,5 @@ func (v *View) Set(param string, value any) *View {
 
 // Render executes the template with arguments.
 func (v *View) Render(template string) []byte {
-	if v.session != nil {
-		v.session.Commit(v.r.Context())
-	}
 	return v.tpl.Render(template+".html", v.params)
 }

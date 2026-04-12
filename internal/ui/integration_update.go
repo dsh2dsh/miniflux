@@ -21,8 +21,7 @@ func (h *handler) updateIntegration(w http.ResponseWriter, r *http.Request) {
 	i := user.Integration()
 	printer := locale.NewPrinter(request.UserLanguage(r))
 	ctx := r.Context()
-	sess := session.New(h.store, r)
-	defer sess.Commit(ctx)
+	sess := session.FromContext(ctx)
 
 	f := form.NewIntegrationForm(r)
 	f.Merge(i)

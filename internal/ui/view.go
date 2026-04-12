@@ -10,7 +10,6 @@ import (
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/storage"
-	"miniflux.app/v2/internal/ui/session"
 	"miniflux.app/v2/internal/ui/view"
 )
 
@@ -30,9 +29,8 @@ type View struct {
 }
 
 func (h *handler) View(r *http.Request) *View {
-	s := session.New(h.store, r)
 	self := &View{
-		View:  view.New(h.tpl, r, s),
+		View:  view.New(h.tpl, r),
 		store: h.store,
 		user:  request.User(r),
 	}

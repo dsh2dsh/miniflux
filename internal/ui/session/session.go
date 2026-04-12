@@ -3,18 +3,16 @@ package session
 import (
 	"context"
 	"log/slog"
-	"net/http"
 	"time"
 
-	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/storage"
 )
 
-func New(store *storage.Storage, r *http.Request) *Session {
+func New(store *storage.Storage, s *model.Session) *Session {
 	return &Session{
-		Session: request.Session(r),
+		Session: s,
 		store:   store,
 	}
 }
@@ -98,4 +96,5 @@ func (self *Session) Commit(ctx context.Context) {
 			slog.String("id", self.ID),
 			slog.Any("error", err))
 	}
+	self.changed = false
 }

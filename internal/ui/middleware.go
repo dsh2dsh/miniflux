@@ -18,6 +18,7 @@ import (
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/storage"
+	"miniflux.app/v2/internal/ui/session"
 )
 
 var publicSession = model.Session{
@@ -83,9 +84,13 @@ func (m *middleware) handleUserSession(next http.Handler, redirect bool,
 				slog.String("name", user.Username)),
 			slog.GroupAttrs("session", slog.String("id", sess.ID)))
 
+		userSession := session.New(m.store, sess)
+		ctx = session.With(ctx, userSession)
+
 		ctx = context.WithValue(ctx, request.UserIDContextKey, user.ID)
 		ctx = context.WithValue(ctx, request.IsAuthenticatedContextKey, true)
 		next.ServeHTTP(w, r.WithContext(ctx))
+		userSession.Commit(ctx)
 	})
 }
 

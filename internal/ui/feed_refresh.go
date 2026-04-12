@@ -31,7 +31,7 @@ func (h *handler) refreshFeed(w http.ResponseWriter, r *http.Request) {
 			slog.Int64("feed_id", feedID),
 			slog.Bool("force_refresh", force),
 			slog.Any("error", err))
-		session.New(h.store, r).NewFlashErrorMessage(err.Error()).Commit(ctx)
+		session.FromContext(ctx).NewFlashErrorMessage(err.Error())
 	}
 	h.redirect(w, r, "feedEntries", "feedID", feedID)
 }
@@ -40,8 +40,7 @@ func (h *handler) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
 	userID := request.UserID(r)
 	printer := locale.NewPrinter(request.UserLanguage(r))
 
-	sess := session.New(h.store, r)
-	defer sess.Commit(r.Context())
+	sess := session.FromContext(r.Context())
 
 	// Avoid accidental and excessive refreshes.
 	sinceLastRefresh := time.Now().UTC().Unix() - request.LastForceRefresh(r)

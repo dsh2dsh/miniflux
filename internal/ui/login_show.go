@@ -17,7 +17,5 @@ func (h *handler) showLoginPage(w http.ResponseWriter, r *http.Request) {
 		h.redirect(w, r, user.DefaultHomePage)
 		return
 	}
-
-	v := view.New(h.tpl, r, nil)
-	response.HTML(w, r, v.Render("login"))
+	response.HTML(w, r, view.New(h.tpl, r).Render("login"))
 }

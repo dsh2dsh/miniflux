@@ -110,9 +110,8 @@ func (h *handler) beginRegistration(w http.ResponseWriter, r *http.Request,
 		return nil, response.WrapServerError(err)
 	}
 
-	session.New(h.store, r).
-		SetWebAuthnSessionData(&model.WebAuthnSession{SessionData: sessionData}).
-		Commit(r.Context())
+	session.FromContext(r.Context()).
+		SetWebAuthnSessionData(&model.WebAuthnSession{SessionData: sessionData})
 	return options, nil
 }
 

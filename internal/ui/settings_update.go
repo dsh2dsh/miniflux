@@ -68,13 +68,12 @@ func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session.New(h.store, r).
+	session.FromContext(r.Context()).
 		SetLanguage(user.Language).
 		SetTheme(user.Theme).
 		NewFlashMessage(
 			locale.NewPrinter(request.UserLanguage(r)).
-				Printf("alert.prefs_saved")).
-		Commit(r.Context())
+				Printf("alert.prefs_saved"))
 	h.redirect(w, r, "settings")
 }
 

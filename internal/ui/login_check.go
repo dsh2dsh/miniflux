@@ -27,7 +27,7 @@ func (h *handler) checkLogin(w http.ResponseWriter, r *http.Request) {
 	log := logging.FromContext(ctx).With(
 		slog.String("client_ip", clientIP),
 		slog.String("user_agent", r.UserAgent()))
-	v := view.New(h.tpl, r, nil)
+	v := view.New(h.tpl, r)
 
 	if config.DisableLocalAuth() {
 		log.Warn("blocking local auth login attempt, local auth is disabled")

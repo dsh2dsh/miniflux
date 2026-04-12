@@ -25,7 +25,6 @@ func (h *handler) switchLightDark(w http.ResponseWriter, r *http.Request) {
 func (h *handler) switchTheme(w http.ResponseWriter, r *http.Request,
 	themeFn func(u *model.User) string,
 ) {
-	s := session.New(h.store, r)
-	s.SetTheme(themeFn(request.User(r))).Commit(r.Context())
+	session.FromContext(r.Context()).SetTheme(themeFn(request.User(r)))
 	response.NoContent(w, r)
 }

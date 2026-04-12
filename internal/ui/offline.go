@@ -11,6 +11,5 @@ import (
 )
 
 func (h *handler) showOfflinePage(w http.ResponseWriter, r *http.Request) {
-	view := view.New(h.tpl, r, nil)
-	response.HTML(w, r, view.Render("offline"))
+	response.HTML(w, r, view.New(h.tpl, r).Render("offline"))
 }

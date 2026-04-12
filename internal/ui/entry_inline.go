@@ -41,7 +41,7 @@ func (h *handler) inlineEntry(w http.ResponseWriter, r *http.Request) {
 	content = mediaproxy.RewriteDocumentWithRelativeProxyURL(h.router, content)
 	mediaproxy.ProxifyEnclosures(h.router, entry.Enclosures())
 
-	v := view.New(h.tpl, r, nil).
+	v := view.New(h.tpl, r).
 		Set("entry", entry).
 		Set("errorMessage", errorMsg).
 		Set("safeContent", template.HTML(content)).
@@ -85,7 +85,7 @@ func (h *handler) downloadEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	v := view.New(h.tpl, r, nil).
+	v := view.New(h.tpl, r).
 		Set("entry", entry).
 		Set("safeContent", template.HTML(entry.Content)).
 		Set("user", request.User(r))

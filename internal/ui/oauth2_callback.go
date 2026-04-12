@@ -89,7 +89,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		s := session.New(h.store, r).
+		s := session.FromContext(r.Context()).
 			SetOAuth2State("").
 			SetOAuth2CodeVerifier("")
 		printer := locale.NewPrinter(request.UserLanguage(r))
@@ -100,8 +100,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 				slog.Int64("user_id", user.ID),
 				slog.String("oauth2_provider", provider),
 				slog.String("oauth2_profile_id", profile.ID))
-			s.NewFlashErrorMessage(printer.Print("error.duplicate_linked_account")).
-				Commit(ctx)
+			s.NewFlashErrorMessage(printer.Print("error.duplicate_linked_account"))
 			h.redirect(w, r, "settings")
 			return
 		}
@@ -114,8 +113,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 				slog.String("existing_profile_id", existingProfileID),
 				slog.String("new_profile_id", profile.ID),
 			)
-			s.NewFlashErrorMessage(printer.Print("error.duplicate_linked_account")).
-				Commit(ctx)
+			s.NewFlashErrorMessage(printer.Print("error.duplicate_linked_account"))
 			h.redirect(w, r, "settings")
 			return
 		}
@@ -126,7 +124,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		s.NewFlashMessage(printer.Print("alert.account_linked")).Commit(ctx)
+		s.NewFlashMessage(printer.Print("alert.account_linked"))
 		h.redirect(w, r, "settings")
 		return
 	}
