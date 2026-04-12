@@ -55,7 +55,7 @@ func (c *Client) AddEntry(ctx context.Context, entryURL, entryTitle,
 	request.SetBasicAuth("api", c.apiKey)
 	request.Header.Set("Content-Type", "application/json")
 
-	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
+	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
 	if err != nil {
 		return fmt.Errorf("nunux-keeper: unable to send request: %w", err)
 	}

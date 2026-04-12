@@ -48,7 +48,7 @@ func (c *Client) GetMe(ctx context.Context) (*User, error) {
 	}
 
 	request.Header.Set("Accept", "application/json")
-	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
+	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
 	if err != nil {
 		return nil, fmt.Errorf("telegram: unable to send request: %w", err)
 	}
@@ -86,7 +86,7 @@ func (c *Client) SendMessage(ctx context.Context, message *MessageRequest) (*Mes
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json")
 
-	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
+	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
 	if err != nil {
 		return nil, fmt.Errorf("telegram: unable to send request: %w", err)
 	}

@@ -71,7 +71,7 @@ func (c *Client) CreateBookmark(ctx context.Context, entryURL,
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Bearer "+c.apiKey)
 
-	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
+	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
 	if err != nil {
 		return fmt.Errorf("linkwarden: unable to send request: %w", err)
 	}

@@ -54,7 +54,7 @@ func (c *Client) CreateLink(ctx context.Context, entryURL, entryTitle,
 
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "ApiKey "+c.apiKey)
-	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
+	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
 	if err != nil {
 		return fmt.Errorf("espial: unable to send request: %w", err)
 	}

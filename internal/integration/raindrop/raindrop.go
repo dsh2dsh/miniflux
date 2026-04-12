@@ -54,7 +54,7 @@ func (c *Client) CreateRaindrop(ctx context.Context, entryURL,
 
 	request.Header.Set("Authorization", "Bearer "+c.token)
 
-	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
+	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
 	if err != nil {
 		return fmt.Errorf("raindrop: unable to send request: %w", err)
 	}

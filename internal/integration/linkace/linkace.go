@@ -62,7 +62,7 @@ func (c *Client) AddURL(ctx context.Context, entryURL, entryTitle string) error 
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("Authorization", "Bearer "+c.apiKey)
 
-	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
+	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
 	if err != nil {
 		return fmt.Errorf("linkace: unable to send request: %w", err)
 	}

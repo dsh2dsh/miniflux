@@ -47,7 +47,7 @@ type errorResponse struct {
 
 func NewClient(apiToken, apiEndpoint, tags string) *Client {
 	return &Client{
-		wrapped:     fetcher.NewRequestBuilder().WithPrivateNetworks(),
+		wrapped:     fetcher.NewRequestBuilder().WithIntegrationDefaults(),
 		apiEndpoint: apiEndpoint,
 		apiToken:    apiToken,
 		tags:        tags,

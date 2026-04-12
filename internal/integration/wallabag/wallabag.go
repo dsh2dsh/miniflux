@@ -87,7 +87,7 @@ func (c *Client) createEntry(ctx context.Context, accessToken, entryURL,
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("Authorization", "Bearer "+accessToken)
 
-	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
+	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
 	if err != nil {
 		return fmt.Errorf("wallabag: unable to send request: %w", err)
 	}
@@ -122,7 +122,7 @@ func (c *Client) getAccessToken(ctx context.Context) (string, error) {
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	request.Header.Set("Accept", "application/json")
 
-	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
+	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
 	if err != nil {
 		return "", fmt.Errorf("wallabag: unable to send request: %w", err)
 	}

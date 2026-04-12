@@ -135,7 +135,7 @@ func (c *Client) makeRequest(ctx context.Context, eventType string, payload any,
 	request.Header.Set("X-Miniflux-Signature", crypto.GenerateSHA256Hmac(c.webhookSecret, requestBody))
 	request.Header.Set("X-Miniflux-Event-Type", eventType)
 
-	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
+	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
 	if err != nil {
 		return fmt.Errorf("webhook: unable to send request: %w", err)
 	}

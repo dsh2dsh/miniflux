@@ -49,7 +49,7 @@ func DetectBridges(ctx context.Context, rssBridgeURL, rssBridgeToken,
 		return nil, fmt.Errorf("rssbridge: unable to create request: %w", err)
 	}
 
-	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
+	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
 	if err != nil {
 		return nil, fmt.Errorf("rssbridge: unable to execute request: %w", err)
 	}

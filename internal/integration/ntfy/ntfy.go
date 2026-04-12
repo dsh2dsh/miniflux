@@ -106,7 +106,7 @@ func (c *Client) makeRequest(ctx context.Context, payload any) error {
 		request.SetBasicAuth(c.ntfyUsername, c.ntfyPassword)
 	}
 
-	response, err := fetcher.Do(request, fetcher.WithPrivateNetworks())
+	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
 	if err != nil {
 		return fmt.Errorf("ntfy: unable to send request: %w", err)
 	}
