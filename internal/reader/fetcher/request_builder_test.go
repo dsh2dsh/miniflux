@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/proxyrotator"
 )
 
 func TestNewRequestBuilder(t *testing.T) {
@@ -488,4 +489,82 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 	require.NoError(t, resp.Err())
 	assert.Equal(t, http.StatusOK, resp.StatusCode())
 	resp.Close()
+}
+
+func TestRequestBuilder_AllowPrivateConfiguredProxy(t *testing.T) {
+	if testing.Verbose() {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
+
+	tests := []struct {
+		name      string
+		envFunc   func(proxyURL string) map[string]string
+		configure func(t *testing.T, rb *RequestBuilder, proxyURL string)
+	}{
+		{
+			name: "feed proxy",
+			configure: func(t *testing.T, rb *RequestBuilder, proxyURL string) {
+				rb.WithCustomFeedProxyURL(proxyURL)
+			},
+		},
+		{
+			name: "application proxy",
+			envFunc: func(proxyURL string) map[string]string {
+				return map[string]string{"HTTP_CLIENT_PROXY": proxyURL}
+			},
+			configure: func(t *testing.T, builder *RequestBuilder, proxyURL string) {
+				builder.UseCustomApplicationProxyURL(true)
+			},
+		},
+		{
+			name: "proxy rotator",
+			configure: func(t *testing.T, builder *RequestBuilder, proxyURL string) {
+				t.Helper()
+				rotator, err := proxyrotator.NewProxyRotator([]string{proxyURL})
+				require.NoError(t, err)
+				builder.proxyRotator = rotator
+			},
+		},
+	}
+
+	os.Clearenv()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			proxyRequests := make(chan string, 1)
+			proxyServer := httptest.NewServer(http.HandlerFunc(
+				func(w http.ResponseWriter, r *http.Request) {
+					select {
+					case proxyRequests <- r.URL.String():
+					default:
+					}
+					w.WriteHeader(http.StatusOK)
+				}))
+			t.Cleanup(func() { proxyServer.Close() })
+
+			if tt.envFunc != nil {
+				for k, v := range tt.envFunc(proxyServer.URL) {
+					t.Setenv(k, v)
+				}
+			}
+			require.NoError(t, config.Load(""))
+
+			rb := NewRequestBuilder()
+			rb.customizedClient = true
+			tt.configure(t, rb, proxyServer.URL)
+
+			const targetURL = "http://feed.invalid/rss.xml"
+			resp, err := rb.Request(targetURL)
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			t.Cleanup(func() { resp.Close() })
+
+			select {
+			case gotURL := <-proxyRequests:
+				assert.Equal(t, targetURL, gotURL)
+			default:
+				t.Fatal("Expected request to be sent through the proxy")
+			}
+		})
+	}
 }
