@@ -12,7 +12,7 @@ require (
 	github.com/dsh2dsh/expx-dotenv v1.4.0
 	github.com/dsh2dsh/gofeed/v2 v2.4.4
 	github.com/go-playground/validator/v10 v10.30.2
-	github.com/go-webauthn/webauthn v0.16.3
+	github.com/go-webauthn/webauthn v0.16.4
 	github.com/jackc/pgx/v5 v5.9.1
 	github.com/joho/godotenv v1.5.1
 	github.com/klauspost/compress v1.18.5
@@ -31,7 +31,7 @@ require (
 )
 
 require (
-	github.com/go-webauthn/x v0.2.2 // indirect
+	github.com/go-webauthn/x v0.2.3 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
 )
