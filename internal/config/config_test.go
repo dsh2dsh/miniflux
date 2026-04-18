@@ -1093,10 +1093,7 @@ func TestValidateDisableLocalAuthWithOAuth2ButNoUserCreation(t *testing.T) {
 	t.Setenv("DISABLE_LOCAL_AUTH", "1")
 	t.Setenv("OAUTH2_PROVIDER", "oidc")
 	t.Setenv("OAUTH2_OIDC_DISCOVERY_ENDPOINT", "https://example.com/.well-known/openid-configuration")
-	err := Load("")
-	require.Error(t, err,
-		"Expected error when local auth is disabled with OAuth2 but without user creation")
-	assert.ErrorContains(t, err, "DISABLE_LOCAL_AUTH is enabled")
+	require.NoError(t, Load(""))
 }
 
 func TestValidateDisableLocalAuthWithOAuth2AndUserCreation(t *testing.T) {
@@ -1113,10 +1110,7 @@ func TestValidateDisableLocalAuthWithAuthProxyButNoUserCreation(t *testing.T) {
 	t.Setenv("DISABLE_LOCAL_AUTH", "1")
 	t.Setenv("AUTH_PROXY_HEADER", "X-Forwarded-User")
 	t.Setenv("AUTH_PROXY_USER_CREATION", "0")
-	err := Load("")
-	require.Error(t, err,
-		"Expected error when local auth is disabled with auth proxy but without user creation")
-	assert.ErrorContains(t, err, "DISABLE_LOCAL_AUTH is enabled")
+	require.NoError(t, Load(""))
 }
 
 func TestValidateDisableLocalAuthWithAuthProxyAndUserCreation(t *testing.T) {

@@ -260,15 +260,10 @@ func (o *options) validate() error {
 		}
 	}
 
-	if o.env.DisableLocalAuth {
-		switch {
-		case o.env.Oauth2Provider == "" && o.env.AuthProxyHeader == "":
-			return errors.New("DISABLE_LOCAL_AUTH is enabled but neither OAUTH2_PROVIDER nor AUTH_PROXY_HEADER is not set. Please enable at least one authentication source")
-		case o.env.Oauth2Provider != "" && !o.env.Oauth2UserCreationAllowed:
-			return errors.New("DISABLE_LOCAL_AUTH is enabled and an OAUTH2_PROVIDER is configured, but OAUTH2_USER_CREATION is not enabled")
-		case o.env.AuthProxyHeader != "" && !o.env.AuthProxyUserCreation:
-			return errors.New("DISABLE_LOCAL_AUTH is enabled and an AUTH_PROXY_HEADER is configured, but AUTH_PROXY_USER_CREATION is not enabled")
-		}
+	if o.env.DisableLocalAuth &&
+		o.env.Oauth2Provider == "" && o.env.AuthProxyHeader == "" {
+
+		return errors.New("DISABLE_LOCAL_AUTH is enabled but neither OAUTH2_PROVIDER nor AUTH_PROXY_HEADER is not set. Please enable at least one authentication source")
 	}
 	return nil
 }
