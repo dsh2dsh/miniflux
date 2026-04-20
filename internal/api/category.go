@@ -94,11 +94,11 @@ func (h *handler) getCategories(w http.ResponseWriter, r *http.Request,
 	includeCounts := request.QueryStringParam(r, "counts", "false")
 
 	ctx := r.Context()
-	userID := request.UserID(r)
+	user := request.User(r)
 	if includeCounts == "true" {
-		categories, err = h.store.CategoriesWithFeedCount(ctx, userID)
+		categories, err = h.store.CategoriesWithFeedCount(ctx, user)
 	} else {
-		categories, err = h.store.Categories(ctx, userID)
+		categories, err = h.store.Categories(ctx, user.ID)
 	}
 
 	if err != nil {

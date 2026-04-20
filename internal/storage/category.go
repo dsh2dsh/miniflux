@@ -154,13 +154,8 @@ SELECT id, user_id, title, hide_globally, extra
 }
 
 // CategoriesWithFeedCount returns all categories with the number of feeds.
-func (s *Storage) CategoriesWithFeedCount(ctx context.Context, userID int64,
+func (s *Storage) CategoriesWithFeedCount(ctx context.Context, user *model.User,
 ) ([]model.Category, error) {
-	user, err := s.UserByID(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
 	query := `
 SELECT c.id, c.user_id, c.title, c.hide_globally, c.extra,
 	     (SELECT count(*) FROM feeds WHERE feeds.category_id=c.id) AS feed_count,
@@ -177,7 +172,7 @@ SELECT c.id, c.user_id, c.title, c.hide_globally, c.extra,
 		query += ` ORDER BY total_unread DESC, c.title ASC`
 	}
 
-	rows, _ := s.db.Query(ctx, query, model.EntryStatusUnread, userID)
+	rows, _ := s.db.Query(ctx, query, model.EntryStatusUnread, user.ID)
 	categories, err := pgx.CollectRows(rows,
 		pgx.RowToStructByName[model.Category])
 	if err != nil {
