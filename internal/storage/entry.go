@@ -495,6 +495,7 @@ WITH updated AS (
   UPDATE entries
      SET status = $1, changed_at = now()
    WHERE user_id = $2 AND id = ANY($3) AND status <> $4
+   RETURNING feed_id
 )
 SELECT count(*)
   FROM updated u
