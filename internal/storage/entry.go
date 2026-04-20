@@ -490,23 +490,23 @@ UPDATE entries
 func (s *Storage) SetEntriesStatusCount(ctx context.Context, userID int64,
 	entryIDs []int64, status string,
 ) (int, error) {
-	err := s.SetEntriesStatus(ctx, userID, entryIDs, status)
-	if err != nil {
-		return 0, err
-	}
-
 	rows, _ := s.db.Query(ctx, `
+WITH updated AS (
+  UPDATE entries
+     SET status = $1, changed_at = now()
+   WHERE user_id = $2 AND id = ANY($3) AND status <> $4
+)
 SELECT count(*)
-  FROM entries e
-		   JOIN feeds f ON f.id = e.feed_id
+  FROM updated u
+		   JOIN feeds f ON f.id = u.feed_id
 		   JOIN categories c ON c.id = f.category_id
- WHERE e.user_id = $1 AND e.id = ANY($2) AND
-       NOT f.hide_globally AND NOT c.hide_globally`,
-		userID, entryIDs)
+ WHERE NOT f.hide_globally AND NOT c.hide_globally`,
+		status, userID, entryIDs, model.EntryStatusRemoved)
 
 	visible, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[int])
 	if err != nil {
-		return 0, fmt.Errorf(`store: unable to query entries visibility %v: %w`,
+		return 0, fmt.Errorf(
+			"storage: unable update entries statuses and count visible %v: %w",
 			entryIDs, err)
 	}
 	return visible, nil
