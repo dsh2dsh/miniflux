@@ -53,6 +53,8 @@ var (
 		"nntp",
 		"rtmp",
 		"sftp",
+		// https://support.apple.com/guide/shortcuts/run-a-shortcut-from-a-url-apd624386f42/ios
+		"shortcuts",
 		"sip",
 		"sips",
 		"skype",
