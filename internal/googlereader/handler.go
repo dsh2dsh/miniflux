@@ -322,21 +322,31 @@ func (h *handler) editTagHandler(w http.ResponseWriter, r *http.Request) {
 	starredEntryIDs := make([]int64, 0)
 	unstarredEntryIDs := make([]int64, 0)
 	for _, entry := range entries {
-		if read, exists := tags[ReadStream]; exists {
-			if read && entry.Status == model.EntryStatusUnread {
-				readEntryIDs = append(readEntryIDs, entry.ID)
-			} else if entry.Status == model.EntryStatusRead {
-				unreadEntryIDs = append(unreadEntryIDs, entry.ID)
+		if markRead, exists := tags[ReadStream]; exists {
+			switch entry.Status {
+			case model.EntryStatusUnread:
+				if markRead {
+					readEntryIDs = append(readEntryIDs, entry.ID)
+				}
+			case model.EntryStatusRead:
+				if !markRead {
+					unreadEntryIDs = append(unreadEntryIDs, entry.ID)
+				}
 			}
 		}
-		if starred, exists := tags[StarredStream]; exists {
-			if starred && !entry.Starred {
-				starredEntryIDs = append(starredEntryIDs, entry.ID)
-				// filter the original array
-				entries[n] = entry
-				n++
-			} else if entry.Starred {
-				unstarredEntryIDs = append(unstarredEntryIDs, entry.ID)
+		if markStarred, exists := tags[StarredStream]; exists {
+			switch entry.Starred {
+			case true:
+				if !markStarred {
+					unstarredEntryIDs = append(unstarredEntryIDs, entry.ID)
+				}
+			default:
+				if markStarred {
+					starredEntryIDs = append(starredEntryIDs, entry.ID)
+					// filter the original array
+					entries[n] = entry
+					n++
+				}
 			}
 		}
 	}
