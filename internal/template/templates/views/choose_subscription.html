@@ -40,15 +40,15 @@
 
     {{ range .subscriptions }}
     <div class="radio-group">
-        <label title="{{ .URL | safeURL  }}">
-            <input type="radio" name="url" value="{{ .URL | safeURL  }}">
+        <label title="{{ .URL }}">
+            <input type="radio" name="url" value="{{ .URL }}">
             {{ .Title }}
         </label>
         |
         <small title="{{ .Title }}">
-            <a href="{{ .URL | safeURL  }}" {{ $.user.TargetBlank }}
+            <a href="{{ .URL }}" {{ $.user.TargetBlank }}
                rel="noopener noreferrer" referrerpolicy="no-referrer">
-                {{ .URL | safeURL  }}
+                {{ .URL }}
             </a>
         </small>
     </div>

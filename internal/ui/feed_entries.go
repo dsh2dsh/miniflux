@@ -47,9 +47,9 @@ func (h *handler) showFeedEntriesPage(w http.ResponseWriter, r *http.Request) {
 		v.Set("badStatusContent", template.HTML(badStatus.Content))
 	}
 
-	v.Set("menu", "feeds").
+	v.WithEntries(entries).
+		Set("menu", "feeds").
 		Set("feed", feed).
-		Set("entries", entries).
 		Set("lastEntry", lastEntry(entries)).
 		Set("total", count).
 		Set("pagination", getPagination(

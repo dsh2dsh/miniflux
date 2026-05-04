@@ -44,10 +44,10 @@ func (h *handler) showCategoryEntriesAllPage(w http.ResponseWriter,
 		return
 	}
 
-	v.Set("menu", "categories").
+	v.WithEntries(entries).
+		Set("menu", "categories").
 		Set("category", category).
 		Set("total", count).
-		Set("entries", entries).
 		Set("lastEntry", lastEntry(entries)).
 		Set("pagination", getPagination(
 			route.Path(h.router, "categoryEntriesAll", "categoryID", id),

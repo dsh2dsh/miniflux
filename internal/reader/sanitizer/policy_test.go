@@ -554,3 +554,27 @@ func TestIframeAllowList(t *testing.T) {
 		})
 	}
 }
+
+func TestAllowedURLScheme(t *testing.T) {
+	tests := []struct {
+		rawURL   string
+		expected bool
+	}{
+		{
+			rawURL:   "https://example.org/article",
+			expected: true,
+		},
+		{
+			rawURL:   "javascript:alert(1)",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		u, err := url.Parse(tt.rawURL)
+		require.NoError(t, err)
+		require.NotNil(t, u)
+		assert.Equal(t, tt.expected, AllowedURLScheme(u),
+			"Unexpected result for URL: %s", tt.rawURL)
+	}
+}

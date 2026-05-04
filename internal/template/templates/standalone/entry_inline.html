@@ -66,4 +66,11 @@
         {{ end }}
     </details>
     {{ end }}
+
+    {{ if not .entry.URLSafe }}
+    <details class="entry-content-addons">
+        <summary>Quarantined external URL</summary>
+        <div class="addon">{{ .entry.URL }}</div>
+    </details>
+    {{ end }}
 </div>

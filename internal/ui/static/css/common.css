@@ -672,6 +672,10 @@ fieldset .buttons {
     margin-bottom: 0;
 }
 
+button.reset {
+    all: unset;
+}
+
 /* Alerts */
 .alert {
     padding: 8px 35px 8px 14px;
@@ -915,18 +919,27 @@ dialog {
 }
 
 .item-title {
+    color: var(--title-color);
     font-size: 1rem;
+    font-weight: var(--item-title-link-font-weight);
     margin: 0;
     display: inline;
     overflow-wrap: break-word;
 }
 
 .item-title a {
-    color: var(--title-color);
-    text-decoration: none;
-    font-weight: var(--item-title-link-font-weight);
-    font-size: inherit;
+    color: inherit;
     outline: none;
+    text-decoration: none;
+}
+
+.item-title button {
+    cursor: pointer;
+    user-select: text;
+}
+
+.item:has(.loaded) .item-title button {
+    cursor: text;
 }
 
 .htmx-indicator {
@@ -1027,6 +1040,16 @@ a.item-meta-author {
 
 .item-meta-icons button:active {
     translate: 1px 1px;
+}
+
+.item-meta-icons-external-url button.quarantined {
+    color: revert;
+    cursor: not-allowed;
+    translate: none;
+
+    span {
+        text-decoration: line-through;
+    }
 }
 
 .page-button .htmx-indicator,

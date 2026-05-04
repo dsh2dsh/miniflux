@@ -45,10 +45,10 @@ func (h *handler) showCategoryEntriesStarredPage(w http.ResponseWriter,
 		return
 	}
 
-	v.Set("menu", "categories").
+	v.WithEntries(entries).
+		Set("menu", "categories").
 		Set("category", category).
 		Set("total", count).
-		Set("entries", entries).
 		Set("pagination", getPagination(
 			route.Path(h.router, "categoryEntriesStarred", "categoryID", id),
 			count, offset, user.EntriesPerPage)).

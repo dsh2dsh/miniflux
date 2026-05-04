@@ -30,8 +30,8 @@ func (h *handler) showHistoryPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	v.Set("menu", "history").
-		Set("entries", entries).
+	v.WithEntries(entries).
+		Set("menu", "history").
 		Set("total", count).
 		Set("pagination", getPagination(route.Path(h.router, "history"),
 			count, offset, user.EntriesPerPage)).

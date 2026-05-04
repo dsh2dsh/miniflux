@@ -50,9 +50,9 @@ func (h *handler) showSearchPage(w http.ResponseWriter, r *http.Request) {
 		WithSearchQuery(searchQuery).
 		WithUnreadOnly(unreadOnly)
 
-	v.Set("menu", "search").
+	v.WithEntries(entries).
+		Set("menu", "search").
 		Set("searchQuery", searchQuery).
-		Set("entries", entries).
 		Set("total", count).
 		Set("pagination", pagination).
 		Set("showOnlyUnreadEntries", unreadOnly)

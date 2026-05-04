@@ -31,9 +31,9 @@ func (h *handler) showStarredPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	v.Set("menu", "starred").
+	v.WithEntries(entries).
+		Set("menu", "starred").
 		Set("total", count).
-		Set("entries", entries).
 		Set("pagination", getPagination(route.Path(h.router, "starred"),
 			count, offset, user.EntriesPerPage)).
 		Set("showOnlyUnreadEntries", false)

@@ -60,10 +60,10 @@ func (h *handler) renderAuthorEntries(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	v.Set("authorName", authorName).
+	v.WithEntries(entries).
+		Set("authorName", authorName).
 		Set("feed", feed).
 		Set("total", count).
-		Set("entries", entries).
 		Set("lastEntry", lastEntry(entries)).
 		Set("pagination", getPagination(
 			route.Path(h.router, "authorEntries", "authorName",

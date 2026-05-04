@@ -15,6 +15,7 @@
 
     <header class="item-header" dir="auto">
         <h2 id="entry-title-{{ .entry.ID }}" class="item-title">
+            {{ if .entry.URLSafe }}
             <a
               href="{{ .entry.URL | safeURL }}"
 
@@ -33,6 +34,20 @@
               referrerpolicy="no-referrer">
                 {{ .entry.AutoTitle | safeHTML }}
             </a>
+            {{ else if not .user.AlwaysOpenExternalLinks }}
+            <button
+              class="reset"
+              type="button"
+              hx-get="{{ route "inlineEntry" "entryID" .entry.ID }}"
+              hx-indicator="closest .item"
+              hx-swap="outerHTML"
+              hx-target="next .entry-content.htmx-indicator"
+              hx-trigger="click">
+                {{ .entry.AutoTitle | safeHTML }}
+            </button>
+            {{ else }}
+            {{   .entry.AutoTitle | safeHTML }}
+            {{ end }}
         </h2>
 
         <span class="category {{ if .entry.Feed.Category.HiddenLabel }}hideLabel{{ end }}">

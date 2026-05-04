@@ -73,6 +73,7 @@
             </button>
         </li>
 
+        {{ if .entry.URLSafe }}
         <li class="if-content-download">
             <button
               class="page-button"
@@ -88,6 +89,7 @@
                 </span>
             </button>
         </li>
+        {{ end }}
 
         {{ if .hasSaveEntry }}
         <li>
@@ -106,6 +108,7 @@
 
         {{ if not .user.AlwaysOpenExternalLinks }}
         <li class="item-meta-icons-external-url">
+            {{ if .entry.URLSafe }}
             <a href="{{ .entry.URL | safeURL  }}"
                {{ $.user.TargetBlank }}
                aria-describedby="entry-title-{{ .entry.ID }}"
@@ -115,12 +118,23 @@
                 {{ icon "external-link" }}
                 <span class="icon-label">{{ t "entry.external_link.label" }}</span>
             </a>
+            {{ else }}
+            <button
+              class="quarantined"
+              title="Quarantined: {{ .entry.URL }}"
+              disabled>
+                {{ icon "external-link" }}
+                <span class="icon-label">
+                    {{ t "entry.external_link.label" }}
+                </span>
+            </button>
+            {{ end }}
         </li>
         {{ end }}
 
         {{ if .entry.CommentsURL }}
         <li class="item-meta-icons-comments">
-            <a href="{{ .entry.CommentsURL | safeURL  }}"
+            <a href="{{ .entry.CommentsURL }}"
                {{ $.user.TargetBlank }}
                aria-describedby="entry-title-{{ .entry.ID }}"
                title="{{ t "entry.comments.title" }}"

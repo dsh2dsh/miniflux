@@ -14,7 +14,7 @@
         <li>
             <strong>{{ t "page.about.version" }}</strong>
             {{ if .version.VersionURL }}
-            <a href="{{ .version.VersionURL | safeURL }}" {{ $.user.TargetBlank }}>{{ .version.Version }}</a>
+            <a href="{{ .version.VersionURL }}" {{ $.user.TargetBlank }}>{{ .version.Version }}</a>
             {{ else }}
             {{ .version.Version }}
             {{ end }}
@@ -24,7 +24,7 @@
         <li>
             <strong>{{ t "page.about.git_commit" }}</strong>
             {{ if .version.CommitURL }}
-            <a href="{{ .version.CommitURL | safeURL }}" {{ $.user.TargetBlank }}>{{ .version.Commit }}</a>
+            <a href="{{ .version.CommitURL }}" {{ $.user.TargetBlank }}>{{ .version.Commit }}</a>
             {{ else }}
             {{ .version.Commit }}
             {{ end }}

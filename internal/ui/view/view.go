@@ -8,6 +8,7 @@ import (
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/template"
 	"miniflux.app/v2/internal/ui/session"
 )
@@ -45,13 +46,24 @@ func New(tpl *template.Engine, r *http.Request) *View {
 	return v
 }
 
+func (self *View) WithEntries(entries model.Entries) *View {
+	self.params["entries"] = template.Entries(entries)
+	self.params["numOfEntries"] = len(entries)
+	return self
+}
+
+func (self *View) WithEntry(entry *model.Entry) *View {
+	self.params["entry"] = template.NewEntry(entry)
+	return self
+}
+
 // Set adds a new template argument.
-func (v *View) Set(param string, value any) *View {
-	v.params[param] = value
-	return v
+func (self *View) Set(param string, value any) *View {
+	self.params[param] = value
+	return self
 }
 
 // Render executes the template with arguments.
-func (v *View) Render(template string) []byte {
-	return v.tpl.Render(template+".html", v.params)
+func (self *View) Render(template string) []byte {
+	return self.tpl.Render(template+".html", self.params)
 }

@@ -276,3 +276,5 @@ func Proxify(s string,
 	p := *openPolicy
 	return p.WithRewriteURL(rewriter).Sanitize(s)
 }
+
+func AllowedURLScheme(u *url.URL) bool { return contentPolicy.MatchScheme(u) }

@@ -1,5 +1,5 @@
 class InlineEntry {
-  static itemTitleLink = ".entry-item .item-title a";
+  static itemTitleLink = ".entry-item .item-title";
 
   constructor() {
     const body = document.body;
@@ -41,7 +41,7 @@ class InlineEntry {
 
     body.addEventListener("click", (event) => {
       const el = event.target;
-      if (el.closest(InlineEntry.itemTitleLink))
+      if (el.closest(InlineEntry.itemTitleLink) && el.tagName === "A")
         this.originalLinkClick(el.closest(".entry-item"));
     }, true);
   }
@@ -79,7 +79,7 @@ class InlineEntry {
   }
 
   entryInlined(item) {
-    const titleLink = item.querySelector(".item-title a");
+    const titleLink = item.querySelector(".item-title > [hx-trigger]");
     titleLink.setAttribute("hx-disable", "");
     htmx.process(titleLink);
     item.classList.add("with-inline-content");

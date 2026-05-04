@@ -50,7 +50,7 @@ func (h *handler) showUnreadPage(w http.ResponseWriter, r *http.Request) {
 		entries = e
 	}
 
-	v.Set("entries", entries).
+	v.WithEntries(entries).
 		Set("lastEntry", lastEntry(entries)).
 		Set("menu", "unread").
 		Set("pagination", getPagination(route.Path(h.router, "unread"),
