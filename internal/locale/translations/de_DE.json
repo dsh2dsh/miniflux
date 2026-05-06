@@ -526,7 +526,7 @@
     "page.keyboard_shortcuts.subtitle.pages": "Navigation zwischen den Seiten",
     "page.keyboard_shortcuts.subtitle.sections": "Navigation zwischen den Menüpunkten",
     "page.keyboard_shortcuts.title": "Tastenkürzel",
-    "page.keyboard_shortcuts.toggle_bookmark_status": "Lesezeichen hinzufügen/entfernen",
+    "page.keyboard_shortcuts.toggle_star_status": "Lesezeichen hinzufügen/entfernen",
     "page.keyboard_shortcuts.toggle_entry_attachments": "Artikelanhänge öffnen/schließen",
     "page.keyboard_shortcuts.toggle_read_status_next": "Gewählten Artikel als gelesen/ungelesen markieren, nächsten auswählen",
     "page.keyboard_shortcuts.toggle_read_status_prev": "Gewählten Artikel als gelesen/ungelesen markieren, vorherigen auswählen",

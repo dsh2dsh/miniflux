@@ -520,7 +520,7 @@
     "page.keyboard_shortcuts.subtitle.pages": "页面导航",
     "page.keyboard_shortcuts.subtitle.sections": "区域导航",
     "page.keyboard_shortcuts.title": "键盘快捷键",
-    "page.keyboard_shortcuts.toggle_bookmark_status": "切换收藏状态",
+    "page.keyboard_shortcuts.toggle_star_status": "切换收藏状态",
     "page.keyboard_shortcuts.toggle_entry_attachments": "切换展开/折叠条目附件",
     "page.keyboard_shortcuts.toggle_read_status_next": "切换已读/未读状态，并切换到下一项",
     "page.keyboard_shortcuts.toggle_read_status_prev": "切换已读/未读状态，并切换到上一项",

@@ -532,7 +532,7 @@
     "page.keyboard_shortcuts.subtitle.pages": "Навигация по страницам",
     "page.keyboard_shortcuts.subtitle.sections": "Навигация по секциям",
     "page.keyboard_shortcuts.title": "Горячие клавиши",
-    "page.keyboard_shortcuts.toggle_bookmark_status": "Переключатель избранного",
+    "page.keyboard_shortcuts.toggle_star_status": "Переключатель избранного",
     "page.keyboard_shortcuts.toggle_entry_attachments": "Переключатель показать/скрыть вложения",
     "page.keyboard_shortcuts.toggle_read_status_next": "Переключатель прочитанного, сосредоточиться на следующем",
     "page.keyboard_shortcuts.toggle_read_status_prev": "Переключатель прочитанного, фокус предыдущий",

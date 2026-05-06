@@ -526,7 +526,7 @@
     "page.keyboard_shortcuts.subtitle.pages": "Pages Navigation",
     "page.keyboard_shortcuts.subtitle.sections": "Sections Navigation",
     "page.keyboard_shortcuts.title": "Keyboard Shortcuts",
-    "page.keyboard_shortcuts.toggle_bookmark_status": "Toggle starred",
+    "page.keyboard_shortcuts.toggle_star_status": "Toggle starred",
     "page.keyboard_shortcuts.toggle_entry_attachments": "Toggle open/close entry attachments",
     "page.keyboard_shortcuts.toggle_read_status_next": "Toggle read/unread, focus next",
     "page.keyboard_shortcuts.toggle_read_status_prev": "Toggle read/unread, focus previous",

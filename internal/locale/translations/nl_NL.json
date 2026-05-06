@@ -526,7 +526,7 @@
     "page.keyboard_shortcuts.subtitle.pages": "Navigeren door pagina's",
     "page.keyboard_shortcuts.subtitle.sections": "Navigeren door menu's",
     "page.keyboard_shortcuts.title": "Sneltoetsen",
-    "page.keyboard_shortcuts.toggle_bookmark_status": "Favoriet toevoegen/verwijderen",
+    "page.keyboard_shortcuts.toggle_star_status": "Favoriet toevoegen/verwijderen",
     "page.keyboard_shortcuts.toggle_entry_attachments": "Bijlagen van artikel openen/sluiten",
     "page.keyboard_shortcuts.toggle_read_status_next": "Markeer gelezen/ongelezen, focus volgende",
     "page.keyboard_shortcuts.toggle_read_status_prev": "Markeer gelezen/ongelezen, focus vorige",

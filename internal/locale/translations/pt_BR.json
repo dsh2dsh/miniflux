@@ -526,7 +526,7 @@
     "page.keyboard_shortcuts.subtitle.pages": "Navegação de páginas",
     "page.keyboard_shortcuts.subtitle.sections": "Navegação de seções",
     "page.keyboard_shortcuts.title": "Atalhos de teclado",
-    "page.keyboard_shortcuts.toggle_bookmark_status": "Marcar ou desmarcar como favorito",
+    "page.keyboard_shortcuts.toggle_star_status": "Marcar ou desmarcar como favorito",
     "page.keyboard_shortcuts.toggle_entry_attachments": "Alternar abrir/fechar anexos do item",
     "page.keyboard_shortcuts.toggle_read_status_next": "Inverter estado de leitura do item, focar próximo item",
     "page.keyboard_shortcuts.toggle_read_status_prev": "Inverter estado de leitura do item, focar item anterior",

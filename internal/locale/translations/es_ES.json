@@ -526,7 +526,7 @@
     "page.keyboard_shortcuts.subtitle.pages": "Navegación de páginas",
     "page.keyboard_shortcuts.subtitle.sections": "Navegación de secciones",
     "page.keyboard_shortcuts.title": "Atajos de teclado",
-    "page.keyboard_shortcuts.toggle_bookmark_status": "Agregar o quitar marcador",
+    "page.keyboard_shortcuts.toggle_star_status": "Agregar o quitar marcador",
     "page.keyboard_shortcuts.toggle_entry_attachments": "Alternar abrir/cerrar adjuntos de la entrada",
     "page.keyboard_shortcuts.toggle_read_status_next": "Marcar como leído o no leído, enfoque siguiente",
     "page.keyboard_shortcuts.toggle_read_status_prev": "Marcar como leído o no leído, foco anterior",

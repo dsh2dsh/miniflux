@@ -526,7 +526,7 @@
     "page.keyboard_shortcuts.subtitle.pages": "Navigation entre les pages",
     "page.keyboard_shortcuts.subtitle.sections": "Navigation entre les sections",
     "page.keyboard_shortcuts.title": "Raccourcis clavier",
-    "page.keyboard_shortcuts.toggle_bookmark_status": "Ajouter/Enlever favoris",
+    "page.keyboard_shortcuts.toggle_star_status": "Ajouter/Enlever favoris",
     "page.keyboard_shortcuts.toggle_entry_attachments": "Ouvrir/Fermer les pièces jointes de l'entrée",
     "page.keyboard_shortcuts.toggle_read_status_next": "Basculer entre lu/non lu, et changer le focus sur l'élément suivant",
     "page.keyboard_shortcuts.toggle_read_status_prev": "Basculer entre lu/non lu, et changer le focus sur l'élément précédent",
