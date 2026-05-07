@@ -51,7 +51,6 @@ func (h *handler) showUnreadPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v.WithEntries(entries).
-		Set("lastEntry", lastEntry(entries)).
 		Set("menu", "unread").
 		Set("pagination", getPagination(route.Path(h.router, "unread"),
 			v.CountUnread(), offset, user.EntriesPerPage)).
@@ -59,11 +58,4 @@ func (h *handler) showUnreadPage(w http.ResponseWriter, r *http.Request) {
 		Set("total", v.CountUnread()).
 		Set("updateEntriesStatus", h.router.NamedPath("updateEntriesStatus"))
 	response.HTML(w, r, v.Render("unread_entries"))
-}
-
-func lastEntry(entries model.Entries) *model.Entry {
-	if n := len(entries); n != 0 {
-		return entries[n-1]
-	}
-	return nil
 }

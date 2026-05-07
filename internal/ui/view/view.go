@@ -49,6 +49,9 @@ func New(tpl *template.Engine, r *http.Request) *View {
 func (self *View) WithEntries(entries model.Entries) *View {
 	self.params["entries"] = template.Entries(entries)
 	self.params["numOfEntries"] = len(entries)
+	if n := len(entries); n != 0 {
+		self.params["lastEntry"] = entries[n-1]
+	}
 	return self
 }
 

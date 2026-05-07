@@ -69,7 +69,6 @@ func (h *handler) renderTagEntries(w http.ResponseWriter, r *http.Request,
 		Set("tagName", tagName).
 		Set("feed", feed).
 		Set("total", count).
-		Set("lastEntry", lastEntry(entries)).
 		Set("pagination", getPagination(
 			route.Path(h.router, "tagEntriesAll", "tagName", url.PathEscape(tagName)),
 			count, offset, user.EntriesPerPage)).

@@ -9,7 +9,8 @@ class MarkReadOnScroll {
   constructor() {
     document.body.addEventListener("htmx:afterSwap", event => {
       if (event.target.matches(MarkReadOnScroll.pageEndSelector))
-        this.revealedCallback(event.target);
+        console.log("afterSwap revealedCallback: event", event);
+        // this.revealedCallback(event.target);
     }, true);
 
     history.scrollRestoration = "manual";

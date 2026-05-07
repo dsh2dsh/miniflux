@@ -47,7 +47,6 @@ func (h *handler) showCategoryEntriesPage(w http.ResponseWriter, r *http.Request
 		Set("menu", "categories").
 		Set("category", category).
 		Set("total", count).
-		Set("lastEntry", lastEntry(entries)).
 		Set("pagination", getPagination(
 			route.Path(h.router, "categoryEntries", "categoryID", id),
 			count, offset, user.EntriesPerPage)).
