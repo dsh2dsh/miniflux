@@ -34,7 +34,8 @@ func (h *handler) showCategoryEntriesStarredPage(w http.ResponseWriter,
 		WithoutStatus(model.EntryStatusRemoved).
 		WithStarred(true).
 		WithOffset(offset).
-		WithLimit(user.EntriesPerPage)
+		WithLimit(user.EntriesPerPage).
+		WithOffsetID(request.QueryInt64Param(r, "offsetID", 0))
 
 	entries, count, err := v.WaitEntriesCount(query)
 	if err != nil {

@@ -32,7 +32,8 @@ func (h *handler) showCategoryEntriesPage(w http.ResponseWriter, r *http.Request
 		WithSorting("id", user.EntryDirection).
 		WithStatus(model.EntryStatusUnread).
 		WithOffset(offset).
-		WithLimit(user.EntriesPerPage)
+		WithLimit(user.EntriesPerPage).
+		WithOffsetID(request.QueryInt64Param(r, "offsetID", 0))
 
 	entries, count, err := v.WaitEntriesCount(query)
 	if err != nil {

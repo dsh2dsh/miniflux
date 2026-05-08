@@ -54,6 +54,8 @@ func (h *handler) renderAuthorEntries(w http.ResponseWriter, r *http.Request,
 		query.WithoutStatus(model.EntryStatusRemoved)
 	}
 
+	query.WithOffsetID(request.QueryInt64Param(r, "offsetID", 0))
+
 	entries, count, err := v.WaitEntriesCount(query)
 	if err != nil {
 		response.ServerError(w, r, err)

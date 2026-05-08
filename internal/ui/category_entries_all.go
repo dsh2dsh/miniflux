@@ -33,7 +33,8 @@ func (h *handler) showCategoryEntriesAllPage(w http.ResponseWriter,
 		WithSorting("id", user.EntryDirection).
 		WithoutStatus(model.EntryStatusRemoved).
 		WithOffset(offset).
-		WithLimit(user.EntriesPerPage)
+		WithLimit(user.EntriesPerPage).
+		WithOffsetID(request.QueryInt64Param(r, "offsetID", 0))
 
 	entries, count, err := v.WaitEntriesCount(query)
 	if err != nil {

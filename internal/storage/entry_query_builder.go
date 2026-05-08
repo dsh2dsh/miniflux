@@ -37,6 +37,9 @@ type EntryQueryBuilder struct {
 	limit           int
 	offset          int
 	fetchContent    bool
+
+	numberedRows bool
+	highConds    []string
 }
 
 func (self *EntryQueryBuilder) appendCondition(prefix string, arg any,
@@ -222,7 +225,7 @@ func (self *EntryQueryBuilder) WithoutStatus(status string) *EntryQueryBuilder {
 // WithSorting add a sort expression.
 func (self *EntryQueryBuilder) WithSorting(column, direction string,
 ) *EntryQueryBuilder {
-	self.sortExpressions = append(self.sortExpressions, column+" "+direction)
+	self.sortExpressions = append(self.sortExpressions, "e."+column+" "+direction)
 	return self
 }
 
@@ -239,6 +242,19 @@ func (self *EntryQueryBuilder) WithOffset(offset int) *EntryQueryBuilder {
 	if offset > 0 {
 		self.offset = offset
 	}
+	return self
+}
+
+func (self *EntryQueryBuilder) WithOffsetID(id int64) *EntryQueryBuilder {
+	if id == 0 {
+		return self
+	}
+
+	self.args = append(self.args, id)
+	pos := strconv.Itoa(len(self.args))
+	self.highConds = append(self.highConds,
+		`row_number > COALESCE((SELECT row_number FROM t WHERE id = $`+pos+`), 0)`)
+	self.numberedRows = true
 	return self
 }
 
@@ -280,65 +296,14 @@ func (self *EntryQueryBuilder) GetEntry(ctx context.Context,
 // GetEntries returns a list of entries that match the condition.
 func (self *EntryQueryBuilder) GetEntries(ctx context.Context,
 ) (model.Entries, error) {
-	withContent := func() string {
-		if self.fetchContent {
-			return ", e.content"
-		}
-		return ""
-	}
-
-	query := `
-SELECT
-  e.id,
-  e.user_id,
-  e.feed_id,
-  e.hash,
-  e.published_at,
-  e.title,
-  e.url,
-  e.comments_url,
-  e.author,
-  e.status,
-  e.starred,
-  e.reading_time,
-  e.created_at,
-  e.changed_at,
-  e.tags,
-  e.extra,
-  f.title as feed_title,
-  f.feed_url,
-  f.site_url,
-  f.description,
-  f.checked_at,
-  f.category_id,
-  c.title as category_title,
-  c.hide_globally as category_hidden,
-  c.extra as category_extra,
-  f.scraper_rules,
-  f.rewrite_rules,
-  f.crawler,
-  f.user_agent,
-  f.cookie,
-  f.hide_globally,
-  f.no_media_player,
-  f.webhook_url,
-  fi.icon_id, i.hash AS icon_hash,
-  u.timezone` + withContent() + `
-FROM entries e
-     LEFT JOIN feeds f ON f.id=e.feed_id
-     LEFT JOIN categories c ON c.id=f.category_id
-     LEFT JOIN feed_icons fi ON fi.feed_id=f.id
-     LEFT JOIN icons i ON i.id=fi.icon_id
-     LEFT JOIN users u ON u.id=e.user_id
-WHERE ` + self.buildCondition() + " " + self.buildSorting()
-
+	query := self.entriesQuery()
 	rows, err := self.db.Query(ctx, query, self.args...)
 	if err != nil {
 		return nil, fmt.Errorf("storage: unable to get entries: %w", err)
 	}
 	defer rows.Close()
 
-	dest := make([]any, 0, 37)
+	dest := make([]any, 0, 38)
 	var entries model.Entries
 	entryMap := make(map[int64]*model.Entry)
 
@@ -346,6 +311,7 @@ WHERE ` + self.buildCondition() + " " + self.buildSorting()
 		var iconID pgtype.Int8
 		var iconHash pgtype.Text
 		var tz string
+		var rowNumber int64
 
 		entry := &model.Entry{
 			Date: time.Now(),
@@ -397,6 +363,10 @@ WHERE ` + self.buildCondition() + " " + self.buildSorting()
 			dest = append(dest, &entry.Content)
 		}
 
+		if self.numberedRows {
+			dest = append(dest, &rowNumber)
+		}
+
 		err := rows.Scan(dest...)
 		if err != nil {
 			return nil, fmt.Errorf("storage: unable to fetch entry row: %w", err)
@@ -432,13 +402,89 @@ WHERE ` + self.buildCondition() + " " + self.buildSorting()
 	return entries, nil
 }
 
+func (self *EntryQueryBuilder) entriesQuery() string {
+	body := `
+SELECT
+	e.id,
+	e.user_id,
+	e.feed_id,
+	e.hash,
+	e.published_at,
+	e.title,
+	e.url,
+	e.comments_url,
+	e.author,
+	e.status,
+	e.starred,
+	e.reading_time,
+	e.created_at,
+	e.changed_at,
+	e.tags,
+	e.extra,
+	f.title AS feed_title,
+	f.feed_url,
+	f.site_url,
+	f.description,
+	f.checked_at,
+	f.category_id,
+	c.title AS category_title,
+	c.hide_globally AS category_hidden,
+	c.extra AS category_extra,
+	f.scraper_rules,
+	f.rewrite_rules,
+	f.crawler,
+	f.user_agent,
+	f.cookie,
+	f.hide_globally,
+	f.no_media_player,
+	f.webhook_url,
+	fi.icon_id, i.hash AS icon_hash,
+	u.timezone` + self.withContentField() + self.withRowNumberField() + `
+FROM entries e
+		 LEFT JOIN feeds f ON f.id=e.feed_id
+		 LEFT JOIN categories c ON c.id=f.category_id
+		 LEFT JOIN feed_icons fi ON fi.feed_id=f.id
+		 LEFT JOIN icons i ON i.id=fi.icon_id
+		 LEFT JOIN users u ON u.id=e.user_id
+WHERE ` + self.buildCondition() + self.buildSorting()
+
+	if len(self.highConds) == 0 {
+		return body + self.buildLimitOffset()
+	}
+
+	return `
+WITH t AS (` + body + `) SELECT * FROM t
+WHERE ` + self.buildHighConds() + self.buildLimitOffset()
+}
+
+func (self *EntryQueryBuilder) withContentField() string {
+	if self.fetchContent {
+		return ", e.content"
+	}
+	return ""
+}
+
+func (self *EntryQueryBuilder) withRowNumberField() string {
+	if self.numberedRows {
+		return `, row_number() OVER(` + self.buildSorting() + `) AS row_number`
+	}
+	return ""
+}
+
+func (self *EntryQueryBuilder) buildHighConds() string {
+	if len(self.highConds) != 0 {
+		return strings.Join(self.highConds, " AND ")
+	}
+	return ""
+}
+
 // GetEntryIDs returns a list of entry IDs that match the condition.
 func (self *EntryQueryBuilder) GetEntryIDs(ctx context.Context) ([]int64, error) {
 	rows, _ := self.db.Query(ctx, `
 SELECT e.id
-  FROM entries e
-       LEFT JOIN feeds f ON f.id=e.feed_id
- WHERE `+self.buildCondition()+" "+self.buildSorting(), self.args...)
+  FROM entries e LEFT JOIN feeds f ON f.id=e.feed_id
+ WHERE `+self.buildCondition()+self.buildSorting()+self.buildLimitOffset(),
+		self.args...)
 
 	entryIDs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
 	if err != nil {
@@ -448,23 +494,27 @@ SELECT e.id
 }
 
 func (self *EntryQueryBuilder) buildCondition() string {
-	return strings.Join(self.conditions, " AND ")
+	if len(self.conditions) != 0 {
+		return strings.Join(self.conditions, " AND ")
+	}
+	return ""
 }
 
-func (self *EntryQueryBuilder) buildSorting() string {
-	var parts string
+func (self *EntryQueryBuilder) buildSorting() (s string) {
 	if len(self.sortExpressions) > 0 {
-		parts = " ORDER BY " + strings.Join(self.sortExpressions, ", ")
+		s = " ORDER BY " + strings.Join(self.sortExpressions, ", ")
 	}
+	return s
+}
 
+func (self *EntryQueryBuilder) buildLimitOffset() (s string) {
 	if self.limit > 0 {
-		parts += " LIMIT " + strconv.FormatInt(int64(self.limit), 10)
+		s = " LIMIT " + strconv.FormatInt(int64(self.limit), 10)
 	}
-
 	if self.offset > 0 {
-		parts += " OFFSET " + strconv.FormatInt(int64(self.offset), 10)
+		s += " OFFSET " + strconv.FormatInt(int64(self.offset), 10)
 	}
-	return parts
+	return s
 }
 
 func (self *EntryQueryBuilder) CountStatusStarred(ctx context.Context,

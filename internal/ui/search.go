@@ -34,6 +34,8 @@ func (h *handler) showSearchPage(w http.ResponseWriter, r *http.Request) {
 			query.WithoutStatus(model.EntryStatusRemoved)
 		}
 
+		query.WithOffsetID(request.QueryInt64Param(r, "offsetID", 0))
+
 		var err error
 		entries, count, err = v.WaitEntriesCount(query)
 		if err != nil {

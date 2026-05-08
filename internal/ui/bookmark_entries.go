@@ -23,7 +23,8 @@ func (h *handler) showStarredPage(w http.ResponseWriter, r *http.Request) {
 		WithSorting(user.EntryOrder, user.EntryDirection).
 		WithSorting("id", user.EntryDirection).
 		WithOffset(offset).
-		WithLimit(user.EntriesPerPage)
+		WithLimit(user.EntriesPerPage).
+		WithOffsetID(request.QueryInt64Param(r, "offsetID", 0))
 
 	entries, count, err := v.WaitEntriesCount(query)
 	if err != nil {

@@ -22,7 +22,8 @@ func (h *handler) showUnreadPage(w http.ResponseWriter, r *http.Request) {
 		WithGloballyVisible().
 		WithSorting(user.EntryOrder, user.EntryDirection).
 		WithSorting("id", user.EntryDirection).
-		WithLimit(user.EntriesPerPage)
+		WithLimit(user.EntriesPerPage).
+		WithOffsetID(request.QueryInt64Param(r, "offsetID", 0))
 
 	var entries model.Entries
 	offset := request.QueryIntParam(r, "offset", 0)
