@@ -22,7 +22,6 @@ import (
 // NewEntryQueryBuilder returns a new EntryQueryBuilder.
 func (s *Storage) NewEntryQueryBuilder(userID int64) *EntryQueryBuilder {
 	return &EntryQueryBuilder{
-		store:      s,
 		db:         s.db,
 		args:       []any{userID},
 		conditions: []string{"e.user_id = $1"},
@@ -31,7 +30,6 @@ func (s *Storage) NewEntryQueryBuilder(userID int64) *EntryQueryBuilder {
 
 // EntryQueryBuilder builds a SQL query to fetch entries.
 type EntryQueryBuilder struct {
-	store           *Storage
 	db              *pgxpool.Pool
 	args            []any
 	conditions      []string
