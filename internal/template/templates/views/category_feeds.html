@@ -34,13 +34,12 @@
             <li>
                 <form
                   hx-boost="true"
-                    class="page-header-action-form"
-                    action="{{ route "refreshCategoryFeedsPage" "categoryID" .category.ID }}"
-                >
+                  class="page-header-action-form"
+                  action="{{ route "refreshCategoryFeedsPage" "categoryID" .category.ID }}"
+                  method="POST">
                     <button
-                        class="page-button"
-                        data-label-loading="{{ t "confirm.loading" }}"
-                    >
+                      class="page-button"
+                      data-label-loading="{{ t "confirm.loading" }}">
                         {{ icon "refresh" }}{{ t "menu.refresh_all_feeds" }}
                     </button>
                 </form>

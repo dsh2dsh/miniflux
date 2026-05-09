@@ -157,10 +157,10 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 
 	// Feed listing pages.
 	m.NameHandleFunc("/feeds", h.showFeedsPage, "feeds")
-	m.NameHandleFunc("/feeds/refresh", h.refreshAllFeeds, "refreshAllFeeds")
+	m.NameHandleFunc("POST /feeds/refresh", h.refreshAllFeeds, "refreshAllFeeds")
 
 	// Individual feed pages.
-	m.NameHandleFunc("/feed/{feedID}/refresh", h.refreshFeed, "refreshFeed")
+	m.NameHandleFunc("POST /feed/{feedID}/refresh", h.refreshFeed, "refreshFeed")
 	m.NameHandleFunc("/feed/{feedID}/edit", h.showEditFeedPage, "editFeed")
 	m.NameHandleFunc("/feed/{feedID}/remove", h.removeFeed, "removeFeed")
 	m.NameHandleFunc("/feed/{feedID}/update", h.updateFeed, "updateFeed")
@@ -192,11 +192,11 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 		h.markFeedAsRead, "markCategoryFeedAsRead")
 	m.NameHandleFunc("/category/{categoryID}/feed/{feedID}/remove",
 		h.removeCategoryFeed, "removeCategoryFeed")
-	m.NameHandleFunc("/category/{categoryID}/feeds/refresh",
+	m.NameHandleFunc("POST /category/{categoryID}/feeds/refresh",
 		h.refreshCategoryFeedsPage, "refreshCategoryFeedsPage")
 	m.NameHandleFunc("/category/{categoryID}/entries", h.showCategoryEntriesPage,
 		"categoryEntries")
-	m.NameHandleFunc("/category/{categoryID}/entries/refresh",
+	m.NameHandleFunc("POST /category/{categoryID}/entries/refresh",
 		h.refreshCategoryEntriesPage, "refreshCategoryEntriesPage")
 	m.NameHandleFunc("/category/{categoryID}/entries/all",
 		h.showCategoryEntriesAllPage, "categoryEntriesAll")

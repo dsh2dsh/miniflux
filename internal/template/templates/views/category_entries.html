@@ -66,8 +66,8 @@
                 <form
                   hx-boost="true"
                   action="{{ route "refreshCategoryEntriesPage" "categoryID" .category.ID }}"
-                    class="page-header-action-form"
-                >
+                  method="POST"
+                  class="page-header-action-form">
                     <button class="page-button" data-label-loading="{{ t "confirm.loading" }}">
                         {{ icon "refresh" }}{{ t "menu.refresh_all_feeds" }}
                     </button>
