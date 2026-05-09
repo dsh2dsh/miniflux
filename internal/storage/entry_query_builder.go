@@ -82,9 +82,8 @@ func (self *EntryQueryBuilder) WithSearchQuery(query string) *EntryQueryBuilder 
 		"e.document_vectors @@ websearch_to_tsquery($", query, ")")
 
 	// 0.0000001 = 0.1 / (seconds_in_a_day)
-	self.WithSorting(
-		`ts_rank(document_vectors, websearch_to_tsquery($`+argPos+`)) - extract(epoch from now() - published_at)::float * 0.0000001`,
-		"DESC")
+	self.sortExpressions = append(self.sortExpressions,
+		`ts_rank(e.document_vectors, websearch_to_tsquery($`+argPos+`)) - extract(epoch from now() - e.published_at)::float * 0.0000001 DESC`)
 	return self
 }
 
