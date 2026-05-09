@@ -159,10 +159,19 @@
                 <li {{ if eq .menu "settings" }}class="active"{{ end }} title="{{ t "tooltip.keyboard_shortcuts" "g s" }}">
                     <a href="{{ route "settings" }}" data-page="settings">{{ icon "settings" }}{{ t "menu.settings" }}</a>
                 </li>
+
                 {{ if not hasAuthProxy }}
-                    <li>
-                        <a href="{{ route "logout" }}" title="{{ t "tooltip.logged_user" .user.Username }}">{{ icon "logout" }}{{ t "menu.logout" }}</a>
-                    </li>
+                <li>
+                    <form action="{{ route "logout" }}" method="POST"
+                          class="logout-form">
+                        <button
+                          type="submit"
+                          class="logout-button"
+                          title="{{ t "tooltip.logged_user" .user.Username }}">
+                            {{ icon "logout" }}{{ t "menu.logout" }}
+                        </button>
+                    </form>
+                </li>
                 {{ end }}
 
                 <li hx-trigger="click">

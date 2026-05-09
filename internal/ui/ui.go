@@ -132,7 +132,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 	})
 
 	m = m.Group().Use(mw.userWithRedirect(), mw.handleAppSession)
-	m.NameHandleFunc("/logout", h.logout, "logout")
+	m.NameHandleFunc("POST /logout", h.logout, "logout")
 
 	// New subscription pages.
 	m.NameHandleFunc("GET /subscribe", h.showAddSubscriptionPage,
