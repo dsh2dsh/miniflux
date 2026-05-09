@@ -48,9 +48,9 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	state := request.QueryStringParam(r, "state", "")
-	wantState := sessionData.OAuth2State
-	stateInvalid := subtle.ConstantTimeCompare([]byte(state),
-		[]byte(wantState)) == 0
+	expectedState := sessionData.OAuth2State
+	stateInvalid := expectedState == "" ||
+		subtle.ConstantTimeCompare([]byte(state), []byte(expectedState)) == 0
 	if stateInvalid {
 		log.Warn("Invalid OAuth2 state value received")
 		h.redirect(w, r, "login")
