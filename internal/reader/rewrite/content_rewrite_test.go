@@ -725,6 +725,66 @@ func TestRewriteAddCastopodEpisode(t *testing.T) {
 	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
+func TestRewriteAddEnclosureLinks(t *testing.T) {
+	controlEntry := &model.Entry{
+		URL:   "https://example.org/article",
+		Title: `A title`,
+		Content: `Article Content<hr/><ul>` +
+			`<li><a href="https://example.org/episode.mp3?token=a&amp;b=c">https://example.org/episode.mp3?token=a&amp;b=c</a></li>` +
+			`<li><a href="https://example.org/video.mp4">https://example.org/video.mp4</a></li></ul>`,
+		Extra: model.EntryExtra{
+			Enclosures: model.EnclosureList{
+				{URL: "https://example.org/episode.mp3?token=a&b=c", MimeType: "audio/mpeg"},
+				{URL: "https://example.org/video.mp4", MimeType: "video/mp4"},
+				{URL: "", MimeType: "application/pdf"},
+			},
+		},
+	}
+
+	testEntry := &model.Entry{
+		URL:     "https://example.org/article",
+		Title:   `A title`,
+		Content: `Article Content`,
+		Extra: model.EntryExtra{
+			Enclosures: model.EnclosureList{
+				{URL: "https://example.org/episode.mp3?token=a&b=c", MimeType: "audio/mpeg"},
+				{URL: "https://example.org/video.mp4", MimeType: "video/mp4"},
+				{URL: "", MimeType: "application/pdf"},
+			},
+		},
+	}
+
+	applyContentRewriteRules(t, testEntry, "add_enclosure_links")
+	assert.EqualExportedValues(t, controlEntry, testEntry)
+}
+
+func TestRewriteAddEnclosureLinksWithoutEnclosureURL(t *testing.T) {
+	controlEntry := &model.Entry{
+		URL:     "https://example.org/article",
+		Title:   `A title`,
+		Content: `Article Content`,
+		Extra: model.EntryExtra{
+			Enclosures: model.EnclosureList{
+				{URL: "", MimeType: "audio/mpeg"},
+			},
+		},
+	}
+
+	testEntry := &model.Entry{
+		URL:     "https://example.org/article",
+		Title:   `A title`,
+		Content: `Article Content`,
+		Extra: model.EntryExtra{
+			Enclosures: model.EnclosureList{
+				{URL: "", MimeType: "audio/mpeg"},
+			},
+		},
+	}
+
+	applyContentRewriteRules(t, testEntry, "add_enclosure_links")
+	assert.EqualExportedValues(t, controlEntry, testEntry)
+}
+
 func TestRewriteBase64Decode(t *testing.T) {
 	controlEntry := &model.Entry{
 		URL:     "https://example.org/article",

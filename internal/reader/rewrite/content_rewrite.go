@@ -103,6 +103,8 @@ func (self *ContentRewrite) applyRule(ctx context.Context, entry *model.Entry,
 		r.applyReplaceTitle(log, entry)
 	case "remove":
 		r.applyRemove(log, entry)
+	case "add_enclosure_links":
+		entry.Content = addEnclosureLinks(entry)
 	case "add_castopod_episode":
 		entry.Content = addCastopodEpisode(entry.URL, entry.Content)
 	case "base64_decode":
