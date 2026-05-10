@@ -32,7 +32,6 @@ func New(tpl *template.Engine, r *http.Request) *View {
 			"menu":            "",
 			"theme":           theme,
 			"language":        request.UserLanguage(r),
-			"requestURI":      request.RequestURI(r),
 			"webAuthnEnabled": config.WebAuthn(),
 		},
 	}
@@ -69,5 +68,6 @@ func (self *View) Set(param string, value any) *View {
 // Render executes the template with arguments.
 func (self *View) Render(templateName string) []byte {
 	return self.tpl.Render(templateName+".html", self.params,
-		template.WithLanguage(request.UserLanguage(self.r)))
+		template.WithLanguage(request.UserLanguage(self.r)),
+		template.WithRequest(self.r))
 }

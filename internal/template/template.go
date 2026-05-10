@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"net/http"
 	"time"
 
+	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/locale"
 )
 
@@ -13,14 +15,15 @@ type Template struct {
 	*template.Template
 
 	printer *locale.Printer
+	r       *http.Request
 }
 
 func (self *Template) LookupExecute(data map[string]any, names ...string,
 ) ([]byte, error) {
-	self.Funcs(self.funcMap())
+	tt := self.Funcs(self.funcMap())
 
 	for _, name := range names {
-		if t := self.Lookup(name); t != nil {
+		if t := tt.Lookup(name); t != nil {
 			var b bytes.Buffer
 			if err := t.Execute(&b, data); err != nil {
 				return nil, fmt.Errorf("template: executing %q: %w", name, err)
@@ -33,10 +36,16 @@ func (self *Template) LookupExecute(data map[string]any, names ...string,
 
 func (self *Template) funcMap() template.FuncMap {
 	return template.FuncMap{
+		"requestURI": self.requestURI,
+
 		"elapsed": func(timezone string, t time.Time) string {
 			return elapsedTime(self.printer, timezone, t)
 		},
 		"t":      self.printer.Printf,
 		"plural": self.printer.Plural,
 	}
+}
+
+func (self *Template) requestURI() string {
+	return request.RequestURI(self.r)
 }
