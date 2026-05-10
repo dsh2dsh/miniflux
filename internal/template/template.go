@@ -46,6 +46,6 @@ func (self *Template) funcMap() template.FuncMap {
 	}
 }
 
-func (self *Template) requestURI() string {
-	return request.RequestURI(self.r)
+func (self *Template) requestURI(keyValues ...string) string {
+	return request.URIWithQuery(self.r, keyValues...)
 }

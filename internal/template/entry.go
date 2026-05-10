@@ -2,6 +2,7 @@ package template
 
 import (
 	"iter"
+	"strconv"
 	"strings"
 
 	"miniflux.app/v2/internal/model"
@@ -26,6 +27,8 @@ func Entries(entries model.Entries) iter.Seq[*Entry] {
 		}
 	}
 }
+
+func (self *Entry) StringID() string { return strconv.FormatInt(self.ID, 10) }
 
 func (self *Entry) URLSafe() bool {
 	return self.urlSafeOnce.From(self.urlSafeDo)

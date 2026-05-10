@@ -96,7 +96,7 @@ func (m *middleware) handleUserSession(next http.Handler, redirect bool,
 
 func (m *middleware) redirectToLogin(w http.ResponseWriter, r *http.Request) {
 	log := logging.FromContext(r.Context())
-	redirect := request.RequestURI(r)
+	redirect := request.URI(r)
 	log.Debug("After login redirect to", slog.String("uri", redirect))
 
 	if err := setLoginRedirect(w, m.secureCookie, redirect); err != nil {

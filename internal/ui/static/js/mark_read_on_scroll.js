@@ -9,8 +9,7 @@ class MarkReadOnScroll {
   constructor() {
     document.body.addEventListener("htmx:afterSwap", event => {
       if (event.target.matches(MarkReadOnScroll.pageEndSelector))
-        console.log("afterSwap revealedCallback: event", event);
-        // this.revealedCallback(event.target);
+        this.revealedLastItem(event.target);
     }, true);
 
     history.scrollRestoration = "manual";
@@ -82,41 +81,28 @@ class MarkReadOnScroll {
     return entries;
   }
 
-  revealedCallback(lastItem) {
-    this.removeDupsAfter(lastItem);
+  revealedLastItem(item) {
+    this.addNextEntries(item);
     this.removeScrolled();
   }
 
-  removeDupsAfter(lastItem) {
-    if (!lastItem.nextElementSibling) return;
-
-    const knownItems = new Set();
-    let el = lastItem
+  addNextEntries(lastItem) {
+    let el = lastItem.nextElementSibling;
     while (el) {
-      knownItems.add(el.dataset.id);
-      el = el.previousElementSibling;
-    }
-
-    el = lastItem.nextElementSibling;
-    while (el) {
-      const nextSibling = el.nextElementSibling;
-      if (knownItems.has(el.dataset.id))
-        el.remove();
-      else
-        this.addEntry(el);
-      el = nextSibling;
+      this.addEntry(el);
+      el = el.nextElementSibling;
     }
   }
 
   removeScrolled() {
     const pageEnds = document.querySelectorAll(MarkReadOnScroll.pageEndSelector);
-    if (pageEnds.length > 2) {
-      let el = pageEnds.at(-3);
-      while (el) {
-        const previousSibling = el.previousElementSibling;
-        el.remove();
-        el = previousSibling;
-      }
+    if (pageEnds.length <= 2) return;
+
+    let el = pageEnds.at(-3);
+    while (el) {
+      const previousSibling = el.previousElementSibling;
+      el.remove();
+      el = previousSibling;
     }
   }
 

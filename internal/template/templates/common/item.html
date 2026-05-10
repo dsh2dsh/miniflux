@@ -4,7 +4,7 @@
   data-id="{{ .entry.ID }}"
   aria-labelledby="entry-title-{{ .entry.ID }}"
   {{ if and .pageEnd .showOnlyUnreadEntries }}
-  hx-get="{{ requestURI }}"
+  hx-get="{{ requestURI "offsetID" .entry.StringID }}"
   hx-select=".items > .item"
   hx-swap="afterend"
   hx-trigger="revealed"
