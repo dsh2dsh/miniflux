@@ -156,17 +156,19 @@ func (s *Storage) WebAuthnSaveLogin(ctx context.Context, handle []byte) error {
 	return nil
 }
 
-func (s *Storage) WebAuthnUpdateName(ctx context.Context, handle []byte,
-	name string,
-) error {
-	_, err := s.db.Exec(ctx,
-		`UPDATE webauthn_credentials SET name=$1 WHERE handle=$2`,
-		name, handle)
+func (s *Storage) WebAuthnUpdateName(ctx context.Context, userID int64,
+	handle []byte, name string,
+) (int64, error) {
+	result, err := s.db.Exec(ctx, `
+UPDATE webauthn_credentials
+   SET name = $1
+ WHERE user_id = $2 AND handle = $3`,
+		name, userID, handle)
 	if err != nil {
-		return fmt.Errorf(
-			`store: unable to update name for webauthn credential: %w`, err)
+		return 0, fmt.Errorf(
+			`storage: update name for webauthn credential: %w`, err)
 	}
-	return nil
+	return result.RowsAffected(), nil
 }
 
 func (s *Storage) CountWebAuthnCredentialsByUserID(ctx context.Context,

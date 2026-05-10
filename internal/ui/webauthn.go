@@ -392,9 +392,13 @@ func (h *handler) saveCredential(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newName := r.FormValue("name")
-	err = h.store.WebAuthnUpdateName(r.Context(), credentialHandle, newName)
+	changed, err := h.store.WebAuthnUpdateName(r.Context(), request.UserID(r),
+		credentialHandle, newName)
 	if err != nil {
 		response.ServerError(w, r, err)
+		return
+	} else if changed == 0 {
+		response.NotFound(w, r)
 		return
 	}
 	h.redirect(w, r, "settings")
