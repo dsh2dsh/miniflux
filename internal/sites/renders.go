@@ -67,7 +67,6 @@ func Render(ctx context.Context, user *model.User, entry *model.Entry,
 func renderTemplate(t *template.Engine, name string, user *model.User,
 	entry *model.Entry, data map[string]any,
 ) []byte {
-	data["language"] = user.Language
-	data["Entry"] = entry
-	return t.Render(name, data)
+	data["Entry"] = template.NewEntry(entry)
+	return t.Render(name, data, template.WithLanguage(user.Language))
 }

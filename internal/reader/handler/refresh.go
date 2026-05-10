@@ -585,8 +585,9 @@ func (self *Refresh) feedParsingError(user *model.User) *model.Entry {
 
 func (self *Refresh) render(name string, user *model.User, data map[string]any,
 ) string {
-	data["language"] = user.Language
-	return string(self.templates.Render(name, data))
+	b := self.templates.Render(name, data,
+		template.WithLanguage(user.Language))
+	return string(b)
 }
 
 func (self *Refresh) routeURL(name string, args ...any) string {

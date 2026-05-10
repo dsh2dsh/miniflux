@@ -121,17 +121,9 @@ func (self *funcMap) Map() template.FuncMap {
 		"subtract": func(a, b int) int { return a - b },
 
 		// These functions are overridden at runtime after parsing.
-		"elapsed": func(timezone string, t time.Time) string {
-			return ""
-		},
-
-		"t": func(key any, args ...any) string {
-			return ""
-		},
-
-		"plural": func(key string, n int, args ...any) string {
-			return ""
-		},
+		"elapsed": func(timezone string, t time.Time) string { return "" },
+		"t":       func(key any, args ...any) string { return "" },
+		"plural":  func(key string, n int, args ...any) string { return "" },
 	}
 }
 

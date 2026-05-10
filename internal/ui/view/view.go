@@ -67,6 +67,7 @@ func (self *View) Set(param string, value any) *View {
 }
 
 // Render executes the template with arguments.
-func (self *View) Render(template string) []byte {
-	return self.tpl.Render(template+".html", self.params)
+func (self *View) Render(templateName string) []byte {
+	return self.tpl.Render(templateName+".html", self.params,
+		template.WithLanguage(request.UserLanguage(self.r)))
 }

@@ -4,27 +4,26 @@
 package template // import "miniflux.app/v2/internal/template"
 
 import (
-	"bytes"
 	"embed"
 	"fmt"
 	"html/template"
 	"log/slog"
-	"time"
 
 	"miniflux.app/v2/internal/http/mux"
-	"miniflux.app/v2/internal/locale"
+)
+
+var (
+	//go:embed templates/common/*.html templates/common/*.svg
+	commonTemplateFiles embed.FS
+
+	//go:embed templates/views/*.html
+	viewTemplateFiles embed.FS
+
+	//go:embed templates/standalone/*.html
+	standaloneTemplateFiles embed.FS
 )
 
 type HTML = template.HTML
-
-//go:embed templates/common/*.html templates/common/*.svg
-var commonTemplateFiles embed.FS
-
-//go:embed templates/views/*.html
-var viewTemplateFiles embed.FS
-
-//go:embed templates/standalone/*.html
-var standaloneTemplateFiles embed.FS
 
 // Engine handles the templating system.
 type Engine struct {
@@ -42,11 +41,11 @@ func NewEngine(router *mux.ServeMux) *Engine {
 	}
 }
 
-func (e *Engine) Router() *mux.ServeMux { return e.router }
+func (self *Engine) Router() *mux.ServeMux { return self.router }
 
 // ParseTemplates parses template files embed into the application.
-func (e *Engine) ParseTemplates() error {
-	funcMap := e.funcMap.Map()
+func (self *Engine) ParseTemplates() error {
+	funcMap := self.funcMap.Map()
 	commonTemplates := template.Must(template.New("").
 		Funcs(funcMap).ParseFS(commonTemplateFiles, "templates/common/*"))
 
@@ -61,7 +60,7 @@ func (e *Engine) ParseTemplates() error {
 		if err != nil {
 			panic("Unable to clone the common template")
 		}
-		e.templates[dirEntry.Name()] = template.Must(commonTemplatesClone.ParseFS(viewTemplateFiles, fullName))
+		self.templates[dirEntry.Name()] = template.Must(commonTemplatesClone.ParseFS(viewTemplateFiles, fullName))
 	}
 
 	dirEntries, err = standaloneTemplateFiles.ReadDir("templates/standalone")
@@ -71,47 +70,27 @@ func (e *Engine) ParseTemplates() error {
 	for _, dirEntry := range dirEntries {
 		fullName := "templates/standalone/" + dirEntry.Name()
 		slog.Debug("Parsing template", slog.String("template_name", fullName))
-		e.templates[dirEntry.Name()] = template.Must(template.New(dirEntry.Name()).Funcs(funcMap).ParseFS(standaloneTemplateFiles, fullName))
+		self.templates[dirEntry.Name()] = template.Must(template.New(dirEntry.Name()).Funcs(funcMap).ParseFS(standaloneTemplateFiles, fullName))
 	}
 	return nil
 }
 
 // Render process a template.
-func (e *Engine) Render(name string, data map[string]any) []byte {
-	tpl, ok := e.templates[name]
+func (self *Engine) Render(name string, data map[string]any, opts ...Option,
+) []byte {
+	parsedTemplate, ok := self.templates[name]
 	if !ok {
 		panic("This template does not exists: " + name)
 	}
-	tpl = template.Must(tpl.Clone())
 
-	// Functions that need to be declared at runtime.
-	printer := locale.NewPrinter(data["language"].(string))
-	tpl.Funcs(template.FuncMap{
-		"elapsed": func(timezone string, t time.Time) string {
-			return elapsedTime(printer, timezone, t)
-		},
-		"t":      printer.Printf,
-		"plural": printer.Plural,
-	})
+	t := Template{Template: template.Must(parsedTemplate.Clone())}
+	for _, fn := range opts {
+		fn(&t)
+	}
 
-	b, err := lookupExecute(tpl, data, "layout.html", name)
+	b, err := t.LookupExecute(data, "layout.html", name)
 	if err != nil {
 		panic(err)
 	}
 	return b
-}
-
-func lookupExecute(tt *template.Template, data map[string]any,
-	names ...string,
-) ([]byte, error) {
-	for _, name := range names {
-		if t := tt.Lookup(name); t != nil {
-			var b bytes.Buffer
-			if err := t.Execute(&b, data); err != nil {
-				return nil, fmt.Errorf("executing %q: %w", name, err)
-			}
-			return b.Bytes(), nil
-		}
-	}
-	return nil, fmt.Errorf("none of [%v] defined", names)
 }
