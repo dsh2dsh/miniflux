@@ -406,18 +406,14 @@ func (h *handler) saveCredential(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) deleteCredential(w http.ResponseWriter, r *http.Request,
 ) error {
-	uid := request.UserID(r)
-	if uid == 0 {
-		return response.ErrUnauthorized
-	}
-
 	credentialHandleEncoded := request.RouteStringParam(r, "credentialHandle")
 	credentialHandle, err := hex.DecodeString(credentialHandleEncoded)
 	if err != nil {
 		return response.WrapServerError(err)
 	}
 
-	err = h.store.DeleteCredentialByHandle(r.Context(), uid, credentialHandle)
+	err = h.store.DeleteCredentialByHandle(r.Context(), request.UserID(r),
+		credentialHandle)
 	if err != nil {
 		return response.WrapServerError(err)
 	}
