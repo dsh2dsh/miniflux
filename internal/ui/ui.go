@@ -250,7 +250,8 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 
 	// OAuth2 flow.
 	if config.OAuth2Provider() != "" {
-		m.NameHandleFunc("/oauth2/unlink/{provider}", h.oauth2Unlink, "oauth2Unlink")
+		m.NameHandleFunc("POST /oauth2/unlink/{provider}", h.oauth2Unlink,
+			"oauth2Unlink")
 	}
 
 	if config.WebAuthn() {
