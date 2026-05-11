@@ -4,10 +4,11 @@
   data-id="{{ .entry.ID }}"
   aria-labelledby="entry-title-{{ .entry.ID }}"
   {{ if and .pageEnd .showOnlyUnreadEntries }}
+  data-trigger-revealed="true"
   hx-get="{{ requestURI "offsetID" .entry.StringID }}"
   hx-select=".items > .item"
   hx-swap="afterend"
-  hx-trigger="revealed"
+  hx-trigger="miniflux:revealed"
   hx-disinherit="*"
   {{ end }}
   tabindex="-1">

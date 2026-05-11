@@ -35,19 +35,8 @@ class MarkReadOnScroll {
   observerCallback(entries, observer) {
     let scrolledEntry = false;
     entries.forEach((entry) => {
-      const bottom = entry.boundingClientRect.bottom;
-      if (entry.isIntersecting || bottom > 0)
-        return;
-
-      const element = entry.target;
-      const entryId = element.dataset.id;
-      this.observer.unobserve(element);
-
-      if (!this.firstScrolled )
-        this.firstScrolled = this.lastScrolled = element;
-      else
-        this.lastScrolled = element;
-      scrolledEntry = true;
+      this.intersectingLastItem(entry);
+      scrolledEntry = this.scrolledUp(entry);
     });
     if (!scrolledEntry) return;
 
@@ -60,6 +49,33 @@ class MarkReadOnScroll {
 
     if (this.timeoutId === 0)
       this.timeoutId = setTimeout(() => this.readOnTimeout(), 1000);
+  }
+
+  intersectingLastItem(entry) {
+    if (!entry.isIntersecting) return;
+
+    const el = entry.target;
+    if (el.nextElementSibling || el.dataset.triggerRevealed !== "true")
+      return;
+
+    const e = new Event("miniflux:revealed");
+    el.dispatchEvent(e);
+  }
+
+  scrolledUp(entry) {
+    const bottom = entry.boundingClientRect.bottom;
+    if (entry.isIntersecting || bottom > 0)
+      return false;
+
+    const element = entry.target;
+    const entryId = element.dataset.id;
+    this.observer.unobserve(element);
+
+    if (!this.firstScrolled )
+      this.firstScrolled = this.lastScrolled = element;
+    else
+      this.lastScrolled = element;
+    return true
   }
 
   async readOnTimeout() {
@@ -98,7 +114,7 @@ class MarkReadOnScroll {
     const pageEnds = document.querySelectorAll(MarkReadOnScroll.pageEndSelector);
     if (pageEnds.length <= 2) return;
 
-    let el = pageEnds.at(-3);
+    let el = Array.from(pageEnds).at(-3);
     while (el) {
       const previousSibling = el.previousElementSibling;
       el.remove();
