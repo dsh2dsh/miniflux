@@ -94,8 +94,7 @@ func (c *Client) createEntry(ctx context.Context, accessToken, entryURL,
 	defer response.Close()
 
 	if response.StatusCode() >= 400 {
-		return fmt.Errorf("wallabag: unable to get save entry: url=%s status=%d",
-			apiEndpoint, response.StatusCode())
+		return fmt.Errorf("wallabag: unable to save entry: url=%s status=%d", apiEndpoint, response.StatusCode())
 	}
 	return nil
 }
