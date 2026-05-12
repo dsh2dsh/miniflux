@@ -757,4 +757,13 @@ CREATE INDEX ON entries
 	// 128
 	sqlMigration(`
 ALTER TABLE categories ADD COLUMN extra jsonb NOT NULL DEFAULT '{}'::jsonb`),
+
+	// 129
+	sqlMigration(`
+UPDATE webauthn_credentials SET name = '' WHERE name IS NULL;
+ALTER TABLE webauthn_credentials
+  ALTER COLUMN name SET DEFAULT '',
+  ALTER COLUMN name SET NOT NULL,
+  ADD COLUMN backup_eligible boolean,
+  ADD COLUMN backup_state boolean NOT NULL DEFAULT false;`),
 }

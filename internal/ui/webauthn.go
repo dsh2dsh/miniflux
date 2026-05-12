@@ -304,13 +304,12 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) error {
 				return nil, fmt.Errorf("ui: no user found for handle %x", userHandle)
 			}
 
-			// Since go-webauthn v0.11.0, the backup eligibility flag is strictly
-			// validated, but Miniflux does not store this flag. This workaround set
-			// the flag based on the parsed response, and avoid "BackupEligible flag
-			// inconsistency detected during login validation" error.
-			//
-			// See https://github.com/go-webauthn/webauthn/pull/240
-			credential.Credential.Flags.BackupEligible = parsedResponse.Response.AuthenticatorData.Flags.HasBackupEligible()
+			// One-shot backfill for credentials registered before the
+			// backup_eligible column was added: trust the assertion's BE
+			// once, then persist it after successful validation.
+			if !credential.BackupEligibleKnown {
+				credential.Credential.Flags.BackupEligible = parsedResponse.Response.AuthenticatorData.Flags.HasBackupEligible()
+			}
 
 			resolvedUser = loadedUser
 			resolvedCredential = credential
@@ -321,7 +320,7 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) error {
 			}, nil
 		}
 
-		_, err = web.ValidateDiscoverableLogin(userByHandle,
+		validatedCredential, err := web.ValidateDiscoverableLogin(userByHandle,
 			*sessionData.SessionData, parsedResponse)
 		if err != nil {
 			log.Warn("WebAuthn: ValidateDiscoverableLogin failed",
@@ -340,7 +339,7 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) error {
 		return response.WrapServerError(err)
 	}
 
-	err = h.store.WebAuthnSaveLogin(ctx, matchingCredential.Handle)
+	err = h.store.WebAuthnSaveLogin(ctx, matchingCredential.Handle, validatedCredential)
 	if err != nil {
 		slog.Warn("WebAuthn: unable to update last seen date for credential",
 			slog.Int64("user_id", user.ID),

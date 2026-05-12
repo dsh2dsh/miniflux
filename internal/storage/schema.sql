@@ -3,7 +3,7 @@
 CREATE TABLE schema_version (
     version text NOT NULL
 );
-INSERT INTO schema_version (version) VALUES('128');
+INSERT INTO schema_version (version) VALUES('129');
 
 CREATE TABLE acme_cache (
     key character varying(400) NOT NULL PRIMARY KEY,
@@ -209,7 +209,9 @@ CREATE TABLE webauthn_credentials (
     aaguid bytea,
     sign_count bigint,
     clone_warning boolean,
-    name text,
+    name text NOT NULL DEFAULT '',
     added_on timestamp with time zone DEFAULT now(),
-    last_seen_on timestamp with time zone DEFAULT now()
+    last_seen_on timestamp with time zone DEFAULT now(),
+    backup_eligible boolean,
+    backup_state boolean NOT NULL DEFAULT false
 );

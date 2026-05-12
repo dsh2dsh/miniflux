@@ -30,8 +30,10 @@ INSERT INTO webauthn_credentials (
   attestation_type,
   aaguid,
   sign_count,
-  clone_warning)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+  clone_warning,
+  backup_eligible,
+  backup_state)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
 		handle,
 		credential.ID,
 		userID,
@@ -40,6 +42,8 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		credential.Authenticator.AAGUID,
 		credential.Authenticator.SignCount,
 		credential.Authenticator.CloneWarning,
+		credential.Flags.BackupEligible,
+		credential.Flags.BackupState,
 	)
 	if err != nil {
 		return fmt.Errorf("storage: unable store wabauthn credential: %w", err)
@@ -51,7 +55,7 @@ func (s *Storage) WebAuthnCredentialByHandle(ctx context.Context, handle []byte,
 ) (int64, *model.WebAuthnCredential, error) {
 	credential := &model.WebAuthnCredential{}
 	var userID int64
-	var nullName pgtype.Text
+	var backupEligible pgtype.Bool
 
 	err := s.db.QueryRow(ctx, `
 SELECT
@@ -64,7 +68,9 @@ SELECT
 	clone_warning,
 	added_on,
 	last_seen_on,
-	name
+	name,
+  backup_eligible,
+  backup_state
  FROM webauthn_credentials WHERE handle = $1`, handle).Scan(
 		&userID,
 		&credential.Credential.ID,
@@ -75,17 +81,17 @@ SELECT
 		&credential.Credential.Authenticator.CloneWarning,
 		&credential.AddedOn,
 		&credential.LastSeenOn,
-		&nullName,
-	)
+		&credential.Name,
+		&backupEligible,
+		&credential.Credential.Flags.BackupState)
 	if err != nil {
 		return 0, nil, fmt.Errorf(
 			"storage: unable fetch webauthn credential: %w", err)
 	}
 
-	if nullName.Valid {
-		credential.Name = nullName.String
-	} else {
-		credential.Name = ""
+	if backupEligible.Valid {
+		credential.Credential.Flags.BackupEligible = backupEligible.Bool
+		credential.BackupEligibleKnown = true
 	}
 	credential.Handle = handle
 	return userID, credential, nil
@@ -95,17 +101,19 @@ func (s *Storage) WebAuthnCredentialsByUserID(ctx context.Context, userID int64,
 ) ([]model.WebAuthnCredential, error) {
 	rows, err := s.db.Query(ctx, `
 SELECT
-	handle,
-	cred_id,
-	public_key,
-	attestation_type,
-	aaguid,
-	sign_count,
-	clone_warning,
-	name,
-	added_on,
-	last_seen_on
- FROM webauthn_credentials
+  handle,
+  cred_id,
+  public_key,
+  attestation_type,
+  aaguid,
+  sign_count,
+  clone_warning,
+  name,
+  added_on,
+  last_seen_on,
+  backup_eligible,
+  backup_state
+FROM webauthn_credentials
 WHERE user_id = $1`, userID)
 	if err != nil {
 		return nil, fmt.Errorf(
@@ -114,10 +122,10 @@ WHERE user_id = $1`, userID)
 	defer rows.Close()
 
 	var creds []model.WebAuthnCredential
-	var nullName pgtype.Text
 
 	for rows.Next() {
 		var cred model.WebAuthnCredential
+		var backupEligible pgtype.Bool
 		err := rows.Scan(
 			&cred.Handle,
 			&cred.Credential.ID,
@@ -126,32 +134,47 @@ WHERE user_id = $1`, userID)
 			&cred.Credential.Authenticator.AAGUID,
 			&cred.Credential.Authenticator.SignCount,
 			&cred.Credential.Authenticator.CloneWarning,
-			&nullName,
+			&cred.Name,
 			&cred.AddedOn,
-			&cred.LastSeenOn)
+			&cred.LastSeenOn,
+			&backupEligible,
+			&cred.Credential.Flags.BackupState)
 		if err != nil {
 			return nil, fmt.Errorf(
 				"storage: unable fetch webauthn credentials: %w", err)
 		}
 
-		if nullName.Valid {
-			cred.Name = nullName.String
-		} else {
-			cred.Name = ""
+		if backupEligible.Valid {
+			cred.Credential.Flags.BackupEligible = backupEligible.Bool
+			cred.BackupEligibleKnown = true
 		}
 		creds = append(creds, cred)
 	}
 	return creds, nil
 }
 
-func (s *Storage) WebAuthnSaveLogin(ctx context.Context, handle []byte) error {
-	_, err := s.db.Exec(ctx,
-		`UPDATE webauthn_credentials SET last_seen_on=NOW() WHERE handle=$1`,
-		handle)
+// WebAuthnSaveLogin writes back the per-assertion fields (sign count, clone
+// warning, backup state, BE) the WebAuthn spec requires after every successful
+// login.
+func (s *Storage) WebAuthnSaveLogin(ctx context.Context, handle []byte,
+	credential *webauthn.Credential,
+) error {
+	_, err := s.db.Exec(ctx, `
+UPDATE webauthn_credentials
+   SET last_seen_on = NOW(),
+       sign_count = $2,
+       clone_warning = $3,
+       backup_eligible = $4,
+       backup_state = $5
+ WHERE handle = $1`,
+		handle,
+		credential.Authenticator.SignCount,
+		credential.Authenticator.CloneWarning,
+		credential.Flags.BackupEligible,
+		credential.Flags.BackupState)
 	if err != nil {
 		return fmt.Errorf(
-			`store: unable to update last seen date for webauthn credential: %w`,
-			err)
+			`store: unable to update webauthn credential after login: %w`, err)
 	}
 	return nil
 }
