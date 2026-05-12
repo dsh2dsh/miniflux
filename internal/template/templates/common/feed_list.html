@@ -57,7 +57,10 @@
                 </ul>
                 <ul class="item-meta-icons">
                     <li class="item-meta-icons-refresh">
-                        <form action="{{ route "refreshFeed" "feedID" .ID }}" method="post">
+                        <form
+                          action="{{ route "refreshFeed" "feedID" .ID }}"
+                          method="post"
+                          hx-boost="true">
                             <button aria-describedby="feed-title-{{ .ID }}">
                                 {{ icon "refresh" }}<span class="icon-label">{{ t "menu.refresh_feed" }}</span>
                             </button>

@@ -13,7 +13,8 @@
 <fieldset>
     <legend>{{ t "form.prefs.fieldset.google_authentication" }}</legend>
     {{ if .user.GoogleID }}
-    <form method="post" action="{{ route "oauth2Unlink" "provider" "google" }}">
+    <form method="post" action="{{ route "oauth2Unlink" "provider" "google" }}"
+          hx-boost="true">
         <button
           type="submit"
           class="button button-danger"
@@ -34,7 +35,8 @@
 <fieldset>
     <legend>{{ t "form.prefs.fieldset.oidc_authentication" oidcProviderName }}</legend>
     {{ if .user.OpenIDConnectID }}
-    <form method="post" action="{{ route "oauth2Unlink" "provider" "oidc" }}">
+    <form method="post" action="{{ route "oauth2Unlink" "provider" "oidc" }}"
+          hx-boost="true">
         <button
           type="submit"
           class="button button-danger"
