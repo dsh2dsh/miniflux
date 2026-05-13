@@ -36,7 +36,7 @@ class MarkReadOnScroll {
     let scrolledEntry = false;
     entries.forEach((entry) => {
       this.intersectingLastItem(entry);
-      scrolledEntry = this.scrolledUp(entry);
+      if (this.scrolledUp(entry)) scrolledEntry = true;
     });
     if (!scrolledEntry) return;
 
