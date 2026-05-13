@@ -88,8 +88,7 @@ class MarkReadOnScroll {
     let el = this.firstScrolled;
     while (el) {
       entries.push(el);
-      if (el === this.lastScrolled )
-        break;
+      if (el === this.lastScrolled ) break;
       el = el.nextElementSibling;
     }
 
@@ -114,11 +113,15 @@ class MarkReadOnScroll {
     const pageEnds = document.querySelectorAll(MarkReadOnScroll.pageEndSelector);
     if (pageEnds.length <= 2) return;
 
-    let el = Array.from(pageEnds).at(-3);
-    while (el) {
-      const previousSibling = el.previousElementSibling;
-      el.remove();
-      el = previousSibling;
+    const pageEnd = Array.from(pageEnds).at(-3);
+    const items = pageEnd.parentElement;
+
+    let item = items.firstElementChild;
+    while (item && item !== this.firstScrolled) {
+      const nextItem = item.nextElementSibling;
+      item.remove();
+      if (item === pageEnd) break;
+      item = nextItem;
     }
   }
 
