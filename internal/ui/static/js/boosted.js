@@ -13,6 +13,7 @@ class BoostedBody {
 
   beforeSwap(event) {
     if (!this.boosted(event)) return;
+
     event.detail.swapOverride = "show:html:top";
     readOnScrollObserver.stop();
   }
@@ -26,7 +27,7 @@ class BoostedBody {
   }
 
   boosted(event) {
-    return event.target === document.body && event.detail.boosted;
+    return event.detail.boosted || event.target === document.body;
   }
 }
 
