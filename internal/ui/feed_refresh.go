@@ -10,7 +10,6 @@ import (
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
-
 	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/locale"
 	feedHandler "miniflux.app/v2/internal/reader/handler"
