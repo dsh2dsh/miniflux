@@ -766,4 +766,8 @@ ALTER TABLE webauthn_credentials
   ALTER COLUMN name SET NOT NULL,
   ADD COLUMN backup_eligible boolean,
   ADD COLUMN backup_state boolean NOT NULL DEFAULT false;`),
+
+	// 130
+	sqlMigration(`
+DROP INDEX IF EXISTS entries_feed_idx, entries_user_status_idx`),
 }
