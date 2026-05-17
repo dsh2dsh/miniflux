@@ -224,7 +224,17 @@ func (self *EntryQueryBuilder) WithoutStatus(status string) *EntryQueryBuilder {
 // WithSorting add a sort expression.
 func (self *EntryQueryBuilder) WithSorting(column, direction string,
 ) *EntryQueryBuilder {
-	self.sortExpressions = append(self.sortExpressions, "e."+column+" "+direction)
+	switch {
+	case strings.EqualFold(direction, "ASC"):
+		direction = "ASC"
+	case strings.EqualFold(direction, "DESC"):
+		direction = "DESC"
+	default:
+		return self
+	}
+
+	self.sortExpressions = append(self.sortExpressions,
+		pgx.Identifier([]string{"e", column}).Sanitize()+" "+direction)
 	return self
 }
 

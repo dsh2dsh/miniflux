@@ -67,7 +67,17 @@ func (f *FeedQueryBuilder) WithCounters() *FeedQueryBuilder {
 // WithSorting add a sort expression.
 func (f *FeedQueryBuilder) WithSorting(column, direction string,
 ) *FeedQueryBuilder {
-	f.sortExpressions = append(f.sortExpressions, column+" "+direction)
+	switch {
+	case strings.EqualFold(direction, "ASC"):
+		direction = "ASC"
+	case strings.EqualFold(direction, "DESC"):
+		direction = "DESC"
+	default:
+		return f
+	}
+
+	f.sortExpressions = append(f.sortExpressions,
+		pgx.Identifier([]string{column}).Sanitize()+" "+direction)
 	return f
 }
 
