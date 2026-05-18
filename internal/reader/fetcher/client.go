@@ -33,6 +33,7 @@ type Client struct {
 
 	proxy      *url.URL
 	httpClient *http.Client
+	customized bool
 }
 
 func (self *Client) Build(rb *RequestBuilder) error {
@@ -45,6 +46,7 @@ func (self *Client) Build(rb *RequestBuilder) error {
 
 	if self.rb.customized {
 		self.httpClient = self.makeClient()
+		self.customized = true
 	} else {
 		onceClient.Do(func() { defaultClient = self.makeClient() })
 		self.httpClient = defaultClient
@@ -186,4 +188,10 @@ func (self *Client) proxyRedacted() string {
 		return self.proxy.Redacted()
 	}
 	return ""
+}
+
+func (self *Client) Close() {
+	if self.customized {
+		self.httpClient.CloseIdleConnections()
+	}
 }
