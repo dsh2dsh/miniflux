@@ -7,22 +7,13 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
-	"errors"
 	"fmt"
-	"log/slog"
-	"net"
 	"net/http"
-	"net/netip"
 	"net/url"
 	"slices"
-	"sync"
-	"syscall"
 	"time"
 
-	"github.com/klauspost/compress/gzhttp"
-
 	"miniflux.app/v2/internal/config"
-	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/proxyrotator"
 )
@@ -32,10 +23,7 @@ const (
 	uaHeaderName        = "User-Agent"
 )
 
-var ErrPrivateNetworkHost = errors.New(
-	"reader/fetcher: refusing to access private network host")
-
-func Do(req *http.Request, opts ...Option) (*ResponseSemaphore, error) {
+func Do(req *http.Request, opts ...Option) (*ResponseHandler, error) {
 	resp, err := NewRequestBuilder(opts...).Do(req)
 	switch {
 	case err != nil:
@@ -47,7 +35,7 @@ func Do(req *http.Request, opts ...Option) (*ResponseSemaphore, error) {
 	return resp, nil
 }
 
-func Request(requestURL string, opts ...Option) (*ResponseSemaphore, error) {
+func Request(requestURL string, opts ...Option) (*ResponseHandler, error) {
 	return NewRequestBuilder(opts...).Request(requestURL)
 }
 
@@ -64,7 +52,7 @@ type RequestBuilder struct {
 	feedProxyURL     string
 	allowPrivateNets bool
 
-	customizedClient bool
+	customized bool
 }
 
 func NewRequestBuilder(opts ...Option) *RequestBuilder {
@@ -150,7 +138,7 @@ func (self *RequestBuilder) WithUsernameAndPassword(username, password string) *
 func (self *RequestBuilder) UseCustomApplicationProxyURL(value bool) *RequestBuilder {
 	self.useClientProxy = value
 	if value {
-		self.customizedClient = true
+		self.customized = true
 	}
 	return self
 }
@@ -158,23 +146,21 @@ func (self *RequestBuilder) UseCustomApplicationProxyURL(value bool) *RequestBui
 func (self *RequestBuilder) WithCustomFeedProxyURL(proxyURL string) *RequestBuilder {
 	self.feedProxyURL = proxyURL
 	if proxyURL != "" {
-		self.customizedClient = true
+		self.customized = true
 	}
 	return self
 }
 
-func (self *RequestBuilder) Timeout() time.Duration { return self.clientTimeout }
-
 func (self *RequestBuilder) WithoutRedirects() *RequestBuilder {
 	self.withoutRedirects = true
-	self.customizedClient = true
+	self.customized = true
 	return self
 }
 
 func (self *RequestBuilder) DisableHTTP2(value bool) *RequestBuilder {
 	self.disableHTTP2 = value
 	if value {
-		self.customizedClient = true
+		self.customized = true
 	}
 	return self
 }
@@ -182,7 +168,7 @@ func (self *RequestBuilder) DisableHTTP2(value bool) *RequestBuilder {
 func (self *RequestBuilder) IgnoreTLSErrors(value bool) *RequestBuilder {
 	self.ignoreTLSErrors = value
 	if value {
-		self.customizedClient = true
+		self.customized = true
 	}
 	return self
 }
@@ -190,7 +176,7 @@ func (self *RequestBuilder) IgnoreTLSErrors(value bool) *RequestBuilder {
 func (self *RequestBuilder) WithPrivateNetworks() *RequestBuilder {
 	if !self.allowPrivateNets {
 		self.allowPrivateNets = true
-		self.customizedClient = true
+		self.customized = true
 	}
 	return self
 }
@@ -202,48 +188,7 @@ func (self *RequestBuilder) WithIntegrationDefaults() *RequestBuilder {
 	return self
 }
 
-func (self *RequestBuilder) execute(req *http.Request) (*http.Response,
-	error,
-) {
-	proxyURL, err := self.proxyURL()
-	if err != nil {
-		return nil, err
-	}
-
-	var proxyURLRedacted string
-	if proxyURL != nil {
-		proxyURLRedacted = proxyURL.Redacted()
-	}
-
-	log := logging.FromContext(req.Context())
-	log.Debug("Making outgoing request",
-		slog.Bool("customized", self.customizedClient),
-		slog.String("method", req.Method),
-		slog.String("url", req.URL.String()),
-		slog.Any("headers", req.Header),
-		slog.Bool("without_redirects", self.withoutRedirects),
-		slog.Bool("use_app_client_proxy", self.useClientProxy),
-		slog.String("client_proxy_url", proxyURLRedacted),
-		slog.Bool("ignore_tls_errors", self.ignoreTLSErrors),
-		slog.Bool("disable_http2", self.disableHTTP2))
-
-	start := time.Now()
-	resp, err := self.client(proxyURL).Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("reader/fetcher: do http request: %w", err)
-	}
-
-	log.Info("Got response",
-		slog.Int("status_code", resp.StatusCode),
-		slog.String("status", resp.Status),
-		slog.Int64("content_length", resp.ContentLength),
-		slog.String("proto", resp.Proto),
-		slog.String("content_type", resp.Header.Get("Content-Type")),
-		slog.Duration("request_time", time.Since(start)))
-	return resp, nil
-}
-
-func (self *RequestBuilder) proxyURL() (*url.URL, error) {
+func (self *RequestBuilder) proxy() (*url.URL, error) {
 	var proxyURL *url.URL
 	switch {
 	case self.feedProxyURL != "":
@@ -259,111 +204,6 @@ func (self *RequestBuilder) proxyURL() (*url.URL, error) {
 		proxyURL = self.proxyRotator.GetNextProxy()
 	}
 	return proxyURL, nil
-}
-
-var (
-	defaultClient *http.Client
-	onceClient    sync.Once
-)
-
-func (self *RequestBuilder) client(proxyURL *url.URL) *http.Client {
-	if self.customizedClient {
-		return self.makeClient(proxyURL)
-	}
-	onceClient.Do(func() { defaultClient = self.makeClient(proxyURL) })
-	return defaultClient
-}
-
-func (self *RequestBuilder) makeClient(proxyURL *url.URL) *http.Client {
-	client := &http.Client{
-		Transport: self.transport(proxyURL),
-		Timeout:   self.Timeout(),
-	}
-
-	if self.withoutRedirects {
-		client.CheckRedirect = withoutRedirects
-	}
-	return client
-}
-
-func withoutRedirects(*http.Request, []*http.Request) error {
-	return http.ErrUseLastResponse
-}
-
-func (self *RequestBuilder) transport(proxyURL *url.URL) http.RoundTripper {
-	dialer := &net.Dialer{Timeout: self.Timeout()}
-	if !self.allowPrivateNets && proxyURL == nil {
-		dialer.ControlContext = denyDialToPrivate
-	}
-
-	transport := &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		DialContext:           dialer.DialContext,
-		TLSClientConfig:       self.tlsConfig(),
-		TLSHandshakeTimeout:   self.Timeout(),
-		DisableKeepAlives:     self.customizedClient,
-		IdleConnTimeout:       10 * time.Second,
-		ResponseHeaderTimeout: self.Timeout(),
-
-		// Setting `DialContext` disables HTTP/2, this option forces the transport
-		// to try HTTP/2 regardless.
-		ForceAttemptHTTP2: true,
-	}
-
-	if self.disableHTTP2 {
-		transport.ForceAttemptHTTP2 = false
-
-		// https://pkg.go.dev/net/http#hdr-HTTP_2
-		//
-		// Programs that must disable HTTP/2 can do so by setting
-		// [Transport.TLSNextProto] (for clients) or [Server.TLSNextProto] (for
-		// servers) to a non-nil, empty map.
-		transport.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{}
-	}
-
-	if proxyURL != nil {
-		transport.Proxy = http.ProxyURL(proxyURL)
-	}
-	return gzhttp.Transport(transport)
-}
-
-func denyDialToPrivate(ctx context.Context, network, address string,
-	_ syscall.RawConn,
-) error {
-	host, _, err := net.SplitHostPort(address)
-	if err != nil {
-		return fmt.Errorf("%w: split %q: %w", ErrPrivateNetworkHost, address, err)
-	}
-
-	addr, err := netip.ParseAddr(host)
-	if err != nil {
-		return fmt.Errorf("%w: parse %q: %w", ErrPrivateNetworkHost, address, err)
-	}
-
-	private := addr.IsLinkLocalMulticast() ||
-		addr.IsLinkLocalUnicast() ||
-		addr.IsLoopback() ||
-		addr.IsMulticast() ||
-		addr.IsPrivate() ||
-		addr.IsUnspecified() ||
-		config.FetcherDeniedNetwork(addr.Unmap())
-
-	if !private {
-		return nil
-	}
-
-	var reqURL string
-	if req := requestFromContext(ctx); req != nil {
-		reqURL = req.URL.String()
-	}
-
-	ok := config.FetcherHostPermitted(address, reqURL) ||
-		config.FetcherHostPermitted(host, reqURL)
-	if !ok {
-		return fmt.Errorf("%w: address=%q url=%q", ErrPrivateNetworkHost, address,
-			reqURL)
-	}
-	return nil
 }
 
 func (self *RequestBuilder) tlsConfig() *tls.Config {
@@ -385,26 +225,29 @@ func (self *RequestBuilder) tlsConfig() *tls.Config {
 	}
 }
 
-func (self *RequestBuilder) Do(req *http.Request) (*ResponseSemaphore, error) {
+func (self *RequestBuilder) Do(req *http.Request) (*ResponseHandler, error) {
 	if req.Header.Get(uaHeaderName) == "" {
 		req.Header.Set(uaHeaderName, config.HTTPClientUserAgent())
 	}
 
-	return NewResponseSemaphore(self,
-		req.WithContext(contextWithRequest(req.Context(), req)))
+	var client Client
+	if err := client.Build(self); err != nil {
+		return nil, err
+	}
+
+	req = req.WithContext(contextWithRequest(req.Context(), req))
+	return client.Do(req)
 }
 
-func (self *RequestBuilder) Request(requestURL string) (*ResponseSemaphore,
-	error,
-) {
-	req, err := self.makeRequest(self.Context(), requestURL)
+func (self *RequestBuilder) Request(requestURL string) (*ResponseHandler, error) {
+	req, err := self.NewRequest(self.Context(), requestURL)
 	if err != nil {
 		return nil, err
 	}
 	return self.Do(req)
 }
 
-func (self *RequestBuilder) makeRequest(ctx context.Context, requestURL string,
+func (self *RequestBuilder) NewRequest(ctx context.Context, requestURL string,
 ) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 	if err != nil {
@@ -422,8 +265,8 @@ func (self *RequestBuilder) makeRequest(ctx context.Context, requestURL string,
 
 func (self *RequestBuilder) RequestWithContext(ctx context.Context,
 	requestURL string,
-) (*ResponseSemaphore, error) {
-	req, err := self.WithContext(ctx).makeRequest(ctx, requestURL)
+) (*ResponseHandler, error) {
+	req, err := self.WithContext(ctx).NewRequest(ctx, requestURL)
 	if err != nil {
 		return nil, err
 	}

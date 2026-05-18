@@ -145,7 +145,7 @@ func (self *Refresh) initFeed(ctx context.Context) error {
 	return nil
 }
 
-func (self *Refresh) response(ctx context.Context) (*fetcher.ResponseSemaphore,
+func (self *Refresh) response(ctx context.Context) (*fetcher.ResponseHandler,
 	error,
 ) {
 	f := self.feed
@@ -193,7 +193,7 @@ func (self *Refresh) logRateLimited(log *slog.Logger, retryAfter time.Time,
 }
 
 func (self *Refresh) logRespError(log *slog.Logger,
-	resp *fetcher.ResponseSemaphore,
+	resp *fetcher.ResponseHandler,
 ) error {
 	if retryAfter, ok := resp.TooManyRequests(); ok {
 		self.logRateLimited(log, retryAfter, resp.Header("Retry-After"))
@@ -209,7 +209,7 @@ func (self *Refresh) logRespError(log *slog.Logger,
 	return lerr
 }
 
-func (self *Refresh) refreshAnyway(resp *fetcher.ResponseSemaphore) bool {
+func (self *Refresh) refreshAnyway(resp *fetcher.ResponseHandler) bool {
 	return self.ignoreHTTPCache() ||
 		resp.IsModified(self.feed.EtagHeader, self.feed.LastModifiedHeader)
 }
@@ -219,7 +219,7 @@ func (self *Refresh) ignoreHTTPCache() bool {
 }
 
 func (self *Refresh) refreshFeed(ctx context.Context, log *slog.Logger,
-	resp *fetcher.ResponseSemaphore,
+	resp *fetcher.ResponseHandler,
 ) (*model.FeedRefreshed, error) {
 	log.Info("Feed modified",
 		slog.String("etag_header", self.feed.EtagHeader),
@@ -265,7 +265,7 @@ func (self *Refresh) refreshFeed(ctx context.Context, log *slog.Logger,
 	return refreshed.WithRefreshed(remoteEntriesLen), nil
 }
 
-func (self *Refresh) bodyBuffer(resp *fetcher.ResponseSemaphore,
+func (self *Refresh) bodyBuffer(resp *fetcher.ResponseHandler,
 	log *slog.Logger,
 ) (bodyBuffer, error) {
 	body := newBodyBuffer()
@@ -301,7 +301,7 @@ func (self *Refresh) parseFeed(feedURL string, body []byte, log *slog.Logger,
 	return feed, nil
 }
 
-func (self *Refresh) scheduleNextCheck(resp *fetcher.ResponseSemaphore,
+func (self *Refresh) scheduleNextCheck(resp *fetcher.ResponseHandler,
 	remoteFeed *model.Feed, log *slog.Logger,
 ) {
 	// Use the RSS TTL value, or the Cache-Control or Expires HTTP headers if

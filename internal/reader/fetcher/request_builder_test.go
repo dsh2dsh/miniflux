@@ -428,7 +428,7 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 
 	rb := NewRequestBuilder().WithPrivateNetworks()
 	require.NotNil(t, rb)
-	assert.True(t, rb.customizedClient)
+	assert.True(t, rb.customized)
 
 	resp, err = rb.Request(server.URL)
 	require.NoError(t, err)
@@ -442,7 +442,7 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 
 	rb = NewRequestBuilder().WithIntegrationDefaults()
 	require.NotNil(t, rb)
-	assert.True(t, rb.customizedClient)
+	assert.True(t, rb.customized)
 
 	resp, err = rb.Request(server.URL)
 	require.NoError(t, err)
@@ -456,7 +456,7 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 	require.NoError(t, config.Load(""))
 
 	rb = NewRequestBuilder()
-	rb.customizedClient = true
+	rb.customized = true
 
 	resp, err = rb.Request(server.URL)
 	require.NoError(t, err)
@@ -470,7 +470,7 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 	require.NoError(t, config.Load(""))
 
 	rb = NewRequestBuilder()
-	rb.customizedClient = true
+	rb.customized = true
 	resp, err = rb.Request(server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -482,7 +482,7 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 	require.NoError(t, config.Load(""))
 
 	rb = NewRequestBuilder()
-	rb.customizedClient = true
+	rb.customized = true
 	resp, err = rb.Request(server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -550,7 +550,7 @@ func TestRequestBuilder_AllowPrivateConfiguredProxy(t *testing.T) {
 			require.NoError(t, config.Load(""))
 
 			rb := NewRequestBuilder()
-			rb.customizedClient = true
+			rb.customized = true
 			tt.configure(t, rb, proxyServer.URL)
 
 			const targetURL = "http://feed.invalid/rss.xml"

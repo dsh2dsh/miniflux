@@ -29,18 +29,35 @@ import (
 type ResponseHandler struct {
 	httpResponse *http.Response
 	clientErr    error
-	maxBodySize  int64
 
-	content []byte
+	hostname    string
+	maxBodySize int64
+
+	content    []byte
+	retryAfter time.Time
+
+	closed bool
 }
 
-func NewResponseHandler(resp *http.Response, err error) *ResponseHandler {
+func NewResponseHandler(hostname string, resp *http.Response, err error,
+) *ResponseHandler {
 	r := &ResponseHandler{
 		httpResponse: resp,
 		clientErr:    err,
-		maxBodySize:  config.HTTPClientMaxBodySize(),
+
+		hostname:    hostname,
+		maxBodySize: config.HTTPClientMaxBodySize(),
 	}
-	return r.withResponseContent()
+	return r.withRetryAfter().withResponseContent()
+}
+
+func (self *ResponseHandler) withRetryAfter() *ResponseHandler {
+	if self.Err() != nil || !self.rateLimited() {
+		return self
+	}
+	self.retryAfter = limits.SetRetryAfter(self.hostname,
+		time.Now().Add(self.parseRetryDelay()), self.Header("Retry-After"))
+	return self
 }
 
 func (self *ResponseHandler) withResponseContent() *ResponseHandler {
@@ -221,10 +238,18 @@ func (self *ResponseHandler) IsRedirect() bool {
 }
 
 func (self *ResponseHandler) Close() {
-	if self.Err() != nil {
+	if self.closed {
 		return
 	}
-	BodyClose(self.httpResponse.Body)
+
+	if self.Err() == nil {
+		BodyClose(self.httpResponse.Body)
+	}
+
+	if self.hostname != "" {
+		limits.Release(self.hostname)
+	}
+	self.closed = true
 }
 
 // maxPostHandlerReadBytes is the max number of Request.Body bytes not
@@ -292,4 +317,8 @@ func (self *ResponseHandler) WriteBodyTo(w io.Writer,
 	return locale.NewLocalizedErrorWrapper(
 		fmt.Errorf("fetcher: unable to read response body: %w", err),
 		"error.http_body_read", err)
+}
+
+func (self *ResponseHandler) TooManyRequests() (time.Time, bool) {
+	return self.retryAfter, !time.Now().After(self.retryAfter)
 }

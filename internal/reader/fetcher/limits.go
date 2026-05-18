@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"sync"
 	"time"
 
@@ -15,68 +14,11 @@ import (
 	"miniflux.app/v2/internal/logging"
 )
 
-var limits = NewLimitsPerServer()
-
-func ExpireHostLimits(d time.Duration) { limits.Expire(d) }
-
-type ResponseSemaphore struct {
-	*ResponseHandler
-
-	retryAfter time.Time
-
-	closed  bool
-	release func()
-}
-
-func NewResponseSemaphore(r *RequestBuilder, req *http.Request,
-) (*ResponseSemaphore, error) {
-	hostname := req.URL.Hostname()
-	if err := limits.Acquire(r.Context(), hostname); err != nil {
-		return nil, err
-	}
-
-	//nolint:bodyclose // ResponseSemaphore.Close() it
-	resp, err := r.execute(req)
-	self := &ResponseSemaphore{
-		ResponseHandler: NewResponseHandler(resp, err),
-		release:         func() { limits.Release(hostname) },
-	}
-	return self.init(hostname), nil
-}
-
-func (self *ResponseSemaphore) init(hostname string) *ResponseSemaphore {
-	if self.Err() != nil {
-		return self
-	}
-
-	if self.rateLimited() {
-		self.retryAfter = limits.SetRetryAfter(hostname,
-			time.Now().Add(self.parseRetryDelay()), self.Header("Retry-After"))
-	}
-	return self
-}
-
-func (self *ResponseSemaphore) TooManyRequests() (time.Time, bool) {
-	return self.retryAfter, !time.Now().After(self.retryAfter)
-}
-
-func (self *ResponseSemaphore) Close() {
-	if self.closed {
-		return
-	}
-	self.ResponseHandler.Close()
-	self.release()
-	self.release = nil
-	self.closed = true
-}
+var limits = limitHosts{servers: map[string]*hostLimit{}}
 
 type limitHosts struct {
 	servers map[string]*hostLimit
 	mu      sync.Mutex
-}
-
-func NewLimitsPerServer() *limitHosts {
-	return &limitHosts{servers: map[string]*hostLimit{}}
 }
 
 func (self *limitHosts) Acquire(ctx context.Context, hostname string) error {
@@ -289,3 +231,5 @@ func (self *hostLimit) TooManyRequests() (string, time.Time, bool) {
 
 	return self.retryHeader, self.retryAfter, !time.Now().After(self.retryAfter)
 }
+
+func ExpireHostLimits(d time.Duration) { limits.Expire(d) }
