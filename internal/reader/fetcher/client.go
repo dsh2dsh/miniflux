@@ -76,6 +76,7 @@ func (self *Client) transport() http.RoundTripper {
 		TLSClientConfig:       self.rb.tlsConfig(),
 		TLSHandshakeTimeout:   self.rb.clientTimeout,
 		DisableKeepAlives:     self.rb.customized,
+		MaxIdleConns:          100,
 		IdleConnTimeout:       10 * time.Second,
 		ResponseHeaderTimeout: self.rb.clientTimeout,
 
