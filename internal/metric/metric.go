@@ -14,6 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/http/request"
 
 	"miniflux.app/v2/internal/http/response"
@@ -125,7 +126,15 @@ func isAllowedToAccessMetricsEndpoint(r *http.Request) bool {
 		case username == "" || password == "":
 			log.Warn("Metrics endpoint accessed with empty username or password")
 			return false
-		case username != config.MetricsUsername() || password != config.MetricsPassword():
+		}
+
+		// Both checks have to be run to avoid leaking informations
+		// about the username and the password.
+		usernameCorrect := crypto.ConstantTimeCmp(username,
+			config.MetricsUsername())
+		passwordCorrect := crypto.ConstantTimeCmp(password,
+			config.MetricsPassword())
+		if !usernameCorrect || !passwordCorrect {
 			log.Warn("Metrics endpoint accessed with invalid username or password")
 			return false
 		}
