@@ -36,8 +36,9 @@ func (self *Subscription) String() string {
 
 func (self *Subscription) Err() error { return self.err }
 
-func (self *Subscription) Parse(rb *fetcher.RequestBuilder) error {
-	resp, err := rb.Request(self.URL)
+func (self *Subscription) Parse(ctx context.Context, client *fetcher.Client,
+) error {
+	resp, err := client.Request(ctx, self.URL)
 	if err != nil {
 		return locale.NewLocalizedErrorWrapper(err, "error.http_body_read", err)
 	}
@@ -65,12 +66,13 @@ func (self *Subscription) Parse(rb *fetcher.RequestBuilder) error {
 // Subscriptions represents a list of subscription.
 type Subscriptions []*Subscription
 
-func (self Subscriptions) Parseable(rb *fetcher.RequestBuilder) Subscriptions {
+func (self Subscriptions) Parseable(ctx context.Context, client *fetcher.Client,
+) Subscriptions {
 	if len(self) == 0 {
 		return self
 	}
 
-	log := logging.FromContext(rb.Context()).With(
+	log := logging.FromContext(ctx).With(
 		slog.Int("concurrency", config.WorkerPoolSize()),
 		slog.Int("subscriptions", len(self)))
 	log.Debug("keep only parseable subscriptions")
@@ -79,11 +81,11 @@ func (self Subscriptions) Parseable(rb *fetcher.RequestBuilder) Subscriptions {
 	g.SetLimit(config.WorkerPoolSize())
 
 	for i := range self {
-		if err := context.Cause(rb.Context()); err != nil {
+		if ctx.Err() != nil {
 			break
 		}
 		g.Go(func() error {
-			self.parse(i, rb)
+			self.parse(ctx, i, client)
 			return nil
 		})
 	}
@@ -92,7 +94,7 @@ func (self Subscriptions) Parseable(rb *fetcher.RequestBuilder) Subscriptions {
 	if err := g.Wait(); err != nil {
 		log.Debug("group completed with error", slog.Any("error", err))
 		return nil
-	} else if err := context.Cause(rb.Context()); err != nil {
+	} else if err := context.Cause(ctx); err != nil {
 		log.Debug("parsing of subscriptions cancelled", slog.Any("cause", err))
 		return nil
 	}
@@ -103,14 +105,16 @@ func (self Subscriptions) Parseable(rb *fetcher.RequestBuilder) Subscriptions {
 	return parseable
 }
 
-func (self Subscriptions) parse(i int, rb *fetcher.RequestBuilder) {
+func (self Subscriptions) parse(ctx context.Context, i int,
+	client *fetcher.Client,
+) {
 	s := self[i]
-	log := logging.FromContext(rb.Context()).With(
+	log := logging.FromContext(ctx).With(
 		slog.Int("i", i),
 		slog.String("url", s.URL))
 	log.Debug("parse discovered feed")
 
-	if err := s.Parse(rb); err != nil {
+	if err := s.Parse(ctx, client); err != nil {
 		log.Debug("unable parse discovered feed", slog.Any("error", err))
 		s.err = err
 		return

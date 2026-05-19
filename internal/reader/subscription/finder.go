@@ -45,7 +45,13 @@ func (f *SubscriptionFinder) FeedResponseInfo() *model.FeedCreationRequestFromSu
 func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 	websiteURL, rssBridgeURL, rssBridgeToken string,
 ) (Subscriptions, *locale.LocalizedErrorWrapper) {
-	resp, err := f.requestBuilder.RequestWithContext(ctx, websiteURL)
+	client, err := f.requestBuilder.NewClient()
+	if err != nil {
+		return nil, locale.NewLocalizedErrorWrapper(err, "error.http_client_error")
+	}
+	defer client.Close()
+
+	resp, err := client.Request(ctx, websiteURL)
 	if err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err,
 			"error.http_body_read", err)
@@ -93,7 +99,7 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 		return nil, lerr
 	}
 
-	subscriptions = subscriptions.Parseable(f.requestBuilder)
+	subscriptions = subscriptions.Parseable(ctx, client)
 	if len(subscriptions) > 0 {
 		log.Debug("Subscriptions found from YouTube page",
 			slog.Any("subscriptions", subscriptions))
@@ -109,7 +115,7 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 		return nil, lerr
 	}
 
-	subscriptions = subscriptions.Parseable(f.requestBuilder)
+	subscriptions = subscriptions.Parseable(ctx, client)
 	if len(subscriptions) > 0 {
 		log.Debug("Subscriptions found from web page",
 			slog.Any("subscriptions", subscriptions))
@@ -125,7 +131,7 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 			return nil, lerr
 		}
 
-		subscriptions = subscriptions.Parseable(f.requestBuilder)
+		subscriptions = subscriptions.Parseable(ctx, client)
 		if len(subscriptions) > 0 {
 			log.Debug("Subscriptions found from RSS-Bridge",
 				slog.Any("subscriptions", subscriptions))
@@ -142,7 +148,7 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 	// We don't want the user to choose between invalid feed URLs.
 	f.requestBuilder.WithoutRedirects()
 
-	subscriptions = subscriptions.Parseable(f.requestBuilder)
+	subscriptions = subscriptions.Parseable(ctx, client)
 	if len(subscriptions) > 0 {
 		log.Debug("Subscriptions found with well-known URLs",
 			slog.Any("subscriptions", subscriptions))
