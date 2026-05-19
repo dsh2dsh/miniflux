@@ -231,7 +231,7 @@ func (self *RequestBuilder) Do(req *http.Request) (*ResponseHandler, error) {
 	}
 
 	var client Client
-	if err := client.Build(self); err != nil {
+	if err := client.build(self); err != nil {
 		return nil, err
 	}
 
@@ -271,4 +271,12 @@ func (self *RequestBuilder) RequestWithContext(ctx context.Context,
 		return nil, err
 	}
 	return self.Do(req)
+}
+
+func (self *RequestBuilder) NewClient() (*Client, error) {
+	client := &Client{enableKeepAlives: true}
+	if err := client.build(self); err != nil {
+		return nil, err
+	}
+	return client, nil
 }

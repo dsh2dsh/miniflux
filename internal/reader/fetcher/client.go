@@ -34,9 +34,11 @@ type Client struct {
 	proxy      *url.URL
 	httpClient *http.Client
 	customized bool
+
+	enableKeepAlives bool
 }
 
-func (self *Client) Build(rb *RequestBuilder) error {
+func (self *Client) build(rb *RequestBuilder) error {
 	self.rb = rb
 	u, err := self.rb.proxy()
 	if err != nil {
@@ -77,7 +79,7 @@ func (self *Client) transport() http.RoundTripper {
 		DialContext:           dialer.DialContext,
 		TLSClientConfig:       self.rb.tlsConfig(),
 		TLSHandshakeTimeout:   self.rb.clientTimeout,
-		DisableKeepAlives:     self.rb.customized,
+		DisableKeepAlives:     self.rb.customized && !self.enableKeepAlives,
 		MaxIdleConns:          100,
 		IdleConnTimeout:       10 * time.Second,
 		ResponseHeaderTimeout: self.rb.clientTimeout,
