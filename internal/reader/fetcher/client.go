@@ -190,6 +190,15 @@ func (self *Client) proxyRedacted() string {
 	return ""
 }
 
+func (self *Client) Request(ctx context.Context, requestURL string,
+) (*ResponseHandler, error) {
+	req, err := self.rb.NewRequest(ctx, requestURL)
+	if err != nil {
+		return nil, err
+	}
+	return self.Do(req)
+}
+
 func (self *Client) Close() {
 	if self.customized {
 		self.httpClient.CloseIdleConnections()
