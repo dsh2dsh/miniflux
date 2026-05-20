@@ -35,12 +35,12 @@ func Do(req *http.Request, opts ...Option) (*ResponseHandler, error) {
 	return resp, nil
 }
 
-func Request(requestURL string, opts ...Option) (*ResponseHandler, error) {
-	return NewRequestBuilder(opts...).Request(requestURL)
+func Request(ctx context.Context, requestURL string, opts ...Option,
+) (*ResponseHandler, error) {
+	return NewRequestBuilder(opts...).Request(ctx, requestURL)
 }
 
 type RequestBuilder struct {
-	ctx              context.Context
 	headers          http.Header
 	clientProxyURL   *url.URL
 	clientTimeout    time.Duration
@@ -81,18 +81,6 @@ func NewRequestFeed(f *model.Feed) *RequestBuilder {
 		WithCookie(f.Cookie).
 		WithCustomFeedProxyURL(f.ProxyURL).
 		WithUsernameAndPassword(f.Username, f.Password)
-}
-
-func (self *RequestBuilder) WithContext(ctx context.Context) *RequestBuilder {
-	self.ctx = ctx
-	return self
-}
-
-func (self *RequestBuilder) Context() context.Context {
-	if self.ctx != nil {
-		return self.ctx
-	}
-	return context.Background()
 }
 
 func (self *RequestBuilder) WithHeader(key, value string) *RequestBuilder {
@@ -239,14 +227,6 @@ func (self *RequestBuilder) Do(req *http.Request) (*ResponseHandler, error) {
 	return client.Do(req)
 }
 
-func (self *RequestBuilder) Request(requestURL string) (*ResponseHandler, error) {
-	req, err := self.NewRequest(self.Context(), requestURL)
-	if err != nil {
-		return nil, err
-	}
-	return self.Do(req)
-}
-
 func (self *RequestBuilder) NewRequest(ctx context.Context, requestURL string,
 ) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
@@ -263,10 +243,9 @@ func (self *RequestBuilder) NewRequest(ctx context.Context, requestURL string,
 	return req, nil
 }
 
-func (self *RequestBuilder) RequestWithContext(ctx context.Context,
-	requestURL string,
+func (self *RequestBuilder) Request(ctx context.Context, requestURL string,
 ) (*ResponseHandler, error) {
-	req, err := self.WithContext(ctx).NewRequest(ctx, requestURL)
+	req, err := self.NewRequest(ctx, requestURL)
 	if err != nil {
 		return nil, err
 	}

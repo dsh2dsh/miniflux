@@ -10,6 +10,7 @@ import (
 
 	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/locale"
+	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/reader/opml"
 )
@@ -66,11 +67,12 @@ func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slog.Info("Fetching OPML file remotely",
+	log := logging.FromContext(r.Context())
+	log.Info("Fetching OPML file remotely",
 		slog.Int64("user_id", v.UserID()),
 		slog.String("opml_file_url", opmlURL))
 
-	responseHandler, err := fetcher.Request(opmlURL)
+	responseHandler, err := fetcher.Request(r.Context(), opmlURL)
 	if err != nil {
 		response.ServerError(w, r, err)
 		return
@@ -80,7 +82,7 @@ func (h *handler) fetchOPML(w http.ResponseWriter, r *http.Request) {
 	v.Set("menu", "feeds")
 
 	if lerr := responseHandler.LocalizedError(); lerr != nil {
-		slog.Warn("Unable to fetch OPML file",
+		log.Warn("Unable to fetch OPML file",
 			slog.String("opml_file_url", opmlURL),
 			slog.Any("error", lerr))
 		v.Set("errorMessage", lerr.Translate(v.User().Language))

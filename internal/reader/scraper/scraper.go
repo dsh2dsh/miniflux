@@ -24,7 +24,7 @@ import (
 func ScrapeWebsite(ctx context.Context, rb *fetcher.RequestBuilder, pageURL,
 	rules string,
 ) (string, string, error) {
-	resp, err := rb.Request(pageURL)
+	resp, err := rb.Request(ctx, pageURL)
 	if err != nil {
 		return "", "", fmt.Errorf("reader/scraper: scrape website: %w", err)
 	}

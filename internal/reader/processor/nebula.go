@@ -4,6 +4,8 @@
 package processor // import "miniflux.app/v2/internal/reader/processor"
 
 import (
+	"context"
+
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/urllib"
@@ -17,6 +19,6 @@ func shouldFetchNebulaWatchTime(entry *model.Entry) bool {
 	return urllib.DomainWithoutWWW(entry.URL) == "nebula.tv"
 }
 
-func fetchNebulaWatchTime(websiteURL string) (int, error) {
-	return fetchWatchTime(websiteURL, `meta[property="video:duration"]`, false)
+func fetchNebulaWatchTime(ctx context.Context, websiteURL string) (int, error) {
+	return fetchWatchTime(ctx, websiteURL, `meta[property="video:duration"]`, false)
 }

@@ -4,6 +4,7 @@
 package processor // import "miniflux.app/v2/internal/reader/processor"
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -39,14 +40,15 @@ func extractBilibiliVideoID(websiteURL string) (string, string, error) {
 	return "", "", fmt.Errorf("unexpected regex match result for URL: %s", websiteURL)
 }
 
-func fetchBilibiliWatchTime(websiteURL string) (int, error) {
+func fetchBilibiliWatchTime(ctx context.Context, websiteURL string,
+) (int, error) {
 	idType, videoID, extractErr := extractBilibiliVideoID(websiteURL)
 	if extractErr != nil {
 		return 0, extractErr
 	}
 	bilibiliApiURL := "https://api.bilibili.com/x/web-interface/view?" + idType + "=" + videoID
 
-	responseHandler, err := fetcher.Request(bilibiliApiURL)
+	responseHandler, err := fetcher.Request(ctx, bilibiliApiURL)
 	if err != nil {
 		return 0, fmt.Errorf("reader/processor: fetch Bilibili API: %w", err)
 	}

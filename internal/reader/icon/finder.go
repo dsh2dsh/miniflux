@@ -143,7 +143,7 @@ func (self *IconFinder) downloadIcon(ctx context.Context, iconURL string,
 		slog.String("website_url", self.websiteURL),
 		slog.String("icon_url", iconURL))
 
-	resp, err := self.requestBuilder.Request(iconURL)
+	resp, err := self.requestBuilder.Request(ctx, iconURL)
 	if err != nil {
 		return nil, fmt.Errorf("reader/icon: download icon %q: %w", iconURL, err)
 	}
@@ -273,7 +273,7 @@ func (self *IconFinder) fetchIconsFromHTMLDocument(ctx context.Context,
 		slog.String("document_url", documentURL))
 	log.Debug("Searching icons from HTML document")
 
-	resp, err := self.requestBuilder.Request(documentURL)
+	resp, err := self.requestBuilder.Request(ctx, documentURL)
 	if err != nil {
 		return nil, fmt.Errorf("reader/icon: download website page %q: %w",
 			documentURL, err)

@@ -4,6 +4,8 @@
 package processor // import "miniflux.app/v2/internal/reader/processor"
 
 import (
+	"context"
+
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/urllib"
@@ -17,6 +19,6 @@ func shouldFetchOdyseeWatchTime(entry *model.Entry) bool {
 	return urllib.DomainWithoutWWW(entry.URL) == "odysee.com"
 }
 
-func fetchOdyseeWatchTime(websiteURL string) (int, error) {
-	return fetchWatchTime(websiteURL, `meta[property="og:video:duration"]`, false)
+func fetchOdyseeWatchTime(ctx context.Context, websiteURL string) (int, error) {
+	return fetchWatchTime(ctx, websiteURL, `meta[property="og:video:duration"]`, false)
 }

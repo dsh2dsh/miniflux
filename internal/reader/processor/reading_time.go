@@ -18,8 +18,9 @@ import (
 	"miniflux.app/v2/internal/storage"
 )
 
-func fetchWatchTime(websiteURL, query string, isoDate bool) (int, error) {
-	responseHandler, err := fetcher.Request(websiteURL)
+func fetchWatchTime(ctx context.Context, websiteURL, query string, isoDate bool,
+) (int, error) {
+	responseHandler, err := fetcher.Request(ctx, websiteURL)
 	if err != nil {
 		return 0, fmt.Errorf("reader/processor: fetch watch time: %w", err)
 	}
@@ -66,7 +67,7 @@ func updateEntryReadingTime(ctx context.Context, store *storage.Storage,
 	// Define watch time fetching scenarios
 	watchTimeScenarios := [...]struct {
 		shouldFetch func(*model.Entry) bool
-		fetchFunc   func(string) (int, error)
+		fetchFunc   func(context.Context, string) (int, error)
 		platform    string
 	}{
 		{shouldFetchYouTubeWatchTimeForSingleEntry, fetchYouTubeWatchTimeForSingleEntry, "YouTube"},
@@ -79,7 +80,7 @@ func updateEntryReadingTime(ctx context.Context, store *storage.Storage,
 	for _, scenario := range watchTimeScenarios {
 		if scenario.shouldFetch(entry) {
 			if entryIsNew {
-				if watchTime, err := scenario.fetchFunc(entry.URL); err != nil {
+				if watchTime, err := scenario.fetchFunc(ctx, entry.URL); err != nil {
 					slog.Warn("Unable to fetch watch time",
 						slog.String("platform", scenario.platform),
 						slog.Int64("user_id", user.ID),

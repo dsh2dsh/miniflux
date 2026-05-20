@@ -177,7 +177,7 @@ func (self *FeedProcessor) process(ctx context.Context) error {
 	}
 
 	if self.user.ShowReadingTime && shouldFetchYouTubeWatchTimeInBulk() {
-		fetchYouTubeWatchTimeInBulk(self.feed.Entries)
+		fetchYouTubeWatchTimeInBulk(ctx, self.feed.Entries)
 	}
 	return nil
 }
@@ -229,7 +229,7 @@ func removeTracking(entry *model.Entry, hostnames ...string) {
 func (self *FeedProcessor) Scrape(ctx context.Context, entry *model.Entry,
 ) (string, string, error) {
 	startTime := time.Now()
-	builder := fetcher.NewRequestFeed(self.feed).WithContext(ctx)
+	builder := fetcher.NewRequestFeed(self.feed)
 
 	logging.FromContext(ctx).Info("Fetch original content",
 		slog.String("url", entry.URL))

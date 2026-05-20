@@ -38,7 +38,7 @@ func TestRequestBuilder_WithHeader(t *testing.T) {
 	defer server.Close()
 
 	builder := NewRequestBuilder()
-	resp, err := builder.WithHeader("Custom-Header", "custom-value").Request(server.URL)
+	resp, err := builder.WithHeader("Custom-Header", "custom-value").Request(t.Context(), server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	defer resp.Close()
@@ -67,7 +67,7 @@ func TestRequestBuilder_WithETag(t *testing.T) {
 			t.Cleanup(func() { server.Close() })
 
 			builder := NewRequestBuilder()
-			resp, err := builder.WithETag(tt.etag).Request(server.URL)
+			resp, err := builder.WithETag(tt.etag).Request(t.Context(), server.URL)
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			t.Cleanup(func() { resp.Close() })
@@ -98,7 +98,7 @@ func TestRequestBuilder_WithLastModified(t *testing.T) {
 			t.Cleanup(func() { server.Close() })
 
 			builder := NewRequestBuilder()
-			resp, err := builder.WithLastModified(tt.lastModified).Request(server.URL)
+			resp, err := builder.WithLastModified(tt.lastModified).Request(t.Context(), server.URL)
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			t.Cleanup(func() { resp.Close() })
@@ -130,7 +130,7 @@ func TestRequestBuilder_WithUserAgent(t *testing.T) {
 			t.Cleanup(func() { server.Close() })
 
 			builder := NewRequestBuilder()
-			resp, err := builder.WithUserAgent(tt.userAgent).Request(server.URL)
+			resp, err := builder.WithUserAgent(tt.userAgent).Request(t.Context(), server.URL)
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			t.Cleanup(func() { resp.Close() })
@@ -161,7 +161,7 @@ func TestRequestBuilder_WithCookie(t *testing.T) {
 			t.Cleanup(func() { server.Close() })
 
 			builder := NewRequestBuilder()
-			resp, err := builder.WithCookie(tt.cookie).Request(server.URL)
+			resp, err := builder.WithCookie(tt.cookie).Request(t.Context(), server.URL)
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			t.Cleanup(func() { resp.Close() })
@@ -195,7 +195,7 @@ func TestRequestBuilder_WithUsernameAndPassword(t *testing.T) {
 			t.Cleanup(func() { server.Close() })
 
 			builder := NewRequestBuilder()
-			resp, err := builder.WithUsernameAndPassword(tt.username, tt.password).Request(server.URL)
+			resp, err := builder.WithUsernameAndPassword(tt.username, tt.password).Request(t.Context(), server.URL)
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			t.Cleanup(func() { resp.Close() })
@@ -215,7 +215,7 @@ func TestRequestBuilder_DefaultAcceptHeader(t *testing.T) {
 	defer server.Close()
 
 	builder := NewRequestBuilder()
-	resp, err := builder.Request(server.URL)
+	resp, err := builder.Request(t.Context(), server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	defer resp.Close()
@@ -234,7 +234,7 @@ func TestRequestBuilder_CustomAcceptHeaderNotOverridden(t *testing.T) {
 	defer server.Close()
 
 	builder := NewRequestBuilder()
-	resp, err := builder.WithHeader("Accept", customAccept).Request(server.URL)
+	resp, err := builder.WithHeader("Accept", customAccept).Request(t.Context(), server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	defer resp.Close()
@@ -257,7 +257,7 @@ func TestRequestBuilder_WithoutRedirects(t *testing.T) {
 	defer server.Close()
 
 	builder := NewRequestBuilder()
-	resp, err := builder.WithoutRedirects().Request(server.URL)
+	resp, err := builder.WithoutRedirects().Request(t.Context(), server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.NoError(t, resp.Err())
@@ -333,7 +333,7 @@ func TestRequestBuilder_ChainedMethods(t *testing.T) {
 		WithUserAgent("TestAgent/1.0").
 		WithCookie("test=value").
 		WithETag("etag123").
-		Request(server.URL)
+		Request(t.Context(), server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	defer resp.Close()
@@ -343,7 +343,7 @@ func TestRequestBuilder_InvalidURL(t *testing.T) {
 	require.NoError(t, config.Load(""))
 
 	builder := NewRequestBuilder()
-	_, err := builder.Request(":|invalid-url")
+	_, err := builder.Request(t.Context(), ":|invalid-url")
 	t.Log(err)
 	require.Error(t, err)
 }
@@ -420,7 +420,7 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 		}))
 	t.Cleanup(server.Close)
 
-	resp, err := NewRequestBuilder().Request(server.URL)
+	resp, err := NewRequestBuilder().Request(t.Context(), server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	t.Log(resp.Err())
@@ -430,7 +430,7 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 	require.NotNil(t, rb)
 	assert.True(t, rb.customized)
 
-	resp, err = rb.Request(server.URL)
+	resp, err = rb.Request(t.Context(), server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.NoError(t, resp.Err())
@@ -444,7 +444,7 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 	require.NotNil(t, rb)
 	assert.True(t, rb.customized)
 
-	resp, err = rb.Request(server.URL)
+	resp, err = rb.Request(t.Context(), server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.NoError(t, resp.Err())
@@ -458,7 +458,7 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 	rb = NewRequestBuilder()
 	rb.customized = true
 
-	resp, err = rb.Request(server.URL)
+	resp, err = rb.Request(t.Context(), server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.NoError(t, resp.Err())
@@ -471,7 +471,7 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 
 	rb = NewRequestBuilder()
 	rb.customized = true
-	resp, err = rb.Request(server.URL)
+	resp, err = rb.Request(t.Context(), server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.NoError(t, resp.Err())
@@ -483,7 +483,7 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 
 	rb = NewRequestBuilder()
 	rb.customized = true
-	resp, err = rb.Request(server.URL)
+	resp, err = rb.Request(t.Context(), server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.NoError(t, resp.Err())
@@ -554,7 +554,7 @@ func TestRequestBuilder_AllowPrivateConfiguredProxy(t *testing.T) {
 			tt.configure(t, rb, proxyServer.URL)
 
 			const targetURL = "http://feed.invalid/rss.xml"
-			resp, err := rb.Request(targetURL)
+			resp, err := rb.Request(t.Context(), targetURL)
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			t.Cleanup(func() { resp.Close() })

@@ -155,7 +155,7 @@ func (self *Refresh) response(ctx context.Context) (*fetcher.ResponseHandler,
 		r.WithETag(f.EtagHeader).WithLastModified(f.LastModifiedHeader)
 	}
 
-	resp, err := r.RequestWithContext(ctx, f.FeedURL)
+	resp, err := r.Request(ctx, f.FeedURL)
 	if err != nil {
 		return nil, fmt.Errorf("reader/handler: fetch feed with semaphore: %w", err)
 	}

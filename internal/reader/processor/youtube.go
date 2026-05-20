@@ -4,6 +4,7 @@
 package processor // import "miniflux.app/v2/internal/reader/processor"
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -37,11 +38,12 @@ func shouldFetchYouTubeWatchTimeInBulk() bool {
 	return config.FetchYouTubeWatchTime() && config.YouTubeApiKey() != ""
 }
 
-func fetchYouTubeWatchTimeForSingleEntry(websiteURL string) (int, error) {
-	return fetchWatchTime(websiteURL, `meta[itemprop="duration"]`, true)
+func fetchYouTubeWatchTimeForSingleEntry(ctx context.Context, websiteURL string,
+) (int, error) {
+	return fetchWatchTime(ctx, websiteURL, `meta[itemprop="duration"]`, true)
 }
 
-func fetchYouTubeWatchTimeInBulk(entries []*model.Entry) {
+func fetchYouTubeWatchTimeInBulk(ctx context.Context, entries []*model.Entry) {
 	videosEntriesMapping := make(map[string]*model.Entry, len(entries))
 	var videoIDs []string
 
@@ -63,7 +65,7 @@ func fetchYouTubeWatchTimeInBulk(entries []*model.Entry) {
 		return
 	}
 
-	watchTimeMap, err := fetchYouTubeWatchTimeFromApiInBulk(videoIDs)
+	watchTimeMap, err := fetchYouTubeWatchTimeFromApiInBulk(ctx, videoIDs)
 	if err != nil {
 		slog.Warn("Unable to fetch YouTube watch time in bulk", slog.Any("error", err))
 		return
@@ -76,7 +78,8 @@ func fetchYouTubeWatchTimeInBulk(entries []*model.Entry) {
 	}
 }
 
-func fetchYouTubeWatchTimeFromApiInBulk(videoIDs []string) (map[string]time.Duration, error) {
+func fetchYouTubeWatchTimeFromApiInBulk(ctx context.Context, videoIDs []string,
+) (map[string]time.Duration, error) {
 	slog.Debug("Fetching YouTube watch time in bulk", slog.Any("video_ids", videoIDs))
 
 	apiQuery := url.Values{}
@@ -91,7 +94,7 @@ func fetchYouTubeWatchTimeFromApiInBulk(videoIDs []string) (map[string]time.Dura
 		RawQuery: apiQuery.Encode(),
 	}
 
-	responseHandler, err := fetcher.Request(apiURL.String())
+	responseHandler, err := fetcher.Request(ctx, apiURL.String())
 	if err != nil {
 		return nil, fmt.Errorf(
 			"reader/processor: fetch contentDetails from YouTube API: %w", err)
