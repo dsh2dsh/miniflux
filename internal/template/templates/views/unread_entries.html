@@ -13,7 +13,7 @@
         {{ plural "page.unread_entry_count" .countUnread .countUnread }}
     </span>
 
-    {{ if .entries }}
+    {{ if .numOfEntries }}
     <nav aria-label="{{ t "page.unread.title" }} {{ t "menu.title" }}">
         <ul>
             <li>
@@ -51,7 +51,7 @@
 {{ end }}
 
 {{ define "content"}}
-{{   if .entries }}
+{{   if .numOfEntries }}
 {{     template "entries_list.html" . }}
 {{   else }}
 {{     template "info.html" "alert.no_unread_entry" }}

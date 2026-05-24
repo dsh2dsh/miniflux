@@ -11,7 +11,7 @@
 {{ end }}
 
 {{ define "content" }}
-{{   if .entries }}
+{{   if .numOfEntries }}
 {{     template "entries_list.html" . }}
 {{   else }}
 {{     template "info.html" "alert.no_bookmark" }}

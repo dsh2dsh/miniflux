@@ -17,7 +17,7 @@
     </span>
 
     <nav aria-label="{{ .tagName }} {{ t "menu.title" }}">
-        {{ if .entries }}
+        {{ if .numOfEntries }}
         <li>
             <button
               class="page-button"
@@ -44,7 +44,7 @@
 {{ end }}
 
 {{ define "content"}}
-{{   if .entries }}
+{{   if .numOfEntries }}
 {{     template "entries_list.html" . }}
 {{   else }}
 {{     template "info.html" "alert.no_tag_entry" }}

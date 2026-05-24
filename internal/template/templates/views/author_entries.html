@@ -17,7 +17,7 @@
     </span>
 
     <nav aria-label="{{ .authorName }} {{ t "menu.title" }}">
-        {{ if .entries }}
+        {{ if .numOfEntries }}
         <li>
             <button
               class="page-button"
@@ -45,7 +45,7 @@
 {{ end }}
 
 {{ define "content"}}
-{{   if .entries }}
+{{   if .numOfEntries }}
 {{     template "entries_list.html" . }}
 {{   else }}
 {{     template "info.html" "There are no entries matching this author." }}

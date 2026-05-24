@@ -21,7 +21,7 @@
 </search>
 
 {{ if $.searchQuery }}
-{{   if .entries }}
+{{   if .numOfEntries }}
 {{     template "entries_list.html" . }}
 {{   else }}
 {{     template "info.html" "alert.no_search_result" }}

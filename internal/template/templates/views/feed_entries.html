@@ -15,7 +15,7 @@
     </span>
     <nav aria-label="{{ .feed.Title }} {{ t "menu.title" }}">
         <ul>
-            {{ if .entries }}
+            {{ if .numOfEntries }}
             <li>
                 <button
                     class="page-button"
@@ -91,7 +91,7 @@
 {{   end }}
 {{ end }}
 
-{{ if .entries }}
+{{ if .numOfEntries }}
 {{   template "entries_list.html" . }}
 {{ else }}
 {{   template "info.html" ifElseString .showOnlyUnreadEntries
