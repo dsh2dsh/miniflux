@@ -301,7 +301,7 @@ GROUP BY e.feed_id, e.status`
 
 	join := ""
 	if f.counterJoinFeeds {
-		join = "LEFT JOIN feeds f ON f.id=e.feed_id"
+		join = "INNER JOIN feeds f ON f.id = e.feed_id"
 	}
 
 	rows, _ := f.db.Query(ctx, fmt.Sprintf(
