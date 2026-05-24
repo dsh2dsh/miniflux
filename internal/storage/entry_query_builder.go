@@ -452,8 +452,8 @@ SELECT
 FROM entries e
 		 INNER JOIN feeds f ON f.id = e.feed_id
 		 INNER JOIN categories c ON c.id = f.category_id
-		 INNER JOIN feed_icons fi ON fi.feed_id = f.id
-		 INNER JOIN icons i ON i.id = fi.icon_id
+		 LEFT  JOIN feed_icons fi ON fi.feed_id = f.id
+		 LEFT  JOIN icons i ON i.id = fi.icon_id
 		 INNER JOIN users u ON u.id = e.user_id
 WHERE ` + self.buildCondition() + self.buildSorting()
 
