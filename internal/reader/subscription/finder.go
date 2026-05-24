@@ -355,22 +355,25 @@ func (f *SubscriptionFinder) findCanonicalURL(effectiveURL, contentType string,
 	}
 
 	baseURL := effectiveURL
-	hrefValue, exists := doc.FindMatcher(goquery.Single("head base")).Attr("href")
+	href, exists := doc.FindMatcher(goquery.Single("head base")).Attr("href")
 	if exists {
-		hrefValue = strings.TrimSpace(hrefValue)
-		if urllib.IsAbsoluteURL(hrefValue) {
-			baseURL = hrefValue
+		href = strings.TrimSpace(href)
+		if urllib.IsAbsoluteURL(href) {
+			baseURL = href
 		}
 	}
 
-	canonicalHref, exists := doc.Find("link[rel='canonical' i]").First().
-		Attr("href")
-	if !exists || strings.TrimSpace(canonicalHref) == "" {
+	canonical, exists := doc.FindMatcher(
+		goquery.Single("head link[rel='canonical' i]")).Attr("href")
+	if !exists {
 		return effectiveURL
 	}
 
-	canonicalURL, err := urllib.ResolveToAbsoluteURL(baseURL,
-		strings.TrimSpace(canonicalHref))
+	if canonical = strings.TrimSpace(canonical); canonical == "" {
+		return effectiveURL
+	}
+
+	canonicalURL, err := urllib.ResolveToAbsoluteURL(baseURL, canonical)
 	if err != nil {
 		return effectiveURL
 	}
