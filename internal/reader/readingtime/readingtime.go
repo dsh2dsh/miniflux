@@ -14,12 +14,14 @@ import (
 
 // EstimateReadingTime returns the estimated reading time of an article in minute.
 func EstimateReadingTime(content string, defaultReadingSpeed, cjkReadingSpeed int) int {
-	sanitizedContent := sanitizer.StripTags(content)
-	truncationPoint := min(len(sanitizedContent), 50)
+	const truncationPoint = 100
 
-	if isCJK(sanitizedContent[:truncationPoint]) {
+	sanitizedContent := sanitizer.StripTags(content)
+
+	if isCJK(sanitizedContent, truncationPoint) {
 		return (utf8.RuneCountInString(sanitizedContent) + cjkReadingSpeed - 1) / cjkReadingSpeed
 	}
+
 	return (countWords(sanitizedContent) + defaultReadingSpeed - 1) / defaultReadingSpeed
 }
 
@@ -31,20 +33,26 @@ func countWords(s string) int {
 	return n
 }
 
-func isCJK(text string) bool {
-	totalCJK := 0
+func isCJK(text string, limit int) bool {
+	var letters, totalCJK int
+	for _, r := range text {
+		// Numbers and control characters often used in CJK too.
+		// Counting them makes detection less reliable.
+		if !unicode.In(r, unicode.Letter) {
+			continue
+		}
 
-	for _, r := range text[:min(len(text), 50)] {
-		if unicode.Is(unicode.Han, r) ||
-			unicode.Is(unicode.Hangul, r) ||
-			unicode.Is(unicode.Hiragana, r) ||
-			unicode.Is(unicode.Katakana, r) ||
-			unicode.Is(unicode.Yi, r) ||
-			unicode.Is(unicode.Bopomofo, r) {
+		if letters++; letters == limit {
+			break
+		}
+
+		if unicode.In(r, unicode.Han, unicode.Hangul, unicode.Hiragana, unicode.Katakana, unicode.Yi, unicode.Bopomofo) {
 			totalCJK++
 		}
 	}
 
-	// if at least 50% of the text is CJK, odds are that the text is in CJK.
-	return totalCJK > len(text)/50
+	// If at least half of the letters is CJK, odds are that the text is CJK.
+	midpoint := letters / 2
+
+	return totalCJK > midpoint
 }
