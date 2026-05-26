@@ -160,62 +160,64 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 func (f *SubscriptionFinder) findSubscriptionsFromWebPage(websiteURL,
 	contentType string, body []byte,
 ) (Subscriptions, *locale.LocalizedErrorWrapper) {
-	queries := [...]string{
-		"link[type='application/rss+xml']",
-		"link[type='application/atom+xml']",
-		"link[type='application/json'], link[type='application/feed+json']",
-	}
-
-	htmlDocumentReader, err := encoding.NewCharsetReader(bytes.NewReader(body),
-		contentType)
+	r, err := encoding.NewCharsetReader(bytes.NewReader(body), contentType)
 	if err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err,
 			"error.unable_to_parse_html_document", err)
 	}
 
-	doc, err := goquery.NewDocumentFromReader(htmlDocumentReader)
+	doc, err := goquery.NewDocumentFromReader(r)
 	if err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err,
 			"error.unable_to_parse_html_document", err)
 	}
 
-	hrefValue, exists := doc.FindMatcher(goquery.Single("head base")).Attr("href")
+	baseHref, exists := doc.FindMatcher(goquery.Single("head base")).Attr("href")
 	if exists {
-		hrefValue = strings.TrimSpace(hrefValue)
-		if urllib.IsAbsoluteURL(hrefValue) {
-			websiteURL = hrefValue
+		baseHref = strings.TrimSpace(baseHref)
+		if urllib.IsAbsoluteURL(baseHref) {
+			websiteURL = baseHref
 		}
 	}
 
 	var subscriptions Subscriptions
-	subscriptionURLs := make(map[string]bool)
-	for _, query := range queries {
-		doc.Find(query).Each(func(i int, s *goquery.Selection) {
-			subscription := NewSubscription("", "")
+	// There are 4 possible feed formats
+	seen := make(map[string]bool, 4)
 
-			if feedURL, exists := s.Attr("href"); exists && feedURL != "" {
-				subscription.URL, err = urllib.ResolveToAbsoluteURL(websiteURL, feedURL)
-				if err != nil {
-					return
-				}
-			} else {
-				return // without an url, there can be no subscription.
-			}
+	// Single DOM walk over every <link> with a type attribute, then dispatch on
+	// the MIME type. This is better than doing a separate goquery.Find pass per
+	// type.
+	doc.Find("head > link[type]").Each(func(i int, s *goquery.Selection) {
+		linkType, _ := s.Attr("type")
+		known := strings.EqualFold(linkType, "application/rss+xml") ||
+			strings.EqualFold(linkType, "application/atom+xml") ||
+			strings.EqualFold(linkType, "application/feed+json") ||
+			strings.EqualFold(linkType, "application/json")
+		if !known {
+			return
+		}
 
-			if title, exists := s.Attr("title"); exists {
-				subscription.Title = title
-			}
+		feedURL, _ := s.Attr("href")
+		if feedURL == "" {
+			return // without an url, there can be no subscription.
+		}
 
-			if subscription.Title == "" {
-				subscription.Title = subscription.URL
-			}
+		feedURL, err := urllib.ResolveToAbsoluteURL(websiteURL, feedURL)
+		if err != nil {
+			return
+		}
 
-			if !subscriptionURLs[subscription.URL] {
-				subscriptionURLs[subscription.URL] = true
-				subscriptions = append(subscriptions, subscription)
-			}
-		})
-	}
+		if seen[feedURL] {
+			return
+		}
+		seen[feedURL] = true
+
+		title, _ := s.Attr("title")
+		if title == "" {
+			title = feedURL
+		}
+		subscriptions = append(subscriptions, NewSubscription(title, feedURL))
+	})
 	return subscriptions, nil
 }
 
