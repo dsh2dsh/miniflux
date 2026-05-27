@@ -146,7 +146,12 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 	// Some websites redirects unknown URLs to the home page.
 	// As result, the list of known URLs is returned to the subscription list.
 	// We don't want the user to choose between invalid feed URLs.
-	f.requestBuilder.WithoutRedirects()
+	client.Close()
+	client, err = f.requestBuilder.WithoutRedirects().NewClient()
+	if err != nil {
+		return nil, locale.NewLocalizedErrorWrapper(err, "error.http_client_error")
+	}
+	defer client.Close()
 
 	subscriptions = subscriptions.Parseable(ctx, client)
 	if len(subscriptions) > 0 {

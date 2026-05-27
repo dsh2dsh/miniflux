@@ -46,13 +46,14 @@ func (self *Client) build(rb *RequestBuilder) error {
 	}
 	self.proxy = u
 
-	if self.rb.customized {
+	self.customized = self.rb.customized
+	if self.customized {
 		self.httpClient = self.makeClient()
-		self.customized = true
-	} else {
-		onceClient.Do(func() { defaultClient = self.makeClient() })
-		self.httpClient = defaultClient
+		return nil
 	}
+
+	onceClient.Do(func() { defaultClient = self.makeClient() })
+	self.httpClient = defaultClient
 	return nil
 }
 
