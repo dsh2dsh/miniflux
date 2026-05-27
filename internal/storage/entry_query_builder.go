@@ -203,12 +203,9 @@ func (self *EntryQueryBuilder) WithStatuses(statuses []string,
 
 // WithTags filter by a list of entry tags.
 func (self *EntryQueryBuilder) WithTags(tags []string) *EntryQueryBuilder {
-	if len(tags) == 0 {
-		return self
-	}
-
-	for _, s := range tags {
-		self.appendCondition("LOWER($", s, ") = ANY(LOWER(e.tags::text)::text[])")
+	if len(tags) != 0 {
+		self.appendCondition(
+			"LOWER(e.tags::text)::text[] @> LOWER($", tags, "::text)::text[]")
 	}
 	return self
 }
