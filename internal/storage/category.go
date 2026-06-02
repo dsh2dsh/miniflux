@@ -158,21 +158,30 @@ func (s *Storage) CategoriesWithFeedCount(ctx context.Context, user *model.User,
 ) ([]model.Category, error) {
 	query := `
 SELECT c.id, c.user_id, c.title, c.hide_globally, c.extra,
-	     (SELECT count(*) FROM feeds WHERE feeds.category_id=c.id) AS feed_count,
-	     (SELECT count(*)
-		      FROM feeds
-			    JOIN entries ON (feeds.id = entries.feed_id)
-		     WHERE feeds.category_id = c.id AND entries.status = $1) AS total_unread
-  FROM categories c
- WHERE user_id=$2`
+       COALESCE(fc.feed_count, 0) AS feed_count,
+       COALESCE(uc.total_unread, 0) AS total_unread
+FROM categories c
+	LEFT JOIN (
+		SELECT category_id, count(*) AS feed_count
+			FROM feeds
+		 WHERE user_id = $1
+		 GROUP BY category_id
+	) fc ON fc.category_id = c.id
+	LEFT JOIN (
+		SELECT f.category_id, count(*) AS total_unread
+			FROM entries e INNER JOIN feeds f ON f.id = e.feed_id
+		 WHERE e.user_id = $1 AND e.status = $2
+		 GROUP BY f.category_id
+	) uc ON uc.category_id = c.id
+WHERE c.user_id = $1`
 
 	if user.CategoriesSortingOrder == "alphabetical" {
 		query += ` ORDER BY c.title ASC`
 	} else {
-		query += ` ORDER BY total_unread DESC, c.title ASC`
+		query += ` ORDER BY COALESCE(uc.total_unread, 0) DESC, c.title ASC`
 	}
 
-	rows, _ := s.db.Query(ctx, query, model.EntryStatusUnread, user.ID)
+	rows, _ := s.db.Query(ctx, query, user.ID, model.EntryStatusUnread)
 	categories, err := pgx.CollectRows(rows,
 		pgx.RowToStructByName[model.Category])
 	if err != nil {
