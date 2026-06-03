@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"mime"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -114,7 +115,10 @@ func (b *Builder) WithCaching(contentHash string, duration time.Duration,
 ) {
 	etag := `"` + contentHash + `"`
 	b.headers["ETag"] = etag
-	b.headers["Cache-Control"] = "public, immutable"
+	// max-age is required for the "immutable" directive to take effect: without
+	// it, browsers still revalidate content-hashed assets on every reload.
+	b.headers["Cache-Control"] = "public, immutable, max-age=" +
+		strconv.FormatInt(int64(duration.Seconds()), 10)
 	b.headers["Expires"] = time.Now().Add(duration).UTC().Format(http.TimeFormat)
 
 	ifNoneMatch := strings.TrimSpace(b.r.Header.Get("If-None-Match"))
