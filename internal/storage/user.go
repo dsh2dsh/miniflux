@@ -490,6 +490,10 @@ func (s *Storage) CheckPassword(ctx context.Context, username, password string,
 
 	hash, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[string])
 	if errors.Is(err, pgx.ErrNoRows) {
+		// Perform a dummy bcrypt comparison against the hashed `password` string to
+		// avoid leaking whether the user exists via response timing.
+		dummyHash := []byte("$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy")
+		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
 		return fmt.Errorf("storage: user %q not found: %w", username, err)
 	} else if err != nil {
 		return fmt.Errorf("storage: unable to fetch user %q: %w", username, err)
