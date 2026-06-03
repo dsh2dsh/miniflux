@@ -98,8 +98,12 @@ func (self *ServeMux) NamedPath(name string, pairs ...string) string {
 		return pattern
 	}
 
-	for i := 0; i < len(pairs); i += 2 {
+	for n, i := len(pairs), 0; i < n; i += 2 {
 		k := "{" + pairs[i] + "}"
+		if s, ok := strings.CutSuffix(pattern, k); ok {
+			pattern = s + pairs[i+1]
+			continue
+		}
 		pattern = strings.Replace(pattern, k, pairs[i+1], 1)
 	}
 	return pattern
