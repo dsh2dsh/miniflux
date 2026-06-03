@@ -27,12 +27,16 @@ import (
 type funcMap struct {
 	router *mux.ServeMux
 	csp    *contentSecurityPolicy
+
+	svgIcons map[string]template.HTML
 }
 
 func newFuncMap(router *mux.ServeMux) *funcMap {
 	return &funcMap{
 		router: router,
 		csp:    newContentSecurityPolicy(),
+
+		svgIcons: map[string]template.HTML{},
 	}
 }
 
@@ -129,9 +133,15 @@ func (self *funcMap) Map() template.FuncMap {
 }
 
 func (self *funcMap) icon(iconName string) template.HTML {
-	return template.HTML(
+	if svg, ok := self.svgIcons[iconName]; ok {
+		return svg
+	}
+
+	svg := template.HTML(
 		`<svg class="icon" aria-hidden="true"><use href="#icon-` +
 			iconName + `"/></svg>`)
+	self.svgIcons[iconName] = svg
+	return svg
 }
 
 func (self *funcMap) javascript(name string) string {
