@@ -210,8 +210,12 @@ func (self *atomEntry) published() time.Time {
 
 func (self *atomEntry) itemURL() *url.URL {
 	link := self.atom.GetLink()
+	if link == "" {
+		link = self.atom.ID
+	}
+
 	u, err := url.Parse(link)
-	if err != nil {
+	if err != nil || u.Opaque != "" {
 		return nil
 	} else if u.IsAbs() {
 		return u
