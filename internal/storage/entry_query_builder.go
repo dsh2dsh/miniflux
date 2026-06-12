@@ -62,8 +62,8 @@ func (self *EntryQueryBuilder) appendCondition(prefix string, arg any,
 	return argPos
 }
 
-func (self *EntryQueryBuilder) WithContent() *EntryQueryBuilder {
-	self.fetchContent = true
+func (self *EntryQueryBuilder) WithContent(v bool) *EntryQueryBuilder {
+	self.fetchContent = v
 	return self
 }
 
@@ -290,7 +290,7 @@ SELECT count(*)
 // GetEntry returns a single entry that match the condition.
 func (self *EntryQueryBuilder) GetEntry(ctx context.Context,
 ) (*model.Entry, error) {
-	entries, err := self.WithLimit(1).WithContent().GetEntries(ctx)
+	entries, err := self.WithLimit(1).WithContent(true).GetEntries(ctx)
 	if err != nil {
 		return nil, err
 	} else if len(entries) != 1 {

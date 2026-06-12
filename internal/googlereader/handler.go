@@ -713,7 +713,7 @@ func (h *handler) streamItemContentsHandler(w http.ResponseWriter,
 		slog.Any("item_ids", itemIDs))
 
 	entries, err := h.store.NewEntryQueryBuilder(user.ID).
-		WithContent().
+		WithContent(true).
 		WithEntryIDs(itemIDs).
 		WithoutStatus(model.EntryStatusRemoved).
 		WithSorting(model.DefaultSortingOrder, modifiers.SortDirection).

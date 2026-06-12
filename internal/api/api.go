@@ -92,6 +92,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 			response.JSON(handler.getFeedEntry)).
 		HandleFunc("GET /entries", response.JSON(handler.getEntries)).
 		HandleFunc("PUT /entries", response.NoContentJSON(handler.setEntryStatus)).
+		HandleFunc("GET /entries/ids", response.JSON(handler.getEntryIDs)).
 		HandleFunc("GET /entries/{entryID}", response.JSON(handler.getEntry)).
 		HandleFunc("PUT /entries/{entryID}",
 			response.CreatedJSON(handler.updateEntry)).

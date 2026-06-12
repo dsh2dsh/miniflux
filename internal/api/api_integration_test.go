@@ -1258,6 +1258,167 @@ func (self *EndpointTestSuite) TestGetEntryEndpoints() {
 	self.Equal(result.Entries[0].ID, entry.ID, "Invalid entryID")
 }
 
+func (self *EndpointTestSuite) TestGetEntryIDsEndpoint() {
+	// A new user should have no entries at all.
+	result, err := self.client.EntryIDs(nil)
+	self.Require().NoError(err)
+	self.Require().NotNil(result)
+
+	self.Empty(result.EntryIDs, "Expected no entry IDs for a new user")
+	self.Zero(result.Total, "Expected total to be 0 for a new user")
+
+	// Subscribe to a feed so there are entries.
+	feedID := self.createFeed()
+	allEntries, err := self.client.FeedEntries(feedID, nil)
+	self.Require().NoError(err)
+	self.Require().NotNil(allEntries)
+	self.NotEmpty(allEntries.Entries, "Expected feed to have entries")
+
+	// Without filters, all entries should be returned.
+	result, err = self.client.EntryIDs(nil)
+	self.Require().NoError(err)
+	self.Require().NotNil(result)
+	self.Len(result.EntryIDs, len(allEntries.Entries))
+	self.Equal(allEntries.Total, result.Total)
+
+	// Filter by status=unread: all entries should be unread initially.
+	unreadResult, err := self.client.EntryIDs(&client.EntryIDsFilter{
+		Status: model.EntryStatusUnread,
+	})
+	self.Require().NoError(err)
+	self.Require().NotNil(unreadResult)
+	self.Len(unreadResult.EntryIDs, len(allEntries.Entries))
+
+	// Mark one entry as read and verify status filter results update.
+	firstEntryID := allEntries.Entries[0].ID
+	self.Require().NoError(
+		self.client.UpdateEntries([]int64{firstEntryID}, model.EntryStatusRead))
+
+	unreadResult, err = self.client.EntryIDs(&client.EntryIDsFilter{
+		Status: model.EntryStatusUnread,
+	})
+	self.Require().NoError(err)
+	self.Require().NotNil(unreadResult)
+	self.Len(unreadResult.EntryIDs, len(allEntries.Entries)-1)
+	self.Equal(allEntries.Total-1, unreadResult.Total)
+	self.Equal(int(-1), slices.Index(unreadResult.EntryIDs, firstEntryID),
+		"Entry ID %d should not appear in unread IDs after being marked as read",
+		firstEntryID)
+
+	readResult, err := self.client.EntryIDs(&client.EntryIDsFilter{
+		Status: model.EntryStatusRead,
+	})
+	self.Require().NoError(err)
+	self.Require().NotNil(readResult)
+	self.Len(readResult.EntryIDs, 1)
+	self.Equal(firstEntryID, readResult.EntryIDs[0],
+		"Expected only entry %d in read results", firstEntryID)
+
+	if allEntries.Total > 2 {
+		pagedResult, err := self.client.EntryIDs(&client.EntryIDsFilter{
+			Status: model.EntryStatusUnread,
+			Limit:  1,
+		})
+
+		self.Require().NoError(err)
+		self.Require().NotNil(pagedResult)
+		self.Len(pagedResult.EntryIDs, 1, "Expected 1 entry ID with limit=1")
+		self.Equal(allEntries.Total-1, pagedResult.Total)
+
+		// offset=1 should skip the first entry.
+		offsetResult, err := self.client.EntryIDs(&client.EntryIDsFilter{
+			Status: model.EntryStatusUnread,
+			Limit:  1,
+			Offset: 1,
+		})
+
+		self.Require().NoError(err)
+		self.Require().NotNil(offsetResult)
+		self.Len(offsetResult.EntryIDs, 1,
+			"Expected 1 entry ID with limit=1 offset=1")
+		self.NotEqual(pagedResult.EntryIDs[0], offsetResult.EntryIDs[0],
+			"Entry at offset=1 should differ from offset=0")
+	}
+
+	// Filter by starred=true: initially no starred entries.
+	starredResult, err := self.client.EntryIDs(&client.EntryIDsFilter{
+		Starred: new(true),
+	})
+
+	self.Require().NoError(err)
+	self.Require().NotNil(starredResult)
+	self.Empty(starredResult.EntryIDs,
+		"Expected no starred entry IDs for a new user")
+
+	// Star the first entry and verify it appears in starred results.
+	self.Require().NoError(self.client.ToggleBookmark(firstEntryID))
+
+	starredResult, err = self.client.EntryIDs(&client.EntryIDsFilter{
+		Starred: new(true),
+	})
+
+	self.Require().NoError(err)
+	self.Require().NotNil(starredResult)
+	self.Len(starredResult.EntryIDs, 1, "Expected 1 starred entry ID")
+	self.Equal(1, starredResult.Total)
+	self.Equal(firstEntryID, starredResult.EntryIDs[0],
+		"Expected starred entry ID %d", firstEntryID)
+
+	// The read starred entry should appear when filtering by starred=true (read
+	// status does not affect it).
+	starredResult, err = self.client.EntryIDs(&client.EntryIDsFilter{
+		Starred: new(true),
+	})
+
+	self.Require().NoError(err)
+	self.Require().NotNil(starredResult)
+	self.Len(starredResult.EntryIDs, 1,
+		"Expected starred entry ID to persist after marking as read")
+
+	// starred=false should exclude the starred entry.
+	notStarredResult, err := self.client.EntryIDs(&client.EntryIDsFilter{
+		Starred: new(false),
+	})
+
+	self.Require().NoError(err)
+	self.Require().NotNil(notStarredResult)
+	self.Equal(-1, slices.Index(notStarredResult.EntryIDs, firstEntryID),
+		"Starred entry %d should not appear in starred=false results",
+		firstEntryID)
+
+	// Pagination with offset past the single starred result should return 0
+	// entries but total 1.
+	pagedStarredResult, err := self.client.EntryIDs(&client.EntryIDsFilter{
+		Starred: new(true),
+		Limit:   0,
+		Offset:  1,
+	})
+
+	self.Require().NoError(err)
+	self.Require().NotNil(pagedStarredResult)
+	self.Empty(pagedStarredResult.EntryIDs,
+		"Expected 0 entry IDs with offset=1 past the only result")
+	self.Equal(1, pagedStarredResult.Total,
+		"Expected total 1 with offset past results")
+
+	// Unstarring the entry should remove it from starred=true results.
+	self.Require().NoError(self.client.ToggleBookmark(firstEntryID))
+
+	starredResult, err = self.client.EntryIDs(&client.EntryIDsFilter{
+		Starred: new(true),
+	})
+
+	self.Require().NoError(err)
+	self.Require().NotNil(starredResult)
+	self.Empty(starredResult.EntryIDs,
+		"Expected no starred entry IDs after unstarring")
+	self.Zero(starredResult.Total, "Expected total 0 after unstarring")
+
+	_, err = self.client.EntryIDs(&client.EntryIDsFilter{Status: "maybe"})
+	self.T().Log(err)
+	self.Require().Error(err, "Expected error for invalid status parameter")
+}
+
 func (self *EndpointTestSuite) TestUpdateEntryStatusEndpoint() {
 	feedID := self.createFeed()
 	result, err := self.client.FeedEntries(feedID, nil)

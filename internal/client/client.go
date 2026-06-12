@@ -903,11 +903,15 @@ func (c *Client) EntryIDsContext(ctx context.Context, filter *EntryIDsFilter) (*
 }
 
 func buildEntryIDsFilterQueryString(path string, filter *EntryIDsFilter) string {
-	if filter == nil {
-		return path
+	params := url.Values{
+		"order":     []string{"id"},
+		"direction": []string{"desc"},
 	}
 
-	params := url.Values{}
+	if filter == nil {
+		return path + "?" + params.Encode()
+	}
+
 	if filter.Limit > 0 {
 		params.Set("limit", strconv.Itoa(filter.Limit))
 	}
@@ -920,11 +924,6 @@ func buildEntryIDsFilterQueryString(path string, filter *EntryIDsFilter) string 
 	if filter.Status != "" {
 		params.Set("status", filter.Status)
 	}
-
-	if len(params) == 0 {
-		return path
-	}
-
 	return path + "?" + params.Encode()
 }
 

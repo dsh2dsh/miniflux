@@ -18,6 +18,12 @@ type entriesResponse struct {
 	Entries model.Entries `json:"entries"`
 }
 
+// entryIDsResponse represents the response when fetching entry ID lists.
+type entryIDsResponse struct {
+	Total    int     `json:"total"`
+	EntryIDs []int64 `json:"entry_ids"`
+}
+
 type integrationsStatusResponse struct {
 	HasIntegrations bool `json:"has_integrations,omitzero"`
 }

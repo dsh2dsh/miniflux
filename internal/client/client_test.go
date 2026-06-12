@@ -69,6 +69,7 @@ func expectRequest(
 	checkBody func(r io.Reader),
 	req *http.Request,
 ) {
+	t.Helper()
 	if req.Method != method {
 		t.Fatalf("Expected method to be %s, got %s", method, req.Method)
 	}
@@ -1273,7 +1274,7 @@ func TestEntryIDsNoFilter(t *testing.T) {
 		"http://mf",
 		WithHTTPClient(
 			newFakeHTTPClient(t, func(t *testing.T, req *http.Request) *http.Response {
-				expectRequest(t, http.MethodGet, "http://mf/v1/entries/ids", nil, req)
+				expectRequest(t, http.MethodGet, "http://mf/v1/entries/ids?direction=desc&order=id", nil, req)
 				return jsonResponseFrom(t, http.StatusOK, http.Header{}, expected)
 			})))
 	res, err := client.EntryIDsContext(t.Context(), nil)
@@ -1294,7 +1295,7 @@ func TestEntryIDsWithPaginationFilter(t *testing.T) {
 		"http://mf",
 		WithHTTPClient(
 			newFakeHTTPClient(t, func(t *testing.T, req *http.Request) *http.Response {
-				expectRequest(t, http.MethodGet, "http://mf/v1/entries/ids?limit=1&offset=2", nil, req)
+				expectRequest(t, http.MethodGet, "http://mf/v1/entries/ids?direction=desc&limit=1&offset=2&order=id", nil, req)
 				return jsonResponseFrom(t, http.StatusOK, http.Header{}, expected)
 			})))
 	res, err := client.EntryIDsContext(t.Context(), &EntryIDsFilter{Limit: 1, Offset: 2})
@@ -1315,7 +1316,7 @@ func TestEntryIDsWithStarredFilter(t *testing.T) {
 		"http://mf",
 		WithHTTPClient(
 			newFakeHTTPClient(t, func(t *testing.T, req *http.Request) *http.Response {
-				expectRequest(t, http.MethodGet, "http://mf/v1/entries/ids?starred=true", nil, req)
+				expectRequest(t, http.MethodGet, "http://mf/v1/entries/ids?direction=desc&order=id&starred=true", nil, req)
 				return jsonResponseFrom(t, http.StatusOK, http.Header{}, expected)
 			})))
 	res, err := client.EntryIDsContext(t.Context(), &EntryIDsFilter{Starred: new(true)})
@@ -1336,7 +1337,7 @@ func TestEntryIDsWithStatusFilter(t *testing.T) {
 		"http://mf",
 		WithHTTPClient(
 			newFakeHTTPClient(t, func(t *testing.T, req *http.Request) *http.Response {
-				expectRequest(t, http.MethodGet, "http://mf/v1/entries/ids?status=unread", nil, req)
+				expectRequest(t, http.MethodGet, "http://mf/v1/entries/ids?direction=desc&order=id&status=unread", nil, req)
 				return jsonResponseFrom(t, http.StatusOK, http.Header{}, expected)
 			})))
 	res, err := client.EntryIDsContext(t.Context(), &EntryIDsFilter{Status: model.EntryStatusUnread})
@@ -1357,7 +1358,7 @@ func TestEntryIDsWithCombinedFilter(t *testing.T) {
 		"http://mf",
 		WithHTTPClient(
 			newFakeHTTPClient(t, func(t *testing.T, req *http.Request) *http.Response {
-				expectRequest(t, http.MethodGet, "http://mf/v1/entries/ids?limit=2&offset=5&starred=false&status=read", nil, req)
+				expectRequest(t, http.MethodGet, "http://mf/v1/entries/ids?direction=desc&limit=2&offset=5&order=id&starred=false&status=read", nil, req)
 				return jsonResponseFrom(t, http.StatusOK, http.Header{}, expected)
 			})))
 	res, err := client.EntryIDsContext(t.Context(), &EntryIDsFilter{Limit: 2, Offset: 5, Starred: new(false), Status: model.EntryStatusRead})
