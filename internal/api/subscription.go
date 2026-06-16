@@ -27,10 +27,10 @@ func (h *handler) discoverSubscriptions(w http.ResponseWriter, r *http.Request,
 	}
 
 	user := request.User(r)
-	requestBuilder := NewRequestDiscovery(&discovery)
-
-	s, lerr := subscription.NewSubscriptionFinder(requestBuilder).
-		FindSubscriptions(r.Context(), discovery.URL,
+	s, lerr := subscription.
+		NewSubscriptionFinder().
+		FindSubscriptions(r.Context(), NewRequestDiscovery(&discovery),
+			discovery.URL,
 			user.Integration().RSSBridgeURLIfEnabled(),
 			user.Integration().RSSBridgeTokenIfEnabled())
 	if lerr != nil {

@@ -414,10 +414,9 @@ func (h *handler) quickAddHandler(w http.ResponseWriter, r *http.Request,
 			"googlereader: invalid URL: %s", feedURL))
 	}
 
-	requestBuilder := fetcher.NewRequestBuilder()
 	subscriptions, lerr := mfs.
-		NewSubscriptionFinder(requestBuilder).
-		FindSubscriptions(ctx, feedURL,
+		NewSubscriptionFinder().
+		FindSubscriptions(ctx, fetcher.NewRequestBuilder(), feedURL,
 			user.Integration().RSSBridgeURLIfEnabled(),
 			user.Integration().RSSBridgeTokenIfEnabled())
 	if lerr != nil {

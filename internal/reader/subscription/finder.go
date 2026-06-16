@@ -23,15 +23,12 @@ import (
 )
 
 type SubscriptionFinder struct {
-	requestBuilder   *fetcher.RequestBuilder
 	feedDownloaded   bool
 	feedResponseInfo *model.FeedCreationRequestFromSubscriptionDiscovery
 }
 
-func NewSubscriptionFinder(requestBuilder *fetcher.RequestBuilder) *SubscriptionFinder {
-	return &SubscriptionFinder{
-		requestBuilder: requestBuilder,
-	}
+func NewSubscriptionFinder() *SubscriptionFinder {
+	return &SubscriptionFinder{}
 }
 
 func (f *SubscriptionFinder) IsFeedAlreadyDownloaded() bool {
@@ -43,9 +40,9 @@ func (f *SubscriptionFinder) FeedResponseInfo() *model.FeedCreationRequestFromSu
 }
 
 func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
-	websiteURL, rssBridgeURL, rssBridgeToken string,
+	rb *fetcher.RequestBuilder, websiteURL, rssBridgeURL, rssBridgeToken string,
 ) (Subscriptions, *locale.LocalizedErrorWrapper) {
-	client, err := f.requestBuilder.NewClient()
+	client, err := rb.NewClient()
 	if err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err, "error.http_client_error")
 	}
@@ -147,7 +144,7 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 	// As result, the list of known URLs is returned to the subscription list.
 	// We don't want the user to choose between invalid feed URLs.
 	client.Close()
-	client, err = f.requestBuilder.WithoutRedirects().NewClient()
+	client, err = rb.WithoutRedirects().NewClient()
 	if err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err, "error.http_client_error")
 	}

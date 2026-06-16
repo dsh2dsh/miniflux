@@ -35,19 +35,19 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := request.User(r)
-	requestBuilder := fetcher.NewRequestBuilder().
-		WithCustomFeedProxyURL(f.ProxyURL).
-		UseCustomApplicationProxyURL(f.FetchViaProxy).
-		WithUserAgent(f.UserAgent).
-		WithCookie(f.Cookie).
-		WithUsernameAndPassword(f.Username, f.Password).
-		IgnoreTLSErrors(f.AllowSelfSignedCertificates).
-		DisableHTTP2(f.DisableHTTP2)
-
+	finder := subscription.NewSubscriptionFinder()
 	ctx := r.Context()
-	finder := subscription.NewSubscriptionFinder(requestBuilder)
-	subscriptions, lerr := finder.FindSubscriptions(ctx, f.URL,
+	user := request.User(r)
+	subscriptions, lerr := finder.FindSubscriptions(ctx,
+		fetcher.NewRequestBuilder().
+			WithCustomFeedProxyURL(f.ProxyURL).
+			UseCustomApplicationProxyURL(f.FetchViaProxy).
+			WithUserAgent(f.UserAgent).
+			WithCookie(f.Cookie).
+			WithUsernameAndPassword(f.Username, f.Password).
+			IgnoreTLSErrors(f.AllowSelfSignedCertificates).
+			DisableHTTP2(f.DisableHTTP2),
+		f.URL,
 		user.Integration().RSSBridgeURLIfEnabled(),
 		user.Integration().RSSBridgeTokenIfEnabled())
 	if lerr != nil {
