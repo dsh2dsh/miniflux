@@ -33,7 +33,7 @@ func ValidateFeedCreation(ctx context.Context, store *storage.Storage,
 		return locale.NewLocalizedError("error.feed_category_not_found")
 	}
 
-	if r.ProxyURL != "" && !urllib.IsAbsoluteURL(r.ProxyURL) {
+	if r.ProxyURL != "" && !urllib.IsValidProxyURL(r.ProxyURL) {
 		return locale.NewLocalizedError("error.invalid_feed_proxy_url")
 	}
 
@@ -98,7 +98,7 @@ func ValidateFeedModification(ctx context.Context, store *storage.Storage,
 			return locale.NewLocalizedError("error.proxy_url_not_empty")
 		}
 
-		if !urllib.IsAbsoluteURL(*r.ProxyURL) {
+		if !urllib.IsValidProxyURL(*r.ProxyURL) {
 			return locale.NewLocalizedError("error.invalid_feed_proxy_url")
 		}
 	}
