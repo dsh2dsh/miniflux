@@ -340,6 +340,7 @@ func (self Entries) ByHash() map[string]*Entry {
 type EntriesStatusUpdateRequest struct {
 	EntryIDs []int64 `json:"entry_ids"`
 	Status   string  `json:"status"`
+	Starred  *bool   `json:"starred"`
 }
 
 // EntryUpdateRequest represents a request to update an entry.
