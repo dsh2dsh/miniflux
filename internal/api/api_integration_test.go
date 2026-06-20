@@ -1436,6 +1436,33 @@ func (self *EndpointTestSuite) TestUpdateEntryStatusEndpoint() {
 	self.Equal(model.EntryStatusRead, entry.Status, "Invalid status")
 }
 
+func (self *EndpointTestSuite) TestUpdateEntriesStarredEndpoint() {
+	feedID := self.createFeed()
+	result, err := self.client.FeedEntries(feedID, nil)
+	self.Require().NoError(err, "Failed to get entries")
+	self.Require().NotNil(result)
+	self.Require().NotEmpty(result.Entries)
+
+	entryID := result.Entries[0].ID
+	// Star the entry without changing its status.
+	self.Require().NoError(
+		self.client.UpdateEntriesStarred([]int64{entryID}, true))
+
+	entry, err := self.client.Entry(entryID)
+	self.Require().NoError(err)
+	self.True(entry.Starred, "Expected entry to be starred")
+	self.Equal(model.EntryStatusUnread, entry.Status,
+		"Expected status to remain unread")
+
+	// Unstar the entry.
+	self.Require().NoError(
+		self.client.UpdateEntriesStarred([]int64{entryID}, false))
+
+	entry, err = self.client.Entry(entryID)
+	self.Require().NoError(err)
+	self.False(entry.Starred, "Expected entry to no longer be starred")
+}
+
 func (self *EndpointTestSuite) TestUpdateEntryEndpoint() {
 	feedID := self.createFeed()
 	result, err := self.client.FeedEntries(feedID, nil)

@@ -77,10 +77,20 @@ func (h *handler) setEntryStatus(w http.ResponseWriter, r *http.Request) error {
 		return response.WrapBadRequest(err)
 	}
 
-	err = h.store.SetEntriesStatus(r.Context(), request.UserID(r),
-		updateRequest.EntryIDs, updateRequest.Status)
-	if err != nil {
-		return err
+	if updateRequest.Status != "" {
+		err = h.store.SetEntriesStatus(r.Context(), request.UserID(r),
+			updateRequest.EntryIDs, updateRequest.Status)
+		if err != nil {
+			return err
+		}
+	}
+
+	if updateRequest.Starred != nil {
+		err = h.store.SetEntriesBookmarkedState(r.Context(), request.UserID(r),
+			updateRequest.EntryIDs, *updateRequest.Starred)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

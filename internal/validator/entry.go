@@ -10,19 +10,11 @@ import (
 	"miniflux.app/v2/internal/model"
 )
 
-// ValidateEntriesStatusUpdateRequest validates a status update for a list of entries.
+// ValidateEntriesStatusUpdateRequest validates a status and/or starred update
+// for a list of entries. At least one of the status or starred fields must be
+// specified. This is used by the API, which can update the read status, the
+// starred state, or both.
 func ValidateEntriesStatusUpdateRequest(request *model.EntriesStatusUpdateRequest) error {
-	if len(request.EntryIDs) == 0 {
-		return errors.New(`the list of entries cannot be empty`)
-	}
-
-	return ValidateEntryStatus(request.Status)
-}
-
-// ValidateEntriesStatusAndStarredUpdateRequest validates a status and/or starred update
-// for a list of entries. At least one of the status or starred fields must be specified.
-// This is used by the API, which can update the read status, the starred state, or both.
-func ValidateEntriesStatusAndStarredUpdateRequest(request *model.EntriesStatusUpdateRequest) error {
 	if len(request.EntryIDs) == 0 {
 		return errors.New(`the list of entries cannot be empty`)
 	}
