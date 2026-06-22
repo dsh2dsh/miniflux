@@ -19,9 +19,9 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
-	go.yaml.in/yaml/v4 v4.0.0-rc.5
+	go.yaml.in/yaml/v4 v4.0.0-rc.6
 	golang.org/x/crypto v0.53.0
-	golang.org/x/image v0.42.0
+	golang.org/x/image v0.43.0
 	golang.org/x/net v0.56.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.21.0
