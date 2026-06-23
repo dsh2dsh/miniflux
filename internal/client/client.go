@@ -1188,87 +1188,90 @@ func (c *Client) UpdateEnclosureContext(ctx context.Context, entryID, enclosureI
 }
 
 func buildFilterQueryString(path string, filter *Filter) string {
-	if filter != nil {
-		values := url.Values{}
-
-		if filter.Status != "" {
-			values.Set("status", filter.Status)
-		}
-
-		if filter.Direction != "" {
-			values.Set("direction", filter.Direction)
-		}
-
-		if filter.Order != "" {
-			values.Set("order", filter.Order)
-		}
-
-		if filter.Limit >= 0 {
-			values.Set("limit", strconv.Itoa(filter.Limit))
-		}
-
-		if filter.Offset >= 0 {
-			values.Set("offset", strconv.Itoa(filter.Offset))
-		}
-
-		if filter.After > 0 {
-			values.Set("after", strconv.FormatInt(filter.After, 10))
-		}
-
-		if filter.Before > 0 {
-			values.Set("before", strconv.FormatInt(filter.Before, 10))
-		}
-
-		if filter.PublishedAfter > 0 {
-			values.Set("published_after", strconv.FormatInt(filter.PublishedAfter, 10))
-		}
-
-		if filter.PublishedBefore > 0 {
-			values.Set("published_before", strconv.FormatInt(filter.PublishedBefore, 10))
-		}
-
-		if filter.ChangedAfter > 0 {
-			values.Set("changed_after", strconv.FormatInt(filter.ChangedAfter, 10))
-		}
-
-		if filter.ChangedBefore > 0 {
-			values.Set("changed_before", strconv.FormatInt(filter.ChangedBefore, 10))
-		}
-
-		if filter.AfterEntryID > 0 {
-			values.Set("after_entry_id", strconv.FormatInt(filter.AfterEntryID, 10))
-		}
-
-		if filter.BeforeEntryID > 0 {
-			values.Set("before_entry_id", strconv.FormatInt(filter.BeforeEntryID, 10))
-		}
-
-		if filter.Starred != "" {
-			values.Set("starred", filter.Starred)
-		}
-
-		if filter.Search != "" {
-			values.Set("search", filter.Search)
-		}
-
-		if filter.CategoryID > 0 {
-			values.Set("category_id", strconv.FormatInt(filter.CategoryID, 10))
-		}
-
-		if filter.FeedID > 0 {
-			values.Set("feed_id", strconv.FormatInt(filter.FeedID, 10))
-		}
-
-		if filter.GloballyVisible {
-			values.Set("globally_visible", "true")
-		}
-
-		for _, status := range filter.Statuses {
-			values.Add("status", status)
-		}
-
-		path = fmt.Sprintf("%s?%s", path, values.Encode())
+	if filter == nil {
+		return path
 	}
 
-	return path
+	values := url.Values{}
+
+	if filter.Status != "" {
+		values.Set("status", filter.Status)
+	}
+
+	if filter.Direction != "" {
+		values.Set("direction", filter.Direction)
+	}
+
+	if filter.Order != "" {
+		values.Set("order", filter.Order)
+	}
+
+	if filter.Limit >= 0 {
+		values.Set("limit", strconv.Itoa(filter.Limit))
+	}
+
+	if filter.Offset >= 0 {
+		values.Set("offset", strconv.Itoa(filter.Offset))
+	}
+
+	if filter.After > 0 {
+		values.Set("after", strconv.FormatInt(filter.After, 10))
+	}
+
+	if filter.Before > 0 {
+		values.Set("before", strconv.FormatInt(filter.Before, 10))
+	}
+
+	if filter.PublishedAfter > 0 {
+		values.Set("published_after", strconv.FormatInt(filter.PublishedAfter, 10))
+	}
+
+	if filter.PublishedBefore > 0 {
+		values.Set("published_before", strconv.FormatInt(filter.PublishedBefore, 10))
+	}
+
+	if filter.ChangedAfter > 0 {
+		values.Set("changed_after", strconv.FormatInt(filter.ChangedAfter, 10))
+	}
+
+	if filter.ChangedBefore > 0 {
+		values.Set("changed_before", strconv.FormatInt(filter.ChangedBefore, 10))
+	}
+
+	if filter.AfterEntryID > 0 {
+		values.Set("after_entry_id", strconv.FormatInt(filter.AfterEntryID, 10))
+	}
+
+	if filter.BeforeEntryID > 0 {
+		values.Set("before_entry_id", strconv.FormatInt(filter.BeforeEntryID, 10))
+	}
+
+	if filter.Starred != "" {
+		values.Set("starred", filter.Starred)
+	}
+
+	if filter.Search != "" {
+		values.Set("search", filter.Search)
+	}
+
+	if filter.CategoryID > 0 {
+		values.Set("category_id", strconv.FormatInt(filter.CategoryID, 10))
+	}
+
+	if filter.FeedID > 0 {
+		values.Set("feed_id", strconv.FormatInt(filter.FeedID, 10))
+	}
+
+	if filter.GloballyVisible {
+		values.Set("globally_visible", "true")
+	}
+
+	for _, status := range filter.Statuses {
+		values.Add("status", status)
+	}
+
+	for _, tag := range filter.Tags {
+		values.Add("tags", tag)
+	}
+	return path + "?" + values.Encode()
 }

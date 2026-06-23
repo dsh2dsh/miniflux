@@ -55,6 +55,7 @@ type Filter struct {
 	CategoryID      int64
 	FeedID          int64
 	Statuses        []string
+	Tags            []string
 	GloballyVisible bool
 }
 
