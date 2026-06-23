@@ -281,11 +281,6 @@ func (self *entriesFinder) filter(b *storage.EntryQueryBuilder, r *http.Request,
 		b.AfterChangedDate(time.Unix(afterChanged, 0))
 	}
 
-	categoryID := request.QueryInt64Param(r, "category_id", 0)
-	if categoryID > 0 {
-		b.WithCategoryID(categoryID)
-	}
-
 	if request.HasQueryParam(r, "starred") {
 		starred, err := strconv.ParseBool(r.URL.Query().Get("starred"))
 		if err == nil {
