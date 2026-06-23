@@ -227,6 +227,7 @@ func (self *entriesFinder) Entries(r *http.Request) (*entriesResponse, error) {
 	for i := range entries {
 		entries[i].Content = mediaproxy.RewriteDocumentWithAbsoluteProxyURL(
 			self.router, entries[i].Content)
+		mediaproxy.ProxifyEnclosures(self.router, entries[i].Enclosures())
 	}
 	return resp, nil
 }
