@@ -136,8 +136,7 @@ func (h *handler) userByID(w http.ResponseWriter, r *http.Request,
 
 	user, err := h.store.UserByID(r.Context(), userID)
 	if err != nil {
-		return nil, response.WrapBadRequest(errors.New(
-			"unable to fetch this user from the database"))
+		return nil, err
 	} else if user == nil {
 		return nil, response.ErrNotFound
 	}
@@ -151,8 +150,7 @@ func (h *handler) userByUsername(_ http.ResponseWriter, r *http.Request,
 ) (*model.User, error) {
 	user, err := h.store.UserByUsername(r.Context(), username)
 	if err != nil {
-		return nil, response.WrapBadRequest(errors.New(
-			"unable to fetch this user from the database"))
+		return nil, err
 	} else if user == nil {
 		return nil, response.ErrNotFound
 	}
