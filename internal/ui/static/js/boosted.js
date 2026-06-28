@@ -4,7 +4,7 @@ class BoostedBody {
     body.addEventListener("htmx:historyCacheMissLoad",
       event => this.historyCache(event));
     body.addEventListener("htmx:beforeSwap", event => this.beforeSwap(event));
-    body.addEventListener("htmx:afterSwap", event => this.afterSwap(event));
+    body.addEventListener("htmx:afterSettle", event => this.afterSwap(event));
   }
 
   historyCache(event) {

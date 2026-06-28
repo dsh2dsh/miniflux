@@ -7,7 +7,7 @@ class MarkReadOnScroll {
   timeoutId = 0;
 
   constructor() {
-    document.body.addEventListener("htmx:afterSwap", event => {
+    document.body.addEventListener("htmx:afterSettle", event => {
       if (event.target.matches(MarkReadOnScroll.pageEndSelector))
         this.revealedLastItem(event.target);
     }, true);
@@ -72,10 +72,9 @@ class MarkReadOnScroll {
     this.observer.unobserve(element);
 
     if (!this.firstScrolled )
-      this.firstScrolled = this.lastScrolled = element;
-    else
-      this.lastScrolled = element;
-    return true
+      this.firstScrolled = element;
+    this.lastScrolled = element;
+    return true;
   }
 
   async readOnTimeout() {
