@@ -12,12 +12,19 @@
             <a
               href="{{ route "feedEntries" "feedID" .entry.Feed.ID }}"
               title="{{ .entry.Feed.SiteURL }}"
+              hx-boost="true"
               data-feed-link="true">
                 {{ .entry.Feed.Title }}
             </a>
 
             {{ if .entry.Author }}
-            – <a href="{{ route (ifElseString .showOnlyUnreadEntries "authorEntries" "authorEntriesAll") "feedID" $.entry.FeedID "authorName" (urlEncode .entry.Author) }}" class="item-meta-author">{{ .entry.Author }}</a>
+            –
+            <a
+              href="{{ route (ifElseString .showOnlyUnreadEntries "authorEntries" "authorEntriesAll") "feedID" $.entry.FeedID "authorName" (urlEncode .entry.Author) }}"
+              hx-boost="true"
+              class="item-meta-author">
+                {{ .entry.Author }}
+            </a>
             {{ end }}
         </li>
 
