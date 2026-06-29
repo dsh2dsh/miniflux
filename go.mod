@@ -7,7 +7,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.12.0
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/cespare/xxhash/v2 v2.3.0
-	github.com/coreos/go-oidc/v3 v3.18.0
+	github.com/coreos/go-oidc/v3 v3.19.0
 	github.com/dsh2dsh/bluemonday/v2 v2.3.6
 	github.com/dsh2dsh/expx-dotenv v1.4.0
 	github.com/dsh2dsh/gofeed/v2 v2.4.5
