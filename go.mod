@@ -10,7 +10,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.19.0
 	github.com/dsh2dsh/bluemonday/v2 v2.3.6
 	github.com/dsh2dsh/expx-dotenv v1.4.0
-	github.com/dsh2dsh/gofeed/v2 v2.4.5
+	github.com/dsh2dsh/gofeed/v2 v2.5.0
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/go-webauthn/webauthn v0.17.4
 	github.com/jackc/pgx/v5 v5.10.0
