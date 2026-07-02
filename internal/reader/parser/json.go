@@ -39,6 +39,7 @@ func (self *jsonFeed) Feed(feedURL *url.URL, jsonFeed *json.Feed,
 		Description: self.json.Description,
 	}
 
+	self.feed.WithLanguage(self.json.Language)
 	self.feed.WithFeedURL(self.feedURL())
 	self.feed.WithSiteURL(self.siteURL())
 	self.feed.IconURL = self.iconURL()
@@ -164,6 +165,7 @@ func (self *jsonEntry) Parse() *model.Entry {
 	self.entry.Author = joinJsonAuthors(self.json.AllAuthors())
 	self.entry.Tags = self.tags()
 	self.entry.AppendEnclosures(self.enclosures())
+	self.entry.WithLanguage(self.json.Language)
 	self.hashEntry()
 
 	enclosures := self.entry.Enclosures()

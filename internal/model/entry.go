@@ -55,6 +55,7 @@ type Entry struct {
 }
 
 type EntryExtra struct {
+	Language   string        `json:"language,omitempty"`
 	AutoTitle  string        `json:"autoTitle,omitempty"`
 	Enclosures EnclosureList `json:"enclosures,omitempty"`
 	SiteData   *anyObject    `json:"siteData,omitempty"`
@@ -210,6 +211,20 @@ func (self *Entry) AutoTitle() string {
 		return self.Extra.AutoTitle
 	}
 	return self.URL
+}
+
+func (self *Entry) Language() string {
+	if self.Extra.Language != "" {
+		return self.Extra.Language
+	} else if self.Feed == nil {
+		return ""
+	}
+	return self.Feed.Language()
+}
+
+func (self *Entry) WithLanguage(lang string) *Entry {
+	self.Extra.Language = normalizeLanguage(lang)
+	return self
 }
 
 func NewEntryFrom(ext *ExternalEntry) *Entry {

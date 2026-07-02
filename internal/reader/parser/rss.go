@@ -43,6 +43,7 @@ func (self *rssFeed) Feed(feedURL *url.URL, rssFeed *rss.Feed,
 		TTL:         self.rss.GetTTL(),
 	}
 
+	self.feed.WithLanguage(self.rss.Language)
 	self.feed.WithFeedURL(self.feedURL())
 	self.feed.WithSiteURL(self.siteURL())
 	self.feed.IconURL = self.iconURL()
@@ -178,6 +179,7 @@ func (self *rssEntry) Parse() *model.Entry {
 	self.entry.ReadingTime = self.readingTime()
 	self.entry.Tags = slices.Collect(self.rss.AllCategories())
 	self.entry.AppendEnclosures(self.enclosures())
+	self.entry.WithLanguage(self.language())
 	self.hashEntry()
 
 	enclosures := self.entry.Enclosures()
@@ -289,4 +291,11 @@ func (self *rssEntry) hashEntry() {
 	default:
 		self.entry.HashFrom(self.entry.Title + self.entry.Content)
 	}
+}
+
+func (self *rssEntry) language() string {
+	if self.rss.DublinCoreExt == nil {
+		return ""
+	}
+	return self.rss.DublinCoreExt.Language
 }

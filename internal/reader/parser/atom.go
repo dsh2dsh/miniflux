@@ -42,6 +42,7 @@ func (self *atomFeed) Feed(feedURL *url.URL, atomFeed *atom.Feed,
 		Description: self.atom.Subtitle,
 	}
 
+	self.feed.WithLanguage(self.atom.Language)
 	self.feed.WithFeedURL(self.feedURL())
 	self.feed.WithSiteURL(self.siteURL())
 	self.feed.IconURL = self.iconURL()
@@ -191,6 +192,7 @@ func (self *atomEntry) Parse() *model.Entry {
 	self.entry.CommentsURL = self.commentsURL()
 	self.entry.Tags = self.atom.GetCategories()
 	self.entry.AppendEnclosures(self.enclosures())
+	self.entry.WithLanguage(self.atom.Language)
 	self.hashEntry()
 
 	enclosures := self.entry.Enclosures()

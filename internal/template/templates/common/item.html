@@ -15,7 +15,7 @@
     {{ template "item_meta" dict "user" .user "entry" .entry "showOnlyUnreadEntries" .showOnlyUnreadEntries "withInfo" true }}
 
     <header class="item-header" dir="auto">
-        <h2 id="entry-title-{{ .entry.ID }}" class="item-title">
+        <h2 id="entry-title-{{ .entry.ID }}" class="item-title" lang="{{ .entry.Language }}">
             {{ if .entry.URLSafe }}
             <a
               href="{{ .entry.URL | safeURL }}"

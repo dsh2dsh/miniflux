@@ -1,5 +1,5 @@
 <div class="loaded" hx-disable="">
-    <article class="entry-content feed-id-{{ .entry.FeedID }} inline" dir="auto">
+    <article class="entry-content feed-id-{{ .entry.FeedID }} inline" lang="{{ .entry.Language }}" dir="auto">
         {{ if .errorMessage }}
         <div role="alert" class="alert alert-error">
             <p>{{ .errorMessage }}</p>
@@ -57,7 +57,7 @@
         {{ if .entry.Tags }}
         <div class="addon entry-tags">
             {{ if .entry.Enclosures }}{{ t "entry.tags.label" }}{{ end }}
-            <ul class="entry-tags-list comma-list">
+            <ul class="entry-tags-list comma-list" lang="{{ $.entry.Language }}">
                 {{ range .entry.Tags }}
                 <li><a href="{{ route ( ifElseString $.entry.Unread "tagEntries" "tagEntriesAll") "feedID" $.entry.FeedID "tagName" (urlEncode .) }}"><strong>{{ . }}</strong></a></li>
                 {{ end }}

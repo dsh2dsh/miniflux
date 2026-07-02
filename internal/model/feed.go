@@ -100,6 +100,7 @@ type FeedRuntime struct {
 	Size uint64 `json:"size,omitempty"`
 	Hash uint64 `json:"hash,omitempty"`
 
+	Language  string     `json:"language,omitempty"`
 	BadStatus *BadStatus `json:"badStatus,omitzero"`
 }
 
@@ -351,6 +352,13 @@ func (self *Feed) WithBadStatus(content, contentType string) *Feed {
 }
 
 func (self *Feed) BadStatus() *BadStatus { return self.Runtime.BadStatus }
+
+func (self *Feed) Language() string { return self.Runtime.Language }
+
+func (self *Feed) WithLanguage(lang string) *Feed {
+	self.Runtime.Language = normalizeLanguage(lang)
+	return self
+}
 
 // FeedCreationRequest represents the request to create a feed.
 type FeedCreationRequest struct {

@@ -258,6 +258,7 @@ func (self *Refresh) refreshFeed(ctx context.Context, log *slog.Logger,
 
 	self.feed.EtagHeader = resp.ETag()
 	self.feed.LastModifiedHeader = resp.LastModified()
+	self.feed.WithLanguage(remoteFeed.Language())
 	if self.force {
 		self.feed.IconURL = remoteFeed.IconURL
 		icon.NewIconChecker(self.store, self.feed).UpdateOrCreateFeedIcon(ctx)

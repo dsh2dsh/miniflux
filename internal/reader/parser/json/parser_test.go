@@ -1063,3 +1063,81 @@ func TestParseNullJSONFeed(t *testing.T) {
 		t.Error("Parse should returns an error")
 	}
 }
+
+func TestParseFeedWithLanguage(t *testing.T) {
+	data := `{
+		"version": "https://jsonfeed.org/version/1.1",
+		"title": "Example",
+		"home_page_url": "https://example.org/",
+		"feed_url": "https://example.org/feed.json",
+		"language": "en-US",
+		"items": []
+	}`
+
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
+	assert.Equal(t, "en-us", feed.Language())
+}
+
+func TestParseFeedWithoutLanguage(t *testing.T) {
+	data := `{
+		"version": "https://jsonfeed.org/version/1.1",
+		"title": "Example",
+		"home_page_url": "https://example.org/",
+		"feed_url": "https://example.org/feed.json",
+		"items": []
+	}`
+
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
+	assert.Empty(t, feed.Language())
+}
+
+func TestParseItemWithLanguage(t *testing.T) {
+	data := `{
+		"version": "https://jsonfeed.org/version/1.1",
+		"title": "Example",
+		"home_page_url": "https://example.org/",
+		"feed_url": "https://example.org/feed.json",
+		"language": "en-US",
+		"items": [
+			{
+				"id": "1",
+				"url": "https://example.org/item",
+				"content_text": "Bonjour",
+				"language": "fr-FR"
+			}
+		]
+	}`
+
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
+	require.NotEmpty(t, feed.Entries)
+	assert.Equal(t, "fr-fr", feed.Entries[0].Language())
+}
+
+func TestParseItemWithoutLanguage(t *testing.T) {
+	data := `{
+		"version": "https://jsonfeed.org/version/1.1",
+		"title": "Example",
+		"home_page_url": "https://example.org/",
+		"feed_url": "https://example.org/feed.json",
+		"language": "en-US",
+		"items": [
+			{
+				"id": "1",
+				"url": "https://example.org/item",
+				"content_text": "Hello"
+			}
+		]
+	}`
+
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
+	require.NotEmpty(t, feed.Entries)
+	assert.Equal(t, "en-us", feed.Entries[0].Language())
+}

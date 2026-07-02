@@ -309,9 +309,8 @@ func (self *EntryQueryBuilder) GetEntries(ctx context.Context,
 	}
 	defer rows.Close()
 
-	dest := make([]any, 0, 38)
+	dest := make([]any, 0, 39)
 	var entries model.Entries
-	entryMap := make(map[int64]*model.Entry)
 
 	for rows.Next() {
 		var iconID pgtype.Int8
@@ -362,6 +361,7 @@ func (self *EntryQueryBuilder) GetEntries(ctx context.Context,
 			&entry.Feed.HideGlobally,
 			&entry.Feed.NoMediaPlayer,
 			&entry.Feed.WebhookURL,
+			&entry.Feed.Runtime.Language,
 			&iconID, &iconHash,
 			&tz)
 
@@ -401,9 +401,7 @@ func (self *EntryQueryBuilder) GetEntries(ctx context.Context,
 		entry.Feed.Icon.FeedID = entry.FeedID
 		entry.Feed.Category.UserID = entry.UserID
 		entry.MarkStored()
-
 		entries = append(entries, entry)
-		entryMap[entry.ID] = entry
 	}
 	return entries, nil
 }
@@ -444,6 +442,7 @@ SELECT
 	f.hide_globally,
 	f.no_media_player,
 	f.webhook_url,
+  f.runtime ->> 'language' AS feed_language,
 	fi.icon_id, i.hash AS icon_hash,
 	u.timezone` + self.withContentField() + self.withRowNumberField() + `
 FROM entries e
