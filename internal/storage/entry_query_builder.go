@@ -442,7 +442,7 @@ SELECT
 	f.hide_globally,
 	f.no_media_player,
 	f.webhook_url,
-  f.runtime ->> 'language' AS feed_language,
+	coalesce(f.runtime ->> 'language', '') AS feed_language,
 	fi.icon_id, i.hash AS icon_hash,
 	u.timezone` + self.withContentField() + self.withRowNumberField() + `
 FROM entries e
