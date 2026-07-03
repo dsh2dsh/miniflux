@@ -3,7 +3,12 @@
 
 package model // import "miniflux.app/v2/internal/model"
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestNormalizeLanguage(t *testing.T) {
 	cases := []struct {
@@ -17,10 +22,14 @@ func TestNormalizeLanguage(t *testing.T) {
 		{"EN-us", "en-us"},
 		{"pt-BR", "pt-br"},
 		{"  fr-FR  ", "fr-fr"},
+		{"zh-hant-cn-x-private1-private2", "zh-hant-cn-x-private1-private2"},
+
+		// Values longer than 50 characters are rejected.
+		{strings.Repeat("a", 51), ""},
+		{"en-" + strings.Repeat("a", 100), ""},
 	}
 	for _, c := range cases {
-		if got := normalizeLanguage(c.in); got != c.want {
-			t.Errorf("NormalizeLanguage(%q) = %q, want %q", c.in, got, c.want)
-		}
+		got := normalizeLanguage(c.in)
+		assert.Equal(t, c.want, got, "NormalizeLanguage(%q)", c.in)
 	}
 }
