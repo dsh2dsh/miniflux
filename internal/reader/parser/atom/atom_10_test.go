@@ -1846,3 +1846,42 @@ func TestParseEntryWithoutLanguage(t *testing.T) {
 	require.NotEmpty(t, feed.Entries)
 	assert.Equal(t, "en", feed.Entries[0].Language())
 }
+
+func TestParseFeedWithForeignLangAttribute(t *testing.T) {
+	data := `<?xml version="1.0" encoding="utf-8"?>
+	<feed xmlns="http://www.w3.org/2005/Atom" xmlns:foo="http://example.org/ns" xml:lang="fr-CA" foo:lang="zz">
+		<title>Example Feed</title>
+		<link href="http://example.org/"/>
+		<updated>2003-12-13T18:30:02Z</updated>
+		<id>urn:uuid:60a76c80-d399-11d9-b93C-0003939e0af6</id>
+		<entry xml:lang="fr-CA" foo:lang="zz">
+			<title>Bonjour</title>
+			<link href="http://example.org/2003/12/13/bonjour"/>
+			<id>urn:uuid:1225c695-cfb8-4ebb-aaaa-80da344efa6a</id>
+			<updated>2003-12-13T18:30:02Z</updated>
+		</entry>
+	</feed>`
+
+	feed, err := parser.ParseBytes("http://example.org/feed.xml", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
+	assert.Equal(t, "fr-ca", feed.Language())
+
+	require.NotEmpty(t, feed.Entries)
+	assert.Equal(t, "fr-ca", feed.Entries[0].Language())
+}
+
+func TestParseFeedWithUnqualifiedLangAttribute(t *testing.T) {
+	data := `<?xml version="1.0" encoding="utf-8"?>
+	<feed xmlns="http://www.w3.org/2005/Atom" lang="de">
+		<title>Example Feed</title>
+		<link href="http://example.org/"/>
+		<updated>2003-12-13T18:30:02Z</updated>
+		<id>urn:uuid:60a76c80-d399-11d9-b93C-0003939e0af6</id>
+	</feed>`
+
+	feed, err := parser.ParseBytes("http://example.org/feed.xml", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
+	assert.Empty(t, feed.Language())
+}
