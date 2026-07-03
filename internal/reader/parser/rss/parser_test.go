@@ -1932,6 +1932,26 @@ func TestParseFeedWithoutLanguage(t *testing.T) {
 	assert.Empty(t, feed.Language())
 }
 
+func TestParseFeedWithDublinCoreChannelLanguage(t *testing.T) {
+	data := `<?xml version="1.0" encoding="utf-8"?>
+		<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+		<channel>
+			<title>Example</title>
+			<link>https://example.org/</link>
+			<dc:language>fr-FR</dc:language>
+			<item>
+				<title>Item</title>
+				<link>https://example.org/item</link>
+			</item>
+		</channel>
+		</rss>`
+
+	feed, err := parser.ParseBytes("https://example.org/", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
+	assert.Equal(t, "fr-fr", feed.Language())
+}
+
 func TestParseItemWithDublinCoreLanguage(t *testing.T) {
 	data := `<?xml version="1.0" encoding="utf-8"?>
 		<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">

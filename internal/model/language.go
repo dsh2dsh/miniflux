@@ -20,6 +20,10 @@ const maxLanguageLen = 50
 // longer than maxLength is rejected: such a value carries no usable language
 // information, and stripping bad characters could assemble a wrong tag.
 func normalizeLanguage(s string) string {
+	if s == "" {
+		return ""
+	}
+
 	s = strings.TrimSpace(s)
 	if len(s) > maxLanguageLen {
 		return ""

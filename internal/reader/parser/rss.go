@@ -43,12 +43,21 @@ func (self *rssFeed) Feed(feedURL *url.URL, rssFeed *rss.Feed,
 		TTL:         self.rss.GetTTL(),
 	}
 
-	self.feed.WithLanguage(self.rss.Language)
+	self.feed.WithLanguage(self.language())
 	self.feed.WithFeedURL(self.feedURL())
 	self.feed.WithSiteURL(self.siteURL())
 	self.feed.IconURL = self.iconURL()
 	self.feed.Entries = self.entries()
 	return self.feed, nil
+}
+
+func (self *rssFeed) language() string {
+	if self.rss.Language != "" {
+		return self.rss.Language
+	} else if self.rss.DublinCoreExt == nil {
+		return ""
+	}
+	return self.rss.DublinCoreExt.Language
 }
 
 func (self *rssFeed) feedURL() *url.URL {
