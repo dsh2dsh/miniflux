@@ -3,6 +3,7 @@ package parser
 import (
 	"bytes"
 	"fmt"
+	"html"
 	"iter"
 	"net/url"
 	"slices"
@@ -160,7 +161,7 @@ type jsonEntry struct {
 func (self *jsonEntry) Parse() *model.Entry {
 	self.entry.Date = self.published()
 	self.entry.Title = self.title()
-	self.entry.Content = self.json.Content()
+	self.entry.Content = self.content()
 	self.entry.WithURL(self.entryURL())
 	self.entry.Author = joinJsonAuthors(self.json.AllAuthors())
 	self.entry.Tags = self.tags()
@@ -194,6 +195,35 @@ func (self *jsonEntry) title() string {
 		self.json.ContentHTML,
 	} {
 		if s = strings.TrimSpace(s); s != "" {
+			return s
+		}
+	}
+	return ""
+}
+
+func (self *jsonEntry) content() string {
+	contents := [...]struct {
+		content string
+		escape  bool
+	}{
+		{
+			content: self.json.ContentHTML,
+		},
+		{
+			content: self.json.ContentText,
+			escape:  true,
+		},
+		{
+			content: self.json.Summary,
+			escape:  true,
+		},
+	}
+
+	for _, content := range contents {
+		if s := strings.TrimSpace(content.content); s != "" {
+			if content.escape {
+				return html.EscapeString(s)
+			}
 			return s
 		}
 	}

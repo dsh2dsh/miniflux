@@ -1157,14 +1157,15 @@ func TestParseItemWithPlainTextContentContainingHTMLCharacters(t *testing.T) {
 		]
 	}`
 
-	feed, err := Parse("https://example.org/feed.json", bytes.NewBufferString(data))
-	if err != nil {
-		t.Fatal(err)
-	}
+	feed, err := parser.ParseBytes("https://example.org/feed.json", []byte(data))
+	require.NoError(t, err)
+	require.NotNil(t, feed)
+	require.NotEmpty(t, feed.Entries[0])
 
 	// content_text is plain text (JSON Feed 1.1), so it must be HTML-escaped
 	// before being stored as HTML, otherwise the sanitizer drops the markup.
 	want := "Use &lt;div&gt; literally: a &amp; b &lt; c"
+	assert.Equal(t, want, feed.Entries[0].Content)
 	if feed.Entries[0].Content != want {
 		t.Errorf("Incorrect entry content, got: %q, want: %q", feed.Entries[0].Content, want)
 	}
