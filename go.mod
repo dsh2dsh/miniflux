@@ -10,7 +10,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.19.0
 	github.com/dsh2dsh/bluemonday/v2 v2.3.6
 	github.com/dsh2dsh/expx-dotenv v1.4.0
-	github.com/dsh2dsh/gofeed/v2 v2.5.1
+	github.com/dsh2dsh/gofeed/v2 v2.6.0
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/go-webauthn/webauthn v0.17.4
 	github.com/jackc/pgx/v5 v5.10.0
@@ -26,7 +26,7 @@ require (
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.21.0
 	golang.org/x/term v0.44.0
-	golang.org/x/text v0.38.0
+	golang.org/x/text v0.39.0
 	golang.org/x/time v0.15.0
 )
 
@@ -40,7 +40,7 @@ require (
 	github.com/andybalholm/cascadia v1.3.4 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dsh2dsh/goxpp/v2 v2.0.5 // indirect
+	github.com/dsh2dsh/goxpp/v2 v2.1.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.2 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
