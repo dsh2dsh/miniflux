@@ -181,7 +181,7 @@ type rssEntry struct {
 func (self *rssEntry) Parse() *model.Entry {
 	self.entry.Date = self.published()
 	self.entry.Title = self.rss.GetTitle()
-	self.entry.Content = self.rss.GetContent()
+	self.entry.Content = self.content()
 	self.entry.WithURL(self.entryURL())
 	self.entry.Author = self.author()
 	self.entry.CommentsURL = self.commentsURL()
@@ -204,6 +204,13 @@ func (self *rssEntry) published() time.Time {
 		return *t
 	}
 	return time.Now()
+}
+
+func (self *rssEntry) content() string {
+	if content := self.rss.GetContent(); content != "" {
+		return content
+	}
+	return self.rss.GetDescription()
 }
 
 func (self *rssEntry) entryURL() *url.URL {

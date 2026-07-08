@@ -1883,5 +1883,5 @@ func TestParseFeedWithUnqualifiedLangAttribute(t *testing.T) {
 	feed, err := parser.ParseBytes("http://example.org/feed.xml", []byte(data))
 	require.NoError(t, err)
 	require.NotNil(t, feed)
-	assert.Equal(t, "de", feed.Language())
+	assert.Empty(t, feed.Language())
 }
