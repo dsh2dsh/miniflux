@@ -607,16 +607,23 @@ UPDATE entries
 }
 
 // MarkGloballyVisibleFeedsAsRead updates all user entries to the read status.
+// MarkGloballyVisibleFeedsAsRead marks as read the unread entries that are
+// visible in the global unread view, i.e. those belonging to a feed and a
+// category that are both not hidden globally.
 func (s *Storage) MarkGloballyVisibleFeedsAsRead(ctx context.Context,
 	userID int64,
 ) error {
 	result, err := s.db.Exec(ctx, `
 UPDATE entries
-   SET status=$1, changed_at=now()
-  FROM feeds
- WHERE entries.feed_id = feeds.id AND entries.user_id=$2 AND entries.status=$3
-       AND feeds.hide_globally=$4`,
-		model.EntryStatusRead, userID, model.EntryStatusUnread, false)
+   SET status = $1, changed_at = now()
+  FROM feeds JOIN categories ON (categories.id = feeds.category_id)
+ WHERE
+   entries.feed_id = feeds.id
+   AND entries.user_id = $2
+   AND entries.status = $3
+   AND feeds.hide_globally IS FALSE
+   AND categories.hide_globally IS FALSE`,
+		model.EntryStatusRead, userID, model.EntryStatusUnread)
 	if err != nil {
 		return fmt.Errorf(
 			`store: unable to mark globally visible feeds as read: %w`, err)
