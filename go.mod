@@ -8,7 +8,7 @@ require (
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/coreos/go-oidc/v3 v3.20.0
-	github.com/dsh2dsh/bluemonday/v2 v2.3.6
+	github.com/dsh2dsh/bluemonday/v2 v2.4.0
 	github.com/dsh2dsh/expx-dotenv v1.4.0
 	github.com/dsh2dsh/gofeed/v2 v2.7.0
 	github.com/go-playground/validator/v10 v10.30.3
@@ -22,7 +22,7 @@ require (
 	go.yaml.in/yaml/v4 v4.0.0-rc.6
 	golang.org/x/crypto v0.54.0
 	golang.org/x/image v0.44.0
-	golang.org/x/net v0.56.0
+	golang.org/x/net v0.57.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.22.0
 	golang.org/x/term v0.45.0
