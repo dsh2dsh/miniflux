@@ -29,7 +29,10 @@ func (self *contentSecurityPolicy) Content(user *model.User) string {
 		if policy.Len() != 0 {
 			policy.WriteByte(' ')
 		}
-		policy.WriteString(key + " " + value + ";")
+		policy.WriteString(key)
+		policy.WriteByte(' ')
+		policy.WriteString(value)
+		policy.WriteByte(';')
 	}
 	return policy.String()
 }
