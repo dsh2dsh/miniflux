@@ -6,15 +6,16 @@ package api // import "miniflux.app/v2/internal/api"
 
 import (
 	"bytes"
-	"fmt"
 	"io"
-	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"slices"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/caarlos0/env/v11"
@@ -26,16 +27,25 @@ import (
 	"miniflux.app/v2/internal/model"
 )
 
-func TestHealthcheckEndpoint(t *testing.T) {
-	cfg := NewIntegrationConfig(t)
-	api := client.NewClient(cfg.BaseURL)
-	require.NoError(t, api.Healthcheck())
+type integrationConfig struct {
+	BaseURL           string `env:"TEST_MINIFLUX_BASE_URL,required"`
+	AdminUsername     string `env:"ADMIN_USERNAME,required"`
+	AdminPassword     string `env:"ADMIN_PASSWORD,required"`
+	RegularUsername   string `env:"TEST_MINIFLUX_REGULAR_USERNAME_PREFIX"`
+	RegularPassword   string `env:"TEST_MINIFLUX_REGULAR_PASSWORD"`
+	FeedURL           string `env:"TEST_MINIFLUX_FEED_URL"`
+	FeedTitle         string `env:"TEST_MINIFLUX_FEED_TITLE"`
+	SubscriptionTitle string `env:"TEST_MINIFLUX_SUBSCRIPTION_TITLE"`
+	WebsiteURL        string `env:"TEST_MINIFLUX_WEBSITE_URL"`
+	TestListenAddr    string `env:"TEST_LISTEN_ADDR"`
+
+	seq atomic.Int64
 }
 
-func NewIntegrationConfig(t *testing.T) *IntegrationConfig {
+func newIntegrationConfig(t *testing.T) *integrationConfig {
 	t.Helper()
 
-	c := &IntegrationConfig{
+	c := &integrationConfig{
 		RegularUsername:   "regular_test_user",
 		RegularPassword:   "regular_test_user_password",
 		FeedURL:           "http://127.0.0.1:8000/feed.xml",
@@ -50,25 +60,18 @@ func NewIntegrationConfig(t *testing.T) *IntegrationConfig {
 	return c
 }
 
-type IntegrationConfig struct {
-	BaseURL           string `env:"TEST_MINIFLUX_BASE_URL,required"`
-	AdminUsername     string `env:"ADMIN_USERNAME,required"`
-	AdminPassword     string `env:"ADMIN_PASSWORD,required"`
-	RegularUsername   string `env:"TEST_MINIFLUX_REGULAR_USERNAME_PREFIX"`
-	RegularPassword   string `env:"TEST_MINIFLUX_REGULAR_PASSWORD"`
-	FeedURL           string `env:"TEST_MINIFLUX_FEED_URL"`
-	FeedTitle         string `env:"TEST_MINIFLUX_FEED_TITLE"`
-	SubscriptionTitle string `env:"TEST_MINIFLUX_SUBSCRIPTION_TITLE"`
-	WebsiteURL        string `env:"TEST_MINIFLUX_WEBSITE_URL"`
-	TestListenAddr    string `env:"TEST_LISTEN_ADDR"`
+func (self *integrationConfig) RandomUsername() string {
+	return self.RegularUsername + "_" + strconv.FormatInt(self.seq.Add(1), 16)
 }
 
-func (c *IntegrationConfig) RandomUsername() string {
-	return fmt.Sprintf("%s_%10d", c.RegularUsername, rand.Int())
+func TestHealthcheckEndpoint(t *testing.T) {
+	cfg := newIntegrationConfig(t)
+	api := client.NewClient(cfg.BaseURL)
+	require.NoError(t, api.Healthcheck())
 }
 
 func TestEndpointSuite(t *testing.T) {
-	cfg := NewIntegrationConfig(t)
+	cfg := newIntegrationConfig(t)
 	admin := client.NewClient(cfg.BaseURL, cfg.AdminUsername,
 		cfg.AdminPassword)
 	require.NotNil(t, admin)
@@ -79,20 +82,32 @@ func TestEndpointSuite(t *testing.T) {
 	ts := httptest.NewUnstartedServer(http.FileServer(http.Dir("testdata")))
 	ts.Listener = l
 	ts.Start()
-	defer ts.Close()
 	t.Log("httptest.Server listens on", ts.URL)
 
-	e2e := &EndpointTestSuite{
-		cfg:   cfg,
-		admin: admin,
+	t.Cleanup(func() {
+		t.Log("closing httptest.Server ...")
+		ts.Close()
+	})
+
+	for method := range reflect.TypeFor[*EndpointTestSuite]().Methods() {
+		if !strings.HasPrefix(method.Name, "Test") {
+			continue
+		}
+		t.Run(method.Name, func(t *testing.T) {
+			t.Parallel()
+			testSuite := EndpointTestSuite{cfg: cfg, admin: admin}
+			testSuite.SetT(t)
+			testSuite.SetupTest()
+			t.Cleanup(testSuite.TearDownTest)
+			method.Func.Call([]reflect.Value{reflect.ValueOf(&testSuite)})
+		})
 	}
-	suite.Run(t, e2e)
 }
 
 type EndpointTestSuite struct {
 	suite.Suite
 
-	cfg   *IntegrationConfig
+	cfg   *integrationConfig
 	admin *client.Client
 
 	user   *model.User
