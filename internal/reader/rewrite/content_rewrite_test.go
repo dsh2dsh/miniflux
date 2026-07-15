@@ -845,6 +845,26 @@ func TestRewriteRemoveTables(t *testing.T) {
 	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
+func TestRewriteRemoveTablesKeepsSurroundingContentOrder(t *testing.T) {
+	// Regression test for https://github.com/miniflux/v2/issues/3110
+	// When a table is unwrapped, its content and the content surrounding it
+	// must keep their original document order. Previously the unwrapped
+	// content was appended to the end of the parent, so anything after the
+	// table (and the table content itself) ended up reordered.
+	controlEntry := &model.Entry{
+		URL:     "https://example.org/article",
+		Title:   `A title`,
+		Content: `<h1>Header</h1><p>Intro</p><img src="https://example.org/image.png"/><p>Outro</p>`,
+	}
+	testEntry := &model.Entry{
+		URL:     "https://example.org/article",
+		Title:   `A title`,
+		Content: `<h1>Header</h1><table><tbody><tr><td><p>Intro</p><img src="https://example.org/image.png"/></td></tr></tbody></table><p>Outro</p>`,
+	}
+	applyContentRewriteRules(t, testEntry, `remove_tables`)
+	assert.EqualExportedValues(t, controlEntry, testEntry)
+}
+
 func TestRemoveClickbait(t *testing.T) {
 	controlEntry := &model.Entry{
 		URL:     "https://example.org/article",
