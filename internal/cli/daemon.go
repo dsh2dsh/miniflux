@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/http"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -32,7 +32,7 @@ func NewDaemon() *Daemon { return &Daemon{} }
 type Daemon struct {
 	store      *storage.Storage
 	g          *errgroup.Group
-	httpServer *http.Server
+	httpServer *server.Server
 	pool       *worker.Pool
 	templates  *template.Engine
 }
@@ -129,9 +129,13 @@ func generateBundles(ctx context.Context) error {
 }
 
 func (self *Daemon) start(ctx context.Context) error {
-	listener, err := server.Listener()
-	if err != nil {
-		return err
+	var listener net.Listener
+	if config.HasHTTPService() {
+		l, err := server.Listener()
+		if err != nil {
+			return err
+		}
+		listener = l
 	}
 
 	self.g, ctx = errgroup.WithContext(ctx)
@@ -142,8 +146,8 @@ func (self *Daemon) start(ctx context.Context) error {
 	}
 
 	if config.HasHTTPService() {
-		self.httpServer = server.StartWebServer(self.store, self.pool,
-			self.templates, self.g, listener)
+		self.httpServer = server.New(self.store, self.pool, self.templates, self.g,
+			listener)
 	}
 
 	if config.HasMetricsCollector() {

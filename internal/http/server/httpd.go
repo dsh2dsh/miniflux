@@ -4,6 +4,7 @@
 package server // import "miniflux.app/v2/internal/http/server"
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -28,46 +29,80 @@ import (
 	"miniflux.app/v2/internal/worker"
 )
 
-func StartWebServer(store *storage.Storage, pool *worker.Pool,
-	templates *template.Engine, g *errgroup.Group, listener net.Listener,
-) *http.Server {
+type Server struct {
+	store     *storage.Storage
+	pool      *worker.Pool
+	templates *template.Engine
+	g         *errgroup.Group
+	listener  net.Listener
+
+	httpServer *http.Server
+}
+
+func New(
+	store *storage.Storage,
+	pool *worker.Pool,
+	templates *template.Engine,
+	g *errgroup.Group,
+	listener net.Listener,
+) *Server {
+	self := &Server{
+		store:     store,
+		pool:      pool,
+		templates: templates,
+		g:         g,
+		listener:  listener,
+	}
+	return self.init()
+}
+
+func (self *Server) init() *Server {
+	self.httpServer = &http.Server{
+		ReadTimeout:  config.HTTPServerTimeout(),
+		WriteTimeout: config.HTTPServerTimeout(),
+		IdleTimeout:  config.HTTPServerTimeout(),
+		Handler:      self.httpHandler(),
+	}
+	return self.start()
+}
+
+func (self *Server) Shutdown(ctx context.Context) error {
+	if err := self.httpServer.Shutdown(ctx); err != nil {
+		return fmt.Errorf("http/server: shutdown http server: %w", err)
+	}
+	return nil
+}
+
+func (self *Server) start() *Server {
 	certFile := config.CertFile()
 	keyFile := config.CertKeyFile()
 	certDomain := config.CertDomain()
 	listenAddr := config.ListenAddr()
-	server := &http.Server{
-		ReadTimeout:  config.HTTPServerTimeout(),
-		WriteTimeout: config.HTTPServerTimeout(),
-		IdleTimeout:  config.HTTPServerTimeout(),
-		Handler:      setupHandler(store, pool, templates),
-	}
 
 	switch {
 	case os.Getenv("LISTEN_PID") == strconv.Itoa(os.Getpid()):
-		startSystemdSocketServer(server, listener, g)
+		self.startSystemdServer()
 	case strings.HasPrefix(listenAddr, "/"):
-		startUnixSocketServer(server, listenAddr, listener, g)
+		self.startUnixServer(listenAddr)
 	case certDomain != "":
 		config.EnableHTTPS()
-		startAutoCertTLSServer(server, certDomain, store, g)
+		self.startAutoCertServer(certDomain)
 	case certFile != "" && keyFile != "":
 		config.EnableHTTPS()
-		server.Addr = listenAddr
-		startTLSServer(server, certFile, keyFile, g)
+		self.httpServer.Addr = listenAddr
+		self.startTLSServer(certFile, keyFile)
 	default:
-		server.Addr = listenAddr
-		startHTTPServer(server, g)
+		self.httpServer.Addr = listenAddr
+		self.startPlainServer()
 	}
-	return server
+	return self
 }
 
-func startSystemdSocketServer(server *http.Server, listener net.Listener,
-	g *errgroup.Group,
-) {
-	g.Go(func() error {
-		defer listener.Close()
+func (self *Server) startSystemdServer() {
+	self.g.Go(func() error {
+		defer self.listener.Close()
 		slog.Info(`Starting server using systemd socket`)
-		if err := server.Serve(listener); err != http.ErrServerClosed {
+		if err := self.httpServer.Serve(self.listener); err != http.ErrServerClosed {
 			slog.Error("failed serve on systemd socket", slog.Any("error", err))
 			return fmt.Errorf(
 				"http/server: failed serve on systemd socket: %w", err)
@@ -76,14 +111,12 @@ func startSystemdSocketServer(server *http.Server, listener net.Listener,
 	})
 }
 
-func startUnixSocketServer(server *http.Server, path string,
-	listener net.Listener, g *errgroup.Group,
-) {
-	g.Go(func() error {
-		defer listener.Close()
+func (self *Server) startUnixServer(path string) {
+	self.g.Go(func() error {
+		defer self.listener.Close()
 		slog.Info("Starting server using a Unix socket",
 			slog.String("socket", path))
-		if err := server.Serve(listener); err != http.ErrServerClosed {
+		if err := self.httpServer.Serve(self.listener); err != http.ErrServerClosed {
 			slog.Error("failed serve on unix socket",
 				slog.String("socket", path), slog.Any("error", err))
 			return fmt.Errorf(
@@ -93,17 +126,15 @@ func startUnixSocketServer(server *http.Server, path string,
 	})
 }
 
-func startAutoCertTLSServer(server *http.Server, certDomain string,
-	store *storage.Storage, g *errgroup.Group,
-) {
-	server.Addr = ":https"
+func (self *Server) startAutoCertServer(certDomain string) {
+	self.httpServer.Addr = ":https"
 	certManager := autocert.Manager{
-		Cache:      store.NewCertificateCache(),
+		Cache:      self.store.NewCertificateCache(),
 		Prompt:     autocert.AcceptTOS,
 		HostPolicy: autocert.HostWhitelist(certDomain),
 	}
-	server.TLSConfig.GetCertificate = certManager.GetCertificate
-	server.TLSConfig.NextProtos = []string{"h2", "http/1.1", acme.ALPNProto}
+	self.httpServer.TLSConfig.GetCertificate = certManager.GetCertificate
+	self.httpServer.TLSConfig.NextProtos = []string{"h2", "http/1.1", acme.ALPNProto}
 
 	// Handle http-01 challenge.
 	s := &http.Server{
@@ -111,7 +142,7 @@ func startAutoCertTLSServer(server *http.Server, certDomain string,
 		Addr:    ":http",
 	}
 
-	g.Go(func() error {
+	self.g.Go(func() error {
 		if err := s.ListenAndServe(); err != http.ErrServerClosed {
 			slog.Error("failed serve http-01 challenge", slog.Any("error", err))
 			return fmt.Errorf(
@@ -120,11 +151,11 @@ func startAutoCertTLSServer(server *http.Server, certDomain string,
 		return nil
 	})
 
-	g.Go(func() error {
+	self.g.Go(func() error {
 		slog.Info("Starting TLS server using automatic certificate management",
-			slog.String("listen_address", server.Addr),
+			slog.String("listen_address", self.httpServer.Addr),
 			slog.String("domain", certDomain))
-		if err := server.ListenAndServeTLS("", ""); err != http.ErrServerClosed {
+		if err := self.httpServer.ListenAndServeTLS("", ""); err != http.ErrServerClosed {
 			slog.Error(
 				"failed serve TLS server with automatic certificate management",
 				slog.Any("error", err))
@@ -135,15 +166,13 @@ func startAutoCertTLSServer(server *http.Server, certDomain string,
 	})
 }
 
-func startTLSServer(server *http.Server, certFile, keyFile string,
-	g *errgroup.Group,
-) {
-	g.Go(func() error {
+func (self *Server) startTLSServer(certFile, keyFile string) {
+	self.g.Go(func() error {
 		slog.Info("Starting TLS server using a certificate",
-			slog.String("listen_address", server.Addr),
+			slog.String("listen_address", self.httpServer.Addr),
 			slog.String("cert_file", certFile),
 			slog.String("key_file", keyFile))
-		err := server.ListenAndServeTLS(certFile, keyFile)
+		err := self.httpServer.ListenAndServeTLS(certFile, keyFile)
 		if err != http.ErrServerClosed {
 			slog.Error("failed serve TLS server", slog.Any("error", err))
 			return fmt.Errorf("http/server: failed serve TLS server: %w", err)
@@ -152,11 +181,11 @@ func startTLSServer(server *http.Server, certFile, keyFile string,
 	})
 }
 
-func startHTTPServer(server *http.Server, g *errgroup.Group) {
-	g.Go(func() error {
+func (self *Server) startPlainServer() {
+	self.g.Go(func() error {
 		slog.Info("Starting HTTP server",
-			slog.String("listen_address", server.Addr))
-		if err := server.ListenAndServe(); err != http.ErrServerClosed {
+			slog.String("listen_address", self.httpServer.Addr))
+		if err := self.httpServer.ListenAndServe(); err != http.ErrServerClosed {
 			slog.Error("failed serve plain HTTP server", slog.Any("error", err))
 			return fmt.Errorf("http/server: failed serve plain HTTP server: %w", err)
 		}
@@ -164,14 +193,12 @@ func startHTTPServer(server *http.Server, g *errgroup.Group) {
 	})
 }
 
-func setupHandler(store *storage.Storage, pool *worker.Pool,
-	templates *template.Engine,
-) http.Handler {
-	serveMux := templates.Router()
+func (self *Server) httpHandler() http.Handler {
+	serveMux := self.templates.Router()
 
 	// These routes do not take the base path into consideration and are always
 	// available at the root of the server.
-	readinessProbe := makeReadinessProbe(store, pool)
+	readinessProbe := self.makeReadinessProbe()
 	serveMux.HandleFunc("/liveness", livenessProbe).
 		HandleFunc("/healthz", livenessProbe).
 		HandleFunc("/readiness", readinessProbe).
@@ -186,7 +213,7 @@ func setupHandler(store *storage.Storage, pool *worker.Pool,
 	m.Use(middleware.Gzip, middleware.RequestId, middleware.ClientIP)
 
 	if config.HasMetricsCollector() {
-		m.Handle("/metrics", metric.Handler(store))
+		m.Handle("/metrics", metric.Handler(self.store))
 	}
 
 	if config.HasMaintenanceMode() {
@@ -199,11 +226,11 @@ func setupHandler(store *storage.Storage, pool *worker.Pool,
 
 	m.Use(middleware.WithAccessLog(), middleware.WithPanic)
 
-	fever.Serve(m, store)
-	googlereader.Serve(m, store, templates)
+	fever.Serve(m, self.store)
+	googlereader.Serve(m, self.store, self.templates)
 	if config.HasAPI() {
-		api.Serve(m, store, pool, templates)
+		api.Serve(m, self.store, self.pool, self.templates)
 	}
-	ui.Serve(m, store, pool, templates)
+	ui.Serve(m, self.store, self.pool, self.templates)
 	return serveMux
 }

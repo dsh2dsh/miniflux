@@ -5,27 +5,24 @@ import (
 	"net/http"
 
 	"miniflux.app/v2/internal/config"
-	"miniflux.app/v2/internal/storage"
-	"miniflux.app/v2/internal/worker"
 )
 
-func makeReadinessProbe(store *storage.Storage, pool *worker.Pool,
-) http.HandlerFunc {
+func (self *Server) makeReadinessProbe() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if err := store.Ping(r.Context()); err != nil {
+		if err := self.store.Ping(r.Context()); err != nil {
 			http.Error(w, fmt.Sprintf("Database Connection Error: %s", err),
 				http.StatusServiceUnavailable)
 			return
 		}
 
-		if err := pool.Err(); err != nil {
+		if err := self.pool.Err(); err != nil {
 			http.Error(w,
 				fmt.Sprintf("refresh of feeds completed with error: %s", err),
 				http.StatusServiceUnavailable)
 		}
 
 		schedulerFreq := config.PollingFrequency()
-		if d := pool.SinceSchedulerCompleted(); d > schedulerFreq*2 {
+		if d := self.pool.SinceSchedulerCompleted(); d > schedulerFreq*2 {
 			http.Error(w, fmt.Sprintf("slow scheduler: %s", d),
 				http.StatusServiceUnavailable)
 		}
