@@ -5,37 +5,30 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 
 	"miniflux.app/v2/internal/config"
 )
 
-func Listener() (net.Listener, error) {
-	if !config.HasHTTPService() {
-		return nil, nil
-	}
-
-	var listener net.Listener
-	listenAddr := config.ListenAddr()
-
-	switch {
-	case os.Getenv("LISTEN_PID") == strconv.Itoa(os.Getpid()):
+func newListener(serverType int) (net.Listener, error) {
+	if serverType == systemdServer {
 		f := os.NewFile(3, "systemd socket")
 		l, err := net.FileListener(f)
 		if err != nil {
 			return nil, fmt.Errorf(
 				"http/server: create listener from systemd socket: %w", err)
 		}
-		listener = l
-	case strings.HasPrefix(listenAddr, "/"):
+		return l, nil
+	}
+
+	if serverType == unixServer {
+		listenAddr := config.ListenAddr()
 		l, err := unixListener(listenAddr, 0o666)
 		if err != nil {
 			return nil, fmt.Errorf("create unix listener on %q: %w", listenAddr, err)
 		}
-		listener = l
+		return l, nil
 	}
-	return listener, nil
+	return nil, nil
 }
 
 func unixListener(path string, mode uint32) (*net.UnixListener, error) {

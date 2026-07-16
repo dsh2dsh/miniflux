@@ -5,13 +5,12 @@ package server // import "miniflux.app/v2/internal/http/server"
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
-	"os"
-	"strconv"
-	"strings"
+	"sync"
 
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
@@ -30,70 +29,96 @@ import (
 )
 
 type Server struct {
+	serverType int
+
 	store     *storage.Storage
 	pool      *worker.Pool
 	templates *template.Engine
 	g         *errgroup.Group
 	listener  net.Listener
 
+	certFile string
+	keyFile  string
+	cert     *tls.Certificate
+	mu       sync.RWMutex
+
 	httpServer *http.Server
 }
 
-func New(
+func New() (*Server, error) {
+	self := &Server{
+		serverType: plainServer,
+		certFile:   config.CertFile(),
+		keyFile:    config.CertKeyFile(),
+
+		httpServer: &http.Server{
+			ReadTimeout:  config.HTTPServerTimeout(),
+			WriteTimeout: config.HTTPServerTimeout(),
+			IdleTimeout:  config.HTTPServerTimeout(),
+		},
+	}
+	self.detectServerType()
+
+	l, err := newListener(self.serverType)
+	if err != nil {
+		return nil, err
+	}
+	self.listener = l
+
+	if err := self.loadCert(); err != nil {
+		return nil, err
+	}
+	return self, nil
+}
+
+func (self *Server) loadCert() error {
+	if self.serverType != tlsServer || !self.tlsConfigured() {
+		return nil
+	}
+
+	slog.Info("load TLS certificate",
+		slog.String("cert", self.certFile),
+		slog.String("key", self.keyFile))
+
+	cert, err := tls.LoadX509KeyPair(self.certFile, self.keyFile)
+	if err != nil {
+		slog.Error("unable load TLS certificate", slog.Any("error", err))
+		return fmt.Errorf("load TLS cert from cert=%q, key=%q: %w",
+			self.certFile, self.keyFile, err)
+	}
+
+	self.mu.Lock()
+	self.cert = &cert
+	self.mu.Unlock()
+	return nil
+}
+
+func (self *Server) Start(
 	store *storage.Storage,
 	pool *worker.Pool,
 	templates *template.Engine,
 	g *errgroup.Group,
-	listener net.Listener,
 ) *Server {
-	self := &Server{
-		store:     store,
-		pool:      pool,
-		templates: templates,
-		g:         g,
-		listener:  listener,
-	}
-	return self.init()
-}
+	self.store = store
+	self.pool = pool
+	self.templates = templates
+	self.g = g
 
-func (self *Server) init() *Server {
-	self.httpServer = &http.Server{
-		ReadTimeout:  config.HTTPServerTimeout(),
-		WriteTimeout: config.HTTPServerTimeout(),
-		IdleTimeout:  config.HTTPServerTimeout(),
-		Handler:      self.httpHandler(),
-	}
-	return self.start()
-}
+	self.httpServer.Handler = self.httpHandler()
 
-func (self *Server) Shutdown(ctx context.Context) error {
-	if err := self.httpServer.Shutdown(ctx); err != nil {
-		return fmt.Errorf("http/server: shutdown http server: %w", err)
-	}
-	return nil
-}
-
-func (self *Server) start() *Server {
-	certFile := config.CertFile()
-	keyFile := config.CertKeyFile()
-	certDomain := config.CertDomain()
-	listenAddr := config.ListenAddr()
-
-	switch {
-	case os.Getenv("LISTEN_PID") == strconv.Itoa(os.Getpid()):
+	switch self.serverType {
+	case systemdServer:
 		self.startSystemdServer()
-	case strings.HasPrefix(listenAddr, "/"):
-		self.startUnixServer(listenAddr)
-	case certDomain != "":
+	case unixServer:
+		self.startUnixServer(config.ListenAddr())
+	case autoCertServer:
 		config.EnableHTTPS()
-		self.startAutoCertServer(certDomain)
-	case certFile != "" && keyFile != "":
+		self.startAutoCertServer(config.CertDomain())
+	case tlsServer:
 		config.EnableHTTPS()
-		self.httpServer.Addr = listenAddr
-		self.startTLSServer(certFile, keyFile)
+		self.tlsStart(config.ListenAddr())
 	default:
-		self.httpServer.Addr = listenAddr
-		self.startPlainServer()
+		self.startPlainServer(config.ListenAddr())
 	}
 	return self
 }
@@ -128,13 +153,15 @@ func (self *Server) startUnixServer(path string) {
 
 func (self *Server) startAutoCertServer(certDomain string) {
 	self.httpServer.Addr = ":https"
-	certManager := autocert.Manager{
+	certManager := &autocert.Manager{
 		Cache:      self.store.NewCertificateCache(),
 		Prompt:     autocert.AcceptTOS,
 		HostPolicy: autocert.HostWhitelist(certDomain),
 	}
-	self.httpServer.TLSConfig.GetCertificate = certManager.GetCertificate
-	self.httpServer.TLSConfig.NextProtos = []string{"h2", "http/1.1", acme.ALPNProto}
+	self.httpServer.TLSConfig = &tls.Config{
+		GetCertificate: certManager.GetCertificate,
+		NextProtos:     []string{"h2", "http/1.1", acme.ALPNProto},
+	}
 
 	// Handle http-01 challenge.
 	s := &http.Server{
@@ -166,13 +193,16 @@ func (self *Server) startAutoCertServer(certDomain string) {
 	})
 }
 
-func (self *Server) startTLSServer(certFile, keyFile string) {
+func (self *Server) tlsStart(addr string) {
+	self.httpServer.Addr = addr
+	self.httpServer.TLSConfig = &tls.Config{GetCertificate: self.tlsCertificate}
+
 	self.g.Go(func() error {
 		slog.Info("Starting TLS server using a certificate",
 			slog.String("listen_address", self.httpServer.Addr),
-			slog.String("cert_file", certFile),
-			slog.String("key_file", keyFile))
-		err := self.httpServer.ListenAndServeTLS(certFile, keyFile)
+			slog.String("cert_file", self.certFile),
+			slog.String("key_file", self.keyFile))
+		err := self.httpServer.ListenAndServeTLS("", "")
 		if err != http.ErrServerClosed {
 			slog.Error("failed serve TLS server", slog.Any("error", err))
 			return fmt.Errorf("http/server: failed serve TLS server: %w", err)
@@ -181,7 +211,17 @@ func (self *Server) startTLSServer(certFile, keyFile string) {
 	})
 }
 
-func (self *Server) startPlainServer() {
+func (self *Server) tlsCertificate(*tls.ClientHelloInfo) (*tls.Certificate,
+	error,
+) {
+	self.mu.RLock()
+	cert := self.cert
+	self.mu.RUnlock()
+	return cert, nil
+}
+
+func (self *Server) startPlainServer(addr string) {
+	self.httpServer.Addr = addr
 	self.g.Go(func() error {
 		slog.Info("Starting HTTP server",
 			slog.String("listen_address", self.httpServer.Addr))
@@ -233,4 +273,17 @@ func (self *Server) httpHandler() http.Handler {
 	}
 	ui.Serve(m, self.store, self.pool, self.templates)
 	return serveMux
+}
+
+func (self *Server) Reload() {
+	if self.cert != nil {
+		_ = self.loadCert()
+	}
+}
+
+func (self *Server) Shutdown(ctx context.Context) error {
+	if err := self.httpServer.Shutdown(ctx); err != nil {
+		return fmt.Errorf("http/server: shutdown http server: %w", err)
+	}
+	return nil
 }

@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -129,13 +128,12 @@ func generateBundles(ctx context.Context) error {
 }
 
 func (self *Daemon) start(ctx context.Context) error {
-	var listener net.Listener
 	if config.HasHTTPService() {
-		l, err := server.Listener()
+		s, err := server.New()
 		if err != nil {
 			return err
 		}
-		listener = l
+		self.httpServer = s
 	}
 
 	self.g, ctx = errgroup.WithContext(ctx)
@@ -145,9 +143,8 @@ func (self *Daemon) start(ctx context.Context) error {
 		self.runScheduler(ctx)
 	}
 
-	if config.HasHTTPService() {
-		self.httpServer = server.New(self.store, self.pool, self.templates, self.g,
-			listener)
+	if self.httpServer != nil {
+		self.httpServer.Start(self.store, self.pool, self.templates, self.g)
 	}
 
 	if config.HasMetricsCollector() {
@@ -201,7 +198,20 @@ func (self *Daemon) systemdReady(ctx context.Context) error {
 }
 
 func (self *Daemon) wait(ctx context.Context) error {
-	<-ctx.Done()
+	sigReload := make(chan os.Signal, 1)
+	signal.Notify(sigReload, syscall.SIGHUP)
+
+forLoop:
+	for {
+		select {
+		case <-sigReload:
+			slog.Info("got HUP signal")
+			self.reload()
+		case <-ctx.Done():
+			break forLoop
+		}
+	}
+
 	if self.httpServer != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -217,4 +227,10 @@ func (self *Daemon) wait(ctx context.Context) error {
 	}
 	slog.Info("Process gracefully stopped")
 	return nil
+}
+
+func (self *Daemon) reload() {
+	if self.httpServer != nil {
+		self.httpServer.Reload()
+	}
 }
