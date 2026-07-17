@@ -4,7 +4,11 @@
 package subscription
 
 import (
+	"strconv"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"miniflux.app/v2/internal/logging"
 )
@@ -409,5 +413,114 @@ func TestFindCanonicalURLNotFound(t *testing.T) {
 	canonicalURL := NewSubscriptionFinder().findCanonicalURL("https://example.org/page", "text/html", []byte(htmlPage))
 	if canonicalURL != "https://example.org/page" {
 		t.Errorf(`Expected effective URL when canonical not found, got %q`, canonicalURL)
+	}
+}
+
+func TestFindGitHubFeed(t *testing.T) {
+	tests := []struct {
+		websiteURL     string
+		feedURLs       []string
+		discoveryError bool
+	}{
+		// User profile.
+		{
+			websiteURL: "https://github.com/jvoisin",
+			feedURLs:   []string{"https://github.com/jvoisin.atom"},
+		},
+		// Organization profile.
+		{
+			websiteURL: "https://github.com/miniflux",
+			feedURLs:   []string{"https://github.com/miniflux.atom"},
+		},
+		// User profile with a trailing slash.
+		{
+			websiteURL: "https://github.com/jvoisin/",
+			feedURLs:   []string{"https://github.com/jvoisin.atom"},
+		},
+		// User profile served from the www subdomain.
+		{
+			websiteURL: "https://www.github.com/jvoisin",
+			feedURLs:   []string{"https://github.com/jvoisin.atom"},
+		},
+		// Repository.
+		{
+			websiteURL: "https://github.com/miniflux/v2",
+			feedURLs: []string{
+				"https://github.com/miniflux/v2/commits.atom",
+				"https://github.com/miniflux/v2/releases.atom",
+				"https://github.com/miniflux/v2/tags.atom",
+			},
+		},
+		// Repository with a trailing slash.
+		{
+			websiteURL: "https://github.com/miniflux/v2/",
+			feedURLs: []string{
+				"https://github.com/miniflux/v2/commits.atom",
+				"https://github.com/miniflux/v2/releases.atom",
+				"https://github.com/miniflux/v2/tags.atom",
+			},
+		},
+		// Deeper repository URL (e.g. a specific file or subpage) has no
+		// dedicated feed.
+		{
+			websiteURL: "https://github.com/miniflux/v2/blob/main/README.md",
+			feedURLs:   []string{},
+		},
+		// Arbitrary deep path that does not map to a repository has no feed.
+		{
+			websiteURL: "https://github.com/jvoisin/mat2/test/something/wrong/lol",
+			feedURLs:   []string{},
+		},
+		// GitHub root page has no feed.
+		{
+			websiteURL: "https://github.com/",
+			feedURLs:   []string{},
+		},
+		{
+			websiteURL: "https://github.com",
+			feedURLs:   []string{},
+		},
+		// Non-GitHub URL.
+		{
+			websiteURL: "https://example.org/jvoisin",
+			feedURLs:   []string{},
+		},
+		// A domain that merely ends with github.com must not be treated as GitHub.
+		{
+			websiteURL: "https://notgithub.com/jvoisin",
+			feedURLs:   []string{},
+		},
+		// Invalid URL.
+		{
+			websiteURL:     "https://github|com/",
+			feedURLs:       []string{},
+			discoveryError: true,
+		},
+	}
+
+	log := logging.FromContext(t.Context())
+	for i, tt := range tests {
+		name := "test-" + strconv.Itoa(i+1)
+		t.Run(name, func(t *testing.T) {
+			subscriptions, lerr := NewSubscriptionFinder().
+				findSubscriptionsFromGitHub(log, tt.websiteURL)
+			if tt.discoveryError {
+				require.NotNil(t, lerr,
+					"Parsing an invalid URL should return an error: %s", tt.websiteURL)
+				return
+			}
+
+			require.Nil(t, lerr,
+				"Parsing a GitHub URL should not return any error: %s", tt.websiteURL)
+			require.Len(t, subscriptions, len(tt.feedURLs),
+				"Incorrect number of subscriptions returned for %s", tt.websiteURL)
+
+			urls := make([]string, len(tt.feedURLs))
+			for i := range subscriptions {
+				urls[i] = subscriptions[i].URL
+			}
+			assert.Equal(t, tt.feedURLs, urls, "Unexpected feed for %s",
+				tt.websiteURL)
+		})
 	}
 }

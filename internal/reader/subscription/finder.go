@@ -103,7 +103,21 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 		return subscriptions, nil
 	}
 
-	// Step 4) Parse web page to find feeds from HTML meta tags.
+	// Step 4) Check if the website URL is a GitHub page.
+	log.Debug("Try to detect feeds for a GitHub page")
+	subscriptions, lerr = f.findSubscriptionsFromGitHub(log, websiteURL)
+	if lerr != nil {
+		return nil, lerr
+	}
+
+	subscriptions = subscriptions.Parseable(ctx, client)
+	if len(subscriptions) > 0 {
+		log.Debug("Subscriptions found from GitHub page",
+			slog.Any("subscriptions", subscriptions))
+		return subscriptions, nil
+	}
+
+	// Step 5) Parse web page to find feeds from HTML meta tags.
 	log.Debug("Try to detect feeds from HTML meta tags",
 		slog.String("content_type", resp.ContentType()))
 	subscriptions, lerr = f.findSubscriptionsFromWebPage(websiteURL,
@@ -119,7 +133,7 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 		return subscriptions, nil
 	}
 
-	// Step 5) Check if the website URL can use RSS-Bridge.
+	// Step 6) Check if the website URL can use RSS-Bridge.
 	if rssBridgeURL != "" {
 		log.Debug("Try to detect feeds with RSS-Bridge")
 		subscriptions, lerr := f.findSubscriptionsFromRSSBridge(ctx, log,
@@ -136,7 +150,7 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 		}
 	}
 
-	// Step 6) Check if the website has a known feed URL.
+	// Step 7) Check if the website has a known feed URL.
 	log.Debug("Try to detect feeds from well-known URLs")
 	subscriptions = f.findSubscriptionsFromWellKnownURLs(websiteURL)
 
@@ -339,6 +353,58 @@ func (f *SubscriptionFinder) findSubscriptionsFromYouTube(log *slog.Logger,
 		subscriptions := Subscriptions{NewSubscription(decodedURL.String(), feedURL)}
 		return subscriptions, nil
 	}
+	return nil, nil
+}
+
+// findSubscriptionsFromGitHub builds the Atom feed URLs that GitHub exposes for
+// user/organization profiles and repositories. These feeds are not advertised
+// in the HTML of the pages, so they cannot be discovered through the usual
+// mechanisms.
+func (f *SubscriptionFinder) findSubscriptionsFromGitHub(log *slog.Logger,
+	websiteURL string,
+) (Subscriptions, *locale.LocalizedErrorWrapper) {
+	decodedURL, err := url.Parse(websiteURL)
+	if err != nil {
+		return nil, locale.NewLocalizedErrorWrapper(err,
+			"error.invalid_site_url", err)
+	}
+
+	hostname := decodedURL.Hostname()
+	if hostname != "github.com" && hostname != "www.github.com" {
+		log.Debug("GitHub feed discovery skipped: not a GitHub domain")
+		return nil, nil
+	}
+
+	// Split the path into at most three segments to determine the kind of page.
+	// We only care about the first two, so there is no need to keep splitting.
+	path := strings.Trim(decodedURL.EscapedPath(), "/")
+	if path == "" {
+		// The root page (https://github.com/) has no feed.
+		return nil, nil
+	}
+
+	const github = "https://github.com/"
+	segments := strings.SplitN(path, "/", 3)
+	switch len(segments) {
+	case 1:
+		// User or organization profile: https://github.com/<user>
+		// The activity feed lives at https://github.com/<user>.atom
+		user := segments[0]
+		feedURL := github + user + ".atom"
+		return Subscriptions{NewSubscription(user, feedURL)}, nil
+	case 2:
+		// Repository: https://github.com/<owner>/<repo>
+		// GitHub exposes commits, releases and tags Atom feeds for repositories.
+		repoPath := github + segments[0] + "/" + segments[1] + "/"
+		return Subscriptions{
+			NewSubscription("Commits", repoPath+"commits.atom"),
+			NewSubscription("Releases", repoPath+"releases.atom"),
+			NewSubscription("Tags", repoPath+"tags.atom"),
+		}, nil
+	}
+
+	// Deeper paths that don't map to a user profile or a repository (e.g.
+	// https://github.com/owner/repo/tree/branch/dir) have no dedicated feed.
 	return nil, nil
 }
 
