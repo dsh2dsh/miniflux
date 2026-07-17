@@ -4,11 +4,13 @@
 package fetcher // import "miniflux.app/v2/internal/reader/fetcher"
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -567,4 +569,38 @@ func TestRequestBuilder_AllowPrivateConfiguredProxy(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRequestBuilder_TimeoutConfiguration(t *testing.T) {
+	if testing.Verbose() {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
+
+	// Create a slow server that blocks until the client disconnects, so
+	// server.Close() does not have to wait for a fixed sleep to elapse.
+	server := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			<-r.Context().Done()
+		}))
+	t.Cleanup(server.Close)
+
+	t.Setenv("FETCHER_ALLOW_PRIVATE_HOSTS", server.Listener.Addr().String())
+	require.NoError(t, config.Load(""))
+
+	builder := NewRequestBuilder()
+	builder.clientTimeout = 100 * time.Millisecond
+	builder.customized = true
+
+	start := time.Now()
+	resp, err := builder.Request(t.Context(), server.URL)
+	duration := time.Since(start)
+	require.NoError(t, err)
+
+	require.ErrorIs(t, resp.Err(), context.DeadlineExceeded,
+		"Expected timeout error")
+	t.Log(resp.Err())
+
+	// Should timeout around 100ms, allow some margin
+	assert.Less(t, duration, 500*time.Millisecond,
+		"Expected timeout around 100ms, took %v", duration)
 }
