@@ -6,15 +6,13 @@
 package slack // import "miniflux.app/v2/internal/integration/slack"
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 
+	"miniflux.app/v2/internal/integration/client"
 	"miniflux.app/v2/internal/model"
-	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/urllib"
 )
 
@@ -32,59 +30,49 @@ func (c *Client) SendSlackMsg(ctx context.Context, feed *model.Feed,
 	entries model.Entries,
 ) error {
 	for _, entry := range entries {
-		requestBody, err := json.Marshal(&slackMessage{
-			Attachments: []slackAttachments{
-				{
-					Title: "RSS feed update from Miniflux",
-					Color: slackMsgColor,
-					Fields: []slackFields{
-						{
-							Title: "Updated feed",
-							Value: feed.Title,
-						},
-						{
-							Title: "Article title",
-							Value: entry.Title,
-						},
-						{
-							Title: "Article link",
-							Value: entry.URL,
-						},
-						{
-							Title: "Author",
-							Value: entry.Author,
-							Short: true,
-						},
-						{
-							Title: "Source website",
-							Value: urllib.RootURL(feed.SiteURL),
-							Short: true,
-						},
-					},
-				},
-			},
-		})
-		if err != nil {
-			return fmt.Errorf("slack: unable to encode request body: %w", err)
-		}
-
-		request, err := http.NewRequestWithContext(ctx, http.MethodPost,
-			c.webhookURL, bytes.NewReader(requestBody))
-		if err != nil {
-			return fmt.Errorf("slack: unable to create request: %w", err)
-		}
-
-		request.Header.Set("Content-Type", "application/json")
-
 		slog.Debug("Sending Slack notification",
 			slog.String("webhookURL", c.webhookURL),
 			slog.String("title", feed.Title),
 			slog.String("entry_url", entry.URL),
 		)
 
-		response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
+		response, err := client.NewRequestBuilder(c.webhookURL).
+			WithMethod(http.MethodPost).
+			WithJSON(&slackMessage{
+				Attachments: []slackAttachments{
+					{
+						Title: "RSS feed update from Miniflux",
+						Color: slackMsgColor,
+						Fields: []slackFields{
+							{
+								Title: "Updated feed",
+								Value: feed.Title,
+							},
+							{
+								Title: "Article title",
+								Value: entry.Title,
+							},
+							{
+								Title: "Article link",
+								Value: entry.URL,
+							},
+							{
+								Title: "Author",
+								Value: entry.Author,
+								Short: true,
+							},
+							{
+								Title: "Source website",
+								Value: urllib.RootURL(feed.SiteURL),
+								Short: true,
+							},
+						},
+					},
+				},
+			}).
+			Do(ctx)
 		if err != nil {
-			return fmt.Errorf("slack: unable to send request: %w", err)
+			return fmt.Errorf("slack: %w", err)
 		}
 		defer response.Close()
 

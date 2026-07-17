@@ -4,15 +4,13 @@
 package linkwarden // import "miniflux.app/v2/internal/integration/linkwarden"
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 
-	"miniflux.app/v2/internal/reader/fetcher"
+	"miniflux.app/v2/internal/integration/client"
 	"miniflux.app/v2/internal/urllib"
 )
 
@@ -57,23 +55,13 @@ func (c *Client) CreateBookmark(ctx context.Context, entryURL,
 		payload.Collection = &linkwardenCollection{ID: c.collectionID}
 	}
 
-	requestBody, err := json.Marshal(payload)
+	response, err := client.NewRequestBuilder(apiEndpoint).
+		WithMethod(http.MethodPost).
+		WithJSON(payload).
+		WithHeader("Authorization", "Bearer "+c.apiKey).
+		Do(ctx)
 	if err != nil {
-		return fmt.Errorf("linkwarden: unable to encode request body: %w", err)
-	}
-
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, apiEndpoint,
-		bytes.NewReader(requestBody))
-	if err != nil {
-		return fmt.Errorf("linkwarden: unable to create request: %w", err)
-	}
-
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Authorization", "Bearer "+c.apiKey)
-
-	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
-	if err != nil {
-		return fmt.Errorf("linkwarden: unable to send request: %w", err)
+		return fmt.Errorf("linkwarden: %w", err)
 	}
 	defer response.Close()
 

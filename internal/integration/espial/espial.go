@@ -6,12 +6,11 @@ package espial // import "miniflux.app/v2/internal/integration/espial"
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 
-	"miniflux.app/v2/internal/reader/fetcher"
+	"miniflux.app/v2/internal/integration/client"
 	"miniflux.app/v2/internal/urllib"
 )
 
@@ -36,27 +35,18 @@ func (c *Client) CreateLink(ctx context.Context, entryURL, entryTitle,
 		return fmt.Errorf("espial: invalid API endpoint: %w", err)
 	}
 
-	requestBody, err := json.Marshal(&espialDocument{
-		Title:  entryTitle,
-		URL:    entryURL,
-		ToRead: true,
-		Tags:   espialTags,
-	})
+	response, err := client.NewRequestBuilder(apiEndpoint).
+		WithMethod(http.MethodPost).
+		WithJSON(&espialDocument{
+			Title:  entryTitle,
+			URL:    entryURL,
+			ToRead: true,
+			Tags:   espialTags,
+		}).
+		WithHeader("Authorization", "ApiKey "+c.apiKey).
+		Do(ctx)
 	if err != nil {
-		return fmt.Errorf("espial: unable to encode request body: %w", err)
-	}
-
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, apiEndpoint,
-		bytes.NewReader(requestBody))
-	if err != nil {
-		return fmt.Errorf("espial: unable to create request: %w", err)
-	}
-
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Authorization", "ApiKey "+c.apiKey)
-	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
-	if err != nil {
-		return fmt.Errorf("espial: unable to send request: %w", err)
+		return fmt.Errorf("espial: %w", err)
 	}
 	defer response.Close()
 

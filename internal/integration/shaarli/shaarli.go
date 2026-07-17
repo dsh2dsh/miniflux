@@ -4,18 +4,16 @@
 package shaarli // import "miniflux.app/v2/internal/integration/shaarli"
 
 import (
-	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha512"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
-	"miniflux.app/v2/internal/reader/fetcher"
+	"miniflux.app/v2/internal/integration/client"
 	"miniflux.app/v2/internal/urllib"
 )
 
@@ -39,28 +37,18 @@ func (c *Client) CreateLink(ctx context.Context, entryURL, entryTitle string,
 		return fmt.Errorf("shaarli: invalid API endpoint: %w", err)
 	}
 
-	requestBody, err := json.Marshal(&addLinkRequest{
-		URL:     entryURL,
-		Title:   entryTitle,
-		Private: true,
-	})
+	response, err := client.NewRequestBuilder(apiEndpoint).
+		WithMethod(http.MethodPost).
+		WithJSON(&addLinkRequest{
+			URL:     entryURL,
+			Title:   entryTitle,
+			Private: true,
+		}).
+		WithHeader("Accept", "application/json").
+		WithHeader("Authorization", "Bearer "+c.generateBearerToken()).
+		Do(ctx)
 	if err != nil {
-		return fmt.Errorf("shaarli: unable to encode request body: %w", err)
-	}
-
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, apiEndpoint,
-		bytes.NewReader(requestBody))
-	if err != nil {
-		return fmt.Errorf("shaarli: unable to create request: %w", err)
-	}
-
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Accept", "application/json")
-	request.Header.Set("Authorization", "Bearer "+c.generateBearerToken())
-
-	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
-	if err != nil {
-		return fmt.Errorf("shaarli: unable to send request: %w", err)
+		return fmt.Errorf("shaarli: %w", err)
 	}
 	defer response.Close()
 

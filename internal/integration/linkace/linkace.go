@@ -4,15 +4,13 @@
 package linkace // import "miniflux.app/v2/internal/integration/linkace"
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
-	"miniflux.app/v2/internal/reader/fetcher"
+	"miniflux.app/v2/internal/integration/client"
 	"miniflux.app/v2/internal/urllib"
 )
 
@@ -41,30 +39,20 @@ func (c *Client) AddURL(ctx context.Context, entryURL, entryTitle string) error 
 	if err != nil {
 		return fmt.Errorf("linkace: invalid API endpoint: %w", err)
 	}
-	requestBody, err := json.Marshal(&createItemRequest{
-		URL:           entryURL,
-		Title:         entryTitle,
-		Tags:          strings.FieldsFunc(c.tags, tagsSplitFn),
-		Private:       c.private,
-		CheckDisabled: c.checkDisabled,
-	})
+	response, err := client.NewRequestBuilder(apiEndpoint).
+		WithMethod(http.MethodPost).
+		WithJSON(&createItemRequest{
+			URL:           entryURL,
+			Title:         entryTitle,
+			Tags:          strings.FieldsFunc(c.tags, tagsSplitFn),
+			Private:       c.private,
+			CheckDisabled: c.checkDisabled,
+		}).
+		WithHeader("Accept", "application/json").
+		WithHeader("Authorization", "Bearer "+c.apiKey).
+		Do(ctx)
 	if err != nil {
-		return fmt.Errorf("linkace: unable to encode request body: %w", err)
-	}
-
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, apiEndpoint,
-		bytes.NewReader(requestBody))
-	if err != nil {
-		return fmt.Errorf("linkace: unable to create request: %w", err)
-	}
-
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Accept", "application/json")
-	request.Header.Set("Authorization", "Bearer "+c.apiKey)
-
-	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
-	if err != nil {
-		return fmt.Errorf("linkace: unable to send request: %w", err)
+		return fmt.Errorf("linkace: %w", err)
 	}
 	defer response.Close()
 

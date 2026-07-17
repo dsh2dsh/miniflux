@@ -4,7 +4,6 @@
 package webhook // import "miniflux.app/v2/internal/integration/webhook"
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,8 +12,8 @@ import (
 	"time"
 
 	"miniflux.app/v2/internal/crypto"
+	"miniflux.app/v2/internal/integration/client"
 	"miniflux.app/v2/internal/model"
-	"miniflux.app/v2/internal/reader/fetcher"
 )
 
 const (
@@ -125,19 +124,14 @@ func (c *Client) makeRequest(ctx context.Context, eventType string, payload any,
 		return fmt.Errorf("webhook: unable to encode request body: %w", err)
 	}
 
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.webhookURL,
-		bytes.NewReader(requestBody))
+	response, err := client.NewRequestBuilder(c.webhookURL).
+		WithMethod(http.MethodPost).
+		WithJSONBody(requestBody).
+		WithHeader("X-Miniflux-Signature", crypto.GenerateSHA256Hmac(c.webhookSecret, requestBody)).
+		WithHeader("X-Miniflux-Event-Type", eventType).
+		Do(ctx)
 	if err != nil {
-		return fmt.Errorf("webhook: unable to create request: %w", err)
-	}
-
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("X-Miniflux-Signature", crypto.GenerateSHA256Hmac(c.webhookSecret, requestBody))
-	request.Header.Set("X-Miniflux-Event-Type", eventType)
-
-	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
-	if err != nil {
-		return fmt.Errorf("webhook: unable to send request: %w", err)
+		return fmt.Errorf("webhook: %w", err)
 	}
 	defer response.Close()
 

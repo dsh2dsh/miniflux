@@ -4,14 +4,13 @@
 package shiori // import "miniflux.app/v2/internal/integration/shiori"
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 
-	"miniflux.app/v2/internal/reader/fetcher"
+	"miniflux.app/v2/internal/integration/client"
 	"miniflux.app/v2/internal/urllib"
 )
 
@@ -42,31 +41,21 @@ func (c *Client) CreateBookmark(ctx context.Context, entryURL,
 		return fmt.Errorf("shiori: invalid API endpoint: %w", err)
 	}
 
-	requestBody, err := json.Marshal(&addBookmarkRequest{
-		URL:           entryURL,
-		Title:         entryTitle,
-		Excerpt:       "",
-		CreateArchive: true,
-		CreateEbook:   false,
-		Public:        0,
-		Tags:          make([]string, 0),
-	})
+	response, err := client.NewRequestBuilder(apiEndpoint).
+		WithMethod(http.MethodPost).
+		WithJSON(&addBookmarkRequest{
+			URL:           entryURL,
+			Title:         entryTitle,
+			Excerpt:       "",
+			CreateArchive: true,
+			CreateEbook:   false,
+			Public:        0,
+			Tags:          make([]string, 0),
+		}).
+		WithHeader("Authorization", "Bearer "+token).
+		Do(ctx)
 	if err != nil {
-		return fmt.Errorf("shiori: unable to encode request body: %w", err)
-	}
-
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, apiEndpoint,
-		bytes.NewReader(requestBody))
-	if err != nil {
-		return fmt.Errorf("shiori: unable to create request: %w", err)
-	}
-
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Authorization", "Bearer "+token)
-
-	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
-	if err != nil {
-		return fmt.Errorf("shiori: unable to send request: %w", err)
+		return fmt.Errorf("shiori: %w", err)
 	}
 	defer response.Close()
 
@@ -83,23 +72,13 @@ func (c *Client) authenticate(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("shiori: invalid API endpoint: %w", err)
 	}
 
-	requestBody, err := json.Marshal(&authRequest{Username: c.username, Password: c.password, RememberMe: false})
+	response, err := client.NewRequestBuilder(apiEndpoint).
+		WithMethod(http.MethodPost).
+		WithJSON(&authRequest{Username: c.username, Password: c.password, RememberMe: false}).
+		WithHeader("Accept", "application/json").
+		Do(ctx)
 	if err != nil {
-		return "", fmt.Errorf("shiori: unable to encode request body: %w", err)
-	}
-
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, apiEndpoint,
-		bytes.NewReader(requestBody))
-	if err != nil {
-		return "", fmt.Errorf("shiori: unable to create request: %w", err)
-	}
-
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Accept", "application/json")
-
-	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
-	if err != nil {
-		return "", fmt.Errorf("shiori: unable to send request: %w", err)
+		return "", fmt.Errorf("shiori: %w", err)
 	}
 	defer response.Close()
 

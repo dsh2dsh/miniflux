@@ -6,14 +6,12 @@
 package cubox // import "miniflux.app/v2/internal/integration/cubox"
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 
-	"miniflux.app/v2/internal/reader/fetcher"
+	"miniflux.app/v2/internal/integration/client"
 )
 
 type Client struct {
@@ -29,23 +27,15 @@ func (c *Client) SaveLink(ctx context.Context, entryURL string) error {
 		return errors.New("cubox: missing API link")
 	}
 
-	requestBody, err := json.Marshal(&card{
-		Type:    "url",
-		Content: entryURL,
-	})
+	response, err := client.NewRequestBuilder(c.apiLink).
+		WithMethod(http.MethodPost).
+		WithJSON(&card{
+			Type:    "url",
+			Content: entryURL,
+		}).
+		Do(ctx)
 	if err != nil {
-		return fmt.Errorf("cubox: unable to encode request body: %w", err)
-	}
-
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.apiLink, bytes.NewReader(requestBody))
-	if err != nil {
-		return fmt.Errorf("cubox: unable to create request: %w", err)
-	}
-
-	request.Header.Set("Content-Type", "application/json")
-	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
-	if err != nil {
-		return fmt.Errorf("cubox: unable to send request: %w", err)
+		return fmt.Errorf("cubox: %w", err)
 	}
 	defer response.Close()
 

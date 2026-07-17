@@ -4,14 +4,12 @@
 package notion
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 
-	"miniflux.app/v2/internal/reader/fetcher"
+	"miniflux.app/v2/internal/integration/client"
 )
 
 type Client struct {
@@ -31,35 +29,25 @@ func (c *Client) UpdateDocument(ctx context.Context, entryURL,
 	}
 
 	apiEndpoint := "https://api.notion.com/v1/blocks/" + c.pageID + "/children"
-	requestBody, err := json.Marshal(&notionDocument{
-		Children: []block{
-			{
-				Object: "block",
-				Type:   "bookmark",
-				Bookmark: bookmarkObject{
-					Caption: []any{},
-					URL:     entryURL,
+	response, err := client.NewRequestBuilder(apiEndpoint).
+		WithMethod(http.MethodPatch).
+		WithJSON(&notionDocument{
+			Children: []block{
+				{
+					Object: "block",
+					Type:   "bookmark",
+					Bookmark: bookmarkObject{
+						Caption: []any{},
+						URL:     entryURL,
+					},
 				},
 			},
-		},
-	})
+		}).
+		WithHeader("Notion-Version", "2022-06-28").
+		WithHeader("Authorization", "Bearer "+c.apiToken).
+		Do(ctx)
 	if err != nil {
-		return fmt.Errorf("notion: unable to encode request body: %w", err)
-	}
-
-	request, err := http.NewRequestWithContext(ctx, http.MethodPatch, apiEndpoint,
-		bytes.NewReader(requestBody))
-	if err != nil {
-		return fmt.Errorf("notion: unable to create request: %w", err)
-	}
-
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Notion-Version", "2022-06-28")
-	request.Header.Set("Authorization", "Bearer "+c.apiToken)
-
-	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
-	if err != nil {
-		return fmt.Errorf("notion: unable to send request: %w", err)
+		return fmt.Errorf("notion: %w", err)
 	}
 	defer response.Close()
 

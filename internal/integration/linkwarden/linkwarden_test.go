@@ -20,7 +20,7 @@ import (
 
 func TestCreateBookmark(t *testing.T) {
 	os.Clearenv()
-	t.Setenv("FETCHER_ALLOW_PRIVATE_HOSTS", "127.0.0.1")
+	t.Setenv("INTEGRATION_ALLOW_PRIVATE_NETWORKS", "1")
 	require.NoError(t, config.Load(""))
 
 	tests := []struct {
@@ -240,8 +240,7 @@ func TestCreateBookmark(t *testing.T) {
 				// Should not be called due to connection failure
 				t.Error("Server should not be called when connection fails")
 			},
-			wantErr:     true,
-			errContains: "unable to send request",
+			wantErr: true,
 		},
 	}
 

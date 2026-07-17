@@ -6,15 +6,13 @@
 package discord // import "miniflux.app/v2/internal/integration/discord"
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 
+	"miniflux.app/v2/internal/integration/client"
 	"miniflux.app/v2/internal/model"
-	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/urllib"
 )
 
@@ -32,54 +30,45 @@ func (c *Client) SendDiscordMsg(ctx context.Context, feed *model.Feed,
 	entries model.Entries,
 ) error {
 	for _, entry := range entries {
-		requestBody, err := json.Marshal(&discordMessage{
-			Embeds: []discordEmbed{
-				{
-					Title: "RSS feed update from Miniflux",
-					Color: discordMsgColor,
-					Fields: []discordFields{
-						{
-							Name:  "Updated feed",
-							Value: feed.Title,
-						},
-						{
-							Name:  "Article link",
-							Value: "[" + entry.Title + "]" + "(" + entry.URL + ")",
-						},
-						{
-							Name:   "Author",
-							Value:  entry.Author,
-							Inline: true,
-						},
-						{
-							Name:   "Source website",
-							Value:  urllib.RootURL(feed.SiteURL),
-							Inline: true,
-						},
-					},
-				},
-			},
-		})
-		if err != nil {
-			return fmt.Errorf("discord: unable to encode request body: %w", err)
-		}
-
-		request, err := http.NewRequestWithContext(ctx, http.MethodPost,
-			c.webhookURL, bytes.NewReader(requestBody))
-		if err != nil {
-			return fmt.Errorf("discord: unable to create request: %w", err)
-		}
-
 		slog.Debug("Sending Discord notification",
 			slog.String("webhookURL", c.webhookURL),
 			slog.String("title", feed.Title),
 			slog.String("entry_url", entry.URL),
 		)
 
-		request.Header.Set("Content-Type", "application/json")
-		response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
+		response, err := client.NewRequestBuilder(c.webhookURL).
+			WithMethod(http.MethodPost).
+			WithJSON(&discordMessage{
+				Embeds: []discordEmbed{
+					{
+						Title: "RSS feed update from Miniflux",
+						Color: discordMsgColor,
+						Fields: []discordFields{
+							{
+								Name:  "Updated feed",
+								Value: feed.Title,
+							},
+							{
+								Name:  "Article link",
+								Value: "[" + entry.Title + "]" + "(" + entry.URL + ")",
+							},
+							{
+								Name:   "Author",
+								Value:  entry.Author,
+								Inline: true,
+							},
+							{
+								Name:   "Source website",
+								Value:  urllib.RootURL(feed.SiteURL),
+								Inline: true,
+							},
+						},
+					},
+				},
+			}).
+			Do(ctx)
 		if err != nil {
-			return fmt.Errorf("discord: unable to send request: %w", err)
+			return fmt.Errorf("discord: %w", err)
 		}
 		defer response.Close()
 

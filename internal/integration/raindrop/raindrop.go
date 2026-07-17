@@ -4,15 +4,13 @@
 package raindrop // import "miniflux.app/v2/internal/integration/raindrop"
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
-	"miniflux.app/v2/internal/reader/fetcher"
+	"miniflux.app/v2/internal/integration/client"
 )
 
 type Client struct {
@@ -33,30 +31,18 @@ func (c *Client) CreateRaindrop(ctx context.Context, entryURL,
 		return errors.New("raindrop: missing token")
 	}
 
-	var request *http.Request
-	requestBodyJson, err := json.Marshal(&raindrop{
-		Link:       entryURL,
-		Title:      entryTitle,
-		Collection: collection{Id: c.collectionID},
-		Tags:       c.tags,
-	})
+	response, err := client.NewRequestBuilder("https://api.raindrop.io/rest/v1/raindrop").
+		WithMethod(http.MethodPost).
+		WithJSON(&raindrop{
+			Link:       entryURL,
+			Title:      entryTitle,
+			Collection: collection{Id: c.collectionID},
+			Tags:       c.tags,
+		}).
+		WithHeader("Authorization", "Bearer "+c.token).
+		Do(ctx)
 	if err != nil {
-		return fmt.Errorf("raindrop: unable to encode request body: %w", err)
-	}
-
-	request, err = http.NewRequestWithContext(ctx, http.MethodPost,
-		"https://api.raindrop.io/rest/v1/raindrop",
-		bytes.NewReader(requestBodyJson))
-	if err != nil {
-		return fmt.Errorf("raindrop: unable to create request: %w", err)
-	}
-	request.Header.Set("Content-Type", "application/json")
-
-	request.Header.Set("Authorization", "Bearer "+c.token)
-
-	response, err := fetcher.Do(request, fetcher.WithIntegrationDefaults())
-	if err != nil {
-		return fmt.Errorf("raindrop: unable to send request: %w", err)
+		return fmt.Errorf("raindrop: %w", err)
 	}
 	defer response.Close()
 
