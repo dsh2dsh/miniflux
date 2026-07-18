@@ -23,14 +23,8 @@
 
     <link rel="manifest" href="{{ route "webManifest" }}" crossorigin="use-credentials">
 
-    <link rel="icon" type="image/png" sizes="16x16" href="{{ routeBinaryFile "icon-16.png" }}">
-    <link rel="icon" type="image/png" sizes="32x32" href="{{ routeBinaryFile "icon-32.png" }}">
-    <link rel="icon" type="image/png" sizes="128x128" href="{{ routeBinaryFile "icon-128.png" }}">
-    <link rel="icon" type="image/png" sizes="192x192" href="{{ routeBinaryFile "icon-192.png" }}">
-    <link rel="apple-touch-icon" sizes="120x120" href="{{ routeBinaryFile "icon-120.png" }}">
-    <link rel="apple-touch-icon" sizes="152x152" href="{{ routeBinaryFile "icon-152.png" }}">
-    <link rel="apple-touch-icon" sizes="167x167" href="{{ routeBinaryFile "icon-167.png" }}">
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ routeBinaryFile "icon-180.png" }}">
+    <link rel="apple-touch-icon" href="{{ routeBinaryFile "icon-180.png" }}">
+    <link rel="icon" href="{{ routeBinaryFile "icon.svg" }}">
 
     <meta http-equiv="Content-Security-Policy"
           content="{{ csp.Content .user }}">
