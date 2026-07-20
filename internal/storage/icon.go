@@ -31,19 +31,26 @@ func (s *Storage) HasFeedIcon(ctx context.Context, feedID int64) bool {
 	return result
 }
 
-// IconByID fetches a single icon by its internal identifier, returning nil when
-// it is not found.
-func (s *Storage) IconByID(ctx context.Context, iconID int64,
+// IconByID fetches a single icon by its internal identifier, scoped to the
+// given user. It returns nil when the icon does not exist or is not associated
+// with any feed owned by the user.
+func (s *Storage) IconByID(ctx context.Context, userID, iconID int64,
 ) (*model.Icon, error) {
-	rows, _ := s.db.Query(ctx,
-		`SELECT id, hash, mime_type, content FROM icons WHERE id = $1`, iconID)
+	rows, _ := s.db.Query(ctx, `
+SELECT i.id, i.hash, i.mime_type, i.content
+  FROM icons AS i, feed_icons AS fi, feeds AS f
+ WHERE i.id = $1
+       AND fi.icon_id = i.id
+       AND f.id = fi.feed_id
+       AND f.user_id = $2`,
+		iconID, userID)
 
 	icon, err := pgx.CollectExactlyOneRow(rows,
 		pgx.RowToAddrOfStructByName[model.Icon])
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	} else if err != nil {
-		return nil, fmt.Errorf("store: unable to fetch icon #%d: %w", iconID, err)
+		return nil, fmt.Errorf("storage: unable to fetch icon #%d: %w", iconID, err)
 	}
 	return icon, nil
 }

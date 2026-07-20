@@ -30,7 +30,7 @@ func (h *handler) getIconByFeedID(w http.ResponseWriter, r *http.Request,
 func (h *handler) getIconByIconID(w http.ResponseWriter, r *http.Request,
 ) (*feedIconResponse, error) {
 	id := request.RouteInt64Param(r, "iconID")
-	icon, err := h.store.IconByID(r.Context(), id)
+	icon, err := h.store.IconByID(r.Context(), request.UserID(r), id)
 	if err != nil {
 		return nil, err
 	} else if icon == nil {

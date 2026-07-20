@@ -993,6 +993,42 @@ func (self *EndpointTestSuite) TestGetFeedIconWithInexistingFeedID() {
 	self.Require().Error(err, "Fetching the icon of an inexisting feed should raise an error")
 }
 
+func (self *EndpointTestSuite) TestGetIconWithInexistingIconID() {
+	_, err := self.client.Icon(123456789)
+	self.Require().ErrorIs(err, client.ErrNotFound,
+		"Fetching an inexisting icon should return a 'not found' error")
+}
+
+func (self *EndpointTestSuite) TestGetIconByIconIDFromAnotherUser() {
+	feedID := self.createFeed()
+
+	icon, err := self.client.FeedIcon(feedID)
+	self.Require().NoError(err)
+	self.Require().NotNil(icon)
+
+	// The owner can fetch its own icon by icon ID.
+	_, err = self.client.Icon(icon.ID)
+	self.Require().NoError(err, "The owner should be able to fetch its own icon")
+
+	// Another user without access to that feed must not be able to fetch the
+	// icon.
+	user, err := self.admin.CreateUser(self.cfg.RandomUsername(),
+		self.cfg.RegularPassword, false)
+	self.Require().NoError(err)
+	self.Require().NotNil(user)
+	self.T().Cleanup(func() {
+		self.Require().NoError(self.admin.DeleteUser(user.ID))
+	})
+
+	otherClient := client.NewClient(self.cfg.BaseURL, user.Username,
+		self.cfg.RegularPassword)
+	self.Require().NotNil(otherClient)
+
+	_, err = otherClient.Icon(icon.ID)
+	self.Require().ErrorIs(err, client.ErrNotFound,
+		"Fetching an icon owned by another user should return a 'not found' error")
+}
+
 func (self *EndpointTestSuite) TestGetFeedsEndpoint() {
 	feedID := self.createFeed()
 	feeds, err := self.client.Feeds()
