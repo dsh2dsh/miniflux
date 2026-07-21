@@ -237,14 +237,15 @@ func (s *Storage) RemoveCategory(ctx context.Context, userID, categoryID int64,
 	return result.RowsAffected() != 0, nil
 }
 
-// RemoveAndReplaceCategoriesByName deletes the given categories, replacing
-// those categories with the user's first category on affected feeds.
+// RemoveAndReplaceCategoriesByName deletes categories with the given titles and
+// reassigns affected feeds to the user's first remaining category. It returns
+// an error if the deletion would leave the user without any categories.
 func (s *Storage) RemoveAndReplaceCategoriesByName(ctx context.Context,
 	userid int64, titles []string,
 ) error {
 	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
 		rows, _ := tx.Query(ctx, `
-SELECT count(*) FROM categories WHERE user_id = $1 and title != ANY($2)`,
+SELECT count(*) FROM categories WHERE user_id = $1 AND title <> ALL($2)`,
 			userid, titles)
 		count, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[int])
 		if err != nil {
