@@ -79,8 +79,8 @@ func ValidateUserModification(ctx context.Context, store *storage.Storage,
 	}
 
 	if r.EntryOrder != nil {
-		if err := ValidateEntryOrder(*r.EntryOrder); err != nil {
-			return locale.NewLocalizedError("error.invalid_entry_order")
+		if err := validateEntrySortingOrder(*r.EntryOrder); err != nil {
+			return err
 		}
 	}
 
@@ -223,6 +223,15 @@ func validateTimezone(ctx context.Context, store *storage.Storage,
 func validateEntriesPerPage(entriesPerPage int) *locale.LocalizedError {
 	if entriesPerPage < 1 {
 		return locale.NewLocalizedError("error.entries_per_page_invalid")
+	}
+	return nil
+}
+
+// validateEntrySortingOrder must accept only the values of the
+// entry_sorting_order enum type in the database.
+func validateEntrySortingOrder(order string) *locale.LocalizedError {
+	if order != "published_at" && order != "created_at" {
+		return locale.NewLocalizedError("error.invalid_entry_order")
 	}
 	return nil
 }
