@@ -1143,6 +1143,18 @@ func (self *EndpointTestSuite) TestGetAllEntriesEndpointWithFilter() {
 		"Invalid feed URL")
 	self.NotEmpty(result.Entries[0].Title, "Invalid title")
 
+	emptyPage, err := self.client.Entries(&client.Filter{
+		FeedID: feedID,
+		Limit:  1,
+		Offset: result.Total,
+	})
+	self.Require().NoError(err)
+	self.Require().NotNil(emptyPage)
+
+	self.Empty(emptyPage.Entries, "Expected no entries beyond the final page")
+	self.Equal(result.Total, emptyPage.Total,
+		"unexpected total beyond the final page")
+
 	recent, err := self.client.Entries(&client.Filter{
 		Order:     "published_at",
 		Direction: "desc",
