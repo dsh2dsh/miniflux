@@ -19,12 +19,15 @@ import (
 	"miniflux.app/v2/internal/timezone"
 )
 
+const maxEntriesLimit = 1000
+
 // NewEntryQueryBuilder returns a new EntryQueryBuilder.
 func (s *Storage) NewEntryQueryBuilder(userID int64) *EntryQueryBuilder {
 	return &EntryQueryBuilder{
 		db:         s.db,
 		args:       []any{userID},
 		conditions: []string{"e.user_id = $1"},
+		limit:      maxEntriesLimit,
 	}
 }
 
@@ -237,7 +240,7 @@ func (self *EntryQueryBuilder) WithSorting(column, direction string,
 
 // WithLimit set the limit.
 func (self *EntryQueryBuilder) WithLimit(limit int) *EntryQueryBuilder {
-	if limit > 0 {
+	if limit > 0 && limit <= maxEntriesLimit {
 		self.limit = limit
 	}
 	return self
