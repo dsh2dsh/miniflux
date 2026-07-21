@@ -140,6 +140,7 @@ func (self *Create) createFeed(ctx context.Context,
 	feed.Extra.BlockFilterEntryRules = r.BlockFilterEntryRules
 	feed.Extra.KeepFilterEntryRules = r.KeepFilterEntryRules
 	feed.HideGlobally = r.HideGlobally
+	feed.NoMediaPlayer = r.NoMediaPlayer
 	feed.EtagHeader = etag
 	feed.LastModifiedHeader = lastModified
 	feed.WithFeedURLString(url)
