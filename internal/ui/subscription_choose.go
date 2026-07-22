@@ -79,6 +79,7 @@ func (h *handler) showCreateFeedError(w http.ResponseWriter, r *http.Request,
 
 	v.Set("menu", "feeds").
 		Set("categories", categories).
-		Set("defaultUserAgent", config.HTTPClientUserAgent())
+		Set("defaultUserAgent", config.HTTPClientUserAgent()).
+		Set("hasProxyConfigured", config.HasHTTPClientProxyURLConfigured())
 	renderFunc(v)
 }
