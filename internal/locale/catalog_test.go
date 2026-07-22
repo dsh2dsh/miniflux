@@ -40,7 +40,7 @@ func TestGetTranslationDictConcurrency(t *testing.T) {
 	const iterations = 10
 
 	var wg sync.WaitGroup
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		for language := range AvailableLanguages {
 			wg.Add(1)
 			go func(language string) {
