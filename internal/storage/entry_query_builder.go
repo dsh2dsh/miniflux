@@ -312,6 +312,8 @@ func (self *EntryQueryBuilder) GetEntries(ctx context.Context,
 	}
 	defer rows.Close()
 
+	var feeds entryFeeds
+	feeds.Init()
 	dest := make([]any, 0, 39)
 	var entries model.Entries
 
@@ -321,15 +323,7 @@ func (self *EntryQueryBuilder) GetEntries(ctx context.Context,
 		var tz string
 		var rowNumber int64
 
-		entry := &model.Entry{
-			Date: time.Now(),
-			Feed: &model.Feed{
-				Category: &model.Category{},
-				Icon:     &model.FeedIcon{},
-			},
-			Tags: []string{},
-		}
-
+		entry := feeds.NewEntry()
 		dest = append(dest,
 			&entry.ID,
 			&entry.UserID,
@@ -389,7 +383,7 @@ func (self *EntryQueryBuilder) GetEntries(ctx context.Context,
 				Hash:   iconHash.String,
 			}
 		} else {
-			entry.Feed.Icon.IconID = 0
+			*entry.Feed.Icon = model.FeedIcon{}
 		}
 
 		// Make sure that timestamp fields contain timezone information (API)
@@ -404,6 +398,7 @@ func (self *EntryQueryBuilder) GetEntries(ctx context.Context,
 		entry.Feed.Icon.FeedID = entry.FeedID
 		entry.Feed.Category.UserID = entry.UserID
 		entry.MarkStored()
+		feeds.ReuseFeed(entry)
 		entries = append(entries, entry)
 	}
 	return entries, nil
