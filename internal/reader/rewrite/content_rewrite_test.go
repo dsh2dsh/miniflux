@@ -136,6 +136,25 @@ func TestRewriteIncorrectYoutubeLink(t *testing.T) {
 	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
+func TestRewriteYoutubeLinkRejectsLookalikeDomain(t *testing.T) {
+	config.Load("")
+
+	controlEntry := &model.Entry{
+		URL:     "https://notyoutube.com/watch?v=1234",
+		Title:   `A title`,
+		Content: `Video Description`,
+	}
+
+	testEntry := &model.Entry{
+		URL:     "https://notyoutube.com/watch?v=1234",
+		Title:   `A title`,
+		Content: `Video Description`,
+	}
+
+	applyContentRewriteRules(t, testEntry, `add_youtube_video`)
+	assert.EqualExportedValues(t, controlEntry, testEntry)
+}
+
 func TestRewriteYoutubeVideoLinkUsingInvidious(t *testing.T) {
 	config.Load("")
 	controlEntry := &model.Entry{
