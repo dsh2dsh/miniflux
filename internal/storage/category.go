@@ -61,20 +61,16 @@ SELECT EXISTS (
 // CategoryIDExists checks if the given category exists into the database.
 func (s *Storage) CategoryIDExists(ctx context.Context, userID,
 	categoryID int64,
-) bool {
+) (bool, error) {
 	rows, _ := s.db.Query(ctx, `
 SELECT EXISTS (SELECT FROM categories WHERE user_id=$1 AND id=$2)`,
 		userID, categoryID)
 
 	result, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[bool])
 	if err != nil {
-		logging.FromContext(ctx).Error("failed category lookup",
-			slog.Int64("user_id", userID),
-			slog.Int64("category_id", categoryID),
-			slog.Any("error", err))
-		return false
+		return false, fmt.Errorf("storage: failed category lookup: %w", err)
 	}
-	return result
+	return result, nil
 }
 
 // Category returns a category from the database.

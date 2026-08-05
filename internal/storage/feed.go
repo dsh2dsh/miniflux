@@ -36,20 +36,17 @@ func (l byStateAndName) Less(i, j int) bool {
 }
 
 // FeedExists checks if the given feed exists.
-func (s *Storage) FeedExists(ctx context.Context, userID, feedID int64) bool {
+func (s *Storage) FeedExists(ctx context.Context, userID, feedID int64,
+) (bool, error) {
 	rows, _ := s.db.Query(ctx,
 		`SELECT EXISTS(SELECT FROM feeds WHERE user_id=$1 AND id=$2)`,
 		userID, feedID)
 
 	result, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[bool])
 	if err != nil {
-		logging.FromContext(ctx).Error("storage: unable check feed exists",
-			slog.Int64("user_id", userID),
-			slog.Int64("feed_id", feedID),
-			slog.Any("error", err))
-		return false
+		return false, fmt.Errorf("storage: unable check feed exists: %w", err)
 	}
-	return result
+	return result, nil
 }
 
 // CategoryFeedExists returns true if the given feed exists that belongs to the

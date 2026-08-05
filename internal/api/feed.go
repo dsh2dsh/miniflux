@@ -57,7 +57,9 @@ func (h *handler) refreshFeed(w http.ResponseWriter, r *http.Request) error {
 	id := request.RouteInt64Param(r, "feedID")
 	userID := request.UserID(r)
 
-	if !h.store.FeedExists(ctx, userID, id) {
+	if exists, err := h.store.FeedExists(ctx, userID, id); err != nil {
+		return err
+	} else if !exists {
 		return response.ErrNotFound
 	}
 

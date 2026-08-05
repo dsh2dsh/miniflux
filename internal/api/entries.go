@@ -171,7 +171,10 @@ func (self *entriesFinder) Entries(r *http.Request) (*entriesResponse, error) {
 	categoryID := request.QueryInt64Param(r, "category_id", self.categoryID)
 	if categoryID > 0 {
 		g.Go(func() error {
-			if !self.store.CategoryIDExists(ctx, userID, categoryID) {
+			exists, err := self.store.CategoryIDExists(ctx, userID, categoryID)
+			if err != nil {
+				return err
+			} else if !exists {
 				return fmt.Errorf("%w category ID", errInvalid)
 			}
 			return nil
@@ -181,7 +184,10 @@ func (self *entriesFinder) Entries(r *http.Request) (*entriesResponse, error) {
 	feedID := request.QueryInt64Param(r, "feed_id", self.feedID)
 	if feedID > 0 {
 		g.Go(func() error {
-			if !self.store.FeedExists(ctx, userID, feedID) {
+			exists, err := self.store.FeedExists(ctx, userID, feedID)
+			if err != nil {
+				return err
+			} else if !exists {
 				return fmt.Errorf("%w feed ID", errInvalid)
 			}
 			return nil

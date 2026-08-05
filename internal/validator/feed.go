@@ -5,8 +5,10 @@ package validator // import "miniflux.app/v2/internal/validator"
 
 import (
 	"context"
+	"log/slog"
 
 	"miniflux.app/v2/internal/locale"
+	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/filter"
 	"miniflux.app/v2/internal/storage"
@@ -29,7 +31,21 @@ func ValidateFeedCreation(ctx context.Context, store *storage.Storage,
 		return locale.NewLocalizedError("error.feed_already_exists")
 	}
 
-	if !store.CategoryIDExists(ctx, userID, r.CategoryID) {
+	exists, err := store.CategoryIDExists(ctx, userID, r.CategoryID)
+	if err != nil {
+		// *locale.LocalizedError (unlike *locale.LocalizedErrorWrapper elsewhere in
+		// this codebase) has no way to carry an underlying error, so a genuine
+		// backend failure here can't be distinguished from "category not found" in
+		// the value returned to the caller. Log it so the failure is at least
+		// observable, and fall back to the existing user-facing message rather than
+		// changing this function's public return type as part of this PR.
+		logging.FromContext(ctx).Error(
+			"validator: unable to check if feed category exists",
+			slog.Int64("user_id", userID),
+			slog.Int64("category_id", r.CategoryID),
+			slog.Any("error", err))
+		return locale.NewLocalizedError("error.feed_category_not_found")
+	} else if !exists {
 		return locale.NewLocalizedError("error.feed_category_not_found")
 	}
 
@@ -88,7 +104,15 @@ func ValidateFeedModification(ctx context.Context, store *storage.Storage,
 	}
 
 	if r.CategoryID != nil {
-		if !store.CategoryIDExists(ctx, userID, *r.CategoryID) {
+		exists, err := store.CategoryIDExists(ctx, userID, *r.CategoryID)
+		if err != nil {
+			// See the identical rationale in ValidateFeedCreation above.
+			slog.Error("validator: unable to check if feed category exists",
+				slog.Int64("user_id", userID),
+				slog.Int64("category_id", *r.CategoryID),
+				slog.Any("error", err))
+			return locale.NewLocalizedError("error.feed_category_not_found")
+		} else if !exists {
 			return locale.NewLocalizedError("error.feed_category_not_found")
 		}
 	}

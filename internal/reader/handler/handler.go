@@ -44,7 +44,10 @@ func (self *Create) FromDiscovery(ctx context.Context,
 		slog.String("proxy_url", r.ProxyURL))
 	log.Debug("Begin feed creation process from subscription discovery")
 
-	if !self.store.CategoryIDExists(ctx, self.userID, r.CategoryID) {
+	exists, err := self.store.CategoryIDExists(ctx, self.userID, r.CategoryID)
+	if err != nil {
+		return nil, locale.NewLocalizedErrorWrapper(err, "error.database_error")
+	} else if !exists {
 		return nil, locale.NewLocalizedErrorWrapper(ErrCategoryNotFound,
 			"error.category_not_found")
 	}
@@ -68,7 +71,10 @@ func (self *Create) FromRequest(ctx context.Context,
 		slog.String("proxy_url", r.ProxyURL))
 	log.Debug("Begin feed creation process")
 
-	if !self.store.CategoryIDExists(ctx, self.userID, r.CategoryID) {
+	exists, err := self.store.CategoryIDExists(ctx, self.userID, r.CategoryID)
+	if err != nil {
+		return nil, locale.NewLocalizedErrorWrapper(err, "error.database_error")
+	} else if !exists {
 		return nil, locale.NewLocalizedErrorWrapper(ErrCategoryNotFound,
 			"error.category_not_found")
 	}
