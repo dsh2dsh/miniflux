@@ -243,7 +243,7 @@ func (self *rewritePolicy) allowIframe(u *url.URL) *url.URL {
 	}
 	rewriteIframeSrc(u)
 
-	domain := strings.TrimPrefix(u.Hostname(), "www.")
+	domain := strings.TrimPrefix(u.Host, "www.")
 	if _, ok := allowedIframe[domain]; ok {
 		return u
 	}
