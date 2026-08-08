@@ -3,6 +3,7 @@ package sanitizer
 import (
 	_ "embed"
 	"net/url"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -86,6 +87,7 @@ func TestStripTags(t *testing.T) {
 func TestSanitizeContent(t *testing.T) {
 	tests := []struct {
 		name     string
+		env      map[string]string
 		input    string
 		expected string
 	}{
@@ -260,6 +262,14 @@ func TestSanitizeContent(t *testing.T) {
 			name:     "invidious iframe",
 			input:    `<iframe src="https://yewtu.be/watch?v=video_id"></iframe>`,
 			expected: `<iframe src="https://yewtu.be/watch?v=video_id" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" credentialless=""></iframe>`,
+		},
+		{
+			name: "invidious iframe with port",
+			env: map[string]string{
+				"INVIDIOUS_INSTANCE": "invidious.example.com:3000",
+			},
+			input:    `<iframe src="https://invidious.example.com:3000/embed/1234"></iframe>`,
+			expected: `<iframe src="https://invidious.example.com:3000/embed/1234" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" credentialless=""></iframe>`,
 		},
 		{
 			name:     "custom youtube embed url",
@@ -529,13 +539,18 @@ func TestSanitizeContent(t *testing.T) {
 	}
 
 	t.Setenv("YOUTUBE_EMBED_URL_OVERRIDE", "https://www.invidious.custom/embed/")
-	require.NoError(t, config.Load(""))
 
 	pageURL, err := url.Parse("https://example.org/foo.html")
 	require.NoError(t, err)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.env != nil {
+				for k, v := range tt.env {
+					t.Setenv(k, v)
+				}
+			}
+			require.NoError(t, config.Load(""))
 			assert.Equal(t, tt.expected, SanitizeContent(tt.input, pageURL))
 		})
 	}
@@ -576,5 +591,35 @@ func TestAllowedURLScheme(t *testing.T) {
 		require.NotNil(t, u)
 		assert.Equal(t, tt.expected, AllowedURLScheme(u),
 			"Unexpected result for URL: %s", tt.rawURL)
+	}
+}
+
+func TestIframeRejectsNonWebSchemes(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{input: `javascript://youtube.com/%0Aalert(document.domain)`},
+		{input: `JAVASCRIPT://youtube.com/%0Aalert(document.domain)`},
+		{input: `data://youtube.com/text/html,<script>alert(1)</script>`},
+		{input: `vbscript://youtube.com/alert(1)`},
+		{
+			input:    `ftp://youtube.com/embed/test`,
+			expected: `<iframe src="https://www.youtube-nocookie.com/embed/test" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" credentialless="" referrerpolicy="strict-origin-when-cross-origin"></iframe>`,
+		},
+	}
+
+	pageURL, err := url.Parse("https://example.org/")
+	require.NoError(t, err)
+
+	require.NoError(t, config.Load(""))
+
+	for i, tt := range tests {
+		name := strconv.Itoa(i)
+		t.Run(name, func(t *testing.T) {
+			input := `<iframe src="` + tt.input + `"></iframe>`
+			assert.Equal(t, tt.expected, SanitizeContent(input, pageURL),
+				"Unsafe iframe was preserved: %s", tt.input)
+		})
 	}
 }
