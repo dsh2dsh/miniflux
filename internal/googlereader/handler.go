@@ -1095,7 +1095,8 @@ func (h *handler) handleReadingListStreamHandler(r *http.Request,
 func makeStreamIDResp(ctx context.Context, builder *storage.EntryQueryBuilder,
 	rm *RequestModifiers,
 ) (streamIDResponse, error) {
-	builder.WithLimit(rm.Count).
+	builder.WithDefaultIDsLimit().
+		WithLimit(rm.Count).
 		WithOffset(rm.Offset).
 		WithSorting(model.DefaultSortingOrder, rm.SortDirection)
 

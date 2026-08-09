@@ -19,7 +19,10 @@ import (
 	"miniflux.app/v2/internal/timezone"
 )
 
-const maxEntriesLimit = 1000
+const (
+	maxEntriesLimit = 1000
+	maxIDsLimit     = 10000
+)
 
 // NewEntryQueryBuilder returns a new EntryQueryBuilder.
 func (s *Storage) NewEntryQueryBuilder(userID int64) *EntryQueryBuilder {
@@ -28,6 +31,7 @@ func (s *Storage) NewEntryQueryBuilder(userID int64) *EntryQueryBuilder {
 		args:       []any{userID},
 		conditions: []string{"e.user_id = $1"},
 		limit:      maxEntriesLimit,
+		maxLimit:   maxEntriesLimit,
 	}
 }
 
@@ -38,11 +42,18 @@ type EntryQueryBuilder struct {
 	conditions      []string
 	sortExpressions []string
 	limit           int
+	maxLimit        int
 	offset          int
 	fetchContent    bool
 
 	numberedRows bool
 	highConds    []string
+}
+
+func (self *EntryQueryBuilder) WithDefaultIDsLimit() *EntryQueryBuilder {
+	self.limit = maxIDsLimit
+	self.maxLimit = maxIDsLimit
+	return self
 }
 
 func (self *EntryQueryBuilder) appendCondition(prefix string, arg any,
@@ -240,7 +251,7 @@ func (self *EntryQueryBuilder) WithSorting(column, direction string,
 
 // WithLimit set the limit.
 func (self *EntryQueryBuilder) WithLimit(limit int) *EntryQueryBuilder {
-	if limit > 0 && limit <= maxEntriesLimit {
+	if limit > 0 && limit <= self.maxLimit {
 		self.limit = limit
 	}
 	return self
