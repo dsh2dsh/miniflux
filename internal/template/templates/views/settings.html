@@ -188,7 +188,7 @@
         <div class="form-label-row">
             <label for="form-display-mode">{{ t "form.prefs.label.display_mode" }}</label>
             &nbsp;
-            <a href="https://developer.mozilla.org/en-US/docs/Web/Manifest/display" {{ $.user.TargetBlank }}>
+            <a href="https://developer.mozilla.org/en-US/docs/Web/Manifest/display" aria-label="{{ t "action.documentation" (t "form.prefs.label.display_mode") }}" {{ $.user.TargetBlank }}>
                 {{ icon "external-link" }}
             </a>
         </div>
@@ -265,7 +265,7 @@
                 {{ t "form.feed.label.block_filter_entry_rules" }}
             </label>
             &nbsp;
-            <a href=" https://miniflux.app/docs/rules.html#filtering-rules" {{ $.user.TargetBlank }}>
+            <a href=" https://miniflux.app/docs/rules.html#filtering-rules" aria-label="{{ t "action.documentation" (t "form.feed.label.block_filter_entry_rules") }}" {{ $.user.TargetBlank }}>
                 {{ icon "external-link" }}
             </a>
         </div>
@@ -276,7 +276,7 @@
                 {{ t "form.feed.label.keep_filter_entry_rules" }}
             </label>
             &nbsp;
-            <a href=" https://miniflux.app/docs/rules.html#filtering-rules" {{ $.user.TargetBlank }}>
+            <a href=" https://miniflux.app/docs/rules.html#filtering-rules" aria-label="{{ t "action.documentation" (t "form.feed.label.keep_filter_entry_rules") }}" {{ $.user.TargetBlank }}>
                 {{ icon "external-link" }}
             </a>
         </div>
