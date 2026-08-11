@@ -90,7 +90,7 @@ func (h *handler) redirectHome(w http.ResponseWriter, r *http.Request,
 ) {
 	log := logging.FromContext(r.Context())
 
-	redirect, err := redirectFromCookie(w, r, h.secureCookie)
+	redirect, err := h.redirectFromCookie(w, r)
 	if err != nil {
 		log.Error("Unable redirect back to original page", slog.Any("error", err))
 		h.redirect(w, r, user.DefaultHomePage)
@@ -107,14 +107,16 @@ func (h *handler) redirectHome(w http.ResponseWriter, r *http.Request,
 	h.redirect(w, r, user.DefaultHomePage)
 }
 
-type redirectCookie struct {
-	Redirect string `json:"redirect"`
-}
-
 func setLoginRedirect(w http.ResponseWriter,
 	secureCookie *securecookie.SecureCookie, redirect string,
 ) error {
-	data := redirectCookie{Redirect: redirect}
+	data := model.SessionData{Redirect: redirect}
+	return setSessionDataCookie(w, secureCookie, &data)
+}
+
+func setSessionDataCookie(w http.ResponseWriter,
+	secureCookie *securecookie.SecureCookie, data *model.SessionData,
+) error {
 	b, err := json.Marshal(&data)
 	if err != nil {
 		return fmt.Errorf("ui: marshal login redirect to cookie: %w", err)
@@ -129,8 +131,7 @@ func setLoginRedirect(w http.ResponseWriter,
 	return nil
 }
 
-func redirectFromCookie(w http.ResponseWriter, r *http.Request,
-	secureCookie *securecookie.SecureCookie,
+func (h *handler) redirectFromCookie(w http.ResponseWriter, r *http.Request,
 ) (string, error) {
 	plaintext := request.CookieValue(r, cookie.CookieSessionData)
 	if plaintext == "" {
@@ -138,12 +139,12 @@ func redirectFromCookie(w http.ResponseWriter, r *http.Request,
 	}
 	http.SetCookie(w, cookie.ExpiredSessionData())
 
-	b, err := secureCookie.DecryptCookie(plaintext)
+	b, err := h.secureCookie.DecryptCookie(plaintext)
 	if err != nil {
 		return "", fmt.Errorf("ui: decrypt login redirect cookie: %w", err)
 	}
 
-	var data redirectCookie
+	var data model.SessionData
 	if err := json.Unmarshal(b, &data); err != nil {
 		return "", fmt.Errorf("ui: unmarshal login redirect cookie: %w", err)
 	}

@@ -4,12 +4,9 @@
 package ui // import "miniflux.app/v2/internal/ui"
 
 import (
-	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 
-	"miniflux.app/v2/internal/http/cookie"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/logging"
@@ -63,16 +60,5 @@ func (h *handler) oauth2Redirect(w http.ResponseWriter, r *http.Request) {
 func (h *handler) setSessionDataCookie(w http.ResponseWriter,
 	data *model.SessionData,
 ) error {
-	b, err := json.Marshal(&data)
-	if err != nil {
-		return fmt.Errorf("ui: marshal session data to cookie: %w", err)
-	}
-
-	encrypted, err := h.secureCookie.EncryptCookie(b)
-	if err != nil {
-		return fmt.Errorf("ui: encrypt session data cookie: %w", err)
-	}
-
-	http.SetCookie(w, cookie.NewSessionData(encrypted))
-	return nil
+	return setSessionDataCookie(w, h.secureCookie, data)
 }

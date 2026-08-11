@@ -35,6 +35,7 @@ func (self *Session) IP() string        { return self.Data.IP }
 
 // SessionData represents the data attached to the session.
 type SessionData struct {
+	Redirect            string          `json:"redirect,omitempty"`
 	OAuth2State         string          `json:"oauth2_state,omitempty"`
 	OAuth2CodeVerifier  string          `json:"oauth2_code_verifier,omitempty"`
 	FlashMessage        string          `json:"flash_message,omitempty"`

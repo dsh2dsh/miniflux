@@ -68,8 +68,8 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 		if config.WebAuthn() {
 			m.NameHandleFunc("/webauthn/login/begin", response.JSON(h.beginLogin),
 				"webauthnLoginBegin")
-			m.NameHandleFunc("/webauthn/login/finish",
-				response.NoContentJSON(h.finishLogin), "webauthnLoginFinish")
+			m.NameHandleFunc("/webauthn/login/finish", response.JSON(h.finishLogin),
+				"webauthnLoginFinish")
 		}
 
 		m.NameHandleFunc("/proxy/{encodedDigest}/{encodedURL}", mediaproxy.Serve,

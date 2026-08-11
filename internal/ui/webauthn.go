@@ -155,6 +155,7 @@ func (h *handler) beginLogin(w http.ResponseWriter, r *http.Request,
 	}
 
 	sessionCookie := model.SessionData{
+		Redirect:            request.URI(r),
 		WebAuthnSessionData: model.WebAuthnSession{SessionData: sessionData},
 	}
 	if err := h.setSessionDataCookie(w, &sessionCookie); err != nil {
@@ -163,15 +164,16 @@ func (h *handler) beginLogin(w http.ResponseWriter, r *http.Request,
 	return assertion, nil
 }
 
-func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) error {
+func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request,
+) (map[string]string, error) {
 	web, err := newWebAuthn()
 	if err != nil {
-		return response.WrapServerError(err)
+		return nil, response.WrapServerError(err)
 	}
 
 	parsedResponse, err := protocol.ParseCredentialRequestResponseBody(r.Body)
 	if err != nil {
-		return response.WrapServerError(err)
+		return nil, response.WrapServerError(err)
 	}
 
 	ctx := r.Context()
@@ -190,7 +192,7 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) error {
 
 	sessionCookie, err := h.sessionData(r)
 	if err != nil {
-		return response.WrapServerError(err)
+		return nil, response.WrapServerError(err)
 	}
 	sessionData := sessionCookie.WebAuthnSessionData.SessionData
 
@@ -236,7 +238,7 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) error {
 			slog.String("client_ip", request.ClientIP(r)),
 			slog.String("user_agent", r.UserAgent()),
 			slog.Any("error", err))
-		return response.ErrUnauthorized
+		return nil, response.ErrUnauthorized
 	}
 
 	user := resolvedUser
@@ -245,7 +247,7 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) error {
 	clientIP := request.ClientIP(r)
 	s, err := h.store.CreateAppSessionForUser(ctx, user, r.UserAgent(), clientIP)
 	if err != nil {
-		return response.WrapServerError(err)
+		return nil, response.WrapServerError(err)
 	}
 
 	err = h.store.WebAuthnSaveLogin(ctx, matchingCredential.Handle,
@@ -254,7 +256,7 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) error {
 		slog.Warn("WebAuthn: unable to update last seen date for credential",
 			slog.Int64("user_id", user.ID),
 			slog.Any("error", err))
-		return response.WrapServerError(err)
+		return nil, response.WrapServerError(err)
 	}
 
 	log.Info("User authenticated successfully with webauthn",
@@ -269,12 +271,12 @@ func (h *handler) finishLogin(w http.ResponseWriter, r *http.Request) error {
 		slog.Warn("Unable to update last login date",
 			slog.Int64("user_id", user.ID),
 			slog.Any("error", err))
-		return response.WrapServerError(err)
+		return nil, response.WrapServerError(err)
 	}
 
 	http.SetCookie(w, cookie.ExpiredSessionData())
 	http.SetCookie(w, cookie.NewSession(s.ID))
-	return nil
+	return map[string]string{"redirect": sessionCookie.Redirect}, nil
 }
 
 func (h *handler) renameCredential(w http.ResponseWriter, r *http.Request) {
