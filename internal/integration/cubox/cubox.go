@@ -3,7 +3,7 @@
 
 // Cubox API documentation: https://help.cubox.cc/save/api/
 
-package cubox // import "miniflux.app/v2/internal/integration/cubox"
+package cubox
 
 import (
 	"context"

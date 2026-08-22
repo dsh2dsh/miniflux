@@ -3,7 +3,7 @@
 
 // Slack Webhooks documentation: https://api.slack.com/messaging/webhooks
 
-package slack // import "miniflux.app/v2/internal/integration/slack"
+package slack
 
 import (
 	"context"

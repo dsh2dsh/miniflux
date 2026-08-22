@@ -29,4 +29,4 @@ This example discovers subscriptions on a website:
 	}
 	fmt.Println(subscriptions)
 */
-package client // import "miniflux.app/v2/client"
+package client

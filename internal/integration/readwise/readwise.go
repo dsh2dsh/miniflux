@@ -3,7 +3,7 @@
 
 // Readwise Reader API documentation: https://readwise.io/reader_api
 
-package readwise // import "miniflux.app/v2/internal/integration/readwise"
+package readwise
 
 import (
 	"context"

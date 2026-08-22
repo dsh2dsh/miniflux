@@ -3,7 +3,7 @@
 
 // Discord Webhooks documentation: https://discord.com/developers/docs/resources/webhook
 
-package discord // import "miniflux.app/v2/internal/integration/discord"
+package discord
 
 import (
 	"context"

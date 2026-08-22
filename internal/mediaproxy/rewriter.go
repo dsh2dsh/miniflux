@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright The Miniflux Authors. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-package mediaproxy // import "miniflux.app/v2/internal/mediaproxy"
+package mediaproxy
 
 import (
 	"crypto/hmac"

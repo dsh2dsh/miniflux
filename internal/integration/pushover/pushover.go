@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: Copyright The Miniflux Authors. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-package pushover // import "miniflux.app/v2/internal/integration/pushover"
+package pushover
+
 import (
 	"bytes"
 	"context"

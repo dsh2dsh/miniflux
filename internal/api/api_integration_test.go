@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //go:build e2e
 
-package api // import "miniflux.app/v2/internal/api"
+package api
 
 import (
 	"bytes"
