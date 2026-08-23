@@ -770,4 +770,8 @@ ALTER TABLE webauthn_credentials
 	// 130
 	sqlMigration(`
 DROP INDEX IF EXISTS entries_feed_idx, entries_user_status_idx`),
+
+	// 131
+	sqlMigration(`
+DROP INDEX IF EXISTS entries_user_status_changed_idx`),
 }
