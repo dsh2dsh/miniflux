@@ -459,7 +459,12 @@ func getOrCreateCategory(ctx context.Context, streamCategory Stream,
 	store *storage.Storage, userID int64,
 ) (*model.Category, error) {
 	if streamCategory.ID == "" {
-		return store.FirstCategory(ctx, userID)
+		category, err := store.FirstCategory(ctx, userID)
+		if err != nil {
+			return nil, err
+		} else if category == nil {
+			return nil, errCategoryNotFound
+		}
 	}
 
 	category, err := store.CategoryByTitle(ctx, userID, streamCategory.ID)

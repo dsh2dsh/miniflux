@@ -706,6 +706,38 @@ func (self *EndpointTestSuite) TestCannotCreateDuplicatedFeed() {
 	self.Require().Error(err, "Duplicated feeds should not be allowed")
 }
 
+func (self *EndpointTestSuite) TestFeedCreationWithoutCategory() {
+	self.createFeed()
+
+	categories, err := self.client.Categories()
+	self.Require().NoError(err)
+	self.Require().NotEmpty(categories)
+
+	for _, category := range categories {
+		self.Require().NoError(self.client.DeleteCategory(category.ID))
+	}
+
+	_, err = self.client.CreateFeed(&model.FeedCreationRequest{
+		FeedURL: self.cfg.FeedURL,
+	})
+	self.T().Log(err)
+	self.Require().ErrorIs(err, client.ErrNotFound,
+		"Create feeds without default category should not be allowed")
+
+	opml := `
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <body>
+    <outline title="Test" text="Test" xmlUrl="` + self.cfg.FeedURL + `"></outline>
+  </body>
+</opml>`
+
+	err = self.client.Import(io.NopCloser(bytes.NewReader([]byte(opml))))
+	self.T().Log(err)
+	self.Require().ErrorIs(err, client.ErrNotFound,
+		"Import feeds without default category should not be allowed")
+}
+
 func (self *EndpointTestSuite) TestCreateFeedWithInexistingCategory() {
 	_, err := self.client.CreateFeed(&model.FeedCreationRequest{
 		FeedURL:    self.cfg.FeedURL,

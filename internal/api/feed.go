@@ -35,6 +35,8 @@ func (h *handler) createFeed(w http.ResponseWriter, r *http.Request,
 		category, err := h.store.FirstCategory(ctx, userID)
 		if err != nil {
 			return nil, err
+		} else if category == nil {
+			return nil, response.ErrNotFound
 		}
 		createRequest.CategoryID = category.ID
 	}

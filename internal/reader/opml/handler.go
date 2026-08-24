@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/validator"
@@ -75,6 +76,8 @@ func (h *Handler) Import(ctx context.Context, userID int64, data io.Reader,
 		category, err := h.resolveCategory(ctx, userID, subscription.CategoryName)
 		if err != nil {
 			return err
+		} else if category == nil {
+			return response.ErrNotFound
 		}
 
 		err = validateSubscription(ctx, userID, category.ID, h.store, subscription)
