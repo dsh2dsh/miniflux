@@ -62,6 +62,8 @@ func (self *AccessLog) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log = log.With(slog.Bool("hx-boosted", true))
 	} else if s := r.Header.Get("HX-Request"); s != "" {
 		log = log.With(slog.Bool("hx-request", true))
+	} else if s := r.Header.Get("HX-History-Restore-Request"); s != "" {
+		log = log.With(slog.Bool("hx-history-restore-request", true))
 	}
 
 	if u := logRequest.User; u != nil {

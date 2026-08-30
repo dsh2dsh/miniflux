@@ -1,7 +1,7 @@
 class SwitchTheme {
   constructor() {
     this.colorScheme = document.querySelector('meta[name="color-scheme"]');
-    document.body.addEventListener("htmx:beforeSwap", event => {
+    document.body.addEventListener("htmx:before:swap", event => {
       const el = event.target;
       if (el.matches("#header-menu [data-color-scheme]"))
         this.switchColorScheme(el.dataset.colorScheme);

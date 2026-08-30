@@ -4,45 +4,40 @@ class InlineEntry {
   constructor() {
     const body = document.body;
 
-    body.addEventListener("htmx:trigger", (event) => {
-      const el = event.detail.elt;
-      if (el.closest(InlineEntry.itemTitleLink))
-        this.beginInline(el);
+    body.addEventListener("click", (event) => {
+      const el = event.target;
+      if (el.closest(InlineEntry.itemTitleLink) && el.tagName === "A") {
+        if (el.getAttribute("hx-ignore") === null)
+          this.beginInline(el);
+        else if (body.dataset.markAsReadOnView === "true")
+          this.originalLinkClick(el.closest(".entry-item"));
+      }
     }, true);
 
-    body.addEventListener("htmx:beforeRequest", (event) => {
-      const target = event.detail.target;
+    body.addEventListener("htmx:before:request", (event) => {
+      const target = event.detail.ctx.target;
       if (target.matches(".entry-content.inline"))
         this.downloadingOriginal(event.target);
     }, true);
 
-    body.addEventListener("htmx:sendError", (event) => {
-      const el = event.detail.elt;
+    body.addEventListener("htmx:error", (event) => {
+      const el = event.detail.ctx.sourceElement;
       if (el.closest(InlineEntry.itemTitleLink))
         this.inlineFailed(el.closest(".item"), event.detail);
     }, true);
 
-    body.addEventListener("htmx:responseError", (event) => {
-      const el = event.detail.elt;
+    body.addEventListener("htmx:response:error", (event) => {
+      const el = event.detail.ctx.sourceElement;
       if (el.closest(InlineEntry.itemTitleLink))
         this.inlineFailed(el.closest(".item"), event.detail);
     }, true);
 
-    body.addEventListener("htmx:afterSettle", (event) => {
-      const el = event.detail.elt;
+    body.addEventListener("htmx:after:settle", (event) => {
+      const el = event.target;
       if (el.matches(".entry-item > .loaded"))
         this.entryInlined(el.closest(".item"));
       else if (el.matches(".entry-content.download"))
         this.downloaded(el.closest(".item"));
-    }, true);
-
-    if (body.dataset.markAsReadOnView !== "true")
-      return;
-
-    body.addEventListener("click", (event) => {
-      const el = event.target;
-      if (el.closest(InlineEntry.itemTitleLink) && el.tagName === "A")
-        this.originalLinkClick(el.closest(".entry-item"));
     }, true);
   }
 
@@ -73,15 +68,20 @@ class InlineEntry {
   inlineFailed(item, detail) {
     const t = document.querySelector("template#entry-loading-error");
     const loadingError = document.importNode(t.content, true);
-    loadingError.querySelector(".errorText").innerText = detail.error;
-    loadingError.querySelector(".responseText").innerText = detail.xhr.responseText;
+    if (detail.error)
+      loadingError.querySelector(".errorText").innerText = detail.error;
+    else if (detail.response) {
+      const ctx = event.detail.ctx;
+      loadingError.querySelector(".errorText").innerText =
+        `Unexpected server response: ${ctx.status} ${ctx.raw.statusText}`;
+    }
     detail.target.replaceWith(loadingError);
   }
 
   entryInlined(item) {
     const titleLink = item.querySelector(".item-title > [hx-trigger]");
-    titleLink.setAttribute("hx-disable", "");
-    htmx.process(titleLink);
+    titleLink.setAttribute("hx-ignore", "");
+    htmx.process(titleLink, true);
     item.classList.add("with-inline-content");
   }
 
@@ -95,8 +95,9 @@ class InlineEntry {
     if (!this.setButtonLoading(button)) return;
 
     const item = button.closest(".item");
-    item.addEventListener("htmx:afterSettle", (event) => {
-      if (event.detail.elt.matches(".entry-content.download")) {
+    item.addEventListener("htmx:after:settle", (event) => {
+      const el = event.target;
+      if (el.matches(".entry-content.download")) {
         button.parentElement.remove();
         item.scrollIntoView();
       }

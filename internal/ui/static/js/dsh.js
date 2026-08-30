@@ -86,19 +86,15 @@ function initElevator() {
 
 function handleHtmxErrors() {
   const body = document.body;
-  body.addEventListener("htmx:sendError", (event) => {
+  body.addEventListener("htmx:error", (event) => {
     showToastNotification("error",
       `Unexpected send error: ${event.detail.error}`);
   });
 
-  body.addEventListener("htmx:responseError", (event) => {
-    const xhr = event.detail.xhr;
+  body.addEventListener("htmx:response:error", (event) => {
+    const ctx = event.detail.ctx;
     showToastNotification("error",
-      `Unexpected server error: ${xhr.status} ${xhr.statusText}`);
-  });
-
-  body.addEventListener("htmx:timeout", (event) => {
-    showToastNotification("error", `Unexpected timeout`);
+      `Unexpected server response: ${ctx.status} ${ctx.raw.statusText}`);
   });
 }
 

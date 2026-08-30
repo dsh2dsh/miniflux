@@ -1,14 +1,21 @@
 class BoostedBody {
   constructor() {
     const body = document.body;
-    body.addEventListener("htmx:historyCacheMissLoad",
+    body.addEventListener("htmx:before:history:restore",
       event => this.historyCache(event));
-    body.addEventListener("htmx:beforeSwap", event => this.beforeSwap(event));
-    body.addEventListener("htmx:afterSettle", event => this.afterSwap(event));
+    body.addEventListener("htmx:after:request",
+      event => this.afterRequest(event));
+    body.addEventListener("htmx:before:swap", event => this.beforeSwap(event));
+    body.addEventListener("htmx:after:settle", event => this.afterSwap(event));
   }
 
   historyCache(event) {
     readOnScrollObserver.stop();
+  }
+
+  afterRequest(event) {
+    if (!this.boosted(event)) return;
+    event.detail.ctx.swap = "innerHTML show:top showTarget:html"
   }
 
   beforeSwap(event) {
@@ -25,7 +32,9 @@ class BoostedBody {
   }
 
   boosted(event) {
-    return event.detail.boosted || event.target === document.body;
+    if (event.detail.ctx)
+      return event.detail.ctx.target === document.body;
+    return event.target === document.body;
   }
 }
 

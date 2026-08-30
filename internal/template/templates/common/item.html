@@ -7,9 +7,8 @@
   data-trigger-revealed="true"
   hx-get="{{ requestURI "offsetID" .entry.StringID }}"
   hx-select=".items > .item"
-  hx-swap="afterend"
+  hx-swap="after"
   hx-trigger="miniflux:revealed"
-  hx-disinherit="*"
   {{ end }}
   tabindex="-1">
     {{ template "item_meta" dict "user" .user "entry" .entry "showOnlyUnreadEntries" .showOnlyUnreadEntries "withInfo" true }}

@@ -3,7 +3,7 @@
     <p>{{ .Feed.ParsingErrorMsg }}</p>
 
     {{ if .badStatusContent }}
-    <div role="alert" class="alert alert-error" hx-disable="">
+    <div role="alert" class="alert alert-error" hx-ignore="">
         {{ .badStatusContent }}
     </div>
     {{ end }}

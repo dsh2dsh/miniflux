@@ -17,10 +17,9 @@
 
     <meta name="htmx-config"
           content='{
-                "includeIndicatorStyles": false,
-                "allowScriptTags": false,
-                "scrollIntoViewOnBoost": false,
-                "timeout": 30000}'>
+                "includeIndicatorCSS": false,
+                "noSwap": [204, 304, "4xx", "5xx"],
+                "defaultTimeout": 30000}'>
 
     <link rel="manifest" href="{{ route "webManifest" }}" crossorigin="use-credentials">
 
@@ -51,7 +50,6 @@
 </head>
 
 <body
-  hx-history="false"
   data-color-scheme="{{ colorScheme .theme }}"
   data-service-worker-url="{{ javascript "service-worker" }}"
   data-offline-url="{{ route "offline" }}"
@@ -81,7 +79,7 @@
     {{ if .user }}
     <a class="skip-to-content-link" href="#main">{{ t "skip_to_content" }}</a>
     <header class="header">
-        <nav hx-boost="true">
+        <nav hx-boost:inherited="true">
             <div class="logo" data-toggle-button-label="{{ t "menu.title" }}">
                 <label for="toggleMainMenu"
                        role="button"
@@ -284,8 +282,7 @@
 
     <template id="entry-loading-error">
         <article class="entry-content with-error" dir="auto">
-            <span class="errorText"></span>:
-            <span class="responseText"></span>
+            <span class="errorText"></span>
         </article>
     </template>
 

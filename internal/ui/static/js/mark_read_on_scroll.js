@@ -7,8 +7,9 @@ class MarkReadOnScroll {
   timeoutId = 0;
 
   constructor() {
-    document.body.addEventListener("htmx:afterSettle", event => {
-      if (event.target.matches(MarkReadOnScroll.pageEndSelector))
+    document.body.addEventListener("htmx:after:settle", event => {
+      const el = event.target;
+      if (el.matches(MarkReadOnScroll.pageEndSelector))
         this.revealedLastItem(event.target);
     }, true);
 
@@ -35,8 +36,10 @@ class MarkReadOnScroll {
   observerCallback(entries, observer) {
     let scrolledEntry = false;
     entries.forEach((entry) => {
-      this.intersectingLastItem(entry);
-      if (this.scrolledUp(entry)) scrolledEntry = true;
+      if (entry.target.isConnected) {
+        this.intersectingLastItem(entry);
+        if (this.scrolledUp(entry)) scrolledEntry = true;
+      }
     });
     if (!scrolledEntry) return;
 
