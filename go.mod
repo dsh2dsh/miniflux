@@ -8,7 +8,7 @@ require (
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/coreos/go-oidc/v3 v3.20.0
-	github.com/dsh2dsh/bluemonday/v2 v2.4.0
+	github.com/dsh2dsh/bluemonday/v2 v2.5.0
 	github.com/dsh2dsh/expx-dotenv v1.4.0
 	github.com/dsh2dsh/gofeed/v2 v2.7.1
 	github.com/go-playground/validator/v10 v10.30.3
