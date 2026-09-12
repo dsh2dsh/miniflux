@@ -36,14 +36,19 @@ func (h *handler) updateIntegration(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if i.GoogleReaderEnabled {
-		if f.GoogleReaderPassword != "" {
-			pw, err := crypto.HashPassword(f.GoogleReaderPassword)
-			if err != nil {
-				response.ServerError(w, r, err)
-				return
-			}
-			i.GoogleReaderPassword = pw
+		if i.GoogleReaderPassword == "" {
+			sess.NewFlashErrorMessage(printer.Print(
+				"error.googlereader_missing_required_fields"))
+			h.redirect(w, r, "integrations")
+			return
 		}
+
+		pw, err := crypto.HashPassword(f.GoogleReaderPassword)
+		if err != nil {
+			response.ServerError(w, r, err)
+			return
+		}
+		i.GoogleReaderPassword = pw
 	} else {
 		i.GoogleReaderPassword = ""
 	}
