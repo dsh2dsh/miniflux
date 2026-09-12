@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/middleware"
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
@@ -172,6 +173,13 @@ func (self *basicAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !authOK {
 		log.Warn(
 			"[API] No Basic HTTP Authentication header sent with the request",
+			slog.Bool("authentication_failed", true))
+		response.UnauthorizedJSON(w, r)
+		return
+	}
+
+	if config.DisableLocalAuth() {
+		log.Warn("[API] Blocking Basic HTTP Authentication attempt, local auth is disabled",
 			slog.Bool("authentication_failed", true))
 		response.UnauthorizedJSON(w, r)
 		return

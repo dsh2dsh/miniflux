@@ -6,6 +6,8 @@ package validator
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
 )
@@ -207,4 +209,30 @@ func TestValidateUserModificationRejectsInvalidNonEmptyFilterRule(t *testing.T) 
 	if err := ValidateUserModification(t.Context(), nil, 0, req); err == nil {
 		t.Fatal("expected invalid non-empty filter rules to be rejected")
 	}
+}
+
+func TestValidateUserModificationRejectsPasswordWhenLocalAuthDisabled(t *testing.T) {
+	t.Setenv("DISABLE_LOCAL_AUTH", "1")
+	t.Setenv("OAUTH2_PROVIDER", "oidc")
+	t.Setenv("OAUTH2_CLIENT_ID", "client")
+	t.Setenv("OAUTH2_CLIENT_SECRET", "secret")
+	t.Setenv("OAUTH2_REDIRECT_URL", "https://example.org/oauth2/oidc/callback")
+	t.Setenv("OAUTH2_OIDC_DISCOVERY_ENDPOINT", "https://example.org")
+
+	require.NoError(t, config.Load(""))
+
+	req := &model.UserModificationRequest{
+		Password: new("newpassword"),
+	}
+
+	require.NotNil(t, ValidateUserModification(t.Context(), nil, 0, req),
+		"expected password modification to be rejected when local auth is disabled")
+
+	req = &model.UserModificationRequest{
+		Theme: new("light_serif"),
+	}
+
+	lerr := ValidateUserModification(t.Context(), nil, 0, req)
+	require.Nil(t, lerr,
+		"expected non-password modification to be accepted, got %v", lerr)
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"unicode"
 
+	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/filter"
@@ -49,6 +50,10 @@ func ValidateUserModification(ctx context.Context, store *storage.Storage,
 	}
 
 	if r.Password != nil {
+		if config.DisableLocalAuth() {
+			return locale.NewLocalizedError("error.local_auth_disabled")
+		}
+
 		if err := validatePassword(*r.Password); err != nil {
 			return err
 		}

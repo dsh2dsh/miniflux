@@ -95,7 +95,11 @@ func ExtractMarkAsReadBehavior(behavior MarkReadBehavior) (markReadOnView, markR
 func (s *SettingsForm) Merge(user *model.User) *model.User {
 	if !config.DisableLocalAuth() {
 		user.Username = s.Username
+		if s.Password != "" {
+			user.Password = s.Password
+		}
 	}
+
 	user.Theme = s.Theme
 	user.Language = s.Language
 	user.Timezone = s.Timezone
@@ -123,11 +127,6 @@ func (s *SettingsForm) Merge(user *model.User) *model.User {
 	user.MarkReadOnMediaPlayerCompletion = MarkReadOnMediaPlayerCompletion
 	user.Extra.AlwaysOpenExternalLinks = s.AlwaysOpenExternalLinks
 	user.Extra.OpenExternalLinkSameTab = s.OpenExternalLinkSameTab
-
-	if s.Password != "" {
-		user.Password = s.Password
-	}
-
 	return user
 }
 
