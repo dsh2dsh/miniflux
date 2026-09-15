@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"html/template"
 	"net/http"
 
@@ -10,6 +11,7 @@ import (
 	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/mediaproxy"
 	"miniflux.app/v2/internal/model"
+	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/reader/processor"
 	"miniflux.app/v2/internal/reader/sanitizer"
 	"miniflux.app/v2/internal/sites"
@@ -79,7 +81,10 @@ func (h *handler) downloadEntry(w http.ResponseWriter, r *http.Request) {
 
 	err := processor.ProcessEntryWebPage(r.Context(), feed, entry, user,
 		sanitizer.WithRewriteURL(mediaproxy.New(h.router).RewriteURL))
-	if err != nil {
+	if errStatus, ok := errors.AsType[*fetcher.ErrBadStatus](err); ok {
+		response.WrapError(errStatus, errStatus.StatusCode).Serve(w, r)
+		return
+	} else if err != nil {
 		response.ServerError(w, r, err)
 		return
 	}

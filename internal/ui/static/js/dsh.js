@@ -93,8 +93,8 @@ function handleHtmxErrors() {
 
   body.addEventListener("htmx:response:error", (event) => {
     const ctx = event.detail.ctx;
-    showToastNotification("error",
-      `Unexpected server response: ${ctx.status} ${ctx.raw.statusText}`);
+    const text = ctx.text.slice(0, 160);
+    showToastNotification("error", `Unexpected server response: ${text}`);
   });
 }
 
