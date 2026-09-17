@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"maps"
 	"math"
 	"net/mail"
 	"net/url"
@@ -52,6 +53,7 @@ func (self *funcMap) Map() template.FuncMap {
 		"disableLocalAuth":   config.DisableLocalAuth,
 		"domain":             urllib.Domain,
 		"duration":           duration,
+		"extend":             extend,
 		"formatFileSize":     formatFileSize[int64],
 		"formatFileSizeUint": formatFileSize[uint64],
 		"icon":               self.icon,
@@ -157,6 +159,17 @@ func (self *funcMap) routeBinaryFile(filename string) string {
 func (self *funcMap) stylesheet(name string) string {
 	return route.Path(self.router, "stylesheet", "name",
 		static.StylesheetNameExt(name))
+}
+
+func extend(parent map[string]any, keyValues ...any) (map[string]any, error) {
+	m, err := dict(keyValues...)
+	if err != nil {
+		return nil, err
+	}
+
+	extended := maps.Clone(parent)
+	maps.Copy(extended, m)
+	return extended, nil
 }
 
 func dict(values ...any) (map[string]any, error) {
