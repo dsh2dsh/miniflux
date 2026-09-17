@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -185,6 +186,9 @@ type ErrBadStatus struct {
 var _ error = (*ErrBadStatus)(nil)
 
 func (self *ErrBadStatus) Error() string {
-	return fmt.Sprintf("reader/fetcher: unexpected status: %d %s",
-		self.StatusCode, http.StatusText(self.StatusCode))
+	return "reader/fetcher: unexpected status: " + self.String()
+}
+
+func (self *ErrBadStatus) String() string {
+	return strconv.Itoa(self.StatusCode) + " " + http.StatusText(self.StatusCode)
 }

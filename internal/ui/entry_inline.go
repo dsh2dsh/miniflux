@@ -79,12 +79,10 @@ func (h *handler) downloadEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := processor.ProcessEntryWebPage(r.Context(), feed, entry, user,
+	origErr := processor.ProcessEntryWebPage(r.Context(), feed, entry, user,
 		sanitizer.WithRewriteURL(mediaproxy.New(h.router).RewriteURL))
-	if errStatus, ok := errors.AsType[*fetcher.ErrBadStatus](err); ok {
-		response.WrapError(errStatus, errStatus.StatusCode).Serve(w, r)
-		return
-	} else if err != nil {
+	badStatus, err := h.unexpectedContent(origErr, entry)
+	if err != nil {
 		response.ServerError(w, r, err)
 		return
 	}
@@ -92,5 +90,31 @@ func (h *handler) downloadEntry(w http.ResponseWriter, r *http.Request) {
 	v := view.New(h.tpl, r).WithEntry(entry).
 		Set("safeContent", template.HTML(entry.Content)).
 		Set("user", request.User(r))
+
+	if badStatus != "" {
+		v.Set("unexpectedStatus", badStatus)
+		v.Set("error", origErr.Error())
+	}
 	response.HTML(w, r, v.Render("entry_download"))
+}
+
+func (h *handler) unexpectedContent(err error, entry *model.Entry,
+) (string, error) {
+	badStatus, ok := errors.AsType[*fetcher.ErrBadStatus](err)
+	if !ok {
+		return "", err
+	}
+
+	if len(badStatus.Body) == 0 {
+		return badStatus.String(), nil
+	}
+
+	u, err := entry.ParsedURL()
+	if err != nil {
+		return "", err
+	}
+
+	entry.Content = sanitizer.SanitizeContent(string(badStatus.Body), u,
+		sanitizer.WithRewriteURL(mediaproxy.New(h.router).RewriteURL))
+	return badStatus.String(), nil
 }
