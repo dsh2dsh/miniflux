@@ -23,6 +23,10 @@ func (self *Template) LookupExecute(data map[string]any, names ...string,
 	tt := self.Funcs(self.funcMap())
 
 	for _, name := range names {
+		if name == "" {
+			continue
+		}
+
 		if t := tt.Lookup(name); t != nil {
 			var b bytes.Buffer
 			if err := t.Execute(&b, data); err != nil {

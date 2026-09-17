@@ -78,19 +78,29 @@ func (self *Engine) ParseTemplates() error {
 // Render process a template.
 func (self *Engine) Render(name string, data map[string]any, opts ...Option,
 ) []byte {
-	parsedTemplate, ok := self.templates[name]
-	if !ok {
-		panic("This template does not exists: " + name)
-	}
-
-	t := Template{Template: template.Must(parsedTemplate.Clone())}
-	for _, fn := range opts {
-		fn(&t)
-	}
-
-	b, err := t.LookupExecute(data, "layout.html", name)
+	b, err := self.LookupExecute(name, "layout.html", data, opts...)
 	if err != nil {
 		panic(err)
 	}
 	return b
+}
+
+func (self *Engine) LookupExecute(name, execute string, data map[string]any,
+	opts ...Option,
+) ([]byte, error) {
+	parsed, ok := self.templates[name]
+	if !ok {
+		return nil, fmt.Errorf("template not found: %s", name)
+	}
+
+	t := Template{Template: template.Must(parsed.Clone())}
+	for _, fn := range opts {
+		fn(&t)
+	}
+
+	b, err := t.LookupExecute(data, execute, name)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
 }
