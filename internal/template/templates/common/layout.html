@@ -58,7 +58,7 @@
   data-refresh-all-feeds-url="{{ route "refreshAllFeeds" }}"
 
   {{ if .webAuthnEnabled }}
-    data-webauthn-register-begin-url="{{ route "webauthnRegisterBegin" }}"
+  data-webauthn-register-begin-url="{{ route "webauthnRegisterBegin" }}"
   data-webauthn-register-finish-url="{{ route "webauthnRegisterFinish" }}"
   data-webauthn-login-begin-url="{{ route "webauthnLoginBegin" }}"
   data-webauthn-login-finish-url="{{ route "webauthnLoginFinish" }}"
@@ -66,15 +66,19 @@
   {{ end }}
 
   {{ if .user }}
-  {{ if not .user.KeyboardShortcuts }}
+  {{   if not .user.KeyboardShortcuts }}
   data-disable-keyboard-shortcuts="true"
-  {{ end }}
+  {{   end }}
   data-mark-as-read-on-view="{{ .user.MarkReadOnView }}"
-  {{ end }}>
+  {{ end }}
+
+  hx-indicator:inherited="#global-htmx-indicator">
 
     <div id="svg-icons">
         {{ template "icons.svg" }}
     </div>
+
+    <div id="global-htmx-indicator"></div>
 
     {{ if .user }}
     <a class="skip-to-content-link" href="#main">{{ t "skip_to_content" }}</a>
