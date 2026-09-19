@@ -3,24 +3,27 @@
 .entry
 .hasSaveEntry
 .showOnlyUnreadEntries
+.inlined
 */ -}}
 
-{{ template "item_meta" extend . "withInfo" true }}
+{{ template "item_meta_info.html" . }}
 
 <header class="item-header" dir="auto">
-    <h2 id="entry-title-{{ .entry.ID }}" class="item-title" lang="{{ .entry.Language }}">
+    {{- $inlineEntry := route "inlineEntry" "entryID" .entry.ID -}}
+    {{- if .showOnlyUnreadEntries -}}
+    {{-   $inlineEntry = printf "%s?unread=1" $inlineEntry -}}
+    {{- end -}}
+
+    <h2 id="entry-title-{{ .entry.ID }}" class="item-title"
+        lang="{{ .entry.Language }}"
+        hx-target:inherited="closest .item">
+
         {{ if .entry.URLSafe }}
-
         <a href="{{ .entry.URL | safeURL }}"
-
-           {{ if .user.AlwaysOpenExternalLinks }}
+           {{ if or .user.AlwaysOpenExternalLinks .inlined }}
            data-original-link="{{ .user.MarkReadOnView }}"
            {{ else }}
-           hx-get="{{ route "inlineEntry" "entryID" .entry.ID }}"
-           hx-indicator="closest .item"
-           hx-swap="outerHTML"
-           hx-target="next .entry-content.htmx-indicator"
-           hx-trigger="click"
+           hx-get="{{ $inlineEntry }}"
            {{ end }}
 
            {{ .user.TargetBlank }}
@@ -29,15 +32,8 @@
             {{ .entry.AutoTitle | safeHTML }}
         </a>
 
-        {{ else if not .user.AlwaysOpenExternalLinks }}
-
-        <button class="reset"
-                type="button"
-                hx-get="{{ route "inlineEntry" "entryID" .entry.ID }}"
-                hx-indicator="closest .item"
-                hx-swap="outerHTML"
-                hx-target="next .entry-content.htmx-indicator"
-                hx-trigger="click">
+        {{ else if not (or .user.AlwaysOpenExternalLinks .inlined) }}
+        <button class="reset" type="button" hx-get="{{ $inlineEntry }}">
             {{ .entry.AutoTitle | safeHTML }}
         </button>
 
@@ -54,4 +50,7 @@
     </span>
 </header>
 
-{{ template "item_meta" extend . "withIcons" true }}
+{{ block "entryContent" . }}
+{{ end }}
+
+{{ template "item_meta_icons.html" . }}

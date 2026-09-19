@@ -1,11 +1,25 @@
-<div class="loaded" hx-ignore="">
-    <article class="entry-content feed-id-{{ .entry.FeedID }} inline" lang="{{ .entry.Language }}" dir="auto">
-        {{ if .errorMessage }}
-        <div role="alert" class="alert alert-error">
-            <p>{{ .errorMessage }}</p>
-        </div>
-        {{ end }}
+{{- /*
+.user
+.entry
 
+.downloaded
+
+.contentError
+.safeContent
+*/ -}}
+
+{{ define "entryContent" }}
+<div class="loaded">
+    {{ if .contentError }}
+    <div role="alert" class="alert alert-error">
+        <p>{{ .contentError }}</p>
+    </div>
+    {{ end }}
+
+    {{ $contentClass := or (and .downloaded "download") "inline" }}
+    <article
+      class="entry-content feed-id-{{ .entry.FeedID }} {{ $contentClass }}"
+      lang="{{ .entry.Language }}" dir="auto" hx-ignore="">
         {{ .safeContent }}
     </article>
 
@@ -74,3 +88,4 @@
     </details>
     {{ end }}
 </div>
+{{ end }}

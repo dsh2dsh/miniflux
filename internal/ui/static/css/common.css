@@ -989,14 +989,6 @@ dialog {
     cursor: text;
 }
 
-.htmx-indicator {
-    opacity: 0
-}
-.htmx-request.htmx-indicator, .htmx-request .htmx-indicator {
-    opacity: 1;
-    transition: opacity 200ms ease-in;
-}
-
 .feed-entries-counter {
     display: inline-flex;
     gap: 2px;
@@ -1026,18 +1018,8 @@ dialog {
     color: var(--header-link-color);
 }
 
-.item-meta li.if-content-download,
-.item.download .item-meta li.if-content-download {
-    display: none;
-}
-
-.item-meta li,
-.item.with-inline-content .item-meta li.if-content-download {
+.item-meta li {
     display: inline-block;
-}
-
-.item.downloaded .item-meta li.if-content-download {
-    display: none;
 }
 
 .item-meta-info {
@@ -1093,6 +1075,16 @@ a.item-meta-author {
     translate: 1px 1px;
 }
 
+.item-meta-icons button:disabled {
+    color: revert;
+    cursor: not-allowed;
+    translate: none;
+}
+
+.item-meta-icons button.htmx-request .icon-label::after {
+    content: "…";
+}
+
 .item-meta-icons-external-url button.quarantined {
     color: revert;
     cursor: not-allowed;
@@ -1101,16 +1093,6 @@ a.item-meta-author {
     span {
         text-decoration: line-through;
     }
-}
-
-.page-button .htmx-indicator,
-.page-button.htmx-request .caption {
-    display: none;
-    visibility: hidden;
-}
-.page-button.htmx-request .htmx-indicator {
-    display: inline-block;
-    visibility: visible;
 }
 
 .items {

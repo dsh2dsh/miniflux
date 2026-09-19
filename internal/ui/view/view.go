@@ -8,6 +8,7 @@ import (
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/request"
+	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/template"
 	"miniflux.app/v2/internal/ui/session"
@@ -45,6 +46,14 @@ func New(tpl *template.Engine, r *http.Request) *View {
 	return v
 }
 
+func (self *View) WithUser(user *model.User) *View {
+	self.params["user"] = user
+	if user != nil {
+		self.params["hasSaveEntry"] = user.HasSaveEntry()
+	}
+	return self
+}
+
 func (self *View) WithEntries(entries model.Entries) *View {
 	self.params["entries"] = template.Entries(entries)
 	self.params["numOfEntries"] = len(entries)
@@ -77,8 +86,19 @@ func (self *View) templateOptions() []template.Option {
 	}
 }
 
-func (self *View) LookupRender(name string) ([]byte, error) {
-	b, err := self.tpl.LookupExecute(name, "", self.params,
+func (self *View) HTML(w http.ResponseWriter, r *http.Request, name,
+	layout string,
+) {
+	b, err := self.LookupRender(name, layout)
+	if err != nil {
+		response.ServerError(w, r, err)
+		return
+	}
+	response.HTML(w, r, b)
+}
+
+func (self *View) LookupRender(name, layout string) ([]byte, error) {
+	b, err := self.tpl.LookupExecute(name, layout, self.params,
 		self.templateOptions()...)
 	if err != nil {
 		return nil, err

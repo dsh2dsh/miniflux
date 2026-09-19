@@ -1,0 +1,38 @@
+<div class="item-meta">
+    <ul class="item-meta-info">
+        <li class="item-meta-info-title">
+            {{ if ne .entry.Feed.Icon.IconID 0 }}
+            {{   $iconSrc := route "feedIcon" "externalIconID" .entry.Feed.Icon.ExternalId }}
+            <img class="feed-icon" src="{{ $iconSrc }}" loading="lazy" alt="">
+            {{ end }}
+
+            <a href="{{ route "feedEntries" "feedID" .entry.Feed.ID }}"
+               title="{{ .entry.Feed.SiteURL }}"
+               hx-boost="true"
+               data-feed-link="true">
+                {{ .entry.Feed.Title }}
+            </a>
+
+            {{ if .entry.Author }}
+            –
+            <a href="{{ route (ifElseString .showOnlyUnreadEntries "authorEntries" "authorEntriesAll") "feedID" $.entry.FeedID "authorName" (urlEncode .entry.Author) }}"
+               hx-boost="true"
+               class="item-meta-author">
+                {{ .entry.Author }}
+            </a>
+            {{ end }}
+        </li>
+
+        <li class="item-meta-info-timestamp">
+            <time datetime="{{ isodate .entry.Date }}" title="{{ isodate .entry.Date }}">{{ elapsed .user.Timezone .entry.Date }}</time>
+        </li>
+
+        {{ if and .user.ShowReadingTime (gt .entry.ReadingTime 0) }}
+        <li class="item-meta-info-reading-time">
+            <span>
+                {{ plural "entry.estimated_reading_time" .entry.ReadingTime .entry.ReadingTime }}
+            </span>
+        </li>
+        {{ end }}
+    </ul>
+</div>

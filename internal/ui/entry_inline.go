@@ -31,11 +31,13 @@ func (h *handler) inlineEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var errorMsg string
+	user := request.User(r)
+
+	var contentError string
 	content := entry.Content
-	b, err := sites.Render(r.Context(), request.User(r), entry, h.tpl)
+	b, err := sites.Render(r.Context(), user, entry, h.tpl)
 	if err != nil {
-		errorMsg = err.Error()
+		contentError = err.Error()
 	} else if len(b) != 0 {
 		content = string(b)
 	}
@@ -43,11 +45,13 @@ func (h *handler) inlineEntry(w http.ResponseWriter, r *http.Request) {
 	content = mediaproxy.RewriteDocumentWithRelativeProxyURL(h.router, content)
 	mediaproxy.ProxifyEnclosures(h.router, entry.Enclosures())
 
-	v := view.New(h.tpl, r).WithEntry(entry).
-		Set("errorMessage", errorMsg).
+	view.New(h.tpl, r).WithUser(user).WithEntry(entry).
+		Set("showOnlyUnreadEntries", request.QueryBoolParam(r, "unread", false)).
+		Set("inlined", true).
+		Set("downloaded", false).
+		Set("contentError", contentError).
 		Set("safeContent", template.HTML(content)).
-		Set("user", request.User(r))
-	response.HTML(w, r, v.Render("entry_inline"))
+		HTML(w, r, "inline_entry.html", "item_inner.html")
 }
 
 func (h *handler) downloadEntry(w http.ResponseWriter, r *http.Request) {
@@ -81,21 +85,19 @@ func (h *handler) downloadEntry(w http.ResponseWriter, r *http.Request) {
 
 	origErr := processor.ProcessEntryWebPage(r.Context(), feed, entry, user,
 		sanitizer.WithRewriteURL(mediaproxy.New(h.router).RewriteURL))
-	badStatus, err := h.unexpectedContent(origErr, entry)
+	contentError, err := h.unexpectedContent(origErr, entry)
 	if err != nil {
 		response.ServerError(w, r, err)
 		return
 	}
 
-	v := view.New(h.tpl, r).WithEntry(entry).
+	view.New(h.tpl, r).WithUser(user).WithEntry(entry).
+		Set("showOnlyUnreadEntries", request.QueryBoolParam(r, "unread", false)).
+		Set("inlined", true).
+		Set("downloaded", true).
+		Set("contentError", contentError).
 		Set("safeContent", template.HTML(entry.Content)).
-		Set("user", request.User(r))
-
-	if badStatus != "" {
-		v.Set("unexpectedStatus", badStatus)
-		v.Set("error", origErr.Error())
-	}
-	response.HTML(w, r, v.Render("entry_download"))
+		HTML(w, r, "inline_entry.html", "item_inner.html")
 }
 
 func (h *handler) unexpectedContent(err error, entry *model.Entry,

@@ -1,59 +1,22 @@
-{{ define "item_meta" }}
+{{- /*
+.user
+.entry
+.hasSaveEntry
+.showOnlyUnreadEntries
+*/ -}}
+
 <div class="item-meta">
-
-    {{ if .withInfo }}
-    <ul class="item-meta-info">
-        <li class="item-meta-info-title">
-            {{ if ne .entry.Feed.Icon.IconID 0 }}
-            {{   $iconSrc := route "feedIcon" "externalIconID" .entry.Feed.Icon.ExternalId }}
-            <img class="feed-icon" src="{{ $iconSrc }}" loading="lazy" alt="">
-            {{ end }}
-
-            <a
-              href="{{ route "feedEntries" "feedID" .entry.Feed.ID }}"
-              title="{{ .entry.Feed.SiteURL }}"
-              hx-boost="true"
-              data-feed-link="true">
-                {{ .entry.Feed.Title }}
-            </a>
-
-            {{ if .entry.Author }}
-            –
-            <a
-              href="{{ route (ifElseString .showOnlyUnreadEntries "authorEntries" "authorEntriesAll") "feedID" $.entry.FeedID "authorName" (urlEncode .entry.Author) }}"
-              hx-boost="true"
-              class="item-meta-author">
-                {{ .entry.Author }}
-            </a>
-            {{ end }}
-        </li>
-
-        <li class="item-meta-info-timestamp">
-            <time datetime="{{ isodate .entry.Date }}" title="{{ isodate .entry.Date }}">{{ elapsed .user.Timezone .entry.Date }}</time>
-        </li>
-
-        {{ if and .user.ShowReadingTime (gt .entry.ReadingTime 0) }}
-        <li class="item-meta-info-reading-time">
-            <span>
-            {{ plural "entry.estimated_reading_time" .entry.ReadingTime .entry.ReadingTime }}
-            </span>
-        </li>
-        {{ end }}
-    </ul>
-    {{ end }}
-
-    {{ if .withIcons }}
     <ul class="item-meta-icons">
         <li class="item-meta-icons-read">
             <button
-                aria-describedby="entry-title-{{ .entry.ID }}"
-                title="{{ t "entry.status.title" }}"
-                data-toggle-status="true"
-                data-label-loading="{{ t "entry.state.saving" }}"
-                data-label-read="{{ t "entry.status.mark_as_read" }}"
-                data-label-unread="{{ t "entry.status.mark_as_unread" }}"
-                data-value="{{ if eq .entry.Status "read" }}read{{ else }}unread{{ end }}"
-                >{{ if eq .entry.Status "read" }}{{ icon "unread" }}{{ else }}{{ icon "read" }}{{ end }}<span class="icon-label">{{ if eq .entry.Status "read" }}{{ t "entry.status.mark_as_unread" }}{{ else }}{{ t "entry.status.mark_as_read" }}{{ end }}</span></button>
+              aria-describedby="entry-title-{{ .entry.ID }}"
+              title="{{ t "entry.status.title" }}"
+              data-toggle-status="true"
+              data-label-loading="{{ t "entry.state.saving" }}"
+              data-label-read="{{ t "entry.status.mark_as_read" }}"
+              data-label-unread="{{ t "entry.status.mark_as_unread" }}"
+              data-value="{{ if eq .entry.Status "read" }}read{{ else }}unread{{ end }}"
+            >{{ if eq .entry.Status "read" }}{{ icon "unread" }}{{ else }}{{ icon "read" }}{{ end }}<span class="icon-label">{{ if eq .entry.Status "read" }}{{ t "entry.status.mark_as_unread" }}{{ else }}{{ t "entry.status.mark_as_read" }}{{ end }}</span></button>
         </li>
 
         <li class="item-meta-icons-star">
@@ -80,20 +43,22 @@
             </button>
         </li>
 
-        {{ if .entry.URLSafe }}
-        <li class="if-content-download">
+        {{ if and .entry.URLSafe (not .user.AlwaysOpenExternalLinks) }}
+        <li class="item-meta-icons-download">
+            {{- $downloadEntry := route "downloadEntry" "feedID" .entry.Feed.ID  "entryID" .entry.ID -}}
+            {{- if .showOnlyUnreadEntries -}}
+            {{-   $downloadEntry = printf "%s?unread=1" $downloadEntry -}}
+            {{- end -}}
+
             <button
               class="page-button"
               title="{{ t "entry.scraper.title" }}"
-              hx-disable="this"
-              hx-get="{{ route "downloadEntry" "feedID" .entry.Feed.ID  "entryID" .entry.ID }}"
-              hx-target="previous .entry-content.inline"
-              hx-trigger="click"
-              hx-swap="outerHTML">
+              hx-get="{{ $downloadEntry }}"
+              hx-target="closest .item"
+              hx-indicator="this"
+              hx-disable="this">
                 {{ icon "scraper" }}
-                <span class="icon-label caption">
-                    {{ t "entry.scraper.label" }}
-                </span>
+                <span class="icon-label">{{ t "entry.scraper.label" }}</span>
             </button>
         </li>
         {{ end }}
@@ -154,7 +119,4 @@
         </li>
         {{ end }}
     </ul>
-    {{ end }}
-
 </div>
-{{ end }}
