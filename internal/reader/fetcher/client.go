@@ -35,12 +35,17 @@ type Client struct {
 	httpClient *http.Client
 	customized bool
 
+	allowPrivateNets bool
 	enableKeepAlives bool
+	withoutRedirects bool
 }
 
 func (self *Client) build(rb *RequestBuilder) error {
 	self.rb = rb
-	u, err := self.rb.proxy()
+	self.allowPrivateNets = rb.allowPrivateNets
+	self.withoutRedirects = rb.withoutRedirects
+
+	u, err := rb.proxy()
 	if err != nil {
 		return err
 	}
@@ -59,24 +64,21 @@ func (self *Client) build(rb *RequestBuilder) error {
 
 func (self *Client) makeClient() *http.Client {
 	client := &http.Client{
-		Transport: self.transport(),
-		Timeout:   self.rb.clientTimeout,
-	}
-
-	if self.rb.withoutRedirects {
-		client.CheckRedirect = withoutRedirects
+		Transport:     self.transport(),
+		CheckRedirect: checkRedirects,
+		Timeout:       self.rb.clientTimeout,
 	}
 	return client
 }
 
 func (self *Client) transport() http.RoundTripper {
-	dialer := &net.Dialer{Timeout: self.rb.clientTimeout}
-	if !self.rb.allowPrivateNets && self.proxy == nil {
-		dialer.ControlContext = denyDialToPrivate
+	dialer := &net.Dialer{
+		Timeout:        self.rb.clientTimeout,
+		ControlContext: denyDialToPrivate,
 	}
 
 	transport := &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
+		Proxy:                 proxyFromClient,
 		DialContext:           dialer.DialContext,
 		TLSClientConfig:       self.rb.tlsConfig(),
 		TLSHandshakeTimeout:   self.rb.clientTimeout,
@@ -100,16 +102,17 @@ func (self *Client) transport() http.RoundTripper {
 		// servers) to a non-nil, empty map.
 		transport.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{}
 	}
-
-	if self.proxy != nil {
-		transport.Proxy = http.ProxyURL(self.proxy)
-	}
 	return gzhttp.Transport(transport)
 }
 
 func denyDialToPrivate(ctx context.Context, network, address string,
 	_ syscall.RawConn,
 ) error {
+	c := clientFromContext(ctx)
+	if c != nil && (c.allowPrivateNets || c.proxy != nil) {
+		return nil
+	}
+
 	host, _, err := net.SplitHostPort(address)
 	if err != nil {
 		return fmt.Errorf("%w: split %q: %w", ErrPrivateNetworkHost, address, err)
@@ -146,12 +149,34 @@ func denyDialToPrivate(ctx context.Context, network, address string,
 	return nil
 }
 
-func withoutRedirects(*http.Request, []*http.Request) error {
-	return http.ErrUseLastResponse
+func proxyFromClient(req *http.Request) (*url.URL, error) {
+	c := clientFromContext(req.Context())
+	if c != nil && c.proxy != nil {
+		return c.proxy, nil
+	}
+
+	u, err := http.ProxyFromEnvironment(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetcher: %w", err)
+	}
+	return u, nil
+}
+
+func checkRedirects(r *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
+	}
+
+	c := clientFromContext(r.Context())
+	if c != nil && c.withoutRedirects {
+		return http.ErrUseLastResponse
+	}
+	return nil
 }
 
 func (self *Client) Do(req *http.Request) (*ResponseHandler, error) {
-	log := logging.FromContext(req.Context())
+	ctx := req.Context()
+	log := logging.FromContext(ctx)
 	log.Debug("Making outgoing request",
 		slog.String("method", req.Method),
 		slog.String("url", req.URL.String()),
@@ -164,10 +189,11 @@ func (self *Client) Do(req *http.Request) (*ResponseHandler, error) {
 		slog.Bool("customized", self.rb.customized))
 
 	hostname := req.URL.Hostname()
-	if err := limits.Acquire(req.Context(), hostname); err != nil {
+	if err := limits.Acquire(ctx, hostname); err != nil {
 		return nil, err
 	}
 
+	req = req.WithContext(self.context(ctx, req))
 	start := time.Now()
 
 	//nolint:bodyclose // ResponseSemaphore.Close() it later
@@ -191,6 +217,13 @@ func (self *Client) proxyRedacted() string {
 		return self.proxy.Redacted()
 	}
 	return ""
+}
+
+func (self *Client) context(ctx context.Context, req *http.Request,
+) context.Context {
+	ctx = contextWithClient(ctx, self)
+	ctx = contextWithRequest(ctx, req)
+	return ctx
 }
 
 func (self *Client) Request(ctx context.Context, requestURL string,

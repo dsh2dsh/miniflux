@@ -125,23 +125,16 @@ func (self *RequestBuilder) WithUsernameAndPassword(username, password string) *
 
 func (self *RequestBuilder) UseCustomApplicationProxyURL(value bool) *RequestBuilder {
 	self.useClientProxy = value
-	if value {
-		self.customized = true
-	}
 	return self
 }
 
 func (self *RequestBuilder) WithCustomFeedProxyURL(proxyURL string) *RequestBuilder {
 	self.feedProxyURL = proxyURL
-	if proxyURL != "" {
-		self.customized = true
-	}
 	return self
 }
 
 func (self *RequestBuilder) WithoutRedirects() *RequestBuilder {
 	self.withoutRedirects = true
-	self.customized = true
 	return self
 }
 
@@ -162,10 +155,7 @@ func (self *RequestBuilder) IgnoreTLSErrors(value bool) *RequestBuilder {
 }
 
 func (self *RequestBuilder) WithPrivateNetworks() *RequestBuilder {
-	if !self.allowPrivateNets {
-		self.allowPrivateNets = true
-		self.customized = true
-	}
+	self.allowPrivateNets = true
 	return self
 }
 
@@ -222,8 +212,6 @@ func (self *RequestBuilder) Do(req *http.Request) (*ResponseHandler, error) {
 	if err := client.build(self); err != nil {
 		return nil, err
 	}
-
-	req = req.WithContext(contextWithRequest(req.Context(), req))
 	return client.Do(req)
 }
 

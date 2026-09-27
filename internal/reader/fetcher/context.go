@@ -5,9 +5,26 @@ import (
 	"net/http"
 )
 
-type ctxRequest struct{}
+type (
+	ctxClient  struct{}
+	ctxRequest struct{}
+)
 
-var requestContextKey = ctxRequest{}
+var (
+	clientContextKey  = ctxClient{}
+	requestContextKey = ctxRequest{}
+)
+
+func contextWithClient(ctx context.Context, c *Client) context.Context {
+	return context.WithValue(ctx, clientContextKey, c)
+}
+
+func clientFromContext(ctx context.Context) *Client {
+	if b, ok := ctx.Value(clientContextKey).(*Client); ok {
+		return b
+	}
+	return nil
+}
 
 func contextWithRequest(ctx context.Context, req *http.Request) context.Context {
 	return context.WithValue(ctx, requestContextKey, req)
