@@ -19,6 +19,7 @@ import (
 	"miniflux.app/v2/internal/http/server"
 	"miniflux.app/v2/internal/metric"
 	"miniflux.app/v2/internal/proxyrotator"
+	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/systemd"
 	"miniflux.app/v2/internal/template"
@@ -88,12 +89,8 @@ func (self *Daemon) configure(ctx context.Context) error {
 	if config.HasHTTPClientProxiesConfigured() {
 		slog.Info("Initializing proxy rotation",
 			slog.Int("proxies_count", len(config.HTTPClientProxies())))
-		rotatorInstance, err := proxyrotator.NewProxyRotator(
+		fetcher.ProxyRotatorInstance = proxyrotator.NewProxyRotator(
 			config.HTTPClientProxies())
-		if err != nil {
-			return err
-		}
-		proxyrotator.ProxyRotatorInstance = rotatorInstance
 	}
 
 	templates, err := compileTemplates()

@@ -4,6 +4,7 @@
 package validator
 
 import (
+	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/urllib"
@@ -15,7 +16,7 @@ func ValidateSubscriptionDiscovery(request *model.SubscriptionDiscoveryRequest) 
 		return locale.NewLocalizedError("error.invalid_site_url")
 	}
 
-	if request.ProxyURL != "" && !urllib.IsValidProxyURL(request.ProxyURL) {
+	if request.ProxyURL != "" && config.FindProxy(request.ProxyURL) == nil {
 		return locale.NewLocalizedError("error.invalid_proxy_url")
 	}
 

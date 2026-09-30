@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/reader/filter"
 	"miniflux.app/v2/internal/urllib"
@@ -48,7 +49,7 @@ func (s *SubscriptionForm) Validate() *locale.LocalizedError {
 		return locale.NewLocalizedError("error.feed_invalid_urlrewrite_rule")
 	}
 
-	if s.ProxyURL != "" && !urllib.IsValidProxyURL(s.ProxyURL) {
+	if s.ProxyURL != "" && config.FindProxy(s.ProxyURL) == nil {
 		return locale.NewLocalizedError("error.invalid_feed_proxy_url")
 	}
 

@@ -40,8 +40,8 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 	user := request.User(r)
 	subscriptions, lerr := finder.FindSubscriptions(ctx,
 		fetcher.NewRequestBuilder().
-			WithCustomFeedProxyURL(f.ProxyURL).
-			UseCustomApplicationProxyURL(f.FetchViaProxy).
+			WithCustomFeedProxy(f.ProxyURL).
+			UseCustomApplicationProxy(f.FetchViaProxy).
 			WithUserAgent(f.UserAgent).
 			WithCookie(f.Cookie).
 			WithUsernameAndPassword(f.Username, f.Password).
@@ -159,7 +159,8 @@ func (h *handler) showSubscriptionError(w http.ResponseWriter, r *http.Request,
 		Set("categories", categories).
 		Set("defaultUserAgent", config.HTTPClientUserAgent()).
 		Set("form", f).
-		Set("hasProxyConfigured", config.HasHTTPClientProxyURLConfigured())
+		Set("hasProxyConfigured", config.HasHTTPClientProxyURLConfigured()).
+		Set("proxies", config.Proxies())
 
 	if lerr == nil {
 		renderFunc(v)

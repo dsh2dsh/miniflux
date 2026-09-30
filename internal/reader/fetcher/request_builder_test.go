@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -292,14 +293,16 @@ func TestRequestBuilder_WithCustomApplicationProxyURL(t *testing.T) {
 	require.NoError(t, config.Load(""))
 
 	builder := NewRequestBuilder()
-	assert.Equal(t, proxyURL, builder.clientProxyURL.String())
+	require.NotNil(t, builder.clientProxy)
+	require.NotNil(t, builder.clientProxy.URL())
+	assert.Equal(t, proxyURL, builder.clientProxy.URL().String())
 }
 
 func TestRequestBuilder_UseCustomApplicationProxyURL(t *testing.T) {
 	require.NoError(t, config.Load(""))
 
 	builder := NewRequestBuilder()
-	builder = builder.UseCustomApplicationProxyURL(true)
+	builder = builder.UseCustomApplicationProxy(true)
 	assert.True(t, builder.useClientProxy)
 }
 
@@ -308,8 +311,8 @@ func TestRequestBuilder_WithCustomFeedProxyURL(t *testing.T) {
 
 	proxyURL := "http://feed-proxy.example.com:8080"
 	builder := NewRequestBuilder()
-	builder = builder.WithCustomFeedProxyURL(proxyURL)
-	assert.Equal(t, proxyURL, builder.feedProxyURL)
+	builder = builder.WithCustomFeedProxy(proxyURL)
+	assert.Equal(t, proxyURL, builder.feedProxyId)
 }
 
 func TestRequestBuilder_ChainedMethods(t *testing.T) {
@@ -504,7 +507,7 @@ func TestRequestBuilder_AllowPrivateConfiguredProxy(t *testing.T) {
 		{
 			name: "feed proxy",
 			configure: func(t *testing.T, rb *RequestBuilder, proxyURL string) {
-				rb.WithCustomFeedProxyURL(proxyURL)
+				rb.WithCustomFeedProxy(proxyURL)
 			},
 		},
 		{
@@ -513,44 +516,51 @@ func TestRequestBuilder_AllowPrivateConfiguredProxy(t *testing.T) {
 				return map[string]string{"HTTP_CLIENT_PROXY": proxyURL}
 			},
 			configure: func(t *testing.T, builder *RequestBuilder, proxyURL string) {
-				builder.UseCustomApplicationProxyURL(true)
+				builder.UseCustomApplicationProxy(true)
 			},
 		},
 		{
 			name: "proxy rotator",
 			configure: func(t *testing.T, builder *RequestBuilder, proxyURL string) {
 				t.Helper()
-				rotator, err := proxyrotator.NewProxyRotator([]string{proxyURL})
+				u, err := url.Parse(proxyURL)
 				require.NoError(t, err)
-				builder.proxyRotator = rotator
+				builder.proxyRotator = proxyrotator.NewProxyRotator([]*url.URL{u})
 			},
 		},
 	}
 
+	proxyRequests := make(chan string, 1)
+	proxyServer := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case proxyRequests <- r.URL.String():
+			default:
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+	t.Cleanup(func() { proxyServer.Close() })
+
 	os.Clearenv()
+	const yamlConfig = `
+proxies:
+  - name: "Proxy"
+    id: "proxy"
+    url: `
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			proxyRequests := make(chan string, 1)
-			proxyServer := httptest.NewServer(http.HandlerFunc(
-				func(w http.ResponseWriter, r *http.Request) {
-					select {
-					case proxyRequests <- r.URL.String():
-					default:
-					}
-					w.WriteHeader(http.StatusOK)
-				}))
-			t.Cleanup(func() { proxyServer.Close() })
-
 			if tt.envFunc != nil {
 				for k, v := range tt.envFunc(proxyServer.URL) {
 					t.Setenv(k, v)
 				}
 			}
-			require.NoError(t, config.Load(""))
+
+			err := config.Load("",
+				config.WithYAMLBytes([]byte(yamlConfig+`"`+proxyServer.URL+`"`)))
+			require.NoError(t, err)
 
 			rb := NewRequestBuilder()
-			rb.customized = true
 			tt.configure(t, rb, proxyServer.URL)
 
 			const targetURL = "http://feed.invalid/rss.xml"

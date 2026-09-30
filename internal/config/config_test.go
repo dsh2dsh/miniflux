@@ -5,7 +5,9 @@ package config
 
 import (
 	"net/netip"
+	"net/url"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -814,12 +816,22 @@ func TestParseConfigDumpOutput(t *testing.T) {
 }
 
 func TestHTTPClientProxies(t *testing.T) {
+	proxies := [...]string{
+		"http://proxy1.example.com",
+		"http://proxy2.example.com",
+	}
+
 	os.Clearenv()
-	const proxy1 = "http://proxy1.example.com"
-	const proxy2 = "http://proxy2.example.com"
-	t.Setenv("HTTP_CLIENT_PROXIES", proxy1+","+proxy2)
+	t.Setenv("HTTP_CLIENT_PROXIES", strings.Join(proxies[:], ","))
 	opts := parseEnvironmentVariables(t)
-	assert.Equal(t, []string{proxy1, proxy2}, opts.env.HttpClientProxies)
+
+	proxyURLs := make([]*url.URL, len(proxies))
+	for i, s := range proxies {
+		u, err := url.Parse(s)
+		require.NoError(t, err)
+		proxyURLs[i] = u
+	}
+	assert.Equal(t, proxyURLs, opts.env.HttpClientProxies)
 }
 
 func TestDefaultHTTPClientProxiesValue(t *testing.T) {
@@ -835,6 +847,10 @@ func TestHTTPClientProxy(t *testing.T) {
 	opts := parseEnvironmentVariables(t)
 	require.NotNil(t, opts.env.HttpClientProxyURL)
 	assert.Equal(t, expected, opts.env.HttpClientProxyURL.String())
+
+	require.NotNil(t, opts.clientProxy)
+	require.NotNil(t, opts.clientProxy.URL())
+	assert.Equal(t, expected, opts.clientProxy.URL().String())
 }
 
 func TestInvalidHTTPClientProxy(t *testing.T) {
@@ -999,6 +1015,27 @@ func TestLoadYAML_privateHosts(t *testing.T) {
 	assert.Equal(t, map[string][]string{
 		"192.168.0.1:443": {"https://locahost/rss-bridge/"},
 	}, opts.yaml.PrivateHosts)
+}
+
+func TestLoadYAML_proxies(t *testing.T) {
+	os.Clearenv()
+	require.NoError(t, LoadYAML("testdata/proxies.yaml", ""))
+
+	wantURL := "http://127.0.0.1:8888"
+	want := Proxy{
+		Id:        "proxy",
+		Name:      "Local proxy",
+		ParsedURL: &yamlURL{Scheme: "http", Host: "127.0.0.1:8888"},
+	}
+	assert.EqualExportedValues(t, []*Proxy{&want}, Proxies())
+
+	p := FindProxy(want.Id)
+	require.NotNil(t, p)
+	assert.EqualExportedValues(t, &want, p)
+
+	require.NotNil(t, p.URL())
+	assert.Equal(t, wantURL, p.URL().String())
+	assert.Same(t, p, FindProxy(wantURL))
 }
 
 func TestFetcherDenyNetworks(t *testing.T) {

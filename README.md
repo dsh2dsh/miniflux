@@ -340,6 +340,21 @@ This project is an opinionated fork of Miniflux.
   list, like it can't access private networks. Exclusions can be configured
   using `FETCHER_ALLOW_PRIVATE_HOSTS` or `privateHosts` (see above).
 
+* Feed custom proxies should be configured before using it
+
+  Before user will be able to select custom feed proxy, it should be configured
+  using YAML config like:
+
+  ```yaml
+  proxies:
+    - name: "Human readable name"
+      id:   "this proxy id"
+      url:  "http://127.0.0.1:8083"
+  ```
+
+  Now feed settings page shows list of configured proxies, instead of freetyle
+  proxy URL input. If no proxies configured, nothing shown.
+
 ---
 
 Features

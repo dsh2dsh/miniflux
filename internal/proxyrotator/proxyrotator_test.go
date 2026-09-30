@@ -4,21 +4,27 @@
 package proxyrotator
 
 import (
+	"net/url"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
+func mustParse(t *testing.T, raw string) *url.URL {
+	t.Helper()
+	u, err := url.Parse(raw)
+	require.NoError(t, err)
+	return u
+}
+
 func TestProxyRotator(t *testing.T) {
-	proxyURLs := []string{
-		"http://proxy1.example.com",
-		"http://proxy2.example.com",
-		"http://proxy3.example.com",
+	proxyURLs := []*url.URL{
+		mustParse(t, "http://proxy1.example.com"),
+		mustParse(t, "http://proxy2.example.com"),
+		mustParse(t, "http://proxy3.example.com"),
 	}
 
-	rotator, err := NewProxyRotator(proxyURLs)
-	if err != nil {
-		t.Fatalf("Failed to create ProxyRotator: %v", err)
-	}
-
+	rotator := NewProxyRotator(proxyURLs)
 	if !rotator.HasProxies() {
 		t.Fatalf("Expected rotator to have proxies")
 	}
@@ -39,11 +45,7 @@ func TestProxyRotator(t *testing.T) {
 }
 
 func TestProxyRotatorEmpty(t *testing.T) {
-	rotator, err := NewProxyRotator([]string{})
-	if err != nil {
-		t.Fatalf("Failed to create ProxyRotator: %v", err)
-	}
-
+	rotator := NewProxyRotator([]*url.URL{})
 	if rotator.HasProxies() {
 		t.Fatalf("Expected rotator to have no proxies")
 	}
@@ -51,21 +53,5 @@ func TestProxyRotatorEmpty(t *testing.T) {
 	proxy := rotator.GetNextProxy()
 	if proxy != nil {
 		t.Fatalf("Expected no proxy, got: %v", proxy)
-	}
-}
-
-func TestProxyRotatorInvalidURL(t *testing.T) {
-	invalidProxyURLs := []string{
-		"http://validproxy.example.com",
-		"test|test://invalidproxy.example.com",
-	}
-
-	rotator, err := NewProxyRotator(invalidProxyURLs)
-	if err == nil {
-		t.Fatalf("Expected an error when creating ProxyRotator with invalid URLs, but got none")
-	}
-
-	if rotator != nil {
-		t.Fatalf("Expected rotator to be nil when initialization fails, but got: %v", rotator)
 	}
 }

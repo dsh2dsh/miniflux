@@ -7,6 +7,7 @@ import (
 	"context"
 	"log/slog"
 
+	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
@@ -49,7 +50,7 @@ func ValidateFeedCreation(ctx context.Context, store *storage.Storage,
 		return locale.NewLocalizedError("error.feed_category_not_found")
 	}
 
-	if r.ProxyURL != "" && !urllib.IsValidProxyURL(r.ProxyURL) {
+	if r.ProxyURL != "" && config.FindProxy(r.ProxyURL) == nil {
 		return locale.NewLocalizedError("error.invalid_feed_proxy_url")
 	}
 
@@ -118,7 +119,7 @@ func ValidateFeedModification(ctx context.Context, store *storage.Storage,
 	}
 
 	if r.ProxyURL != nil && *r.ProxyURL != "" {
-		if !urllib.IsValidProxyURL(*r.ProxyURL) {
+		if config.FindProxy(*r.ProxyURL) == nil {
 			return locale.NewLocalizedError("error.invalid_feed_proxy_url")
 		}
 	}

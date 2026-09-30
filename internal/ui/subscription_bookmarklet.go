@@ -50,6 +50,7 @@ func (h *handler) bookmarklet(w http.ResponseWriter, r *http.Request) {
 		Set("form", form.SubscriptionForm{URL: bookmarkletURL}).
 		Set("categories", categories).
 		Set("defaultUserAgent", config.HTTPClientUserAgent()).
-		Set("hasProxyConfigured", config.HasHTTPClientProxyURLConfigured())
+		Set("hasProxyConfigured", config.HasHTTPClientProxyURLConfigured()).
+		Set("proxies", config.Proxies())
 	response.HTML(w, r, v.Render("add_subscription"))
 }

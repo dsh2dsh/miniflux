@@ -46,9 +46,9 @@ func NewRequestDiscovery(d *model.SubscriptionDiscoveryRequest,
 	return fetcher.NewRequestBuilder().
 		DisableHTTP2(d.DisableHTTP2).
 		IgnoreTLSErrors(d.AllowSelfSignedCertificates).
-		UseCustomApplicationProxyURL(d.FetchViaProxy).
+		UseCustomApplicationProxy(d.FetchViaProxy).
 		WithCookie(d.Cookie).
-		WithCustomFeedProxyURL(d.ProxyURL).
+		WithCustomFeedProxy(d.ProxyURL).
 		WithUserAgent(d.UserAgent).
 		WithUsernameAndPassword(d.Username, d.Password)
 }

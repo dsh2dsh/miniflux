@@ -27,13 +27,6 @@ const (
 var defaultUA = "Miniflux/dsh2dsh-" + version.Version +
 	" (https://github.com/dsh2dsh/miniflux)"
 
-// Option contains a key to value map of a single option. It may be used to
-// output debug strings.
-type Option struct {
-	Key   string
-	Value any
-}
-
 // options contains configuration options.
 type options struct {
 	env  envOptions
@@ -43,6 +36,7 @@ type options struct {
 	rootURL  string
 	basePath string
 
+	clientProxy          *Proxy
 	fetcherPrivateHosts  map[string]bool
 	mediaProxyPrivateKey []byte
 	trustedProxies       map[string]struct{}
@@ -61,97 +55,97 @@ func (self *HostLimits) withDefaults(connections int64, rate float64,
 }
 
 type envOptions struct {
-	AdminPassword                  string   `env:"ADMIN_PASSWORD"`
-	AdminPasswordFile              *string  `env:"ADMIN_PASSWORD_FILE,file"`
-	AdminUsername                  string   `env:"ADMIN_USERNAME"`
-	AdminUsernameFile              *string  `env:"ADMIN_USERNAME_FILE,file"`
-	AuthProxyHeader                string   `env:"AUTH_PROXY_HEADER"`
-	AuthProxyUserCreation          bool     `env:"AUTH_PROXY_USER_CREATION"`
-	BaseURL                        string   `env:"BASE_URL" validate:"required"`
-	BatchSize                      int      `env:"BATCH_SIZE" validate:"min=1"`
-	BlockMarkRead                  bool     `env:"BLOCK_MARK_READ"`
-	CertDomain                     string   `env:"CERT_DOMAIN" validate:"excluded_with_all=CertFile CertKeyFile"`
-	CertFile                       string   `env:"CERT_FILE" validate:"required_with=CertKeyFile,omitempty,filepath"`
-	CertKeyFile                    string   `env:"KEY_FILE" validate:"required_with=CertFile,omitempty,filepath"`
-	CleanupArchiveBatchSize        int      `env:"CLEANUP_ARCHIVE_BATCH_SIZE" validate:"min=1"`
-	CleanupArchiveReadDays         int      `env:"CLEANUP_ARCHIVE_READ_DAYS" validate:"min=0"`
-	CleanupArchiveUnreadDays       int      `env:"CLEANUP_ARCHIVE_UNREAD_DAYS" validate:"min=0"`
-	CleanupFrequencyHours          int      `env:"CLEANUP_FREQUENCY_HOURS" validate:"min=1"`
-	CleanupInactiveSessionsDays    int      `env:"CLEANUP_INACTIVE_SESSIONS_DAYS" validate:"min=0"`
-	CleanupRemoveSessionsDays      int      `env:"CLEANUP_REMOVE_SESSIONS_DAYS" validate:"min=0"`
-	ConnectionsPerServer           int64    `env:"CONNECTIONS_PER_SERVER" validate:"min=0"`
-	CreateAdmin                    bool     `env:"CREATE_ADMIN"`
-	DatabaseConnectionLifetime     int      `env:"DATABASE_CONNECTION_LIFETIME" validate:"gt=0"`
-	DatabaseMaxConns               int      `env:"DATABASE_MAX_CONNS" validate:"min=1"`
-	DatabaseMinConns               int      `env:"DATABASE_MIN_CONNS" validate:"min=0,ltefield=DatabaseMaxConns"`
-	DatabaseURL                    string   `env:"DATABASE_URL" validate:"required"`
-	DatabaseURLFile                *string  `env:"DATABASE_URL_FILE,file"`
-	DisableAPI                     bool     `env:"DISABLE_API"`
-	DisableHSTS                    bool     `env:"DISABLE_HSTS"`
-	DisableHttpService             bool     `env:"DISABLE_HTTP_SERVICE"`
-	DisableLocalAuth               bool     `env:"DISABLE_LOCAL_AUTH"`
-	DisableScheduler               bool     `env:"DISABLE_SCHEDULER_SERVICE"`
-	FetchBilibiliWatchTime         bool     `env:"FETCH_BILIBILI_WATCH_TIME"`
-	FetchNebulaWatchTime           bool     `env:"FETCH_NEBULA_WATCH_TIME"`
-	FetchOdyseeWatchTime           bool     `env:"FETCH_ODYSEE_WATCH_TIME"`
-	FetchYouTubeWatchTime          bool     `env:"FETCH_YOUTUBE_WATCH_TIME"`
-	FetcherAllowPrivateHosts       []string `env:"FETCHER_ALLOW_PRIVATE_HOSTS" validate:"dive,required,ip|hostname_port"`
-	FetcherAllowPrivateNets        bool     `env:"FETCHER_ALLOW_PRIVATE_NETWORKS"`
-	FilterEntryMaxAgeDays          int      `env:"FILTER_ENTRY_MAX_AGE_DAYS" validate:"min=0"`
-	ForceRefreshInterval           int      `env:"FORCE_REFRESH_INTERVAL" validate:"min=0"`
-	HTTPS                          bool     `env:"HTTPS"`
-	HttpClientMaxBodySize          int64    `env:"HTTP_CLIENT_MAX_BODY_SIZE" validate:"min=1"`
-	HttpClientProxies              []string `env:"HTTP_CLIENT_PROXIES" validate:"dive,required,url"`
-	HttpClientProxyURL             *url.URL `env:"HTTP_CLIENT_PROXY"`
-	HttpClientTimeout              int      `env:"HTTP_CLIENT_TIMEOUT" validate:"min=1"`
-	HttpClientUserAgent            string   `env:"HTTP_CLIENT_USER_AGENT"`
-	HttpServerTimeout              int      `env:"HTTP_SERVER_TIMEOUT" validate:"min=1"`
-	IntegrationPrivateNets         bool     `env:"INTEGRATION_ALLOW_PRIVATE_NETWORKS"`
-	InvidiousInstance              string   `env:"INVIDIOUS_INSTANCE"`
-	ListenAddr                     string   `env:"LISTEN_ADDR" validate:"required,hostname|hostname_port"`
-	LogDateTime                    bool     `env:"LOG_DATE_TIME"`
-	LogFile                        string   `env:"LOG_FILE" validate:"required"`
-	LogFormat                      string   `env:"LOG_FORMAT" validate:"required,oneof=human json text"`
-	LogLevel                       string   `env:"LOG_LEVEL" validate:"required,oneof=debug info warning error"`
-	Logging                        []Log    `envPrefix:"LOG" validate:"dive,required"`
-	MaintenanceMessage             string   `env:"MAINTENANCE_MESSAGE" validate:"required_with=MaintenanceMode"`
-	MaintenanceMode                bool     `env:"MAINTENANCE_MODE"`
-	MediaProxyCustomURL            *url.URL `env:"MEDIA_PROXY_CUSTOM_URL"`
-	MediaProxyHTTPClientTimeout    int      `env:"MEDIA_PROXY_HTTP_CLIENT_TIMEOUT" validate:"min=1"`
-	MediaProxyMode                 string   `env:"MEDIA_PROXY_MODE" validate:"required,oneof=none http-only all"`
-	MediaProxyPrivateKey           string   `env:"MEDIA_PROXY_PRIVATE_KEY"`
-	MediaProxyResourceTypes        []string `env:"MEDIA_PROXY_RESOURCE_TYPES" validate:"omitempty,dive,oneof=image video audio"`
-	MetricsAllowedNetworks         []string `env:"METRICS_ALLOWED_NETWORKS" validate:"dive,required"`
-	MetricsCollector               bool     `env:"METRICS_COLLECTOR"`
-	MetricsPassword                string   `env:"METRICS_PASSWORD" validate:"required_with=MetricsUsername"`
-	MetricsPasswordFile            *string  `env:"METRICS_PASSWORD_FILE,file"`
-	MetricsRefreshInterval         int      `env:"METRICS_REFRESH_INTERVAL" validate:"min=1"`
-	MetricsUsername                string   `env:"METRICS_USERNAME" validate:"required_with=MetricsPassword"`
-	MetricsUsernameFile            *string  `env:"METRICS_USERNAME_FILE,file"`
-	Oauth2ClientID                 string   `env:"OAUTH2_CLIENT_ID"`
-	Oauth2ClientIDFile             *string  `env:"OAUTH2_CLIENT_ID_FILE,file"`
-	Oauth2ClientSecret             string   `env:"OAUTH2_CLIENT_SECRET"`
-	Oauth2ClientSecretFile         *string  `env:"OAUTH2_CLIENT_SECRET_FILE,file"`
-	Oauth2Provider                 string   `env:"OAUTH2_PROVIDER" validate:"omitempty,oneof=oidc google"`
-	Oauth2RedirectURL              string   `env:"OAUTH2_REDIRECT_URL" validate:"omitempty,url"`
-	Oauth2UserCreationAllowed      bool     `env:"OAUTH2_USER_CREATION"`
-	OidcDiscoveryEndpoint          string   `env:"OAUTH2_OIDC_DISCOVERY_ENDPOINT" validate:"required_if=Oauth2Provider oidc,omitempty,url"`
-	OidcProviderName               string   `env:"OAUTH2_OIDC_PROVIDER_NAME"`
-	Operators                      []string `env:"OPERATORS"`
-	PollingFrequency               int      `env:"POLLING_FREQUENCY" validate:"min=1"`
-	Port                           string   `env:"PORT"`
-	PreferSiteIcon                 bool     `env:"PREFER_SITE_ICON"`
-	RateLimitPerServer             float64  `env:"RATE_LIMIT_PER_SERVER" validate:"min=0"`
-	RunMigrations                  bool     `env:"RUN_MIGRATIONS"`
-	SchedulerRoundRobinMaxInterval int      `env:"SCHEDULER_ROUND_ROBIN_MAX_INTERVAL" validate:"min=1"`
-	SchedulerRoundRobinMinInterval int      `env:"SCHEDULER_ROUND_ROBIN_MIN_INTERVAL" validate:"min=1,ltefield=SchedulerRoundRobinMaxInterval"`
-	Testing                        bool     `env:"TESTING"`
-	TrustedProxies                 []string `env:"TRUSTED_PROXIES" validate:"dive,required,ip"`
-	Watchdog                       bool     `env:"WATCHDOG"`
-	WebAuthn                       bool     `env:"WEBAUTHN"`
-	WorkerPoolSize                 int      `env:"WORKER_POOL_SIZE" validate:"min=1"`
-	YouTubeApiKey                  string   `env:"YOUTUBE_API_KEY"`
-	YouTubeEmbedUrlOverride        *url.URL `env:"YOUTUBE_EMBED_URL_OVERRIDE" envDefault:"https://www.youtube-nocookie.com/embed/"`
+	AdminPassword                  string     `env:"ADMIN_PASSWORD"`
+	AdminPasswordFile              *string    `env:"ADMIN_PASSWORD_FILE,file"`
+	AdminUsername                  string     `env:"ADMIN_USERNAME"`
+	AdminUsernameFile              *string    `env:"ADMIN_USERNAME_FILE,file"`
+	AuthProxyHeader                string     `env:"AUTH_PROXY_HEADER"`
+	AuthProxyUserCreation          bool       `env:"AUTH_PROXY_USER_CREATION"`
+	BaseURL                        string     `env:"BASE_URL" validate:"required"`
+	BatchSize                      int        `env:"BATCH_SIZE" validate:"min=1"`
+	BlockMarkRead                  bool       `env:"BLOCK_MARK_READ"`
+	CertDomain                     string     `env:"CERT_DOMAIN" validate:"excluded_with_all=CertFile CertKeyFile"`
+	CertFile                       string     `env:"CERT_FILE" validate:"required_with=CertKeyFile,omitempty,filepath"`
+	CertKeyFile                    string     `env:"KEY_FILE" validate:"required_with=CertFile,omitempty,filepath"`
+	CleanupArchiveBatchSize        int        `env:"CLEANUP_ARCHIVE_BATCH_SIZE" validate:"min=1"`
+	CleanupArchiveReadDays         int        `env:"CLEANUP_ARCHIVE_READ_DAYS" validate:"min=0"`
+	CleanupArchiveUnreadDays       int        `env:"CLEANUP_ARCHIVE_UNREAD_DAYS" validate:"min=0"`
+	CleanupFrequencyHours          int        `env:"CLEANUP_FREQUENCY_HOURS" validate:"min=1"`
+	CleanupInactiveSessionsDays    int        `env:"CLEANUP_INACTIVE_SESSIONS_DAYS" validate:"min=0"`
+	CleanupRemoveSessionsDays      int        `env:"CLEANUP_REMOVE_SESSIONS_DAYS" validate:"min=0"`
+	ConnectionsPerServer           int64      `env:"CONNECTIONS_PER_SERVER" validate:"min=0"`
+	CreateAdmin                    bool       `env:"CREATE_ADMIN"`
+	DatabaseConnectionLifetime     int        `env:"DATABASE_CONNECTION_LIFETIME" validate:"gt=0"`
+	DatabaseMaxConns               int        `env:"DATABASE_MAX_CONNS" validate:"min=1"`
+	DatabaseMinConns               int        `env:"DATABASE_MIN_CONNS" validate:"min=0,ltefield=DatabaseMaxConns"`
+	DatabaseURL                    string     `env:"DATABASE_URL" validate:"required"`
+	DatabaseURLFile                *string    `env:"DATABASE_URL_FILE,file"`
+	DisableAPI                     bool       `env:"DISABLE_API"`
+	DisableHSTS                    bool       `env:"DISABLE_HSTS"`
+	DisableHttpService             bool       `env:"DISABLE_HTTP_SERVICE"`
+	DisableLocalAuth               bool       `env:"DISABLE_LOCAL_AUTH"`
+	DisableScheduler               bool       `env:"DISABLE_SCHEDULER_SERVICE"`
+	FetchBilibiliWatchTime         bool       `env:"FETCH_BILIBILI_WATCH_TIME"`
+	FetchNebulaWatchTime           bool       `env:"FETCH_NEBULA_WATCH_TIME"`
+	FetchOdyseeWatchTime           bool       `env:"FETCH_ODYSEE_WATCH_TIME"`
+	FetchYouTubeWatchTime          bool       `env:"FETCH_YOUTUBE_WATCH_TIME"`
+	FetcherAllowPrivateHosts       []string   `env:"FETCHER_ALLOW_PRIVATE_HOSTS" validate:"dive,required,ip|hostname_port"`
+	FetcherAllowPrivateNets        bool       `env:"FETCHER_ALLOW_PRIVATE_NETWORKS"`
+	FilterEntryMaxAgeDays          int        `env:"FILTER_ENTRY_MAX_AGE_DAYS" validate:"min=0"`
+	ForceRefreshInterval           int        `env:"FORCE_REFRESH_INTERVAL" validate:"min=0"`
+	HTTPS                          bool       `env:"HTTPS"`
+	HttpClientMaxBodySize          int64      `env:"HTTP_CLIENT_MAX_BODY_SIZE" validate:"min=1"`
+	HttpClientProxies              []*url.URL `env:"HTTP_CLIENT_PROXIES" validate:"dive,required"`
+	HttpClientProxyURL             *url.URL   `env:"HTTP_CLIENT_PROXY"`
+	HttpClientTimeout              int        `env:"HTTP_CLIENT_TIMEOUT" validate:"min=1"`
+	HttpClientUserAgent            string     `env:"HTTP_CLIENT_USER_AGENT"`
+	HttpServerTimeout              int        `env:"HTTP_SERVER_TIMEOUT" validate:"min=1"`
+	IntegrationPrivateNets         bool       `env:"INTEGRATION_ALLOW_PRIVATE_NETWORKS"`
+	InvidiousInstance              string     `env:"INVIDIOUS_INSTANCE"`
+	ListenAddr                     string     `env:"LISTEN_ADDR" validate:"required,hostname|hostname_port"`
+	LogDateTime                    bool       `env:"LOG_DATE_TIME"`
+	LogFile                        string     `env:"LOG_FILE" validate:"required"`
+	LogFormat                      string     `env:"LOG_FORMAT" validate:"required,oneof=human json text"`
+	LogLevel                       string     `env:"LOG_LEVEL" validate:"required,oneof=debug info warning error"`
+	Logging                        []Log      `envPrefix:"LOG" validate:"dive,required"`
+	MaintenanceMessage             string     `env:"MAINTENANCE_MESSAGE" validate:"required_with=MaintenanceMode"`
+	MaintenanceMode                bool       `env:"MAINTENANCE_MODE"`
+	MediaProxyCustomURL            *url.URL   `env:"MEDIA_PROXY_CUSTOM_URL"`
+	MediaProxyHTTPClientTimeout    int        `env:"MEDIA_PROXY_HTTP_CLIENT_TIMEOUT" validate:"min=1"`
+	MediaProxyMode                 string     `env:"MEDIA_PROXY_MODE" validate:"required,oneof=none http-only all"`
+	MediaProxyPrivateKey           string     `env:"MEDIA_PROXY_PRIVATE_KEY"`
+	MediaProxyResourceTypes        []string   `env:"MEDIA_PROXY_RESOURCE_TYPES" validate:"omitempty,dive,oneof=image video audio"`
+	MetricsAllowedNetworks         []string   `env:"METRICS_ALLOWED_NETWORKS" validate:"dive,required"`
+	MetricsCollector               bool       `env:"METRICS_COLLECTOR"`
+	MetricsPassword                string     `env:"METRICS_PASSWORD" validate:"required_with=MetricsUsername"`
+	MetricsPasswordFile            *string    `env:"METRICS_PASSWORD_FILE,file"`
+	MetricsRefreshInterval         int        `env:"METRICS_REFRESH_INTERVAL" validate:"min=1"`
+	MetricsUsername                string     `env:"METRICS_USERNAME" validate:"required_with=MetricsPassword"`
+	MetricsUsernameFile            *string    `env:"METRICS_USERNAME_FILE,file"`
+	Oauth2ClientID                 string     `env:"OAUTH2_CLIENT_ID"`
+	Oauth2ClientIDFile             *string    `env:"OAUTH2_CLIENT_ID_FILE,file"`
+	Oauth2ClientSecret             string     `env:"OAUTH2_CLIENT_SECRET"`
+	Oauth2ClientSecretFile         *string    `env:"OAUTH2_CLIENT_SECRET_FILE,file"`
+	Oauth2Provider                 string     `env:"OAUTH2_PROVIDER" validate:"omitempty,oneof=oidc google"`
+	Oauth2RedirectURL              string     `env:"OAUTH2_REDIRECT_URL" validate:"omitempty,url"`
+	Oauth2UserCreationAllowed      bool       `env:"OAUTH2_USER_CREATION"`
+	OidcDiscoveryEndpoint          string     `env:"OAUTH2_OIDC_DISCOVERY_ENDPOINT" validate:"required_if=Oauth2Provider oidc,omitempty,url"`
+	OidcProviderName               string     `env:"OAUTH2_OIDC_PROVIDER_NAME"`
+	Operators                      []string   `env:"OPERATORS"`
+	PollingFrequency               int        `env:"POLLING_FREQUENCY" validate:"min=1"`
+	Port                           string     `env:"PORT"`
+	PreferSiteIcon                 bool       `env:"PREFER_SITE_ICON"`
+	RateLimitPerServer             float64    `env:"RATE_LIMIT_PER_SERVER" validate:"min=0"`
+	RunMigrations                  bool       `env:"RUN_MIGRATIONS"`
+	SchedulerRoundRobinMaxInterval int        `env:"SCHEDULER_ROUND_ROBIN_MAX_INTERVAL" validate:"min=1"`
+	SchedulerRoundRobinMinInterval int        `env:"SCHEDULER_ROUND_ROBIN_MIN_INTERVAL" validate:"min=1,ltefield=SchedulerRoundRobinMaxInterval"`
+	Testing                        bool       `env:"TESTING"`
+	TrustedProxies                 []string   `env:"TRUSTED_PROXIES" validate:"dive,required,ip"`
+	Watchdog                       bool       `env:"WATCHDOG"`
+	WebAuthn                       bool       `env:"WEBAUTHN"`
+	WorkerPoolSize                 int        `env:"WORKER_POOL_SIZE" validate:"min=1"`
+	YouTubeApiKey                  string     `env:"YOUTUBE_API_KEY"`
+	YouTubeEmbedUrlOverride        *url.URL   `env:"YOUTUBE_EMBED_URL_OVERRIDE" envDefault:"https://www.youtube-nocookie.com/embed/"`
 
 	FetcherDenyNetworks []netip.Prefix `env:"FETCHER_DENY_NETWORKS"`
 	PollingErrorLimit   int            `env:"POLLING_PARSING_ERROR_LIMIT" validate:"min=0"`
@@ -203,7 +197,6 @@ func NewOptions() *options {
 			OidcProviderName:               "OpenID Connect",
 			HttpClientTimeout:              20,
 			HttpClientMaxBodySize:          15,
-			HttpClientProxies:              []string{},
 			HttpClientUserAgent:            defaultUA,
 			HttpServerTimeout:              300,
 			MaintenanceMessage:             "Miniflux is currently under maintenance",
@@ -250,6 +243,10 @@ func (o *options) init() (err error) {
 	o.basePath = o.root.EscapedPath()
 	o.root.Path = ""
 	o.rootURL = o.root.String()
+
+	if u := o.env.HttpClientProxyURL; u != nil {
+		o.clientProxy = &Proxy{ParsedURL: (*yamlURL)(u)}
+	}
 	return nil
 }
 
@@ -368,6 +365,13 @@ func parseBaseURL(value string) (string, *url.URL, error) {
 	return value, u, nil
 }
 
+// Option contains a key to value map of a single option. It may be used to
+// output debug strings.
+type Option struct {
+	Key   string
+	Value any
+}
+
 func (o *options) sortedOptions(redactSecret bool) []Option {
 	var clientProxyURLRedacted string
 	if o.env.HttpClientProxyURL != nil {
@@ -380,15 +384,11 @@ func (o *options) sortedOptions(redactSecret bool) []Option {
 
 	var clientProxyURLsRedacted string
 	if len(o.env.HttpClientProxies) > 0 {
-		if redactSecret {
-			proxyURLs := make([]string, len(o.env.HttpClientProxies))
-			for i := range o.env.HttpClientProxies {
-				proxyURLs[i] = "<redacted>"
-			}
-			clientProxyURLsRedacted = strings.Join(proxyURLs, ",")
-		} else {
-			clientProxyURLsRedacted = strings.Join(o.env.HttpClientProxies, ",")
+		proxyURLs := make([]string, len(o.env.HttpClientProxies))
+		for i, u := range o.env.HttpClientProxies {
+			proxyURLs[i] = u.Redacted()
 		}
+		clientProxyURLsRedacted = strings.Join(proxyURLs, ",")
 	}
 
 	var mediaProxyPrivateKeyValue string
@@ -798,9 +798,6 @@ func HTTPClientTimeout() time.Duration {
 // to transfer.
 func HTTPClientMaxBodySize() int64 { return opts.env.HttpClientMaxBodySize }
 
-// HTTPClientProxyURL returns the client HTTP proxy URL if configured.
-func HTTPClientProxyURL() *url.URL { return opts.env.HttpClientProxyURL }
-
 // HasHTTPClientProxyURLConfigured returns true if the client HTTP proxy URL if
 // configured.
 func HasHTTPClientProxyURLConfigured() bool {
@@ -808,7 +805,7 @@ func HasHTTPClientProxyURLConfigured() bool {
 }
 
 // HTTPClientProxies returns the list of proxies.
-func HTTPClientProxies() []string { return opts.env.HttpClientProxies }
+func HTTPClientProxies() []*url.URL { return opts.env.HttpClientProxies }
 
 // HTTPClientProxiesString returns true if the list of rotating proxies are
 // configured.
@@ -923,3 +920,31 @@ func BlockMarkRead() bool { return opts.env.BlockMarkRead }
 func IntegrationAllowPrivateNetworks() bool {
 	return opts.env.IntegrationPrivateNets
 }
+
+func Proxies() []*Proxy { return opts.yaml.Proxies }
+
+func FindProxy(id string) *Proxy {
+	if id == "" {
+		return nil
+	}
+
+	i := slices.IndexFunc(opts.yaml.Proxies, func(p *Proxy) bool {
+		return p.Id == id
+	})
+	if i >= 0 {
+		return opts.yaml.Proxies[i]
+	}
+
+	i = slices.IndexFunc(opts.yaml.Proxies, func(p *Proxy) bool {
+		if u := p.URL(); u != nil {
+			return u.String() == id
+		}
+		return false
+	})
+	if i >= 0 {
+		return opts.yaml.Proxies[i]
+	}
+	return nil
+}
+
+func ClientProxy() *Proxy { return opts.clientProxy }

@@ -4,12 +4,9 @@
 package proxyrotator
 
 import (
-	"fmt"
 	"net/url"
 	"sync"
 )
-
-var ProxyRotatorInstance *ProxyRotator
 
 // ProxyRotator manages a list of proxies and rotates through them.
 type ProxyRotator struct {
@@ -19,22 +16,12 @@ type ProxyRotator struct {
 }
 
 // NewProxyRotator creates a new ProxyRotator with the given proxy URLs.
-func NewProxyRotator(proxyURLs []string) (*ProxyRotator, error) {
-	parsedProxies := make([]*url.URL, 0, len(proxyURLs))
-
-	for _, p := range proxyURLs {
-		proxyURL, err := url.Parse(p)
-		if err != nil {
-			return nil, fmt.Errorf("proxyrotator: failed parse %q: %w", p, err)
-		}
-		parsedProxies = append(parsedProxies, proxyURL)
-	}
-
+func NewProxyRotator(proxies []*url.URL) *ProxyRotator {
 	return &ProxyRotator{
-		proxies:      parsedProxies,
+		proxies:      proxies,
 		currentIndex: 0,
 		mutex:        sync.Mutex{},
-	}, nil
+	}
 }
 
 // GetNextProxy returns the next proxy in the rotation.

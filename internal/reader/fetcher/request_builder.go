@@ -9,7 +9,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
-	"net/url"
 	"slices"
 	"time"
 
@@ -22,6 +21,8 @@ const (
 	defaultAcceptHeader = "application/xml, application/atom+xml, application/rss+xml, application/rdf+xml, application/feed+json, text/html, */*;q=0.9"
 	uaHeaderName        = "User-Agent"
 )
+
+var ProxyRotatorInstance *proxyrotator.ProxyRotator
 
 func Do(req *http.Request, opts ...Option) (*ResponseHandler, error) {
 	resp, err := NewRequestBuilder(opts...).Do(req)
@@ -42,14 +43,14 @@ func Request(ctx context.Context, requestURL string, opts ...Option,
 
 type RequestBuilder struct {
 	headers          http.Header
-	clientProxyURL   *url.URL
+	clientProxy      *config.Proxy
 	clientTimeout    time.Duration
 	useClientProxy   bool
 	withoutRedirects bool
 	ignoreTLSErrors  bool
 	disableHTTP2     bool
 	proxyRotator     *proxyrotator.ProxyRotator
-	feedProxyURL     string
+	feedProxyId      string
 	allowPrivateNets bool
 
 	customized bool
@@ -62,9 +63,9 @@ func NewRequestBuilder(opts ...Option) *RequestBuilder {
 	self := &RequestBuilder{
 		headers:          headers,
 		allowPrivateNets: config.FetcherAllowPrivateNetworks(),
-		clientProxyURL:   config.HTTPClientProxyURL(),
+		clientProxy:      config.ClientProxy(),
 		clientTimeout:    config.HTTPClientTimeout(),
-		proxyRotator:     proxyrotator.ProxyRotatorInstance,
+		proxyRotator:     ProxyRotatorInstance,
 	}
 
 	for _, opt := range opts {
@@ -77,9 +78,9 @@ func NewRequestFeed(f *model.Feed) *RequestBuilder {
 	return NewRequestBuilder().
 		DisableHTTP2(f.DisableHTTP2).
 		IgnoreTLSErrors(f.AllowSelfSignedCertificates).
-		UseCustomApplicationProxyURL(f.FetchViaProxy).
+		UseCustomApplicationProxy(f.FetchViaProxy).
 		WithCookie(f.Cookie).
-		WithCustomFeedProxyURL(f.ProxyURL).
+		WithCustomFeedProxy(f.ProxyURL).
 		WithUsernameAndPassword(f.Username, f.Password)
 }
 
@@ -123,13 +124,13 @@ func (self *RequestBuilder) WithUsernameAndPassword(username, password string) *
 	return self
 }
 
-func (self *RequestBuilder) UseCustomApplicationProxyURL(value bool) *RequestBuilder {
+func (self *RequestBuilder) UseCustomApplicationProxy(value bool) *RequestBuilder {
 	self.useClientProxy = value
 	return self
 }
 
-func (self *RequestBuilder) WithCustomFeedProxyURL(proxyURL string) *RequestBuilder {
-	self.feedProxyURL = proxyURL
+func (self *RequestBuilder) WithCustomFeedProxy(id string) *RequestBuilder {
+	self.feedProxyId = id
 	return self
 }
 
@@ -166,22 +167,18 @@ func (self *RequestBuilder) WithIntegrationDefaults() *RequestBuilder {
 	return self
 }
 
-func (self *RequestBuilder) proxy() (*url.URL, error) {
-	var proxyURL *url.URL
-	switch {
-	case self.feedProxyURL != "":
-		u, err := url.Parse(self.feedProxyURL)
-		if err != nil {
-			return nil, fmt.Errorf("reader/fetcher: invalid feed proxy URL %q: %w",
-				self.feedProxyURL, err)
-		}
-		proxyURL = u
-	case self.useClientProxy && self.clientProxyURL != nil:
-		proxyURL = self.clientProxyURL
-	case self.proxyRotator != nil && self.proxyRotator.HasProxies():
-		proxyURL = self.proxyRotator.GetNextProxy()
+func (self *RequestBuilder) proxy() *config.Proxy {
+	if p := config.FindProxy(self.feedProxyId); p != nil {
+		return p
 	}
-	return proxyURL, nil
+
+	switch {
+	case self.useClientProxy && self.clientProxy != nil:
+		return self.clientProxy
+	case self.proxyRotator != nil && self.proxyRotator.HasProxies():
+		return config.NewProxy(self.proxyRotator.GetNextProxy())
+	}
+	return nil
 }
 
 func (self *RequestBuilder) tlsConfig() *tls.Config {
@@ -209,10 +206,7 @@ func (self *RequestBuilder) Do(req *http.Request) (*ResponseHandler, error) {
 	}
 
 	var client Client
-	if err := client.build(self); err != nil {
-		return nil, err
-	}
-	return client.Do(req)
+	return client.build(self).Do(req)
 }
 
 func (self *RequestBuilder) NewRequest(ctx context.Context, requestURL string,
@@ -241,9 +235,6 @@ func (self *RequestBuilder) Request(ctx context.Context, requestURL string,
 }
 
 func (self *RequestBuilder) NewClient() (*Client, error) {
-	client := &Client{enableKeepAlives: true}
-	if err := client.build(self); err != nil {
-		return nil, err
-	}
+	client := (&Client{enableKeepAlives: true}).build(self)
 	return client, nil
 }

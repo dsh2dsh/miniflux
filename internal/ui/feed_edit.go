@@ -80,6 +80,7 @@ func (h *handler) showEditFeedPage(w http.ResponseWriter, r *http.Request) {
 		Set("categories", categories).
 		Set("feed", feed).
 		Set("defaultUserAgent", config.HTTPClientUserAgent()).
-		Set("hasProxyConfigured", config.HasHTTPClientProxyURLConfigured())
+		Set("hasProxyConfigured", config.HasHTTPClientProxyURLConfigured()).
+		Set("proxies", config.Proxies())
 	response.HTML(w, r, v.Render("edit_feed"))
 }

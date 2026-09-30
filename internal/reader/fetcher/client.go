@@ -31,7 +31,7 @@ var ErrPrivateNetworkHost = errors.New(
 type Client struct {
 	rb *RequestBuilder
 
-	proxy      *url.URL
+	proxy      *config.Proxy
 	httpClient *http.Client
 	customized bool
 
@@ -40,26 +40,21 @@ type Client struct {
 	withoutRedirects bool
 }
 
-func (self *Client) build(rb *RequestBuilder) error {
+func (self *Client) build(rb *RequestBuilder) *Client {
 	self.rb = rb
 	self.allowPrivateNets = rb.allowPrivateNets
 	self.withoutRedirects = rb.withoutRedirects
 
-	u, err := rb.proxy()
-	if err != nil {
-		return err
-	}
-	self.proxy = u
+	self.proxy = rb.proxy()
 
-	self.customized = self.rb.customized
-	if self.customized {
+	if self.customized = rb.customized; self.customized {
 		self.httpClient = self.makeClient()
-		return nil
+		return self
 	}
 
 	onceClient.Do(func() { defaultClient = self.makeClient() })
 	self.httpClient = defaultClient
-	return nil
+	return self
 }
 
 func (self *Client) makeClient() *http.Client {
@@ -152,7 +147,7 @@ func denyDialToPrivate(ctx context.Context, network, address string,
 func proxyFromClient(req *http.Request) (*url.URL, error) {
 	c := clientFromContext(req.Context())
 	if c != nil && c.proxy != nil {
-		return c.proxy, nil
+		return c.proxy.URL(), nil
 	}
 
 	u, err := http.ProxyFromEnvironment(req)
