@@ -20,13 +20,15 @@ import (
 	"miniflux.app/v2/internal/logging"
 )
 
+var ErrPrivateNetworkHost = errors.New(
+	"reader/fetcher: refusing to access private network host")
+
 var (
 	defaultClient *http.Client
 	onceClient    sync.Once
-)
 
-var ErrPrivateNetworkHost = errors.New(
-	"reader/fetcher: refusing to access private network host")
+	proxyFromEnvironment = http.ProxyFromEnvironment
+)
 
 type Client struct {
 	rb *RequestBuilder
@@ -47,7 +49,8 @@ func (self *Client) build(rb *RequestBuilder) *Client {
 
 	self.proxy = rb.proxy()
 
-	if self.customized = rb.customized; self.customized {
+	self.customized = rb.customized
+	if self.customized {
 		self.httpClient = self.makeClient()
 		return self
 	}
@@ -108,6 +111,10 @@ func denyDialToPrivate(ctx context.Context, network, address string,
 		return nil
 	}
 
+	if u := proxyFromContext(ctx); u != nil && u.Host == address {
+		return nil
+	}
+
 	host, _, err := net.SplitHostPort(address)
 	if err != nil {
 		return fmt.Errorf("%w: split %q: %w", ErrPrivateNetworkHost, address, err)
@@ -150,9 +157,15 @@ func proxyFromClient(req *http.Request) (*url.URL, error) {
 		return c.proxy.URL(), nil
 	}
 
-	u, err := http.ProxyFromEnvironment(req)
+	u, err := proxyFromEnvironment(req)
 	if err != nil {
-		return nil, fmt.Errorf("fetcher: %w", err)
+		return nil, fmt.Errorf("fetcher: proxy from env: %w", err)
+	} else if u == nil {
+		return nil, nil
+	}
+
+	if p := proxyFromContext(req.Context()); p != nil {
+		*p = *u
 	}
 	return u, nil
 }
@@ -188,7 +201,8 @@ func (self *Client) Do(req *http.Request) (*ResponseHandler, error) {
 		return nil, err
 	}
 
-	req = req.WithContext(self.context(ctx, req))
+	var proxy url.URL
+	req = req.WithContext(self.context(ctx, req, &proxy))
 	start := time.Now()
 
 	//nolint:bodyclose // ResponseSemaphore.Close() it later
@@ -215,9 +229,14 @@ func (self *Client) proxyRedacted() string {
 }
 
 func (self *Client) context(ctx context.Context, req *http.Request,
+	proxy *url.URL,
 ) context.Context {
 	ctx = contextWithClient(ctx, self)
 	ctx = contextWithRequest(ctx, req)
+
+	if self.proxy == nil {
+		ctx = contextWithProxy(ctx, proxy)
+	}
 	return ctx
 }
 

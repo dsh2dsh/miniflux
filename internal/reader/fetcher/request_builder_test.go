@@ -15,13 +15,26 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/http/httpproxy"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/proxyrotator"
 )
 
-func TestNewRequestBuilder(t *testing.T) {
+func init() {
+	proxyFromEnvironment = func(req *http.Request) (*url.URL, error) {
+		return httpproxy.FromEnvironment().ProxyFunc()(req.URL)
+	}
+}
+
+func configureNoRateLimit(t *testing.T) {
+	t.Helper()
+	t.Setenv("RATE_LIMIT_PER_SERVER", "0")
 	require.NoError(t, config.Load(""))
+}
+
+func TestNewRequestBuilder(t *testing.T) {
+	configureNoRateLimit(t)
 
 	builder := NewRequestBuilder()
 	require.NotNil(t, builder)
@@ -30,7 +43,7 @@ func TestNewRequestBuilder(t *testing.T) {
 }
 
 func TestRequestBuilder_WithHeader(t *testing.T) {
-	require.NoError(t, config.Load(""))
+	configureNoRateLimit(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Custom-Header") != "custom-value" {
@@ -48,7 +61,7 @@ func TestRequestBuilder_WithHeader(t *testing.T) {
 }
 
 func TestRequestBuilder_WithETag(t *testing.T) {
-	require.NoError(t, config.Load(""))
+	configureNoRateLimit(t)
 
 	tests := []struct {
 		name     string
@@ -79,7 +92,7 @@ func TestRequestBuilder_WithETag(t *testing.T) {
 }
 
 func TestRequestBuilder_WithLastModified(t *testing.T) {
-	require.NoError(t, config.Load(""))
+	configureNoRateLimit(t)
 
 	tests := []struct {
 		name         string
@@ -110,7 +123,7 @@ func TestRequestBuilder_WithLastModified(t *testing.T) {
 }
 
 func TestRequestBuilder_WithUserAgent(t *testing.T) {
-	require.NoError(t, config.Load(""))
+	configureNoRateLimit(t)
 
 	tests := []struct {
 		name           string
@@ -142,7 +155,7 @@ func TestRequestBuilder_WithUserAgent(t *testing.T) {
 }
 
 func TestRequestBuilder_WithCookie(t *testing.T) {
-	require.NoError(t, config.Load(""))
+	configureNoRateLimit(t)
 
 	tests := []struct {
 		name     string
@@ -173,7 +186,7 @@ func TestRequestBuilder_WithCookie(t *testing.T) {
 }
 
 func TestRequestBuilder_WithUsernameAndPassword(t *testing.T) {
-	require.NoError(t, config.Load(""))
+	configureNoRateLimit(t)
 
 	tests := []struct {
 		name     string
@@ -207,7 +220,7 @@ func TestRequestBuilder_WithUsernameAndPassword(t *testing.T) {
 }
 
 func TestRequestBuilder_DefaultAcceptHeader(t *testing.T) {
-	require.NoError(t, config.Load(""))
+	configureNoRateLimit(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Accept") != defaultAcceptHeader {
@@ -225,7 +238,7 @@ func TestRequestBuilder_DefaultAcceptHeader(t *testing.T) {
 }
 
 func TestRequestBuilder_CustomAcceptHeaderNotOverridden(t *testing.T) {
-	require.NoError(t, config.Load(""))
+	configureNoRateLimit(t)
 
 	customAccept := "application/json"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -246,7 +259,7 @@ func TestRequestBuilder_CustomAcceptHeaderNotOverridden(t *testing.T) {
 func TestRequestBuilder_WithoutRedirects(t *testing.T) {
 	os.Clearenv()
 	t.Setenv("FETCHER_ALLOW_PRIVATE_NETWORKS", "1")
-	require.NoError(t, config.Load(""))
+	configureNoRateLimit(t)
 
 	// Create a redirect server
 	redirectServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -272,7 +285,7 @@ func TestRequestBuilder_WithoutRedirects(t *testing.T) {
 }
 
 func TestRequestBuilder_DisableHTTP2(t *testing.T) {
-	require.NoError(t, config.Load(""))
+	configureNoRateLimit(t)
 
 	builder := NewRequestBuilder()
 	builder = builder.DisableHTTP2(true)
@@ -280,7 +293,7 @@ func TestRequestBuilder_DisableHTTP2(t *testing.T) {
 }
 
 func TestRequestBuilder_IgnoreTLSErrors(t *testing.T) {
-	require.NoError(t, config.Load(""))
+	configureNoRateLimit(t)
 
 	builder := NewRequestBuilder()
 	builder = builder.IgnoreTLSErrors(true)
@@ -290,7 +303,7 @@ func TestRequestBuilder_IgnoreTLSErrors(t *testing.T) {
 func TestRequestBuilder_WithCustomApplicationProxyURL(t *testing.T) {
 	const proxyURL = "http://proxy.example.com:8080"
 	t.Setenv("HTTP_CLIENT_PROXY", proxyURL)
-	require.NoError(t, config.Load(""))
+	configureNoRateLimit(t)
 
 	builder := NewRequestBuilder()
 	require.NotNil(t, builder.clientProxy)
@@ -299,7 +312,7 @@ func TestRequestBuilder_WithCustomApplicationProxyURL(t *testing.T) {
 }
 
 func TestRequestBuilder_UseCustomApplicationProxyURL(t *testing.T) {
-	require.NoError(t, config.Load(""))
+	configureNoRateLimit(t)
 
 	builder := NewRequestBuilder()
 	builder = builder.UseCustomApplicationProxy(true)
@@ -307,7 +320,7 @@ func TestRequestBuilder_UseCustomApplicationProxyURL(t *testing.T) {
 }
 
 func TestRequestBuilder_WithCustomFeedProxyURL(t *testing.T) {
-	require.NoError(t, config.Load(""))
+	configureNoRateLimit(t)
 
 	proxyURL := "http://feed-proxy.example.com:8080"
 	builder := NewRequestBuilder()
@@ -316,7 +329,7 @@ func TestRequestBuilder_WithCustomFeedProxyURL(t *testing.T) {
 }
 
 func TestRequestBuilder_ChainedMethods(t *testing.T) {
-	require.NoError(t, config.Load(""))
+	configureNoRateLimit(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check multiple headers
@@ -345,7 +358,7 @@ func TestRequestBuilder_ChainedMethods(t *testing.T) {
 }
 
 func TestRequestBuilder_InvalidURL(t *testing.T) {
-	require.NoError(t, config.Load(""))
+	configureNoRateLimit(t)
 
 	builder := NewRequestBuilder()
 	_, err := builder.Request(t.Context(), ":|invalid-url")
@@ -417,7 +430,7 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 	}
 
 	os.Clearenv()
-	require.NoError(t, config.Load(""))
+	configureNoRateLimit(t)
 
 	server := httptest.NewServer(http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
@@ -495,6 +508,7 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 }
 
 func TestRequestBuilder_AllowPrivateConfiguredProxy(t *testing.T) {
+	configureNoRateLimit(t)
 	if testing.Verbose() {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
 	}
@@ -579,6 +593,127 @@ proxies:
 	}
 }
 
+func TestRequestBuilder_AllowPrivateEnvProxy(t *testing.T) {
+	if testing.Verbose() {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
+	configureNoRateLimit(t)
+
+	proxyRequests := make(chan string, 1)
+	proxyServer := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case proxyRequests <- r.URL.String():
+			default:
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+	t.Cleanup(proxyServer.Close)
+
+	t.Setenv("HTTP_PROXY", proxyServer.URL)
+
+	targetURL := "http://feed.invalid/rss.xml"
+	resp, err := NewRequestBuilder().Request(t.Context(), targetURL)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	t.Cleanup(resp.Close)
+
+	require.NoError(t, resp.Err())
+
+	select {
+	case gotURL := <-proxyRequests:
+		assert.Equal(t, targetURL, gotURL)
+	default:
+		t.Fatal("Expected request to be sent through the proxy")
+	}
+}
+
+func TestRequestBuilder_DenyPrivateNetwork_skipProxy(t *testing.T) {
+	if testing.Verbose() {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
+	configureNoRateLimit(t)
+
+	privateServer := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+	t.Cleanup(privateServer.Close)
+
+	proxyRequests := make(chan string, 1)
+	proxyServer := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case proxyRequests <- r.URL.String():
+			default:
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+	t.Cleanup(proxyServer.Close)
+
+	t.Setenv("HTTP_PROXY", proxyServer.URL)
+
+	resp, err := NewRequestBuilder().Request(t.Context(), privateServer.URL)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	t.Cleanup(resp.Close)
+
+	t.Log(resp.Err())
+	require.ErrorIs(t, resp.Err(), ErrPrivateNetworkHost)
+
+	select {
+	case gotURL := <-proxyRequests:
+		t.Fatalf("Expected request to bypass the environment proxy, but the proxy received %q", gotURL)
+	default:
+	}
+}
+
+func TestRequestBuilder_AllowPrivateEnvProxy_afterRedirect(t *testing.T) {
+	if testing.Verbose() {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
+	configureNoRateLimit(t)
+
+	proxyRequests := make(chan string, 1)
+	httpsProxy := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case proxyRequests <- r.Host:
+			default:
+			}
+			http.Error(w, "tunneling is not supported by this test proxy",
+				http.StatusBadGateway)
+		}))
+	t.Cleanup(httpsProxy.Close)
+	t.Log("httpsProxy:", httpsProxy.URL)
+
+	httpProxy := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "https://secure.invalid/rss.xml", http.StatusFound)
+		}))
+	t.Cleanup(httpProxy.Close)
+
+	t.Setenv("HTTP_PROXY", httpProxy.URL)
+	t.Setenv("HTTPS_PROXY", httpsProxy.URL)
+
+	resp, err := NewRequestBuilder().Request(t.Context(),
+		"http://feed.invalid/rss.xml")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	t.Cleanup(resp.Close)
+
+	t.Log(resp.Err())
+	require.Error(t, resp.Err())
+
+	select {
+	case gotURL := <-proxyRequests:
+		require.Equal(t, "secure.invalid:443", gotURL,
+			"Expected the HTTPS proxy to receive a CONNECT after redirect")
+	default:
+		t.Fatal("Expected the redirect to be sent through the HTTPS environment proxy")
+	}
+}
+
 func TestRequestBuilder_TimeoutConfiguration(t *testing.T) {
 	if testing.Verbose() {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
@@ -593,7 +728,7 @@ func TestRequestBuilder_TimeoutConfiguration(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	t.Setenv("FETCHER_ALLOW_PRIVATE_HOSTS", server.Listener.Addr().String())
-	require.NoError(t, config.Load(""))
+	configureNoRateLimit(t)
 
 	builder := NewRequestBuilder()
 	builder.clientTimeout = 100 * time.Millisecond
