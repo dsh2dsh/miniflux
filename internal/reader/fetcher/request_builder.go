@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"net/url"
 	"slices"
 	"time"
 
@@ -43,14 +44,14 @@ func Request(ctx context.Context, requestURL string, opts ...Option,
 
 type RequestBuilder struct {
 	headers          http.Header
-	clientProxy      *config.Proxy
+	clientProxy      *url.URL
 	clientTimeout    time.Duration
 	useClientProxy   bool
 	withoutRedirects bool
 	ignoreTLSErrors  bool
 	disableHTTP2     bool
 	proxyRotator     *proxyrotator.ProxyRotator
-	feedProxyId      string
+	feedProxy        *config.Proxy
 	allowPrivateNets bool
 
 	customized bool
@@ -130,7 +131,7 @@ func (self *RequestBuilder) UseCustomApplicationProxy(value bool) *RequestBuilde
 }
 
 func (self *RequestBuilder) WithCustomFeedProxy(id string) *RequestBuilder {
-	self.feedProxyId = id
+	self.feedProxy = config.FindProxy(id)
 	return self
 }
 
@@ -167,18 +168,26 @@ func (self *RequestBuilder) WithIntegrationDefaults() *RequestBuilder {
 	return self
 }
 
-func (self *RequestBuilder) proxy() *config.Proxy {
-	if p := config.FindProxy(self.feedProxyId); p != nil {
-		return p
-	}
-
+func (self *RequestBuilder) proxy() *url.URL {
 	switch {
+	case self.feedProxy != nil:
+		return self.feedProxy.URL()
 	case self.useClientProxy && self.clientProxy != nil:
 		return self.clientProxy
 	case self.proxyRotator != nil && self.proxyRotator.HasProxies():
-		return config.NewProxy(self.proxyRotator.GetNextProxy())
+		return self.proxyRotator.GetNextProxy()
 	}
 	return nil
+}
+
+func (self *RequestBuilder) proxyRedacted() string {
+	switch {
+	case self.feedProxy != nil:
+		return self.feedProxy.Redacted()
+	case self.useClientProxy && self.clientProxy != nil:
+		return self.clientProxy.Redacted()
+	}
+	return ""
 }
 
 func (self *RequestBuilder) tlsConfig() *tls.Config {

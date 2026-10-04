@@ -36,7 +36,6 @@ type options struct {
 	rootURL  string
 	basePath string
 
-	clientProxy          *Proxy
 	fetcherPrivateHosts  map[string]bool
 	mediaProxyPrivateKey []byte
 	trustedProxies       map[string]struct{}
@@ -243,10 +242,6 @@ func (o *options) init() (err error) {
 	o.basePath = o.root.EscapedPath()
 	o.root.Path = ""
 	o.rootURL = o.root.String()
-
-	if u := o.env.HttpClientProxyURL; u != nil {
-		o.clientProxy = &Proxy{ParsedURL: (*yamlURL)(u)}
-	}
 	return nil
 }
 
@@ -947,4 +942,4 @@ func FindProxy(id string) *Proxy {
 	return nil
 }
 
-func ClientProxy() *Proxy { return opts.clientProxy }
+func ClientProxy() *url.URL { return opts.env.HttpClientProxyURL }

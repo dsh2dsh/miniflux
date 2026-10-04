@@ -307,8 +307,7 @@ func TestRequestBuilder_WithCustomApplicationProxyURL(t *testing.T) {
 
 	builder := NewRequestBuilder()
 	require.NotNil(t, builder.clientProxy)
-	require.NotNil(t, builder.clientProxy.URL())
-	assert.Equal(t, proxyURL, builder.clientProxy.URL().String())
+	assert.Equal(t, proxyURL, builder.clientProxy.String())
 }
 
 func TestRequestBuilder_UseCustomApplicationProxyURL(t *testing.T) {
@@ -322,10 +321,17 @@ func TestRequestBuilder_UseCustomApplicationProxyURL(t *testing.T) {
 func TestRequestBuilder_WithCustomFeedProxyURL(t *testing.T) {
 	configureNoRateLimit(t)
 
-	proxyURL := "http://feed-proxy.example.com:8080"
-	builder := NewRequestBuilder()
-	builder = builder.WithCustomFeedProxy(proxyURL)
-	assert.Equal(t, proxyURL, builder.feedProxyId)
+	const proxyURL = "http://feed-proxy.example.com:8080"
+	require.NoError(t, config.Load("", config.WithYAMLBytes([]byte(`
+proxies:
+  - name: "Proxy"
+    id:   "proxy"
+    url:  "`+proxyURL+`"`))))
+
+	builder := NewRequestBuilder().WithCustomFeedProxy(proxyURL)
+	u := builder.proxy()
+	require.NotNil(t, u)
+	assert.Equal(t, proxyURL, u.String())
 }
 
 func TestRequestBuilder_ChainedMethods(t *testing.T) {
@@ -544,16 +550,13 @@ func TestRequestBuilder_AllowPrivateConfiguredProxy(t *testing.T) {
 		},
 	}
 
-	proxyRequests := make(chan string, 1)
+	var proxyRequests string
 	proxyServer := httptest.NewServer(http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
-			select {
-			case proxyRequests <- r.URL.String():
-			default:
-			}
+			proxyRequests = r.URL.String()
 			w.WriteHeader(http.StatusOK)
 		}))
-	t.Cleanup(func() { proxyServer.Close() })
+	t.Cleanup(proxyServer.Close)
 
 	os.Clearenv()
 	const yamlConfig = `
@@ -561,6 +564,7 @@ proxies:
   - name: "Proxy"
     id: "proxy"
     url: `
+	const targetURL = "http://feed.invalid/rss.xml"
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -577,18 +581,13 @@ proxies:
 			rb := NewRequestBuilder()
 			tt.configure(t, rb, proxyServer.URL)
 
-			const targetURL = "http://feed.invalid/rss.xml"
 			resp, err := rb.Request(t.Context(), targetURL)
 			require.NoError(t, err)
 			require.NotNil(t, resp)
-			t.Cleanup(func() { resp.Close() })
+			t.Cleanup(resp.Close)
 
-			select {
-			case gotURL := <-proxyRequests:
-				assert.Equal(t, targetURL, gotURL)
-			default:
-				t.Fatal("Expected request to be sent through the proxy")
-			}
+			assert.Equal(t, targetURL, proxyRequests,
+				"Expected request to be sent through the proxy")
 		})
 	}
 }
@@ -599,20 +598,17 @@ func TestRequestBuilder_AllowPrivateEnvProxy(t *testing.T) {
 	}
 	configureNoRateLimit(t)
 
-	proxyRequests := make(chan string, 1)
+	var proxyRequests string
 	proxyServer := httptest.NewServer(http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
-			select {
-			case proxyRequests <- r.URL.String():
-			default:
-			}
+			proxyRequests = r.URL.String()
 			w.WriteHeader(http.StatusOK)
 		}))
 	t.Cleanup(proxyServer.Close)
 
 	t.Setenv("HTTP_PROXY", proxyServer.URL)
 
-	targetURL := "http://feed.invalid/rss.xml"
+	const targetURL = "http://feed.invalid/rss.xml"
 	resp, err := NewRequestBuilder().Request(t.Context(), targetURL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -620,12 +616,8 @@ func TestRequestBuilder_AllowPrivateEnvProxy(t *testing.T) {
 
 	require.NoError(t, resp.Err())
 
-	select {
-	case gotURL := <-proxyRequests:
-		assert.Equal(t, targetURL, gotURL)
-	default:
-		t.Fatal("Expected request to be sent through the proxy")
-	}
+	assert.Equal(t, targetURL, proxyRequests,
+		"Expected request to be sent through the proxy")
 }
 
 func TestRequestBuilder_DenyPrivateNetwork_skipProxy(t *testing.T) {
@@ -640,13 +632,10 @@ func TestRequestBuilder_DenyPrivateNetwork_skipProxy(t *testing.T) {
 		}))
 	t.Cleanup(privateServer.Close)
 
-	proxyRequests := make(chan string, 1)
+	var proxyRequests string
 	proxyServer := httptest.NewServer(http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
-			select {
-			case proxyRequests <- r.URL.String():
-			default:
-			}
+			proxyRequests = r.URL.String()
 			w.WriteHeader(http.StatusOK)
 		}))
 	t.Cleanup(proxyServer.Close)
@@ -660,12 +649,9 @@ func TestRequestBuilder_DenyPrivateNetwork_skipProxy(t *testing.T) {
 
 	t.Log(resp.Err())
 	require.ErrorIs(t, resp.Err(), ErrPrivateNetworkHost)
-
-	select {
-	case gotURL := <-proxyRequests:
-		t.Fatalf("Expected request to bypass the environment proxy, but the proxy received %q", gotURL)
-	default:
-	}
+	assert.Empty(t, proxyRequests,
+		"Expected request to bypass the environment proxy, but the proxy received %q",
+		proxyRequests)
 }
 
 func TestRequestBuilder_AllowPrivateEnvProxy_afterRedirect(t *testing.T) {
@@ -674,13 +660,10 @@ func TestRequestBuilder_AllowPrivateEnvProxy_afterRedirect(t *testing.T) {
 	}
 	configureNoRateLimit(t)
 
-	proxyRequests := make(chan string, 1)
+	var proxyRequests string
 	httpsProxy := httptest.NewServer(http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
-			select {
-			case proxyRequests <- r.Host:
-			default:
-			}
+			proxyRequests = r.Host
 			http.Error(w, "tunneling is not supported by this test proxy",
 				http.StatusBadGateway)
 		}))
@@ -705,13 +688,8 @@ func TestRequestBuilder_AllowPrivateEnvProxy_afterRedirect(t *testing.T) {
 	t.Log(resp.Err())
 	require.Error(t, resp.Err())
 
-	select {
-	case gotURL := <-proxyRequests:
-		require.Equal(t, "secure.invalid:443", gotURL,
-			"Expected the HTTPS proxy to receive a CONNECT after redirect")
-	default:
-		t.Fatal("Expected the redirect to be sent through the HTTPS environment proxy")
-	}
+	require.Equal(t, "secure.invalid:443", proxyRequests,
+		"Expected the HTTPS proxy to receive a CONNECT after redirect")
 }
 
 func TestRequestBuilder_TimeoutConfiguration(t *testing.T) {

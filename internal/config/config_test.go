@@ -847,10 +847,6 @@ func TestHTTPClientProxy(t *testing.T) {
 	opts := parseEnvironmentVariables(t)
 	require.NotNil(t, opts.env.HttpClientProxyURL)
 	assert.Equal(t, expected, opts.env.HttpClientProxyURL.String())
-
-	require.NotNil(t, opts.clientProxy)
-	require.NotNil(t, opts.clientProxy.URL())
-	assert.Equal(t, expected, opts.clientProxy.URL().String())
 }
 
 func TestInvalidHTTPClientProxy(t *testing.T) {

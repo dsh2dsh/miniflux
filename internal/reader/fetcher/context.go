@@ -40,6 +40,21 @@ func proxyFromContext(ctx context.Context) *url.URL {
 	return nil
 }
 
+func updateContextProxy(ctx context.Context, u *url.URL) *url.URL {
+	proxy := proxyFromContext(ctx)
+	if proxy == nil {
+		return u
+	}
+
+	switch u {
+	case nil:
+		*proxy = url.URL{}
+	default:
+		*proxy = *u
+	}
+	return u
+}
+
 func contextWithRequest(ctx context.Context, req *http.Request) context.Context {
 	return context.WithValue(ctx, requestContextKey, req)
 }

@@ -33,22 +33,14 @@ var (
 type Client struct {
 	rb *RequestBuilder
 
-	proxy      *config.Proxy
 	httpClient *http.Client
 	customized bool
 
-	allowPrivateNets bool
 	enableKeepAlives bool
-	withoutRedirects bool
 }
 
 func (self *Client) build(rb *RequestBuilder) *Client {
 	self.rb = rb
-	self.allowPrivateNets = rb.allowPrivateNets
-	self.withoutRedirects = rb.withoutRedirects
-
-	self.proxy = rb.proxy()
-
 	self.customized = rb.customized
 	if self.customized {
 		self.httpClient = self.makeClient()
@@ -107,7 +99,7 @@ func denyDialToPrivate(ctx context.Context, network, address string,
 	_ syscall.RawConn,
 ) error {
 	c := clientFromContext(ctx)
-	if c != nil && (c.allowPrivateNets || c.proxy != nil) {
+	if c != nil && c.rb.allowPrivateNets {
 		return nil
 	}
 
@@ -152,22 +144,18 @@ func denyDialToPrivate(ctx context.Context, network, address string,
 }
 
 func proxyFromClient(req *http.Request) (*url.URL, error) {
-	c := clientFromContext(req.Context())
-	if c != nil && c.proxy != nil {
-		return c.proxy.URL(), nil
+	ctx := req.Context()
+	if c := clientFromContext(ctx); c != nil {
+		if u := c.rb.proxy(); u != nil {
+			return updateContextProxy(ctx, u), nil
+		}
 	}
 
 	u, err := proxyFromEnvironment(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetcher: proxy from env: %w", err)
-	} else if u == nil {
-		return nil, nil
 	}
-
-	if p := proxyFromContext(req.Context()); p != nil {
-		*p = *u
-	}
-	return u, nil
+	return updateContextProxy(ctx, u), nil
 }
 
 func checkRedirects(r *http.Request, via []*http.Request) error {
@@ -176,7 +164,7 @@ func checkRedirects(r *http.Request, via []*http.Request) error {
 	}
 
 	c := clientFromContext(r.Context())
-	if c != nil && c.withoutRedirects {
+	if c != nil && c.rb.withoutRedirects {
 		return http.ErrUseLastResponse
 	}
 	return nil
@@ -191,7 +179,7 @@ func (self *Client) Do(req *http.Request) (*ResponseHandler, error) {
 		slog.Any("headers", req.Header),
 		slog.Bool("without_redirects", self.rb.withoutRedirects),
 		slog.Bool("use_app_client_proxy", self.rb.useClientProxy),
-		slog.String("client_proxy_url", self.proxyRedacted()),
+		slog.String("client_proxy_url", self.rb.proxyRedacted()),
 		slog.Bool("ignore_tls_errors", self.rb.ignoreTLSErrors),
 		slog.Bool("disable_http2", self.rb.disableHTTP2),
 		slog.Bool("customized", self.rb.customized))
@@ -221,22 +209,12 @@ func (self *Client) Do(req *http.Request) (*ResponseHandler, error) {
 	return NewResponseHandler(hostname, resp, err), nil
 }
 
-func (self *Client) proxyRedacted() string {
-	if self.proxy != nil {
-		return self.proxy.Redacted()
-	}
-	return ""
-}
-
 func (self *Client) context(ctx context.Context, req *http.Request,
 	proxy *url.URL,
 ) context.Context {
 	ctx = contextWithClient(ctx, self)
 	ctx = contextWithRequest(ctx, req)
-
-	if self.proxy == nil {
-		ctx = contextWithProxy(ctx, proxy)
-	}
+	ctx = contextWithProxy(ctx, proxy)
 	return ctx
 }
 
