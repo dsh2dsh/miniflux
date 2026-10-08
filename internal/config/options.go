@@ -247,8 +247,8 @@ func (o *options) init() (err error) {
 
 func (o *options) validate() error {
 	for _, ref := range [...]any{&o.env, &o.yaml} {
-		if err := Validator().Struct(ref); err != nil {
-			return fmt.Errorf("validate: %w", err)
+		if err := ValidateStruct(ref); err != nil {
+			return err
 		}
 	}
 
