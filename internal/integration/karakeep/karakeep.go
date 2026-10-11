@@ -17,7 +17,6 @@ import (
 )
 
 type Client struct {
-	wrapped     *fetcher.RequestBuilder
 	apiEndpoint string
 	apiToken    string
 	tags        string
@@ -47,7 +46,6 @@ type errorResponse struct {
 
 func NewClient(apiToken, apiEndpoint, tags string) *Client {
 	return &Client{
-		wrapped:     fetcher.NewRequestBuilder().WithIntegrationDefaults(),
 		apiEndpoint: apiEndpoint,
 		apiToken:    apiToken,
 		tags:        tags,
@@ -87,7 +85,7 @@ func (c *Client) attachTags(ctx context.Context, entryID string) error {
 	tagRequest.Header.Set("Authorization", "Bearer "+c.apiToken)
 	tagRequest.Header.Set("Content-Type", "application/json")
 
-	tagResponse, err := c.wrapped.Do(tagRequest)
+	tagResponse, err := fetcher.Do(tagRequest, fetcher.WithIntegrationDefaults())
 	if err != nil {
 		return fmt.Errorf("karakeep: unable to send tag request: %w", err)
 	}
@@ -131,7 +129,7 @@ func (c *Client) SaveURL(ctx context.Context, entryURL string) error {
 	req.Header.Set("Authorization", "Bearer "+c.apiToken)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.wrapped.Do(req)
+	resp, err := fetcher.Do(req, fetcher.WithIntegrationDefaults())
 	if err != nil {
 		return fmt.Errorf("integration/karakeep: unable to send request: %w", err)
 	}
@@ -140,12 +138,6 @@ func (c *Client) SaveURL(ctx context.Context, entryURL string) error {
 	b, err = io.ReadAll(resp.Body())
 	if err != nil {
 		return fmt.Errorf("integration/karakeep: failed to parse response: %w", err)
-	}
-
-	if resp.Header("Content-Type") != "application/json" {
-		return fmt.Errorf(
-			"integration/karakeep: unexpected content type response: %s",
-			resp.Header("Content-Type"))
 	}
 
 	if resp.StatusCode() != http.StatusCreated {
