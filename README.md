@@ -355,6 +355,20 @@ This project is an opinionated fork of Miniflux.
   Now feed settings page shows list of configured proxies, instead of freetyle
   proxy URL input. If no proxies configured, nothing shown.
 
+* Using of [curl-impersonate](https://github.com/lexiforest/curl-impersonate):
+
+  Using of curl-impersonate can be configured as a proxy, like:
+
+  ```yaml
+  proxies:
+    - name: "curl impersonate Chrome 150"
+      id:   "curl_chrome150"
+      curl: [ "/usr/local/bin/curl_chrome150" ]
+  ```
+
+  After, this proxy can be selected in a feed settings for fetching and/or
+  scraping this feed.
+
 ---
 
 Features

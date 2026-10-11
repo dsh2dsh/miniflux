@@ -105,7 +105,7 @@ func TestLogFormatWithInvalidValue(t *testing.T) {
 	t.Setenv("LOG_FORMAT", "invalid")
 	_, err := NewParser().ParseEnvironmentVariables()
 	t.Log(err)
-	require.ErrorContains(t, err, "failed on the 'oneof' tag")
+	require.ErrorContains(t, err, "failed on 'oneof(human json text)'")
 }
 
 func TestCustomBaseURL(t *testing.T) {

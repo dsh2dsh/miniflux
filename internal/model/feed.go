@@ -91,6 +91,7 @@ type FeedExtra struct {
 	BlockMarkRead       bool     `json:"blockMarkRead,omitempty"`
 	CommentsURLTemplate string   `json:"comments_url_template,omitempty"`
 	IgnoreEntryUpdates  bool     `json:"ignore_entry_updates,omitempty"`
+	ScraperProxyId      string   `json:"scraperProxyId,omitempty"`
 
 	BlockFilterEntryRules string `json:"block_filter_entry_rules,omitempty"`
 	KeepFilterEntryRules  string `json:"keep_filter_entry_rules,omitempty"`
@@ -360,6 +361,13 @@ func (self *Feed) WithLanguage(lang string) *Feed {
 	return self
 }
 
+func (self *Feed) WithScraperProxyId(id string) *Feed {
+	self.Extra.ScraperProxyId = id
+	return self
+}
+
+func (self *Feed) ScraperProxyId() string { return self.Extra.ScraperProxyId }
+
 // FeedCreationRequest represents the request to create a feed.
 type FeedCreationRequest struct {
 	FeedURL                     string   `json:"feed_url"`
@@ -423,6 +431,7 @@ type FeedModificationRequest struct {
 	DisableHTTP2                *bool     `json:"disable_http2"`
 	ProxyURL                    *string   `json:"proxy_url"`
 	CommentsURLTemplate         *string   `json:"comments_url_template,omitempty"`
+	ScraperProxyId              *string   `json:"scraperProxyId,omitempty"`
 }
 
 // Patch updates a feed with modified values.
@@ -529,6 +538,10 @@ func (self *FeedModificationRequest) Patch(feed *Feed) {
 
 	if self.CommentsURLTemplate != nil {
 		feed.Extra.CommentsURLTemplate = *self.CommentsURLTemplate
+	}
+
+	if self.ScraperProxyId != nil {
+		feed.WithScraperProxyId(*self.ScraperProxyId)
 	}
 }
 

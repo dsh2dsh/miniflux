@@ -29,6 +29,7 @@ func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
 		KeepFilterEntryRules:  model.OptionalString(f.KeepFilterEntryRules),
 		ProxyURL:              model.OptionalString(f.ProxyURL),
 		CommentsURLTemplate:   model.OptionalString(f.CommentsURLTemplate),
+		ScraperProxyId:        model.OptionalString(f.ScraperProxyId),
 	}
 
 	ctx := r.Context()

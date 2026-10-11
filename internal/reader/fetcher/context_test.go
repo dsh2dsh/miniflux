@@ -8,12 +8,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestContextWithRequest(t *testing.T) {
+func Test_contextWithValue(t *testing.T) {
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet,
 		"http://localhost", nil)
 	require.NoError(t, err)
 	require.NotNil(t, req)
 
-	ctx := contextWithRequest(req.Context(), req)
-	assert.Same(t, req, requestFromContext(ctx))
+	r := requestContext{}
+	ctx := contextWithRequest(req.Context(), &r)
+
+	assert.Panics(t, func() { requestFromContext(ctx) })
+	r.client = new(Client)
+
+	assert.Panics(t, func() { requestFromContext(ctx) })
+	r.req = req
+
+	require.NotPanics(t, func() { requestFromContext(ctx) })
+	got := requestFromContext(ctx)
+	require.NotNil(t, got)
+	assert.Same(t, &r, got)
+	assert.Same(t, req, got.req)
 }

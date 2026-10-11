@@ -418,13 +418,27 @@ func TestDenyDialToPrivate(t *testing.T) {
 		},
 	}
 
+	r := requestContext{
+		client: &Client{rb: &RequestBuilder{}},
+	}
+	u := url.URL{}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := contextWithRequest(t.Context(), &r)
+
+			u.Host = tt.address
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+				u.String(), nil)
+			require.NoError(t, err)
+			require.NotNil(t, req)
+			r.req = req
+
 			if tt.allow {
-				require.NoError(t, denyDialToPrivate(t.Context(), "", tt.address, nil))
+				require.NoError(t, denyDialToPrivate(ctx, "", tt.address, nil))
 				return
 			}
-			require.ErrorIs(t, denyDialToPrivate(t.Context(), "", tt.address, nil),
+			require.ErrorIs(t, denyDialToPrivate(ctx, "", tt.address, nil),
 				ErrPrivateNetworkHost)
 		})
 	}

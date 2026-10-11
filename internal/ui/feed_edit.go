@@ -73,6 +73,7 @@ func (h *handler) showEditFeedPage(w http.ResponseWriter, r *http.Request) {
 		PushoverEnabled:             feed.PushoverEnabled,
 		PushoverPriority:            feed.PushoverPriority,
 		ProxyURL:                    feed.ProxyURL,
+		ScraperProxyId:              feed.ScraperProxyId(),
 	}
 
 	v.Set("menu", "feeds").

@@ -48,7 +48,13 @@ func NewResponseHandler(hostname string, resp *http.Response, err error,
 		hostname:    hostname,
 		maxBodySize: config.HTTPClientMaxBodySize(),
 	}
-	return r.withRetryAfter().withResponseContent()
+	return r.init()
+}
+
+func (self *ResponseHandler) init() *ResponseHandler {
+	self.withRetryAfter()
+	self.withResponseContent()
+	return self
 }
 
 func (self *ResponseHandler) withRetryAfter() *ResponseHandler {
@@ -243,7 +249,7 @@ func (self *ResponseHandler) Close() {
 	}
 
 	if self.Err() == nil {
-		BodyClose(self.httpResponse.Body)
+		self.bodyClose()
 	}
 
 	if self.hostname != "" {
@@ -252,38 +258,20 @@ func (self *ResponseHandler) Close() {
 	self.closed = true
 }
 
-// maxPostHandlerReadBytes is the max number of Request.Body bytes not
-// consumed by a handler that the server will read from the client
-// in order to keep a connection alive. If there are more bytes
-// than this, the server, to be paranoid, instead sends a
-// "Connection close" response.
-//
-// This number is approximately what a typical machine's TCP buffer
-// size is anyway.  (if we have the bytes on the machine, we might as
-// well read them)
-//
-// See: net/http/server.go
-const maxPostHandlerReadBytes = 256 << 10
-
-// https://github.com/golang/go/issues/60240
-func BodyClose(r io.ReadCloser) {
-	_, _ = io.CopyN(io.Discard, r, maxPostHandlerReadBytes+1)
-	r.Close()
+func (self *ResponseHandler) bodyClose() {
+	self.httpResponse.Body.Close()
+	requestFromContext(self.Context()).BodyClose()
 }
 
-func (self *ResponseHandler) getReader(maxBodySize int64) io.ReadCloser {
-	logging.FromContext(self.httpResponse.Request.Context()).Debug(
+func (self *ResponseHandler) Body() io.ReadCloser {
+	logging.FromContext(self.Context()).Debug(
 		"Request response",
 		slog.String("effective_url", self.EffectiveURL()),
 		slog.String("content_length", self.httpResponse.Header.Get("Content-Length")),
 		slog.String("content_encoding",
 			self.httpResponse.Header.Get("Content-Encoding")),
 		slog.String("content_type", self.httpResponse.Header.Get("Content-Type")))
-	return http.MaxBytesReader(nil, self.httpResponse.Body, maxBodySize)
-}
-
-func (self *ResponseHandler) Body() io.ReadCloser {
-	return self.getReader(self.maxBodySize)
+	return http.MaxBytesReader(nil, self.httpResponse.Body, self.maxBodySize)
 }
 
 func (self *ResponseHandler) ReadBody() ([]byte, *locale.LocalizedErrorWrapper) {

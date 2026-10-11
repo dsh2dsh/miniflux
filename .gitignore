@@ -9,4 +9,5 @@ miniflux-*
 /.dir-locals-2.el
 /.env.local
 /.env.*.local
+/.miniflux.local.yaml
 /e2e_api.*

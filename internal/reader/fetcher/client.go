@@ -25,7 +25,7 @@ var ErrPrivateNetworkHost = errors.New(
 
 var (
 	defaultClient *http.Client
-	onceClient    sync.Once
+	clientOnce    sync.Once
 
 	proxyFromEnvironment = http.ProxyFromEnvironment
 )
@@ -34,22 +34,29 @@ type Client struct {
 	rb *RequestBuilder
 
 	httpClient *http.Client
-	customized bool
 
+	curl             []string
 	enableKeepAlives bool
 }
 
 func (self *Client) build(rb *RequestBuilder) *Client {
 	self.rb = rb
-	self.customized = rb.customized
-	if self.customized {
+	if rb.feedProxy != nil {
+		self.curl = rb.feedProxy.Curl
+	}
+
+	if self.customized() {
 		self.httpClient = self.makeClient()
 		return self
 	}
 
-	onceClient.Do(func() { defaultClient = self.makeClient() })
+	clientOnce.Do(func() { defaultClient = self.makeClient() })
 	self.httpClient = defaultClient
 	return self
+}
+
+func (self *Client) customized() bool {
+	return self.rb.customized || len(self.curl) != 0
 }
 
 func (self *Client) makeClient() *http.Client {
@@ -62,6 +69,10 @@ func (self *Client) makeClient() *http.Client {
 }
 
 func (self *Client) transport() http.RoundTripper {
+	if len(self.curl) != 0 {
+		return &curlTransport{args: self.curl}
+	}
+
 	dialer := &net.Dialer{
 		Timeout:        self.rb.clientTimeout,
 		ControlContext: denyDialToPrivate,
@@ -98,12 +109,8 @@ func (self *Client) transport() http.RoundTripper {
 func denyDialToPrivate(ctx context.Context, network, address string,
 	_ syscall.RawConn,
 ) error {
-	c := clientFromContext(ctx)
-	if c != nil && c.rb.allowPrivateNets {
-		return nil
-	}
-
-	if u := proxyFromContext(ctx); u != nil && u.Host == address {
+	r := requestFromContext(ctx)
+	if r.client.rb.allowPrivateNets || r.proxy.Host == address {
 		return nil
 	}
 
@@ -129,11 +136,7 @@ func denyDialToPrivate(ctx context.Context, network, address string,
 		return nil
 	}
 
-	var reqURL string
-	if req := requestFromContext(ctx); req != nil {
-		reqURL = req.URL.String()
-	}
-
+	reqURL := r.req.URL.String()
 	ok := config.FetcherHostPermitted(address, reqURL) ||
 		config.FetcherHostPermitted(host, reqURL)
 	if !ok {
@@ -144,18 +147,16 @@ func denyDialToPrivate(ctx context.Context, network, address string,
 }
 
 func proxyFromClient(req *http.Request) (*url.URL, error) {
-	ctx := req.Context()
-	if c := clientFromContext(ctx); c != nil {
-		if u := c.rb.proxy(); u != nil {
-			return updateContextProxy(ctx, u), nil
-		}
+	r := requestFromContext(req.Context())
+	if u := r.client.rb.proxy(); u != nil {
+		return r.WithProxy(u), nil
 	}
 
 	u, err := proxyFromEnvironment(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetcher: proxy from env: %w", err)
 	}
-	return updateContextProxy(ctx, u), nil
+	return r.WithProxy(u), nil
 }
 
 func checkRedirects(r *http.Request, via []*http.Request) error {
@@ -163,8 +164,8 @@ func checkRedirects(r *http.Request, via []*http.Request) error {
 		return errors.New("stopped after 10 redirects")
 	}
 
-	c := clientFromContext(r.Context())
-	if c != nil && c.rb.withoutRedirects {
+	rc := requestFromContext(r.Context())
+	if rc.client.rb.withoutRedirects {
 		return http.ErrUseLastResponse
 	}
 	return nil
@@ -189,14 +190,15 @@ func (self *Client) Do(req *http.Request) (*ResponseHandler, error) {
 		return nil, err
 	}
 
-	var proxy url.URL
-	req = req.WithContext(self.context(ctx, req, &proxy))
+	rc := requestContext{client: self, req: req}
+	ctx = contextWithRequest(ctx, &rc)
+
 	start := time.Now()
 
 	//nolint:bodyclose // ResponseSemaphore.Close() it later
-	resp, err := self.httpClient.Do(req)
+	resp, err := self.httpClient.Do(req.WithContext(ctx))
 	if err != nil {
-		err = fmt.Errorf("reader/fetcher: do http request: %w", err)
+		err = fmt.Errorf("fetcher: do http request: %w", err)
 	} else {
 		log.Info("Got response",
 			slog.Int("status_code", resp.StatusCode),
@@ -209,15 +211,6 @@ func (self *Client) Do(req *http.Request) (*ResponseHandler, error) {
 	return NewResponseHandler(hostname, resp, err), nil
 }
 
-func (self *Client) context(ctx context.Context, req *http.Request,
-	proxy *url.URL,
-) context.Context {
-	ctx = contextWithClient(ctx, self)
-	ctx = contextWithRequest(ctx, req)
-	ctx = contextWithProxy(ctx, proxy)
-	return ctx
-}
-
 func (self *Client) Request(ctx context.Context, requestURL string,
 ) (*ResponseHandler, error) {
 	req, err := self.rb.NewRequest(ctx, requestURL)
@@ -228,7 +221,7 @@ func (self *Client) Request(ctx context.Context, requestURL string,
 }
 
 func (self *Client) Close() {
-	if self.customized {
+	if self.customized() {
 		self.httpClient.CloseIdleConnections()
 	}
 }

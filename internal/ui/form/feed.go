@@ -47,6 +47,7 @@ type FeedForm struct {
 	PushoverEnabled             bool
 	PushoverPriority            int
 	ProxyURL                    string
+	ScraperProxyId              string
 }
 
 func (self *FeedForm) BlockAuthorsFrom(s string) {
@@ -115,6 +116,7 @@ func (self *FeedForm) Merge(feed *model.Feed) *model.Feed {
 	feed.PushoverPriority = self.PushoverPriority
 	feed.ProxyURL = self.ProxyURL
 	feed.WithCommentsURLTemplate(self.CommentsURLTemplate)
+	feed.WithScraperProxyId(self.ScraperProxyId)
 	return feed
 }
 
@@ -168,6 +170,7 @@ func NewFeedForm(r *http.Request) *FeedForm {
 		PushoverEnabled:             r.FormValue("pushover_enabled") == "1",
 		PushoverPriority:            pushoverPriority,
 		ProxyURL:                    r.FormValue("proxy_url"),
+		ScraperProxyId:              r.FormValue("scraper_proxy_id"),
 	}
 	ff.BlockAuthorsFrom(r.FormValue("blockAuthors"))
 	return ff

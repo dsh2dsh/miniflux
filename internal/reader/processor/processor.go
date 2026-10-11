@@ -231,6 +231,10 @@ func (self *FeedProcessor) Scrape(ctx context.Context, entry *model.Entry,
 	startTime := time.Now()
 	builder := fetcher.NewRequestFeed(self.feed)
 
+	if id := self.feed.ScraperProxyId(); id != "" {
+		builder = builder.WithCustomFeedProxy(id)
+	}
+
 	logging.FromContext(ctx).Info("Fetch original content",
 		slog.String("url", entry.URL))
 

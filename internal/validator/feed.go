@@ -146,5 +146,11 @@ func ValidateFeedModification(ctx context.Context, store *storage.Storage,
 				"The keep list rule is invalid: " + err.Error())
 		}
 	}
+
+	if id := model.OptionalValue(r.ScraperProxyId); id != "" {
+		if config.FindProxy(id) == nil {
+			return locale.NewLocalizedError("error.invalid_feed_proxy_url")
+		}
+	}
 	return nil
 }

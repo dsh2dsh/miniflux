@@ -22,7 +22,8 @@ type HostLimits struct {
 type Proxy struct {
 	Id        string   `yaml:"id" validate:"required"`
 	Name      string   `yaml:"name" validate:"required"`
-	ParsedURL *yamlURL `yaml:"url" validate:"required"`
+	ParsedURL *yamlURL `yaml:"url" validate:"required_without=Curl"`
+	Curl      []string `yaml:"curl" validate:"required_without=ParsedURL,omitempty,min=1,dive,required"`
 }
 
 func NewProxy(u *url.URL) *Proxy {
@@ -51,6 +52,9 @@ func (self *yamlURL) UnmarshalYAML(node *yaml.Node) error {
 func (self *Proxy) URL() *url.URL { return (*url.URL)(self.ParsedURL) }
 
 func (self *Proxy) Redacted() string {
+	if curl := self.Curl; len(curl) != 0 {
+		return strings.Join(curl, " ")
+	}
 	if u := self.URL(); u != nil {
 		return u.Redacted()
 	}
