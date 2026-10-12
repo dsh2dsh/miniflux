@@ -12,6 +12,7 @@ import (
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/reader/filter"
+	"miniflux.app/v2/internal/reader/rewrite"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/urllib"
 )
@@ -66,6 +67,22 @@ func ValidateFeedCreation(ctx context.Context, store *storage.Storage,
 			return locale.NewLocalizedError(
 				"The keep list rule is invalid: " + err.Error())
 		}
+	}
+
+	if r.UrlRewriteRules != "" {
+		if err := ValidateUrlRewriteRules(ctx, r.UrlRewriteRules); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ValidateUrlRewriteRules(ctx context.Context, rules string,
+) *locale.LocalizedError {
+	feed := model.Feed{UrlRewriteRules: rules}
+	var entry model.Entry
+	if err := rewrite.RewriteEntryURL(ctx, &feed, &entry); err != nil {
+		return locale.NewLocalizedError("error.feed_invalid_urlrewrite_rule")
 	}
 	return nil
 }
@@ -150,6 +167,12 @@ func ValidateFeedModification(ctx context.Context, store *storage.Storage,
 	if id := model.OptionalValue(r.ScraperProxyId); id != "" {
 		if config.FindProxy(id) == nil {
 			return locale.NewLocalizedError("error.invalid_feed_proxy_url")
+		}
+	}
+
+	if rules := model.OptionalValue(r.UrlRewriteRules); rules != "" {
+		if err := ValidateUrlRewriteRules(ctx, rules); err != nil {
+			return err
 		}
 	}
 	return nil

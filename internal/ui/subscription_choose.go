@@ -19,7 +19,7 @@ func (h *handler) showChooseSubscriptionPage(w http.ResponseWriter,
 	r *http.Request,
 ) {
 	f := form.NewSubscriptionForm(r)
-	if lerr := f.Validate(); lerr != nil {
+	if lerr := f.Validate(r.Context()); lerr != nil {
 		h.showCreateFeedError(w, r, func(v *View) {
 			v.Set("form", f).
 				Set("errorMessage", lerr.Translate(v.User().Language))

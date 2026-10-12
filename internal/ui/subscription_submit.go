@@ -26,8 +26,9 @@ import (
 )
 
 func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	f := form.NewSubscriptionForm(r)
-	if lerr := f.Validate(); lerr != nil {
+	if lerr := f.Validate(ctx); lerr != nil {
 		h.showSubscriptionError(w, r, f, nil, func(v *View) {
 			v.Set("errorMessage", lerr.Translate(v.User().Language))
 			response.HTML(w, r, v.Render("add_subscription"))
@@ -36,7 +37,6 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 	}
 
 	finder := subscription.NewSubscriptionFinder()
-	ctx := r.Context()
 	user := request.User(r)
 	subscriptions, lerr := finder.FindSubscriptions(ctx,
 		fetcher.NewRequestBuilder().

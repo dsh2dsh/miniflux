@@ -4,6 +4,7 @@
 package form
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
@@ -36,7 +37,7 @@ type SubscriptionForm struct {
 }
 
 // Validate makes sure the form values locale.are valid.
-func (s *SubscriptionForm) Validate() *locale.LocalizedError {
+func (s *SubscriptionForm) Validate(ctx context.Context) *locale.LocalizedError {
 	if s.URL == "" || s.CategoryID == 0 {
 		return locale.NewLocalizedError("error.feed_mandatory_fields")
 	}
@@ -64,6 +65,13 @@ func (s *SubscriptionForm) Validate() *locale.LocalizedError {
 		if _, err := filter.New(s.KeepFilterEntryRules); err != nil {
 			return locale.NewLocalizedError(
 				"The keep list rule is invalid: " + err.Error())
+		}
+	}
+
+	if s.UrlRewriteRules != "" {
+		err := validator.ValidateUrlRewriteRules(ctx, s.UrlRewriteRules)
+		if err != nil {
+			return err
 		}
 	}
 	return nil

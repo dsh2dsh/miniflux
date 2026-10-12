@@ -121,7 +121,7 @@ func (self *FeedProcessor) process(ctx context.Context) error {
 	slices.Reverse(self.feed.Entries)
 
 	if t, err := self.feed.CommentsURLTemplate(); err == nil && t != nil {
-		log = log.With(
+		log := log.With(
 			slog.String("template", self.feed.CommentsURLTemplateString()))
 		log.Debug("make comment URLs from template")
 		err := self.feed.Entries.MakeCommentURL(t)
@@ -148,7 +148,11 @@ func (self *FeedProcessor) process(ctx context.Context) error {
 		log.Debug("Processing entry")
 
 		removeTracking(entry, self.feed.Hostnames()...)
-		rewrite.RewriteEntryURL(ctx, self.feed, entry)
+		if err := rewrite.RewriteEntryURL(ctx, self.feed, entry); err != nil {
+			log.Warn("Unable rewrite entry URL",
+				slog.String("rules", self.feed.UrlRewriteRules),
+				slog.Any("error", err))
+		}
 
 		var pageURL string
 		if self.feed.Crawler && (self.force || !entry.Stored()) {
@@ -333,7 +337,11 @@ func ProcessEntryWebPage(ctx context.Context, feed *model.Feed,
 	entry *model.Entry, user *model.User, opts ...sanitizer.Option,
 ) error {
 	removeTracking(entry, feed.Hostnames()...)
-	rewrite.RewriteEntryURL(ctx, feed, entry)
+	if err := rewrite.RewriteEntryURL(ctx, feed, entry); err != nil {
+		logging.FromContext(ctx).Warn("Unable rewrite entry URL",
+			slog.String("rules", feed.UrlRewriteRules),
+			slog.Any("error", err))
+	}
 
 	p := FeedProcessor{feed: feed, user: user}
 	pageURL, content, err := p.Scrape(ctx, entry)

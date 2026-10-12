@@ -842,6 +842,27 @@ func (self *EndpointTestSuite) TestUpdateFeedWithInvalidCategory() {
 		"Updating a feed with an inexisting category should raise an error")
 }
 
+func (self *EndpointTestSuite) TestCreateFeedWithInvalidURLRewriteRules() {
+	_, err := self.client.CreateFeed(&model.FeedCreationRequest{
+		FeedURL:         self.cfg.FeedURL,
+		UrlRewriteRules: "[",
+	})
+	self.T().Log(err)
+	self.Require().Error(err,
+		"Creating a feed with an invalid URL rewrite rule should raise an error")
+}
+
+func (self *EndpointTestSuite) TestUpdateFeedWithInvalidURLRewriteRules() {
+	feedID := self.createFeed()
+	const rules = "["
+	feedModify := model.FeedModificationRequest{UrlRewriteRules: new(rules)}
+
+	_, err := self.client.UpdateFeed(feedID, &feedModify)
+	self.T().Log(err)
+	self.Require().Error(err,
+		"Updating a feed with an invalid URL rewrite rule should raise an error")
+}
+
 func (self *EndpointTestSuite) TestUpdateFeedEndpoint_CommentsURLTemplate() {
 	tests := []struct {
 		name        string

@@ -4,7 +4,10 @@
 package rewrite
 
 import (
+	"log/slog"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"miniflux.app/v2/internal/model"
 )
@@ -293,6 +296,53 @@ func TestCustomReplaceRuleRegex(t *testing.T) {
 			} else if len(parts) >= 3 {
 				t.Errorf("Expected regex not to match, but got %d parts: %v", len(parts), parts)
 			}
+		})
+	}
+}
+
+func TestRewriteEntryURL_validation(t *testing.T) {
+	if testing.Verbose() {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
+
+	tests := []struct {
+		name  string
+		rules string
+		valid bool
+	}{
+		{name: "Empty", rules: ``, valid: true},
+		{name: "WhitespaceOnly", rules: `   `, valid: true},
+		{name: "WellFormed", rules: `rewrite("^https://example.com/(.+)"|"https://rewritten.com/$1")`, valid: true},
+		{name: "WellFormedEmptyReplacement", rules: `rewrite("^https://example.com/(.+)"|"x")`, valid: true},
+		// The reported bug: a valid regex that is not a URL rewrite rule.
+		{name: "ValidRegexButNotARule", rules: `not_a_function("find"|"replace")`, valid: false},
+		{name: "BareRegex", rules: `^https://example.com/(.+)$`, valid: false},
+		{name: "PlainText", rules: `not-a-rewrite-rule`, valid: false},
+		{name: "MissingReplacement", rules: `rewrite("invalid format")`, valid: false},
+		{name: "LeadingWhitespaceOK", rules: ` rewrite("a"|"b")`, valid: true},
+		{name: "TrailingWhitespaceOK", rules: `rewrite("a"|"b") `, valid: true},
+		// Matches the rewrite() form but the search term is not a compilable regex.
+		{name: "InvalidSearchRegex", rules: `rewrite("^https://example.com/[invalid"|"https://rewritten.com/$1")`, valid: false},
+		{
+			name:  "invalid new url",
+			rules: `rewrite("^https:"|"https|:")`,
+			valid: false,
+		},
+	}
+
+	var feed model.Feed
+	entry := model.Entry{URL: "https://localhost/entry"}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			feed.UrlRewriteRules = tt.rules
+			err := RewriteEntryURL(t.Context(), &feed, &entry)
+			if !tt.valid {
+				t.Log(err)
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
 		})
 	}
 }
