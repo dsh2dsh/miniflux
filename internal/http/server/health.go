@@ -19,18 +19,19 @@ func (self *Server) makeReadinessProbe() http.HandlerFunc {
 			http.Error(w,
 				fmt.Sprintf("refresh of feeds completed with error: %s", err),
 				http.StatusServiceUnavailable)
+			return
 		}
 
 		schedulerFreq := config.PollingFrequency()
 		if d := self.pool.SinceSchedulerCompleted(); d > schedulerFreq*2 {
 			http.Error(w, fmt.Sprintf("slow scheduler: %s", d),
 				http.StatusServiceUnavailable)
+			return
 		}
 		livenessProbe(w, r)
 	}
 }
 
 func livenessProbe(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("OK"))
 }
