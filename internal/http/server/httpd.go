@@ -50,12 +50,7 @@ func New() (*Server, error) {
 		serverType: plainServer,
 		certFile:   config.CertFile(),
 		keyFile:    config.CertKeyFile(),
-
-		httpServer: &http.Server{
-			ReadTimeout:  config.HTTPServerTimeout(),
-			WriteTimeout: config.HTTPServerTimeout(),
-			IdleTimeout:  config.HTTPServerTimeout(),
-		},
+		httpServer: newHttpServer(),
 	}
 	self.detectServerType()
 
@@ -69,6 +64,16 @@ func New() (*Server, error) {
 		return nil, err
 	}
 	return self, nil
+}
+
+func newHttpServer() *http.Server {
+	timeout := config.HTTPServerTimeout()
+	return &http.Server{
+		ReadTimeout:       timeout,
+		ReadHeaderTimeout: timeout,
+		WriteTimeout:      timeout,
+		IdleTimeout:       timeout,
+	}
 }
 
 func (self *Server) loadCert() error {
@@ -164,10 +169,9 @@ func (self *Server) startAutoCertServer(certDomain string) {
 	}
 
 	// Handle http-01 challenge.
-	s := &http.Server{
-		Handler: certManager.HTTPHandler(nil),
-		Addr:    ":http",
-	}
+	s := newHttpServer()
+	s.Addr = ":http"
+	s.Handler = certManager.HTTPHandler(nil)
 
 	self.g.Go(func() error {
 		if err := s.ListenAndServe(); err != http.ErrServerClosed {
