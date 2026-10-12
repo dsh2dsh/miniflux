@@ -115,14 +115,6 @@ func Serve(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Close()
 
-	if resp.Err() != nil {
-		log.Error("MediaProxy: Unable to initialize HTTP client",
-			slog.Any("error", resp.Err()))
-		http.Error(w, http.StatusText(http.StatusInternalServerError),
-			http.StatusInternalServerError)
-		return
-	}
-
 	switch statusCode := resp.StatusCode(); statusCode {
 	case http.StatusRequestedRangeNotSatisfiable:
 		log.Warn("MediaProxy: "+http.StatusText(statusCode),

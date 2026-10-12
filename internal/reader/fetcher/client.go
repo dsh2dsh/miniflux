@@ -63,7 +63,6 @@ func (self *Client) makeClient() *http.Client {
 	client := &http.Client{
 		Transport:     self.transport(),
 		CheckRedirect: checkRedirects,
-		Timeout:       self.rb.clientTimeout,
 	}
 	return client
 }
@@ -75,6 +74,7 @@ func (self *Client) transport() http.RoundTripper {
 
 	dialer := &net.Dialer{
 		Timeout:        self.rb.clientTimeout,
+		KeepAlive:      30 * time.Second,
 		ControlContext: denyDialToPrivate,
 	}
 
@@ -85,8 +85,9 @@ func (self *Client) transport() http.RoundTripper {
 		TLSHandshakeTimeout:   self.rb.clientTimeout,
 		DisableKeepAlives:     self.rb.customized && !self.enableKeepAlives,
 		MaxIdleConns:          100,
-		IdleConnTimeout:       10 * time.Second,
+		IdleConnTimeout:       90 * time.Second,
 		ResponseHeaderTimeout: self.rb.clientTimeout,
+		ExpectContinueTimeout: time.Second,
 
 		// Setting `DialContext` disables HTTP/2, this option forces the transport
 		// to try HTTP/2 regardless.
@@ -193,22 +194,27 @@ func (self *Client) Do(req *http.Request) (*ResponseHandler, error) {
 	rc := requestContext{client: self, req: req}
 	ctx = contextWithRequest(ctx, &rc)
 
+	ctx, cancel := context.WithTimeout(ctx, self.rb.clientTimeout)
 	start := time.Now()
 
 	//nolint:bodyclose // ResponseSemaphore.Close() it later
 	resp, err := self.httpClient.Do(req.WithContext(ctx))
 	if err != nil {
-		err = fmt.Errorf("fetcher: do http request: %w", err)
-	} else {
-		log.Info("Got response",
-			slog.Int("status_code", resp.StatusCode),
-			slog.String("status", resp.Status),
-			slog.Int64("content_length", resp.ContentLength),
-			slog.String("proto", resp.Proto),
-			slog.String("content_type", resp.Header.Get("Content-Type")),
-			slog.Duration("request_time", time.Since(start)))
+		limits.Release(hostname)
+		cancel()
+		return nil, fmt.Errorf("fetcher: do http request: %w", err)
 	}
-	return NewResponseHandler(hostname, resp, err), nil
+
+	log.Info("Got response",
+		slog.Int("status_code", resp.StatusCode),
+		slog.String("status", resp.Status),
+		slog.Int64("content_length", resp.ContentLength),
+		slog.String("proto", resp.Proto),
+		slog.String("content_type", resp.Header.Get("Content-Type")),
+		slog.Duration("request_time", time.Since(start)))
+
+	//nolint:bodyclose // ResponseSemaphore.Close() it later
+	return NewResponseHandler(afterBodyClose(resp, cancel)), nil
 }
 
 func (self *Client) Request(ctx context.Context, requestURL string,

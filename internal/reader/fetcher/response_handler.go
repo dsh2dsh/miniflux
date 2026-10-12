@@ -28,7 +28,6 @@ import (
 
 type ResponseHandler struct {
 	httpResponse *http.Response
-	clientErr    error
 
 	hostname    string
 	maxBodySize int64
@@ -39,13 +38,11 @@ type ResponseHandler struct {
 	closed bool
 }
 
-func NewResponseHandler(hostname string, resp *http.Response, err error,
-) *ResponseHandler {
+func NewResponseHandler(resp *http.Response) *ResponseHandler {
 	r := &ResponseHandler{
 		httpResponse: resp,
-		clientErr:    err,
 
-		hostname:    hostname,
+		hostname:    resp.Request.URL.Hostname(),
 		maxBodySize: config.HTTPClientMaxBodySize(),
 	}
 	return r.init()
@@ -58,7 +55,7 @@ func (self *ResponseHandler) init() *ResponseHandler {
 }
 
 func (self *ResponseHandler) withRetryAfter() *ResponseHandler {
-	if self.Err() != nil || !self.rateLimited() {
+	if !self.rateLimited() {
 		return self
 	}
 	self.retryAfter = limits.SetRetryAfter(self.hostname,
@@ -67,8 +64,7 @@ func (self *ResponseHandler) withRetryAfter() *ResponseHandler {
 }
 
 func (self *ResponseHandler) withResponseContent() *ResponseHandler {
-	skip := self.Err() != nil || self.goodStatusCode() ||
-		self.httpResponse.ContentLength == 0
+	skip := self.goodStatusCode() || self.httpResponse.ContentLength == 0
 	if skip {
 		return self
 	}
@@ -140,8 +136,6 @@ func (self *ResponseHandler) StatusCode() int {
 func (self *ResponseHandler) Header(key string) string {
 	return self.httpResponse.Header.Get(key)
 }
-
-func (self *ResponseHandler) Err() error { return self.clientErr }
 
 func (self *ResponseHandler) URL() *url.URL { return self.httpResponse.Request.URL }
 
@@ -248,19 +242,12 @@ func (self *ResponseHandler) Close() {
 		return
 	}
 
-	if self.Err() == nil {
-		self.bodyClose()
-	}
+	self.httpResponse.Body.Close()
 
 	if self.hostname != "" {
 		limits.Release(self.hostname)
 	}
 	self.closed = true
-}
-
-func (self *ResponseHandler) bodyClose() {
-	self.httpResponse.Body.Close()
-	requestFromContext(self.Context()).BodyClose()
 }
 
 func (self *ResponseHandler) Body() io.ReadCloser {

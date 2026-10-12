@@ -80,10 +80,8 @@ func (self *Create) FromRequest(ctx context.Context,
 	}
 
 	resp, err := NewRequestFeedCreation(r).Request(ctx, r.FeedURL)
-	if err != nil {
-		return nil, locale.NewLocalizedErrorWrapper(err,
-			"error.unable_to_parse_feed",
-			err)
+	if lerr := fetcher.LocalizedError(err); lerr != nil {
+		return nil, lerr
 	}
 	defer resp.Close()
 

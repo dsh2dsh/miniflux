@@ -25,7 +25,7 @@ type curlTransport struct {
 var _ http.RoundTripper = (*curlTransport)(nil)
 
 func (self *curlTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	ctx, cancel := context.WithTimeout(req.Context(), config.HTTPClientTimeout())
+	ctx, cancel := context.WithCancel(req.Context())
 	cmd := self.cmd(ctx, req.URL.String())
 
 	stderr := new(bytes.Buffer)
@@ -46,7 +46,7 @@ func (self *curlTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 		return nil, fmt.Errorf("fetcher: start curl %s: %w", cmd.Path, err)
 	}
 
-	bodyClose := func() {
+	waitCurl := func() {
 		defer cancel()
 		_, _ = io.Copy(io.Discard, stdout)
 		err := cmd.Wait()
@@ -71,19 +71,17 @@ func (self *curlTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	r, err := withProtoMinorVersion(stdout)
 	if err != nil {
 		cancel()
-		bodyClose()
+		waitCurl()
 		return nil, fmt.Errorf("fetcher: fix HTTP proto minor version: %w", err)
 	}
 
 	resp, err := http.ReadResponse(bufio.NewReader(r), req)
 	if err != nil {
 		cancel()
-		bodyClose()
+		waitCurl()
 		return nil, fmt.Errorf("fetcher: reading curl output: %w", err)
 	}
-
-	requestFromContext(ctx).WithBodyClose(bodyClose)
-	return resp, nil
+	return beforeBodyClose(resp, waitCurl), nil
 }
 
 func (self *curlTransport) cmd(ctx context.Context, u string) *exec.Cmd {

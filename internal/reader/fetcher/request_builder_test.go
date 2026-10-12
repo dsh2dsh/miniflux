@@ -43,6 +43,7 @@ func TestNewRequestBuilder(t *testing.T) {
 }
 
 func TestRequestBuilder_WithHeader(t *testing.T) {
+	t.Setenv("FETCHER_ALLOW_PRIVATE_NETWORKS", "1")
 	configureNoRateLimit(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -61,6 +62,7 @@ func TestRequestBuilder_WithHeader(t *testing.T) {
 }
 
 func TestRequestBuilder_WithETag(t *testing.T) {
+	t.Setenv("FETCHER_ALLOW_PRIVATE_NETWORKS", "1")
 	configureNoRateLimit(t)
 
 	tests := []struct {
@@ -92,6 +94,7 @@ func TestRequestBuilder_WithETag(t *testing.T) {
 }
 
 func TestRequestBuilder_WithLastModified(t *testing.T) {
+	t.Setenv("FETCHER_ALLOW_PRIVATE_NETWORKS", "1")
 	configureNoRateLimit(t)
 
 	tests := []struct {
@@ -123,16 +126,16 @@ func TestRequestBuilder_WithLastModified(t *testing.T) {
 }
 
 func TestRequestBuilder_WithUserAgent(t *testing.T) {
+	t.Setenv("FETCHER_ALLOW_PRIVATE_NETWORKS", "1")
 	configureNoRateLimit(t)
 
 	tests := []struct {
 		name           string
 		userAgent      string
-		defaultAgent   string
 		expectedHeader string
 	}{
-		{"custom user agent", "CustomAgent/1.0", "DefaultAgent/1.0", "CustomAgent/1.0"},
-		{"default user agent", "", "DefaultAgent/1.0", "DefaultAgent/1.0"},
+		{"custom user agent", "CustomAgent/1.0", "CustomAgent/1.0"},
+		{"default user agent", "", config.HTTPClientUserAgent()},
 	}
 
 	for _, tt := range tests {
@@ -155,6 +158,7 @@ func TestRequestBuilder_WithUserAgent(t *testing.T) {
 }
 
 func TestRequestBuilder_WithCookie(t *testing.T) {
+	t.Setenv("FETCHER_ALLOW_PRIVATE_NETWORKS", "1")
 	configureNoRateLimit(t)
 
 	tests := []struct {
@@ -186,6 +190,7 @@ func TestRequestBuilder_WithCookie(t *testing.T) {
 }
 
 func TestRequestBuilder_WithUsernameAndPassword(t *testing.T) {
+	t.Setenv("FETCHER_ALLOW_PRIVATE_NETWORKS", "1")
 	configureNoRateLimit(t)
 
 	tests := []struct {
@@ -220,6 +225,7 @@ func TestRequestBuilder_WithUsernameAndPassword(t *testing.T) {
 }
 
 func TestRequestBuilder_DefaultAcceptHeader(t *testing.T) {
+	t.Setenv("FETCHER_ALLOW_PRIVATE_NETWORKS", "1")
 	configureNoRateLimit(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -238,6 +244,7 @@ func TestRequestBuilder_DefaultAcceptHeader(t *testing.T) {
 }
 
 func TestRequestBuilder_CustomAcceptHeaderNotOverridden(t *testing.T) {
+	t.Setenv("FETCHER_ALLOW_PRIVATE_NETWORKS", "1")
 	configureNoRateLimit(t)
 
 	customAccept := "application/json"
@@ -276,7 +283,6 @@ func TestRequestBuilder_WithoutRedirects(t *testing.T) {
 	resp, err := builder.WithoutRedirects().Request(t.Context(), server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	require.NoError(t, resp.Err())
 	defer resp.Close()
 
 	if resp.StatusCode() != http.StatusFound {
@@ -335,6 +341,7 @@ proxies:
 }
 
 func TestRequestBuilder_ChainedMethods(t *testing.T) {
+	t.Setenv("FETCHER_ALLOW_PRIVATE_NETWORKS", "1")
 	configureNoRateLimit(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -459,10 +466,8 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	resp, err := NewRequestBuilder().Request(t.Context(), server.URL)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	t.Log(resp.Err())
-	require.ErrorIs(t, resp.Err(), ErrPrivateNetworkHost)
+	require.ErrorIs(t, err, ErrPrivateNetworkHost)
+	assert.Nil(t, resp)
 
 	rb := NewRequestBuilder().WithPrivateNetworks()
 	require.NotNil(t, rb)
@@ -470,7 +475,6 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 	resp, err = rb.Request(t.Context(), server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	require.NoError(t, resp.Err())
 	assert.Equal(t, http.StatusOK, resp.StatusCode())
 	resp.Close()
 
@@ -483,7 +487,6 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 	resp, err = rb.Request(t.Context(), server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	require.NoError(t, resp.Err())
 	assert.Equal(t, http.StatusOK, resp.StatusCode())
 	resp.Close()
 
@@ -497,7 +500,6 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 	resp, err = rb.Request(t.Context(), server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	require.NoError(t, resp.Err())
 	assert.Equal(t, http.StatusOK, resp.StatusCode())
 	resp.Close()
 
@@ -510,7 +512,6 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 	resp, err = rb.Request(t.Context(), server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	require.NoError(t, resp.Err())
 	assert.Equal(t, http.StatusOK, resp.StatusCode())
 	resp.Close()
 
@@ -522,7 +523,6 @@ func TestRequestBuilder_FetcherAllowPrivateNetworks(t *testing.T) {
 	resp, err = rb.Request(t.Context(), server.URL)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	require.NoError(t, resp.Err())
 	assert.Equal(t, http.StatusOK, resp.StatusCode())
 	resp.Close()
 }
@@ -628,8 +628,6 @@ func TestRequestBuilder_AllowPrivateEnvProxy(t *testing.T) {
 	require.NotNil(t, resp)
 	t.Cleanup(resp.Close)
 
-	require.NoError(t, resp.Err())
-
 	assert.Equal(t, targetURL, proxyRequests,
 		"Expected request to be sent through the proxy")
 }
@@ -657,12 +655,8 @@ func TestRequestBuilder_DenyPrivateNetwork_skipProxy(t *testing.T) {
 	t.Setenv("HTTP_PROXY", proxyServer.URL)
 
 	resp, err := NewRequestBuilder().Request(t.Context(), privateServer.URL)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	t.Cleanup(resp.Close)
-
-	t.Log(resp.Err())
-	require.ErrorIs(t, resp.Err(), ErrPrivateNetworkHost)
+	require.ErrorIs(t, err, ErrPrivateNetworkHost)
+	assert.Nil(t, resp)
 	assert.Empty(t, proxyRequests,
 		"Expected request to bypass the environment proxy, but the proxy received %q",
 		proxyRequests)
@@ -695,14 +689,9 @@ func TestRequestBuilder_AllowPrivateEnvProxy_afterRedirect(t *testing.T) {
 
 	resp, err := NewRequestBuilder().Request(t.Context(),
 		"http://feed.invalid/rss.xml")
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	t.Cleanup(resp.Close)
-
-	t.Log(resp.Err())
-	require.Error(t, resp.Err())
-
-	require.Equal(t, "secure.invalid:443", proxyRequests,
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Equal(t, "secure.invalid:443", proxyRequests,
 		"Expected the HTTPS proxy to receive a CONNECT after redirect")
 }
 
@@ -729,11 +718,8 @@ func TestRequestBuilder_TimeoutConfiguration(t *testing.T) {
 	start := time.Now()
 	resp, err := builder.Request(t.Context(), server.URL)
 	duration := time.Since(start)
-	require.NoError(t, err)
-
-	require.ErrorIs(t, resp.Err(), context.DeadlineExceeded,
-		"Expected timeout error")
-	t.Log(resp.Err())
+	require.ErrorIs(t, err, context.DeadlineExceeded, "Expected timeout error")
+	require.Nil(t, resp)
 
 	// Should timeout around 100ms, allow some margin
 	assert.Less(t, duration, 500*time.Millisecond,

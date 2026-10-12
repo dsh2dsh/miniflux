@@ -12,7 +12,6 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"miniflux.app/v2/internal/config"
-	"miniflux.app/v2/internal/locale"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/reader/fetcher"
 	"miniflux.app/v2/internal/reader/parser"
@@ -39,8 +38,8 @@ func (self *Subscription) Err() error { return self.err }
 func (self *Subscription) Parse(ctx context.Context, client *fetcher.Client,
 ) error {
 	resp, err := client.Request(ctx, self.URL)
-	if err != nil {
-		return locale.NewLocalizedErrorWrapper(err, "error.http_body_read", err)
+	if lerr := fetcher.LocalizedError(err); lerr != nil {
+		return lerr
 	}
 	defer resp.Close()
 

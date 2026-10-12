@@ -9,10 +9,9 @@ import (
 )
 
 type requestContext struct {
-	client    *Client
-	req       *http.Request
-	proxy     url.URL
-	bodyClose func()
+	client *Client
+	req    *http.Request
+	proxy  url.URL
 }
 
 type ctxRequest struct{}
@@ -54,15 +53,4 @@ func (self *requestContext) WithProxy(u *url.URL) *url.URL {
 		self.proxy = *u
 	}
 	return u
-}
-
-func (self *requestContext) WithBodyClose(fn func()) *requestContext {
-	self.bodyClose = fn
-	return self
-}
-
-func (self *requestContext) BodyClose() {
-	if self.bodyClose != nil {
-		self.bodyClose()
-	}
 }

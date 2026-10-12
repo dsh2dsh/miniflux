@@ -49,9 +49,8 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 	defer client.Close()
 
 	resp, err := client.Request(ctx, websiteURL)
-	if err != nil {
-		return nil, locale.NewLocalizedErrorWrapper(err,
-			"error.http_body_read", err)
+	if lerr := fetcher.LocalizedError(err); lerr != nil {
+		return nil, lerr
 	}
 	defer resp.Close()
 

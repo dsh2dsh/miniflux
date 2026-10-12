@@ -26,15 +26,7 @@ const (
 var ProxyRotatorInstance *proxyrotator.ProxyRotator
 
 func Do(req *http.Request, opts ...Option) (*ResponseHandler, error) {
-	resp, err := NewRequestBuilder(opts...).Do(req)
-	switch {
-	case err != nil:
-		return nil, err
-	case resp.Err() != nil:
-		resp.Close()
-		return nil, resp.Err()
-	}
-	return resp, nil
+	return NewRequestBuilder(opts...).Do(req)
 }
 
 func Request(ctx context.Context, requestURL string, opts ...Option,

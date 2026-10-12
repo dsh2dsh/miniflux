@@ -28,13 +28,14 @@ var translatedStatusCodes = map[int]string{
 }
 
 func (self *ResponseHandler) LocalizedError() *locale.LocalizedErrorWrapper {
-	if self.Err() != nil {
-		return localizeClientErr(self.Err())
-	}
 	return self.localizeStatusCode()
 }
 
-func localizeClientErr(err error) *locale.LocalizedErrorWrapper {
+func LocalizedError(err error) *locale.LocalizedErrorWrapper {
+	if err == nil {
+		return nil
+	}
+
 	const msgFmt = "reader/fetcher: http client error: %w"
 	switch {
 	case sslError(err):
