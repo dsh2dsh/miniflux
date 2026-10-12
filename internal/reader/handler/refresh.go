@@ -89,11 +89,11 @@ func (self *Refresh) Refresh(ctx context.Context) error {
 
 	resp, err := self.response(ctx)
 	if err != nil {
-		return self.maybeTooManyRequests(log, err)
+		return self.logRespError(log, nil, err)
 	}
 	defer resp.Close()
 
-	if err := self.logRespError(log, resp); err != nil {
+	if err := self.logRespError(log, resp, nil); err != nil {
 		return err
 	}
 
@@ -165,14 +165,11 @@ func (self *Refresh) response(ctx context.Context) (*fetcher.ResponseHandler,
 func (self *Refresh) maybeTooManyRequests(log *slog.Logger, err error) error {
 	errRateLimited, ok := errors.AsType[*fetcher.ErrTooManyRequests](err)
 	if !ok {
-		return err
+		return fetcher.LocalizedError(err)
 	}
 
 	self.logRateLimited(log, errRateLimited.RetryAfter(),
 		errRateLimited.RetryHeader())
-	log.Warn("Unable to fetch feed",
-		slog.String("feed_url", self.feed.FeedURL),
-		slog.Any("error", err))
 	return errRateLimited.Localized()
 }
 
@@ -193,8 +190,15 @@ func (self *Refresh) logRateLimited(log *slog.Logger, retryAfter time.Time,
 }
 
 func (self *Refresh) logRespError(log *slog.Logger,
-	resp *fetcher.ResponseHandler,
+	resp *fetcher.ResponseHandler, err error,
 ) error {
+	if err != nil {
+		lerr := self.maybeTooManyRequests(log, err)
+		log.Warn("Unable to fetch feed",
+			slog.String("feed_url", self.feed.FeedURL), slog.Any("error", lerr))
+		return lerr
+	}
+
 	if retryAfter, ok := resp.TooManyRequests(); ok {
 		self.logRateLimited(log, retryAfter, resp.Header("Retry-After"))
 	}
