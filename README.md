@@ -363,7 +363,7 @@ This project is an opinionated fork of Miniflux.
   proxies:
     - name: "curl impersonate Chrome 150"
       id:   "curl_chrome150"
-      curl: [ "/usr/local/bin/curl_chrome150" ]
+      curl: [ "/usr/local/bin/curl-impersonate", "--impersonate", "chrome150" ]
   ```
 
   After, this proxy can be selected in a feed settings for fetching and/or

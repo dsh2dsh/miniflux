@@ -92,6 +92,7 @@ func (self *curlTransport) cmd(ctx context.Context, u string) *exec.Cmd {
 		'f', -1, 64)
 
 	args := slices.Concat(self.args, []string{
+		"--compressed",
 		"--connect-timeout", timeout,
 		"--disable",
 		"--location",
