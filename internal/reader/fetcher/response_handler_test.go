@@ -76,6 +76,7 @@ func TestIsModified(t *testing.T) {
 func TestRetryDelay(t *testing.T) {
 	tests := [...]struct {
 		name            string
+		headerName      string
 		retryHeader     string
 		retryHeaderFunc func() string
 		wantDelay       time.Duration
@@ -112,22 +113,36 @@ func TestRetryDelay(t *testing.T) {
 			},
 			wantDelay: 0,
 		},
+		{
+			name:        "x-ratelimit-reset",
+			headerName:  "x-ratelimit-reset",
+			retryHeader: "24",
+			wantDelay:   24 * time.Second,
+		},
 	}
 
 	for _, tt := range tests {
 		testFunc := func(t *testing.T) {
+			headerName := tt.headerName
+			if headerName == "" {
+				headerName = "Retry-After"
+			}
+
 			header := http.Header{}
 			switch {
 			case tt.retryHeader != "":
-				header.Add("Retry-After", tt.retryHeader)
+				header.Add(headerName, tt.retryHeader)
 			case tt.retryHeaderFunc != nil:
-				header.Add("Retry-After", tt.retryHeaderFunc())
+				header.Add(headerName, tt.retryHeaderFunc())
 			}
-			t.Log("        now:", time.Now().Format(time.RFC1123))
-			t.Log("Retry-After:", header.Get("Retry-After"))
+
+			t.Log("now:", time.Now().Format(time.RFC1123))
+			t.Log(headerName+":", header.Get(headerName))
+
 			resp := ResponseHandler{httpResponse: &http.Response{Header: header}}
 			assert.Equal(t, tt.wantDelay, resp.parseRetryDelay())
 		}
+
 		t.Run(tt.name, func(t *testing.T) { synctest.Test(t, testFunc) })
 	}
 }

@@ -200,7 +200,7 @@ func (self *Refresh) logRespError(log *slog.Logger,
 	}
 
 	if retryAfter, ok := resp.TooManyRequests(); ok {
-		self.logRateLimited(log, retryAfter, resp.Header("Retry-After"))
+		self.logRateLimited(log, retryAfter, resp.RetryAfter())
 	}
 
 	lerr := resp.LocalizedError()

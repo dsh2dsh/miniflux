@@ -106,7 +106,7 @@ func (self *ResponseHandler) localizeStatusCode() *locale.LocalizedErrorWrapper 
 	if statusCode == http.StatusTooManyRequests {
 		err := fmt.Errorf("%w: %w",
 			NewErrTooManyRequests(self.URL().Hostname(),
-				time.Now().Add(self.parseRetryDelay()), self.Header("Retry-After")),
+				time.Now().Add(self.parseRetryDelay()), self.RetryAfter()),
 			self.badStatusErr())
 		return locale.NewLocalizedErrorWrapper(err, "error.http_too_many_requests")
 	}

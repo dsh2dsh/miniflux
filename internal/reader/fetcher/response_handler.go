@@ -26,6 +26,8 @@ import (
 	"miniflux.app/v2/internal/reader/sanitizer"
 )
 
+var rateLimitHeaders = [...]string{"Retry-After", "x-ratelimit-reset"}
+
 type ResponseHandler struct {
 	httpResponse *http.Response
 
@@ -59,7 +61,7 @@ func (self *ResponseHandler) withRetryAfter() *ResponseHandler {
 		return self
 	}
 	self.retryAfter = limits.SetRetryAfter(self.hostname,
-		time.Now().Add(self.parseRetryDelay()), self.Header("Retry-After"))
+		time.Now().Add(self.parseRetryDelay()), self.RetryAfter())
 	return self
 }
 
@@ -189,7 +191,7 @@ func (self *ResponseHandler) CacheControlMaxAgeInMinutes() int {
 }
 
 func (self *ResponseHandler) parseRetryDelay() time.Duration {
-	retryAfter := self.Header("Retry-After")
+	retryAfter := self.RetryAfter()
 	if retryAfter == "" {
 		return 0
 	}
@@ -205,6 +207,15 @@ func (self *ResponseHandler) parseRetryDelay() time.Duration {
 		return 0
 	}
 	return time.Until(t)
+}
+
+func (self *ResponseHandler) RetryAfter() string {
+	for _, name := range rateLimitHeaders {
+		if s := strings.TrimSpace(self.Header(name)); s != "" {
+			return s
+		}
+	}
+	return ""
 }
 
 func (self *ResponseHandler) rateLimited() bool {
