@@ -124,15 +124,18 @@ func (self *FeedProcessor) process(ctx context.Context) error {
 		log := log.With(
 			slog.String("template", self.feed.CommentsURLTemplateString()))
 		log.Debug("make comment URLs from template")
-		err := self.feed.Entries.MakeCommentURL(t)
-		if err != nil {
-			log.Error("failed make comment URLs from template",
-				slog.Any("error", err))
+		if err := self.feed.Entries.MakeCommentURL(t); err != nil {
+			log.Warn("failed make comment URLs from template", slog.Any("error", err))
 		}
 	}
 
-	contentRewrite := rewrite.NewContentRewrite(self.feed.RewriteRules,
-		self.user, self.templates)
+	contentRewrite, err := rewrite.NewContentRewrite(
+		self.feed.RewriteRules, self.user, self.templates)
+	if err != nil {
+		log.Warn("unable parse content rewrite rules",
+			slog.String("rules", self.feed.RewriteRules),
+			slog.Any("error", err))
+	}
 
 	for _, entry := range self.feed.Entries {
 		log := log.With(
@@ -169,7 +172,14 @@ func (self *FeedProcessor) process(ctx context.Context) error {
 		}
 
 		sites.Rewrite(ctx, entry)
-		contentRewrite.Apply(ctx, entry)
+		if contentRewrite != nil {
+			if err := contentRewrite.Apply(ctx, entry); err != nil {
+				log.Warn("Unable rewrite entry content",
+					slog.String("rules", self.feed.UrlRewriteRules),
+					slog.Any("error", err))
+			}
+		}
+
 		// The sanitizer should always run at the end of the process to make sure
 		// unsafe HTML is filtered out.
 		err := self.sanitizeEntry(entry, pageURL)

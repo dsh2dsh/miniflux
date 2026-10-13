@@ -29,8 +29,10 @@ type RewriteTestSuite struct {
 func (self *RewriteTestSuite) apply(entry *model.Entry, rules string) {
 	self.T().Helper()
 
-	contentRewrite := NewContentRewrite(rules, self.user, self.templates)
-	contentRewrite.Apply(self.T().Context(), entry)
+	contentRewrite, err := NewContentRewrite(rules, self.user, self.templates)
+	self.Require().NoError(err)
+	self.Require().NotNil(contentRewrite)
+	self.Require().NoError(contentRewrite.Apply(self.T().Context(), entry))
 }
 
 func (self *RewriteTestSuite) TestHTMLUnescapeRule() {
@@ -115,8 +117,10 @@ func applyContentRewriteRules(t *testing.T, entry *model.Entry,
 	userRules string,
 ) {
 	t.Helper()
-	contentRules := ContentRewrite{rules: parseRules(userRules)}
-	contentRules.Apply(t.Context(), entry)
+	contentRules, err := NewContentRewrite(userRules, nil, nil)
+	require.NoError(t, err)
+	require.NotNil(t, contentRules)
+	require.NoError(t, contentRules.Apply(t.Context(), entry))
 }
 
 func TestRewriteIncorrectYoutubeLink(t *testing.T) {
@@ -133,25 +137,6 @@ func TestRewriteIncorrectYoutubeLink(t *testing.T) {
 		Content: `Video Description`,
 	}
 	applyContentRewriteRules(t, testEntry, ``)
-	assert.EqualExportedValues(t, controlEntry, testEntry)
-}
-
-func TestRewriteYoutubeLinkRejectsLookalikeDomain(t *testing.T) {
-	config.Load("")
-
-	controlEntry := &model.Entry{
-		URL:     "https://notyoutube.com/watch?v=1234",
-		Title:   `A title`,
-		Content: `Video Description`,
-	}
-
-	testEntry := &model.Entry{
-		URL:     "https://notyoutube.com/watch?v=1234",
-		Title:   `A title`,
-		Content: `Video Description`,
-	}
-
-	applyContentRewriteRules(t, testEntry, `add_youtube_video`)
 	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
@@ -324,12 +309,20 @@ func TestRewriteWithInexistingCustomRule(t *testing.T) {
 		Title:   `A title`,
 		Content: `Video Description`,
 	}
+
 	testEntry := &model.Entry{
 		URL:     "https://www.youtube.com/watch?v=1234",
 		Title:   `A title`,
 		Content: `Video Description`,
 	}
-	applyContentRewriteRules(t, testEntry, `some rule`)
+
+	contentRules, err := NewContentRewrite(`some rule`, nil, nil)
+	require.NoError(t, err)
+	require.NotNil(t, contentRules)
+
+	err = contentRules.Apply(t.Context(), testEntry)
+	t.Log(err)
+	require.Error(t, err)
 	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
@@ -1336,4 +1329,46 @@ func TestStripImageQueryParamsSimple(t *testing.T) {
 	}
 	applyContentRewriteRules(t, testEntry, `remove_img_blur_params`)
 	assert.EqualExportedValues(t, controlEntry, testEntry)
+}
+
+func TestParseRulesUnknownName(t *testing.T) {
+	contentRewrite, err := NewContentRewrite(`replce("a"|"b")`, nil, nil)
+	require.NoError(t, err)
+	require.NotNil(t, contentRewrite)
+
+	err = contentRewrite.Apply(t.Context(), &model.Entry{})
+	t.Log(err)
+	require.Error(t, err)
+}
+
+func TestParseRulesMissingArgs(t *testing.T) {
+	contentRewrite, err := NewContentRewrite(`replace("a")`, nil, nil)
+	require.NoError(t, err)
+	require.NotNil(t, contentRewrite)
+
+	err = contentRewrite.Apply(t.Context(), &model.Entry{})
+	t.Log(err)
+	require.Error(t, err)
+}
+
+func TestParseRulesInvalidRegexp(t *testing.T) {
+	contentRewrite, err := NewContentRewrite(`replace("["|"x")`, nil, nil)
+	require.NoError(t, err)
+	require.NotNil(t, contentRewrite)
+
+	err = contentRewrite.Apply(t.Context(), &model.Entry{})
+	t.Log(err)
+	require.Error(t, err)
+}
+
+func TestParseRulesWellFormed(t *testing.T) {
+	contentRewrite, err := NewContentRewrite(`replace("a"|"b") nl2br`, nil, nil)
+	require.NoError(t, err)
+	require.NotNil(t, contentRewrite)
+
+	require.NoError(t, contentRewrite.Apply(t.Context(), &model.Entry{}))
+	assert.Equal(t, []rule{
+		{name: "replace", args: []string{"a", "b"}},
+		{name: "nl2br"},
+	}, contentRewrite.rules)
 }

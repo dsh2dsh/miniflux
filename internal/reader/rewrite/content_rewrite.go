@@ -5,6 +5,7 @@ package rewrite
 
 import (
 	"context"
+	"fmt"
 	"html"
 	"log/slog"
 	"strconv"
@@ -23,17 +24,36 @@ type ContentRewrite struct {
 }
 
 func NewContentRewrite(userRules string, u *model.User, t *template.Engine,
-) *ContentRewrite {
-	return &ContentRewrite{rules: parseRules(userRules), user: u, templates: t}
+) (*ContentRewrite, error) {
+	rules, err := parseRules(userRules)
+	if err != nil {
+		return nil, fmt.Errorf("rewrite: parse content rewrite rules: %w", err)
+	}
+	return &ContentRewrite{rules: rules, user: u, templates: t}, nil
 }
 
-func parseRules(s string) []rule {
-	scan := scanner.Scanner{Mode: scanner.ScanIdents | scanner.ScanStrings}
+func parseRules(s string) ([]rule, error) {
+	if s = strings.TrimSpace(s); s == "" {
+		return nil, nil
+	}
+
+	var err error
+	scan := scanner.Scanner{
+		Error: func(s *scanner.Scanner, msg string) {
+			err = fmt.Errorf("scan token %s: %s", s.TokenText(), msg)
+		},
+		Mode: scanner.ScanIdents | scanner.ScanStrings,
+	}
 	scan.Init(strings.NewReader(s))
 
 	var rules []rule
 	for {
-		switch scan.Scan() {
+		tok := scan.Scan()
+		if err != nil {
+			return nil, err
+		}
+
+		switch tok {
 		case scanner.Ident:
 			rules = append(rules, rule{name: scan.TokenText()})
 		case scanner.String:
@@ -44,12 +64,13 @@ func parseRules(s string) []rule {
 			last := len(rules) - 1
 			rules[last].args = append(rules[last].args, s)
 		case scanner.EOF:
-			return rules
+			return rules, nil
 		}
 	}
 }
 
-func (self *ContentRewrite) Apply(ctx context.Context, entry *model.Entry) {
+func (self *ContentRewrite) Apply(ctx context.Context, entry *model.Entry,
+) (err error) {
 	rules := self.rules
 	if len(rules) == 0 {
 		rules = findDomainRule(entry.Hostname())
@@ -59,14 +80,20 @@ func (self *ContentRewrite) Apply(ctx context.Context, entry *model.Entry) {
 		slog.Any("rules", rules), slog.String("entry_url", entry.URL))
 
 	for _, r := range rules {
-		self.applyRule(ctx, entry, r)
+		if err = self.applyRule(ctx, entry, r); err != nil {
+			err = fmt.Errorf("rewrite: rewrite content rule failed: %s: %w",
+				r.String(), err)
+			break
+		}
 	}
+
 	entry.Content = addPDFLink(entry.URL, entry.Content)
+	return err
 }
 
 func (self *ContentRewrite) applyRule(ctx context.Context, entry *model.Entry,
 	r rule,
-) {
+) (err error) {
 	log := logging.FromContext(ctx).With(
 		slog.Group("rule", slog.String("name", r.name), slog.Any("args", r.args)),
 		slog.String("entry_url", entry.URL))
@@ -98,11 +125,11 @@ func (self *ContentRewrite) applyRule(ctx context.Context, entry *model.Entry,
 	case "use_noscript_figure_images":
 		entry.Content = useNoScriptImages(entry.Content)
 	case "replace":
-		r.applyReplaceContent(log, entry)
+		err = r.applyReplaceContent(entry)
 	case "replace_title":
-		r.applyReplaceTitle(log, entry)
+		err = r.applyReplaceTitle(entry)
 	case "remove":
-		r.applyRemove(log, entry)
+		err = r.applyRemove(entry)
 	case "add_enclosure_links":
 		entry.Content = addEnclosureLinks(entry)
 	case "add_castopod_episode":
@@ -123,5 +150,8 @@ func (self *ContentRewrite) applyRule(ctx context.Context, entry *model.Entry,
 		entry.Content = removeImgBlurParams(entry.Content)
 	case "html_unescape":
 		entry.Content = html.UnescapeString(entry.Content)
+	default:
+		err = fmt.Errorf("unknown rule name: %s", r.name)
 	}
+	return err
 }

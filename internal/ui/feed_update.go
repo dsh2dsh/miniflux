@@ -23,6 +23,7 @@ func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request) {
 		Title:                 model.OptionalString(f.Title),
 		Description:           model.OptionalString(f.Description),
 		CategoryID:            model.OptionalNumber(f.CategoryID),
+		RewriteRules:          model.OptionalString(f.RewriteRules),
 		UrlRewriteRules:       model.OptionalString(f.UrlRewriteRules),
 		BlockAuthors:          model.OptionalSlice(f.BlockAuthors),
 		BlockFilterEntryRules: model.OptionalString(f.BlockFilterEntryRules),

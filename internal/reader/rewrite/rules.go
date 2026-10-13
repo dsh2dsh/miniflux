@@ -1,10 +1,12 @@
 package rewrite
 
 import (
+	"errors"
 	"fmt"
-	"log/slog"
 	"strconv"
 	"strings"
+
+	"github.com/andybalholm/cascadia"
 
 	"miniflux.app/v2/internal/model"
 )
@@ -34,29 +36,51 @@ func (self *rule) String() string {
 	return sb.String()
 }
 
-func (self *rule) applyReplaceContent(log *slog.Logger, entry *model.Entry) {
+func (self *rule) applyReplaceContent(entry *model.Entry) error {
 	// Format: replace("search-term"|"replace-term")
 	if len(self.args) < 2 {
-		log.Warn("Cannot find search and replace terms for replace rule")
+		return errors.New("unable find search and replace terms")
 	}
-	entry.Content = replaceCustom(entry.Content, self.args[0], self.args[1])
+
+	s, err := replaceCustom(entry.Content, self.args[0], self.args[1])
+	if err != nil {
+		return err
+	}
+	entry.Content = s
+	return nil
 }
 
-func (self *rule) applyReplaceTitle(log *slog.Logger, entry *model.Entry) {
+func (self *rule) applyReplaceTitle(entry *model.Entry) error {
 	// Format: replace_title("search-term"|"replace-term")
 	if len(self.args) < 2 {
-		log.Warn("Cannot find search and replace terms for replace_title rule")
+		return errors.New("unable find search and replace terms")
 	}
-	entry.Title = replaceCustom(entry.Title, self.args[0], self.args[1])
+
+	s, err := replaceCustom(entry.Title, self.args[0], self.args[1])
+	if err != nil {
+		return err
+	}
+	entry.Title = s
+	return nil
 }
 
-func (self *rule) applyRemove(log *slog.Logger, entry *model.Entry) {
+func (self *rule) applyRemove(entry *model.Entry) error {
 	// Format: remove("#selector > .element, .another")
 	if len(self.args) == 0 {
-		log.Warn("Cannot find selector for remove rule")
-		return
+		return errors.New("selector required")
 	}
-	entry.Content = removeCustom(entry.Content, self.args[0])
+
+	selector := self.args[0]
+	if _, err := cascadia.Compile(selector); err != nil {
+		return fmt.Errorf("compile cascadia selector: %w", err)
+	}
+
+	s, err := removeCustom(entry.Content, selector)
+	if err != nil {
+		return err
+	}
+	entry.Content = s
+	return nil
 }
 
 func (self *rule) applyBase64Decode(entry *model.Entry) {

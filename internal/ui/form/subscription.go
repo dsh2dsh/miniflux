@@ -74,6 +74,13 @@ func (s *SubscriptionForm) Validate(ctx context.Context) *locale.LocalizedError 
 			return err
 		}
 	}
+
+	if s.RewriteRules != "" {
+		err := validator.ValidateContentRewriteRules(ctx, s.UrlRewriteRules)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

@@ -362,8 +362,11 @@ func addEnclosureLinks(entry *model.Entry) string {
 			continue
 		}
 		enclosureURL := html.EscapeString(enclosure.URL)
-		links.WriteString(
-			`<li><a href="` + enclosureURL + `">` + enclosureURL + `</a></li>`)
+		links.WriteString(`<li><a href="`)
+		links.WriteString(enclosureURL)
+		links.WriteString(`">`)
+		links.WriteString(enclosureURL)
+		links.WriteString(`</a></li>`)
 	}
 
 	if links.Len() > 0 {
@@ -376,24 +379,24 @@ func replaceTextLinks(input string) string {
 	return textLinkRegex.ReplaceAllString(input, `<a href="${1}">${1}</a>`)
 }
 
-func replaceCustom(entryContent, searchTerm, replaceTerm string) string {
+func replaceCustom(entryContent, searchTerm, replaceTerm string,
+) (string, error) {
 	re, err := regexp.Compile(searchTerm)
-	if err == nil {
-		return re.ReplaceAllString(entryContent, replaceTerm)
+	if err != nil {
+		return "", fmt.Errorf("compile search term: %w", err)
 	}
-	return entryContent
+	return re.ReplaceAllString(entryContent, replaceTerm), nil
 }
 
-func removeCustom(entryContent, selector string) string {
+func removeCustom(entryContent, selector string) (string, error) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(entryContent))
 	if err != nil {
-		return entryContent
+		return "", fmt.Errorf("parse content into goquery doc: %w", err)
 	}
 
 	doc.Find(selector).Remove()
-
 	output, _ := doc.FindMatcher(goquery.Single("body")).Html()
-	return output
+	return output, nil
 }
 
 func addCastopodEpisode(entryURL, entryContent string) string {

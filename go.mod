@@ -5,6 +5,7 @@ go 1.27
 require (
 	codeberg.org/readeck/go-readability/v2 v2.1.3
 	github.com/PuerkitoBio/goquery v1.13.0
+	github.com/andybalholm/cascadia v1.3.4
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/coreos/go-oidc/v3 v3.21.0
@@ -31,7 +32,6 @@ require (
 )
 
 require (
-	github.com/andybalholm/cascadia v1.3.4 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/dsh2dsh/goxpp/v2 v2.2.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.4 // indirect

@@ -74,6 +74,12 @@ func ValidateFeedCreation(ctx context.Context, store *storage.Storage,
 			return err
 		}
 	}
+
+	if r.RewriteRules != "" {
+		if err := ValidateContentRewriteRules(ctx, r.RewriteRules); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -83,6 +89,20 @@ func ValidateUrlRewriteRules(ctx context.Context, rules string,
 	var entry model.Entry
 	if err := rewrite.RewriteEntryURL(ctx, &feed, &entry); err != nil {
 		return locale.NewLocalizedError("error.feed_invalid_urlrewrite_rule")
+	}
+	return nil
+}
+
+func ValidateContentRewriteRules(ctx context.Context, rules string,
+) *locale.LocalizedError {
+	contentRewrite, err := rewrite.NewContentRewrite(rules, nil, nil)
+	if err != nil {
+		return locale.NewLocalizedError("error.feed_invalid_rewrite_rule")
+	}
+
+	var entry model.Entry
+	if err := contentRewrite.Apply(ctx, &entry); err != nil {
+		return locale.NewLocalizedError("error.feed_invalid_rewrite_rule")
 	}
 	return nil
 }
@@ -172,6 +192,12 @@ func ValidateFeedModification(ctx context.Context, store *storage.Storage,
 
 	if rules := model.OptionalValue(r.UrlRewriteRules); rules != "" {
 		if err := ValidateUrlRewriteRules(ctx, rules); err != nil {
+			return err
+		}
+	}
+
+	if rules := model.OptionalValue(r.RewriteRules); rules != "" {
+		if err := ValidateContentRewriteRules(ctx, rules); err != nil {
 			return err
 		}
 	}
