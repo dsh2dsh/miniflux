@@ -1043,7 +1043,15 @@ func TestFetcherDenyNetworks(t *testing.T) {
 		}
 		return nets
 	}
-	assert.Equal(t, []string{"100.64.0.0/10"}, denyNetworks())
+
+	assert.Equal(t, []string{
+		"100.64.0.0/10",
+		"64:ff9b::/96",
+		"168.63.129.16/32",
+		"192.0.0.192/32",
+		"198.18.0.0/15",
+		"fec0::/10",
+	}, denyNetworks())
 
 	os.Clearenv()
 	t.Setenv("FETCHER_DENY_NETWORKS", "1.0.0.0/8,2.0.0.0/24")

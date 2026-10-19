@@ -336,9 +336,17 @@ This project is an opinionated fork of Miniflux.
 * Deny access to configured list of IP networks.
 
   `FETCHER_DENY_NETWORKS` contains list of forbidded networks. Default value is
-  `100.64.0.0/10`. The fetcher isn't allowed to access any IP address from that
-  list, like it can't access private networks. Exclusions can be configured
-  using `FETCHER_ALLOW_PRIVATE_HOSTS` or `privateHosts` (see above).
+
+  - `100.64.0.0/10`
+  - `64:ff9b::/96`
+  - `168.63.129.16/32`
+  - `192.0.0.192/32`
+  - `198.18.0.0/15`
+  - `fec0::/10`
+
+  The fetcher isn't allowed to access any IP address from that list, like it
+  can't access private networks. Exclusions can be configured using
+  `FETCHER_ALLOW_PRIVATE_HOSTS` or `privateHosts` (see above).
 
 * Feed custom proxies should be configured before using it
 

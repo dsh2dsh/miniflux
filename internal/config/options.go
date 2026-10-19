@@ -209,6 +209,16 @@ func NewOptions() *options {
 
 			FetcherDenyNetworks: []netip.Prefix{
 				netip.MustParsePrefix("100.64.0.0/10"),
+				// NAT64 loopback IPv4, NAT64 link-local IPv4
+				netip.MustParsePrefix("64:ff9b::/96"),
+				// Azure WireServer IPv4
+				netip.MustParsePrefix("168.63.129.16/32"),
+				// Oracle Cloud metadata IPv4
+				netip.MustParsePrefix("192.0.0.192/32"),
+				// benchmarking IPv4
+				netip.MustParsePrefix("198.18.0.0/15"),
+				// site-local IPv6
+				netip.MustParsePrefix("fec0::/10"),
 			},
 		},
 
