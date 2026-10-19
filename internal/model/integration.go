@@ -24,6 +24,10 @@ type Integration struct {
 	FeverToken                       string `json:"fever_token,omitempty"`
 	GoogleReaderEnabled              bool   `json:"googlereader_enabled,omitempty"`
 	GoogleReaderPassword             string `json:"googlereader_password,omitempty"`
+	GotifyEnabled                    bool   `json:"gotify_enabled,omitempty"`
+	GotifyPriority                   int    `json:"gotify_priority,omitempty"`
+	GotifyToken                      string `json:"gotify_token,omitempty"`
+	GotifyURL                        string `json:"gotify_url,omitempty"`
 	InstapaperEnabled                bool   `json:"instapaper_enabled,omitempty"`
 	InstapaperPassword               string `json:"instapaper_password,omitempty"`
 	InstapaperUsername               string `json:"instapaper_username,omitempty"`

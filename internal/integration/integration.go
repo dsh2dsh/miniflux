@@ -13,6 +13,7 @@ import (
 	"miniflux.app/v2/internal/integration/cubox"
 	"miniflux.app/v2/internal/integration/discord"
 	"miniflux.app/v2/internal/integration/espial"
+	"miniflux.app/v2/internal/integration/gotify"
 	"miniflux.app/v2/internal/integration/instapaper"
 	"miniflux.app/v2/internal/integration/karakeep"
 	"miniflux.app/v2/internal/integration/linkace"
@@ -665,6 +666,22 @@ func PushEntries(ctx context.Context, feed *model.Feed, entries model.Entries,
 
 		if err := client.SendMessages(ctx, feed, entries); err != nil {
 			slog.Warn("Unable to send new entries to Pushover", slog.Any("error", err))
+		}
+	}
+
+	if userIntegrations.GotifyEnabled {
+		slog.Debug("Sending new entries to Gotify",
+			slog.Int64("user_id", user.ID),
+			slog.Int("nb_entries", len(entries)),
+			slog.Int64("feed_id", feed.ID))
+
+		client := gotify.NewClient(
+			userIntegrations.GotifyURL,
+			userIntegrations.GotifyToken,
+			userIntegrations.GotifyPriority)
+
+		if err := client.SendMessages(ctx, feed, entries); err != nil {
+			slog.Warn("Unable to send new entries to Gotify", slog.Any("error", err))
 		}
 	}
 

@@ -136,6 +136,10 @@ func (h *handler) showIntegrationPage(w http.ResponseWriter, r *http.Request) {
 		PushoverDevice:                   i.PushoverDevice,
 		PushoverPrefix:                   i.PushoverPrefix,
 		ArchiveorgEnabled:                i.ArchiveorgEnabled,
+		GotifyEnabled:                    i.GotifyEnabled,
+		GotifyURL:                        i.GotifyURL,
+		GotifyToken:                      i.GotifyToken,
+		GotifyPriority:                   i.GotifyPriority,
 	}
 
 	v.Set("menu", "settings").
