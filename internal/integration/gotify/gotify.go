@@ -102,6 +102,11 @@ func (c *Client) SendMessages(ctx context.Context, feed *model.Feed, entries mod
 		return errors.New("gotify: missing base URL or token")
 	}
 
+	var title string
+	if feed != nil {
+		title = feed.Title
+	}
+
 	for _, entry := range entries {
 		if entry == nil {
 			continue
@@ -118,15 +123,10 @@ func (c *Client) SendMessages(ctx context.Context, feed *model.Feed, entries mod
 
 		slog.Debug("Sending Gotify notification",
 			slog.String("url", c.baseURL),
-			slog.String("title", feed.Title),
+			slog.String("title", title),
 			slog.String("entry_title", entry.Title),
 			slog.String("entry_url", entry.URL),
 		)
-
-		var title string
-		if feed != nil {
-			title = feed.Title
-		}
 
 		extras := make(map[string]any)
 		if entry.URL != "" {
