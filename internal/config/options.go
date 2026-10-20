@@ -121,10 +121,13 @@ type envOptions struct {
 	MetricsRefreshInterval         int        `env:"METRICS_REFRESH_INTERVAL" validate:"min=1"`
 	MetricsUsername                string     `env:"METRICS_USERNAME" validate:"required_with=MetricsPassword"`
 	MetricsUsernameFile            *string    `env:"METRICS_USERNAME_FILE,file"`
+	Oauth2AdditionalScopes         []string   `env:"OAUTH2_ADDITIONAL_SCOPES"`
+	Oauth2AdminGroup               string     `env:"OAUTH2_ADMIN_GROUP"`
 	Oauth2ClientID                 string     `env:"OAUTH2_CLIENT_ID"`
 	Oauth2ClientIDFile             *string    `env:"OAUTH2_CLIENT_ID_FILE,file"`
 	Oauth2ClientSecret             string     `env:"OAUTH2_CLIENT_SECRET"`
 	Oauth2ClientSecretFile         *string    `env:"OAUTH2_CLIENT_SECRET_FILE,file"`
+	Oauth2GroupClaim               string     `env:"OAUTH2_GROUP_CLAIM"`
 	Oauth2Provider                 string     `env:"OAUTH2_PROVIDER" validate:"omitempty,oneof=oidc google"`
 	Oauth2RedirectURL              string     `env:"OAUTH2_REDIRECT_URL" validate:"omitempty,url"`
 	Oauth2UserCreationAllowed      bool       `env:"OAUTH2_USER_CREATION"`
@@ -470,6 +473,7 @@ func (o *options) sortedOptions(redactSecret bool) []Option {
 		"METRICS_PASSWORD":                   secretValue(o.env.MetricsPassword, redactSecret),
 		"METRICS_REFRESH_INTERVAL":           o.env.MetricsRefreshInterval,
 		"METRICS_USERNAME":                   o.env.MetricsUsername,
+		"OAUTH2_ADDITIONAL_SCOPES":           strings.Join(o.env.Oauth2AdditionalScopes, ","),
 		"OAUTH2_CLIENT_ID":                   o.env.Oauth2ClientID,
 		"OAUTH2_CLIENT_SECRET":               secretValue(o.env.Oauth2ClientSecret, redactSecret),
 		"OAUTH2_OIDC_DISCOVERY_ENDPOINT":     o.env.OidcDiscoveryEndpoint,
@@ -697,6 +701,14 @@ func PollingErrorRetry() time.Duration { return opts.env.PollingErrorRetry }
 func IsOAuth2UserCreationAllowed() bool {
 	return opts.env.Oauth2UserCreationAllowed
 }
+
+func Oauth2AdditionalScopes() []string {
+	return opts.env.Oauth2AdditionalScopes
+}
+
+func Oauth2AdminGroup() string { return opts.env.Oauth2AdminGroup }
+
+func Oauth2GroupClaim() string { return opts.env.Oauth2GroupClaim }
 
 // OAuth2ClientID returns the OAuth2 Client ID.
 func OAuth2ClientID() string { return opts.env.Oauth2ClientID }

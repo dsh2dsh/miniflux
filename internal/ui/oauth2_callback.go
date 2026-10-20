@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/http/cookie"
@@ -135,6 +136,11 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	groupClaim := config.Oauth2GroupClaim()
+	adminGroup := config.Oauth2AdminGroup()
+	adminRoleMappingEnabled := provider == "oidc" && groupClaim != "" && adminGroup != ""
+	isAdmin := adminRoleMappingEnabled && slices.Contains(profile.Groups, adminGroup)
+
 	if user == nil {
 		if !config.IsOAuth2UserCreationAllowed() {
 			response.Forbidden(w, r)
@@ -148,6 +154,7 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 		}
 
 		createRequest := &model.UserCreationRequest{
+			IsAdmin:  isAdmin,
 			Username: profile.Username,
 		}
 		authProvider.PopulateUserCreationWithProfileID(createRequest, profile)
@@ -174,6 +181,14 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 			slog.String("name", user.Username),
 			slog.String("agent", r.UserAgent())),
 		slog.String("session_id", s.ID))
+
+	if adminRoleMappingEnabled && user.IsAdmin != isAdmin {
+		user.IsAdmin = isAdmin
+		if err := h.store.UpdateUser(ctx, user); err != nil {
+			response.ServerError(w, r, err)
+			return
+		}
+	}
 
 	if err := h.store.SetLastLogin(ctx, user.ID); err != nil {
 		response.ServerError(w, r, err)

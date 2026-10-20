@@ -962,6 +962,7 @@ func (self *EndpointTestSuite) TestRefreshAllFeedsEndpoint() {
 func (self *EndpointTestSuite) TestRefreshFeedEndpoint() {
 	feedID := self.createFeed()
 	self.Require().NoError(self.client.RefreshFeed(feedID))
+	self.Require().NoError(self.client.ForceRefreshFeed(feedID))
 }
 
 func (self *EndpointTestSuite) TestRefreshFeedEndpoint_IgnoreHTTPCache() {

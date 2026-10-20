@@ -65,7 +65,11 @@ func (h *handler) refreshFeed(w http.ResponseWriter, r *http.Request) error {
 		return response.ErrNotFound
 	}
 
-	_, err := feedHandler.RefreshFeed(ctx, h.store, h.templates, userID, id)
+	// force=true mirrors the web UI's forced refresh: it bypasses the HTTP cache
+	// and reprocesses (and re-scrapes) entries that are already stored.
+	forceRefresh := request.QueryBoolParam(r, "force", false)
+	_, err := feedHandler.RefreshFeed(ctx, h.store, h.templates, userID, id,
+		feedHandler.WithForceUpdate(forceRefresh))
 	if err != nil {
 		return err
 	}
