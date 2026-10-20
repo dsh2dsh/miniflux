@@ -293,12 +293,22 @@ SELECT count(*)
 	     JOIN categories c ON c.id = f.category_id
  WHERE ` + self.buildCondition()
 
-	rows, _ := self.db.Query(ctx, query, self.args...)
+	rows, _ := self.db.Query(ctx, query, self.lowArgs()...)
 	count, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[int])
 	if err != nil {
 		return 0, fmt.Errorf("store: unable to count entries: %w", err)
 	}
 	return count, nil
+}
+
+func (self *EntryQueryBuilder) lowArgs() []any {
+	n := len(self.highConds)
+	if n == 0 {
+		return self.args
+	}
+
+	last := len(self.args) - n
+	return self.args[:last]
 }
 
 // GetEntry returns a single entry that match the condition.
