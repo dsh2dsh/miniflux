@@ -101,7 +101,8 @@ func ValidateContentRewriteRules(ctx context.Context, rules string,
 	}
 
 	var entry model.Entry
-	if err := contentRewrite.Apply(ctx, &entry); err != nil {
+	err = contentRewrite.WithValidate().Apply(ctx, &entry)
+	if err != nil {
 		return locale.NewLocalizedError("error.feed_invalid_rewrite_rule")
 	}
 	return nil

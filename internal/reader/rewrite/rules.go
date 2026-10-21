@@ -12,11 +12,17 @@ import (
 )
 
 type rule struct {
-	name string
-	args []string
+	name     string
+	args     []string
+	validate bool
 }
 
 var _ fmt.Stringer = (*rule)(nil)
+
+func (self *rule) WithValidate(v bool) *rule {
+	self.validate = v
+	return self
+}
 
 func (self *rule) String() string {
 	if len(self.args) == 0 {
@@ -71,8 +77,10 @@ func (self *rule) applyRemove(entry *model.Entry) error {
 	}
 
 	selector := self.args[0]
-	if _, err := cascadia.Compile(selector); err != nil {
-		return fmt.Errorf("compile cascadia selector: %w", err)
+	if self.validate {
+		if _, err := cascadia.Compile(selector); err != nil {
+			return fmt.Errorf("compile cascadia selector: %w", err)
+		}
 	}
 
 	s, err := removeCustom(entry.Content, selector)

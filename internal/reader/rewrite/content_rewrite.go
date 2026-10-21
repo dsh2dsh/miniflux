@@ -21,6 +21,7 @@ type ContentRewrite struct {
 	rules     []rule
 	templates *template.Engine
 	user      *model.User
+	validate  bool
 }
 
 func NewContentRewrite(userRules string, u *model.User, t *template.Engine,
@@ -69,6 +70,11 @@ func parseRules(s string) ([]rule, error) {
 	}
 }
 
+func (self *ContentRewrite) WithValidate() *ContentRewrite {
+	self.validate = true
+	return self
+}
+
 func (self *ContentRewrite) Apply(ctx context.Context, entry *model.Entry,
 ) (err error) {
 	rules := self.rules
@@ -77,10 +83,13 @@ func (self *ContentRewrite) Apply(ctx context.Context, entry *model.Entry,
 	}
 
 	logging.FromContext(ctx).Debug("Applying content rewrite rules",
-		slog.Any("rules", rules), slog.String("entry_url", entry.URL))
+		slog.Any("rules", rules),
+		slog.String("entry_url", entry.URL),
+		slog.Bool("validate", self.validate))
 
 	for _, r := range rules {
-		if err = self.applyRule(ctx, entry, r); err != nil {
+		err = self.applyRule(ctx, entry, r.WithValidate(self.validate))
+		if err != nil {
 			err = fmt.Errorf("rewrite: rewrite content rule failed: %s: %w",
 				r.String(), err)
 			break
@@ -92,10 +101,13 @@ func (self *ContentRewrite) Apply(ctx context.Context, entry *model.Entry,
 }
 
 func (self *ContentRewrite) applyRule(ctx context.Context, entry *model.Entry,
-	r rule,
+	r *rule,
 ) (err error) {
 	log := logging.FromContext(ctx).With(
-		slog.Group("rule", slog.String("name", r.name), slog.Any("args", r.args)),
+		slog.Group("rule",
+			slog.String("name", r.name),
+			slog.Any("args", r.args),
+			slog.Bool("validate", r.validate)),
 		slog.String("entry_url", entry.URL))
 	log.Debug("Applying content rewrite rule")
 
