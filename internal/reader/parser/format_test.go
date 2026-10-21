@@ -100,3 +100,9 @@ func TestDetectJSONWithWhitespaceSmallerThanBuffer(t *testing.T) {
 	format := gofeed.DetectFeedBytes([]byte(data))
 	assert.Equal(t, gofeed.FeedTypeJSON, format)
 }
+
+func TestDetectJSONWithUTF8BOM(t *testing.T) {
+	data := "\xEF\xBB\xBF" + `{"version":"https://jsonfeed.org/version/1.1","title":"Example"}`
+	format := gofeed.DetectFeedType(strings.NewReader(data))
+	assert.Equal(t, gofeed.FeedTypeJSON, format)
+}
