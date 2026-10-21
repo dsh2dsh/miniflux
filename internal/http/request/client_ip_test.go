@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func withTrustedProxies(t *testing.T, proxies ...string) func(ip string) bool {
@@ -83,6 +84,33 @@ func TestFindClientIPWithXFFHeader(t *testing.T) {
 	headers.Set("X-Forwarded-For", "fake IP")
 	r = http.Request{RemoteAddr: "192.168.0.1:4242", Header: headers}
 	assert.Equal(t, "192.168.0.1", FindClientIP(&r, withTrustedProxies(t)))
+}
+
+func TestFindClientIP_skipsTrustedProxiesInXFFHeader(t *testing.T) {
+	tests := []struct {
+		values   []string
+		expected string
+	}{
+		{[]string{"203.0.113.195, 192.168.1.2"}, "203.0.113.195"},
+		{[]string{"1.2.3.4, 203.0.113.195, 192.168.1.2"}, "203.0.113.195"},
+		{[]string{"1.2.3.4", "203.0.113.195, 192.168.1.2"}, "203.0.113.195"},
+		{[]string{"192.168.1.3, 192.168.1.2"}, "192.168.1.3"},
+		{[]string{"fake IP, 192.168.1.2"}, "192.168.0.1"},
+	}
+
+	trustedProxies := withTrustedProxies(t, "127.0.0.1", "192.168.1.2")
+	require.NotNil(t, trustedProxies)
+
+	for _, tt := range tests {
+		headers := http.Header{}
+		for _, v := range tt.values {
+			headers.Add("X-Forwarded-For", v)
+		}
+
+		r := http.Request{RemoteAddr: "192.168.0.1:4242", Header: headers}
+		assert.Equal(t, tt.expected, FindClientIP(&r, trustedProxies),
+			"Unexpected IP for X-Forwarded-For %q", tt.values)
+	}
 }
 
 func TestClientIPWithXRealIPHeader(t *testing.T) {
