@@ -302,13 +302,10 @@ SELECT count(*)
 }
 
 func (self *EntryQueryBuilder) lowArgs() []any {
-	n := len(self.highConds)
-	if n == 0 {
+	if len(self.args) == len(self.conditions) {
 		return self.args
 	}
-
-	last := len(self.args) - n
-	return self.args[:last]
+	return self.args[:len(self.conditions)]
 }
 
 // GetEntry returns a single entry that match the condition.
