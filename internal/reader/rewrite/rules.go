@@ -91,11 +91,19 @@ func (self *rule) applyRemove(entry *model.Entry) error {
 	return nil
 }
 
-func (self *rule) applyBase64Decode(entry *model.Entry) {
+func (self *rule) applyBase64Decode(entry *model.Entry) error {
 	selector := "body"
 	if len(self.args) > 0 {
 		selector = self.args[0]
 	}
+
+	if self.validate {
+		if _, err := cascadia.Compile(selector); err != nil {
+			return fmt.Errorf("compile cascadia selector: %w", err)
+		}
+	}
+
 	entry.Content = applyFuncOnTextContent(entry.Content, selector,
 		decodeBase64Content)
+	return nil
 }

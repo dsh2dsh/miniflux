@@ -874,6 +874,50 @@ func (self *EndpointTestSuite) TestCreateFeedWithInvalidURLRewriteRules() {
 		"Creating a feed with an invalid URL rewrite rule should raise an error")
 }
 
+func (self *EndpointTestSuite) TestCreateFeedWithInvalidRewriteRuleSelector() {
+	_, err := self.client.CreateFeed(&model.FeedCreationRequest{
+		FeedURL:      self.cfg.FeedURL,
+		RewriteRules: `remove("div:has(> p)")`,
+	})
+	self.T().Log(err)
+	self.Require().Error(err,
+		"Creating a feed with an invalid rewrite rule selector should raise an error")
+}
+
+func (self *EndpointTestSuite) TestUpdateFeedWithInvalidRewriteRuleSelector() {
+	feedID := self.createFeed()
+	feedModify := model.FeedModificationRequest{
+		RewriteRules: new(`remove("div:has(> p)")`),
+	}
+
+	_, err := self.client.UpdateFeed(feedID, &feedModify)
+	self.T().Log(err)
+	self.Require().Error(err,
+		"Updating a feed with an invalid rewrite rule selector should raise an error")
+}
+
+func (self *EndpointTestSuite) TestCreateFeedWithInvalidScraperRules() {
+	_, err := self.client.CreateFeed(&model.FeedCreationRequest{
+		FeedURL:      self.cfg.FeedURL,
+		ScraperRules: `div:has(> p)`,
+	})
+	self.T().Log(err)
+	self.Require().Error(err,
+		"Creating a feed with invalid scraper rules should raise an error")
+}
+
+func (self *EndpointTestSuite) TestUpdateFeedWithInvalidScraperRules() {
+	feedID := self.createFeed()
+	feedModify := model.FeedModificationRequest{
+		ScraperRules: new(`div:has(> p)`),
+	}
+
+	_, err := self.client.UpdateFeed(feedID, &feedModify)
+	self.T().Log(err)
+	self.Require().Error(err,
+		"Updating a feed with invalid scraper rules should raise an error")
+}
+
 func (self *EndpointTestSuite) TestUpdateFeedWithInvalidURLRewriteRules() {
 	feedID := self.createFeed()
 	const rules = "["

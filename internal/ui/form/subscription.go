@@ -7,6 +7,7 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/locale"
@@ -81,6 +82,13 @@ func (s *SubscriptionForm) Validate(ctx context.Context) *locale.LocalizedError 
 			return err
 		}
 	}
+
+	if s.ScraperRules != "" {
+		err := validator.ValidateScraperRules(ctx, s.ScraperRules)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -102,7 +110,7 @@ func NewSubscriptionForm(r *http.Request) *SubscriptionForm {
 		Cookie:                      r.FormValue("cookie"),
 		Username:                    r.FormValue("feed_username"),
 		Password:                    r.FormValue("feed_password"),
-		ScraperRules:                r.FormValue("scraper_rules"),
+		ScraperRules:                strings.TrimSpace(r.FormValue("scraper_rules")),
 		RewriteRules:                r.FormValue("rewrite_rules"),
 		UrlRewriteRules:             r.FormValue("urlrewrite_rules"),
 		KeepFilterEntryRules:        r.FormValue("keep_filter_entry_rules"),

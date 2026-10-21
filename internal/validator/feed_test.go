@@ -53,3 +53,31 @@ proxies:
 		})
 	}
 }
+
+func TestValidateScraperRules(t *testing.T) {
+	tests := []struct {
+		rules   string
+		wantErr bool
+	}{
+		{"", false},
+		{"article", false},
+		{"div.content, .post-body > p", false},
+		{"div:has(> p)", true},
+		{"div[", true},
+		{"p:first", true},
+	}
+	for _, tt := range tests {
+		err := ValidateScraperRules(t.Context(), tt.rules)
+		if tt.wantErr {
+			t.Log(err)
+			require.NotNil(t, err, "expected error for %q", tt.rules)
+			continue
+		}
+		require.Nil(t, err, "unexpected error for %q", tt.rules)
+	}
+}
+
+func TestValidateScraperRules_invalidSelector(t *testing.T) {
+	err := ValidateScraperRules(t.Context(), `remove("div:has(> p)")`)
+	require.NotNil(t, err, "expected an error for an invalid selector")
+}

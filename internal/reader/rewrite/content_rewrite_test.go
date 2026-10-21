@@ -1361,6 +1361,44 @@ func TestParseRulesInvalidRegexp(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestParseRulesInvalidSelector(t *testing.T) {
+	for _, rulesText := range []string{
+		`remove("div:has(> p)")`,
+		`remove(".a,,.b")`,
+		`base64_decode("div[")`,
+	} {
+		contentRewrite, err := NewContentRewrite(rulesText, nil, nil)
+		require.NoError(t, err)
+		require.NotNil(t, contentRewrite)
+
+		err = contentRewrite.WithValidate().Apply(t.Context(), &model.Entry{})
+		t.Log(err)
+		require.Error(t, err, "expected invalid selector error: %s", rulesText)
+	}
+}
+
+func TestParseRulesValidSelector(t *testing.T) {
+	const rulesText = `remove(".newsletter, div.share > a, p:contains(Subscribe)") base64_decode base64_decode("pre")`
+	contentRewrite, err := NewContentRewrite(rulesText, nil, nil)
+	require.NoError(t, err)
+	require.NotNil(t, contentRewrite)
+
+	err = contentRewrite.WithValidate().Apply(t.Context(), &model.Entry{})
+	require.NoError(t, err)
+}
+
+func TestPredefinedRulesAreValid(t *testing.T) {
+	var contentRewrite ContentRewrite
+	contentRewrite.WithValidate()
+
+	for domain, rules := range domainRules {
+		contentRewrite.rules = rules
+		err := contentRewrite.Apply(t.Context(), &model.Entry{})
+		require.NoError(t, err, "Predefined rewrite rules for %s are invalid",
+			domain)
+	}
+}
+
 func TestParseRulesWellFormed(t *testing.T) {
 	contentRewrite, err := NewContentRewrite(`replace("a"|"b") nl2br`, nil, nil)
 	require.NoError(t, err)

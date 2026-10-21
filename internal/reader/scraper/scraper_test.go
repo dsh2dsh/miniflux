@@ -8,7 +8,18 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/andybalholm/cascadia"
+	"github.com/stretchr/testify/require"
 )
+
+func TestPredefinedRulesAreValidSelectors(t *testing.T) {
+	for domain, rules := range predefinedRules {
+		_, err := cascadia.Compile(rules)
+		require.NoError(t, err,
+			"Predefined scraper rules for %s are not a valid CSS selector", domain)
+	}
+}
 
 func TestGetPredefinedRules(t *testing.T) {
 	if domainRules("www.phoronix.com") == "" {

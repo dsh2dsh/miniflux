@@ -147,7 +147,7 @@ func (self *ContentRewrite) applyRule(ctx context.Context, entry *model.Entry,
 	case "add_castopod_episode":
 		entry.Content = addCastopodEpisode(entry.URL, entry.Content)
 	case "base64_decode":
-		r.applyBase64Decode(entry)
+		err = r.applyBase64Decode(entry)
 	case "add_hn_links_using_hack":
 		entry.Content = addHackerNewsLinksUsing(entry.Content, "hack")
 	case "add_hn_links_using_opener":
