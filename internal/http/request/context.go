@@ -28,6 +28,7 @@ const (
 	IsAuthenticatedContextKey
 	ClientIPContextKey
 	GoogleReaderTokenKey
+	nonceContextKey
 )
 
 var (
@@ -209,4 +210,12 @@ func WithPublic(ctx context.Context) context.Context {
 
 func Public(r *http.Request) bool {
 	return r.Context().Value(publicKey) != nil
+}
+
+func WithNonce(r *http.Request, nonce string) *http.Request {
+	return r.WithContext(context.WithValue(r.Context(), nonceContextKey, nonce))
+}
+
+func Nonce(r *http.Request) string {
+	return getContextStringValue(r, nonceContextKey)
 }

@@ -1,4 +1,4 @@
-package template
+package ui
 
 import (
 	"crypto/rand"
@@ -11,11 +11,12 @@ type contentSecurityPolicy struct {
 	nonce string
 }
 
-func newContentSecurityPolicy() *contentSecurityPolicy {
-	return &contentSecurityPolicy{nonce: rand.Text()}
+func (self *contentSecurityPolicy) Nonce() string {
+	if self.nonce == "" {
+		self.nonce = rand.Text()
+	}
+	return self.nonce
 }
-
-func (self *contentSecurityPolicy) Nonce() string { return self.nonce }
 
 func (self *contentSecurityPolicy) Content(user *model.User) string {
 	policies := self.policies()

@@ -61,7 +61,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 		m.HandleFunc("/robots.txt", robotsTxt)
 
 		// Authentication pages.
-		m.Group().Use(mw.handleAppSession).
+		m.Group().Use(mw.handleAppSession, mw.contentSecurityPolicy).
 			NameHandleFunc("/login", h.checkLogin, "checkLogin")
 
 		// WebAuthn flow
@@ -88,7 +88,7 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 
 	// Authentication pages.
 	m.Group(func(m *mux.ServeMux) {
-		m.Use(mw.handleAuthProxy, mw.handleAppSession)
+		m.Use(mw.handleAuthProxy, mw.handleAppSession, mw.contentSecurityPolicy)
 		m.NameHandleFunc("/{$}", h.showLoginPage, "login")
 	})
 
@@ -131,7 +131,8 @@ func Serve(m *mux.ServeMux, store *storage.Storage, pool *worker.Pool,
 		}
 	})
 
-	m = m.Group().Use(mw.userWithRedirect(), mw.handleAppSession)
+	m = m.Group().Use(mw.userWithRedirect(), mw.handleAppSession,
+		mw.contentSecurityPolicy)
 	m.NameHandleFunc("POST /logout", h.logout, "logout")
 
 	// New subscription pages.

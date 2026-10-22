@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"miniflux.app/v2/internal/config"
-	"miniflux.app/v2/internal/crypto"
 	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/route"
 	"miniflux.app/v2/internal/locale"
@@ -26,17 +25,13 @@ import (
 )
 
 type funcMap struct {
-	router *mux.ServeMux
-	csp    *contentSecurityPolicy
-
+	router   *mux.ServeMux
 	svgIcons map[string]template.HTML
 }
 
 func newFuncMap(router *mux.ServeMux) *funcMap {
 	return &funcMap{
-		router: router,
-		csp:    newContentSecurityPolicy(),
-
+		router:   router,
 		svgIcons: map[string]template.HTML{},
 	}
 }
@@ -66,8 +61,6 @@ func (self *funcMap) Map() template.FuncMap {
 		"stylesheet":         self.stylesheet,
 		"theme_color":        model.ThemeColor,
 		"urlEncode":          url.PathEscape,
-
-		"csp": func() *contentSecurityPolicy { return self.csp },
 
 		"hasOAuth2Provider": func(provider string) bool {
 			return config.OAuth2Provider() == provider
@@ -118,19 +111,16 @@ func (self *funcMap) Map() template.FuncMap {
 			return ts.Format("2006-01-02 15:04:05")
 		},
 
-		"nonce": func() string {
-			return crypto.GenerateRandomStringHex(16)
-		},
-
 		"deRef": func(i *int) int { return *i },
 
 		"subtract": func(a, b int) int { return a - b },
 
 		// These functions are overridden at runtime after parsing.
 		"elapsed":    func(timezone string, t time.Time) string { return "" },
-		"t":          func(key any, args ...any) string { return "" },
+		"nonce":      func() string { return "" },
 		"plural":     func(key string, n int, args ...any) string { return "" },
 		"requestURI": func() string { return "" },
+		"t":          func(key any, args ...any) string { return "" },
 	}
 }
 

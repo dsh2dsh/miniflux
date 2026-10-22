@@ -189,3 +189,23 @@ func (m *middleware) handleAuthProxy(next http.Handler) http.Handler {
 		response.Redirect(w, r, route.Path(m.router, user.DefaultHomePage))
 	})
 }
+
+func (m *middleware) contentSecurityPolicy(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		headers := [...]string{
+			"HX-Boosted",
+			"HX-History-Restore-Request",
+			"HX-Request",
+		}
+		for _, name := range headers {
+			if r.Header.Get(name) != "" {
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+
+		var csp contentSecurityPolicy
+		w.Header().Set("Content-Security-Policy", csp.Content(request.User(r)))
+		next.ServeHTTP(w, request.WithNonce(r, csp.Nonce()))
+	})
+}

@@ -40,16 +40,18 @@ func (self *Template) LookupExecute(data map[string]any, names ...string,
 
 func (self *Template) funcMap() template.FuncMap {
 	return template.FuncMap{
-		"requestURI": self.requestURI,
-
 		"elapsed": func(timezone string, t time.Time) string {
 			return elapsedTime(self.printer, timezone, t)
 		},
-		"t":      self.printer.Printf,
-		"plural": self.printer.Plural,
+		"nonce":      self.nonce,
+		"plural":     self.printer.Plural,
+		"requestURI": self.requestURI,
+		"t":          self.printer.Printf,
 	}
 }
 
 func (self *Template) requestURI(keyValues ...string) string {
 	return request.URIWithQuery(self.r, keyValues...)
 }
+
+func (self *Template) nonce() string { return request.Nonce(self.r) }

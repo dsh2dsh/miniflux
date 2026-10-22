@@ -26,23 +26,20 @@
     <link rel="apple-touch-icon" href="{{ routeBinaryFile "icon-180.png" }}">
     <link rel="icon" href="{{ routeBinaryFile "icon.svg" }}">
 
-    <meta http-equiv="Content-Security-Policy"
-          content="{{ csp.Content .user }}">
-
-    <link rel="stylesheet" nonce="{{ csp.Nonce }}" type="text/css"
+    <link rel="stylesheet" nonce="{{ nonce }}" type="text/css"
           href="{{ stylesheet .theme }}">
 
-    <script type="module" nonce="{{ csp.Nonce }}"
+    <script type="module" nonce="{{ nonce }}"
             src="{{ javascript "app" }}">
     </script>
 
     {{ if .user }}
     {{   if .user.HasStylesheet }}
-    <link rel="stylesheet" nonce="{{ csp.Nonce }}" type="text/css"
+    <link rel="stylesheet" nonce="{{ nonce }}" type="text/css"
           href="{{ route "userStylesheet" "hash" .user.StylesheetHash }}">
     {{   end }}
     {{   if .user.HasJavascript }}
-    <script type="module" nonce="{{ csp.Nonce }}"
+    <script type="module" nonce="{{ nonce }}"
             src="{{ route "userJavascript" "hash" .user.JavascriptHash }}">
     </script>
     {{   end }}
