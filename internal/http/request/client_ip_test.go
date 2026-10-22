@@ -48,12 +48,12 @@ func TestFindClientIPWithXFFHeader(t *testing.T) {
 	headers := http.Header{}
 	headers.Set("X-Forwarded-For", "203.0.113.195, 70.41.3.18, 150.172.238.178")
 	r := http.Request{RemoteAddr: "192.168.0.1:4242", Header: headers}
-	assert.Equal(t, "203.0.113.195",
-		FindClientIP(&r, withTrustedProxies(t, "70.41.3.18", "150.172.238.178")))
+	assert.Equal(t, "203.0.113.195", FindClientIP(&r,
+		withTrustedProxies(t, "192.168.0.1", "70.41.3.18", "150.172.238.178")))
 
-	assert.Equal(t, "70.41.3.18",
-		FindClientIP(&r, withTrustedProxies(t, "150.172.238.178")))
-	assert.Equal(t, "150.172.238.178", FindClientIP(&r, withTrustedProxies(t)))
+	assert.Equal(t, "70.41.3.18", FindClientIP(&r,
+		withTrustedProxies(t, "192.168.0.1", "150.172.238.178")))
+	assert.Equal(t, "192.168.0.1", FindClientIP(&r, withTrustedProxies(t)))
 	assert.Equal(t, "192.168.0.1", FindClientIP(&r,
 		withTrustedProxies(t, "203.0.113.195", "70.41.3.18", "150.172.238.178")))
 
@@ -61,8 +61,8 @@ func TestFindClientIPWithXFFHeader(t *testing.T) {
 	headers = http.Header{}
 	headers.Set("X-Forwarded-For", "2001:db8:85a3:8d3:1319:8a2e:370:7348")
 	r = http.Request{RemoteAddr: "192.168.0.1:4242", Header: headers}
-	assert.Equal(t, "2001:db8:85a3:8d3:1319:8a2e:370:7348",
-		FindClientIP(&r, withTrustedProxies(t)))
+	assert.Equal(t, "2001:db8:85a3:8d3:1319:8a2e:370:7348", FindClientIP(&r,
+		withTrustedProxies(t, "192.168.0.1")))
 	assert.Equal(t, "192.168.0.1", FindClientIP(&r,
 		withTrustedProxies(t, "2001:db8:85a3:8d3:1319:8a2e:370:7348")))
 
@@ -71,13 +71,14 @@ func TestFindClientIPWithXFFHeader(t *testing.T) {
 	headers.Set("X-Forwarded-For", "fe80::14c2:f039:edc7:edc7%eth0")
 	r = http.Request{RemoteAddr: "192.168.0.1:4242", Header: headers}
 	assert.Equal(t, "fe80::14c2:f039:edc7:edc7",
-		FindClientIP(&r, withTrustedProxies(t)))
+		FindClientIP(&r, withTrustedProxies(t, "192.168.0.1")))
 
 	// Test with single IPv4 address.
 	headers = http.Header{}
 	headers.Set("X-Forwarded-For", "70.41.3.18")
 	r = http.Request{RemoteAddr: "192.168.0.1:4242", Header: headers}
-	assert.Equal(t, "70.41.3.18", FindClientIP(&r, withTrustedProxies(t)))
+	assert.Equal(t, "70.41.3.18", FindClientIP(&r,
+		withTrustedProxies(t, "192.168.0.1")))
 
 	// Test with invalid IP address.
 	headers = http.Header{}
@@ -91,11 +92,11 @@ func TestFindClientIP_skipsTrustedProxiesInXFFHeader(t *testing.T) {
 		values   []string
 		expected string
 	}{
-		{[]string{"203.0.113.195, 192.168.1.2"}, "203.0.113.195"},
-		{[]string{"1.2.3.4, 203.0.113.195, 192.168.1.2"}, "203.0.113.195"},
-		{[]string{"1.2.3.4", "203.0.113.195, 192.168.1.2"}, "203.0.113.195"},
-		{[]string{"192.168.1.3, 192.168.1.2"}, "192.168.1.3"},
-		{[]string{"fake IP, 192.168.1.2"}, "192.168.0.1"},
+		{[]string{"203.0.113.195", "192.168.1.2"}, "203.0.113.195"},
+		{[]string{"1.2.3.4", "203.0.113.195", "192.168.1.2"}, "203.0.113.195"},
+		{[]string{"1.2.3.4", "203.0.113.195", "192.168.1.2"}, "203.0.113.195"},
+		{[]string{"192.168.1.3", "192.168.1.2"}, "192.168.1.3"},
+		{[]string{"fake IP", "192.168.1.2"}, "192.168.1.2"},
 	}
 
 	trustedProxies := withTrustedProxies(t, "127.0.0.1", "192.168.1.2")
@@ -107,7 +108,8 @@ func TestFindClientIP_skipsTrustedProxiesInXFFHeader(t *testing.T) {
 			headers.Add("X-Forwarded-For", v)
 		}
 
-		r := http.Request{RemoteAddr: "192.168.0.1:4242", Header: headers}
+		remoteAddr := tt.values[len(tt.values)-1] + ":4242"
+		r := http.Request{RemoteAddr: remoteAddr, Header: headers}
 		assert.Equal(t, tt.expected, FindClientIP(&r, trustedProxies),
 			"Unexpected IP for X-Forwarded-For %q", tt.values)
 	}
@@ -117,7 +119,8 @@ func TestClientIPWithXRealIPHeader(t *testing.T) {
 	headers := http.Header{}
 	headers.Set("X-Real-Ip", "192.168.122.1")
 	r := http.Request{RemoteAddr: "192.168.0.1:4242", Header: headers}
-	assert.Equal(t, "192.168.122.1", FindClientIP(&r, withTrustedProxies(t)))
+	assert.Equal(t, "192.168.122.1", FindClientIP(&r,
+		withTrustedProxies(t, "192.168.0.1")))
 }
 
 func TestClientIPWithBothHeaders(t *testing.T) {
@@ -126,16 +129,16 @@ func TestClientIPWithBothHeaders(t *testing.T) {
 	headers.Set("X-Real-Ip", "192.168.122.1")
 
 	r := http.Request{RemoteAddr: "192.168.0.1:4242", Header: headers}
-	assert.Equal(t, "203.0.113.195",
-		FindClientIP(&r, withTrustedProxies(t, "70.41.3.18", "150.172.238.178")))
-	assert.Equal(t, "70.41.3.18",
-		FindClientIP(&r, withTrustedProxies(t, "150.172.238.178")))
-	assert.Equal(t, "150.172.238.178", FindClientIP(&r, withTrustedProxies(t)))
+	assert.Equal(t, "203.0.113.195", FindClientIP(&r,
+		withTrustedProxies(t, "192.168.0.1", "70.41.3.18", "150.172.238.178")))
+	assert.Equal(t, "70.41.3.18", FindClientIP(&r,
+		withTrustedProxies(t, "192.168.0.1", "150.172.238.178")))
+	assert.Equal(t, "192.168.0.1", FindClientIP(&r, withTrustedProxies(t)))
 }
 
 func TestClientIPWithUnixSocketRemoteAddress(t *testing.T) {
 	r := http.Request{RemoteAddr: "@"}
-	assert.Equal(t, "@", FindClientIP(&r, withTrustedProxies(t)))
+	assert.Equal(t, "127.0.0.1", FindClientIP(&r, withTrustedProxies(t)))
 }
 
 func TestClientIPWithUnixSocketRemoteAddrAndBothHeaders(t *testing.T) {
@@ -144,7 +147,7 @@ func TestClientIPWithUnixSocketRemoteAddrAndBothHeaders(t *testing.T) {
 	headers.Set("X-Real-Ip", "192.168.122.1")
 
 	r := http.Request{RemoteAddr: "@", Header: headers}
-	assert.Equal(t, "203.0.113.195",
-		FindClientIP(&r, withTrustedProxies(t, "70.41.3.18", "150.172.238.178")))
-	assert.Equal(t, "150.172.238.178", FindClientIP(&r, withTrustedProxies(t)))
+	assert.Equal(t, "203.0.113.195", FindClientIP(&r,
+		withTrustedProxies(t, "127.0.0.1", "70.41.3.18", "150.172.238.178")))
+	assert.Equal(t, "127.0.0.1", FindClientIP(&r, withTrustedProxies(t)))
 }
