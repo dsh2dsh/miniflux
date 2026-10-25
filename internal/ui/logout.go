@@ -8,7 +8,6 @@ import (
 
 	"miniflux.app/v2/internal/http/cookie"
 	"miniflux.app/v2/internal/http/request"
-
 	"miniflux.app/v2/internal/http/response"
 )
 
@@ -19,7 +18,11 @@ func (h *handler) logout(w http.ResponseWriter, r *http.Request) {
 		response.ServerError(w, r, err)
 		return
 	}
-
 	http.SetCookie(w, cookie.ExpiredSession())
+
+	if err := setSessionDataCookie(w, h.secureCookie, sess.Data); err != nil {
+		response.ServerError(w, r, err)
+		return
+	}
 	h.redirect(w, r, "login")
 }

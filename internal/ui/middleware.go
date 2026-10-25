@@ -99,7 +99,8 @@ func (m *middleware) redirectToLogin(w http.ResponseWriter, r *http.Request) {
 	redirect := request.URI(r)
 	log.Debug("After login redirect to", slog.String("uri", redirect))
 
-	if err := setLoginRedirect(w, m.secureCookie, redirect); err != nil {
+	data := model.SessionData{Redirect: redirect}
+	if err := setSessionDataCookie(w, m.secureCookie, &data); err != nil {
 		log.Error("Unable to set login redirect", slog.Any("error", err))
 	}
 	response.Redirect(w, r, route.Path(m.router, "login"))
@@ -112,7 +113,17 @@ func (m *middleware) handleAppSession(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := request.WithSession(r.Context(), &publicSession)
+		d, err := sessionDataFromCookie(r, m.secureCookie)
+		if err != nil {
+			logging.FromContext(r.Context()).Error(
+				"unable load session from cookie",
+				slog.Any("error", err))
+			ctx := request.WithSession(r.Context(), &publicSession)
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
+
+		ctx := request.WithSession(r.Context(), &model.Session{Data: d})
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

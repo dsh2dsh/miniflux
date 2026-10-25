@@ -4,10 +4,14 @@
 package ui
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 
 	"miniflux.app/v2/internal/config"
+	"miniflux.app/v2/internal/http/cookie"
 	hmw "miniflux.app/v2/internal/http/middleware"
 	"miniflux.app/v2/internal/http/mux"
 	"miniflux.app/v2/internal/http/request"
@@ -16,6 +20,7 @@ import (
 	"miniflux.app/v2/internal/http/securecookie"
 	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/mediaproxy"
+	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/storage"
 	"miniflux.app/v2/internal/template"
 	"miniflux.app/v2/internal/worker"
@@ -311,4 +316,55 @@ func (h *handler) redirect(w http.ResponseWriter, r *http.Request,
 
 	log.Debug("redirect using JSON payload")
 	response.MarshalJSON(w, r, &redirectResponse{URL: location})
+}
+
+func (h *handler) sessionData(r *http.Request) (*model.SessionData, error) {
+	if s := request.Session(r); s != nil {
+		return s.Data, nil
+	}
+
+	d, err := sessionDataFromCookie(r, h.secureCookie)
+	if err != nil {
+		return nil, fmt.Errorf("ui: load session data from cookie: %w", err)
+	} else if d == nil {
+		return nil, errors.New("session data cookie not found")
+	}
+	return d, nil
+}
+
+func sessionDataFromCookie(r *http.Request,
+	secureCookie *securecookie.SecureCookie,
+) (*model.SessionData, error) {
+	plaintext := request.CookieValue(r, cookie.CookieSessionData)
+	if plaintext == "" {
+		return nil, nil
+	}
+
+	b, err := secureCookie.DecryptCookie(plaintext)
+	if err != nil {
+		return nil, fmt.Errorf("ui: decrypt session data cookie: %w", err)
+	}
+
+	data := new(model.SessionData)
+	if err := json.Unmarshal(b, data); err != nil {
+		return nil, fmt.Errorf("ui: unmarshal session data cookie: %w", err)
+	}
+	return data, nil
+}
+
+func setSessionDataCookie(w http.ResponseWriter,
+	secureCookie *securecookie.SecureCookie, data *model.SessionData,
+) error {
+	b, err := json.Marshal(&data)
+	if err != nil {
+		return fmt.Errorf("ui: marshal session data cookie: %w", err)
+	}
+
+	encrypted, err := secureCookie.EncryptCookie(b)
+	if err != nil {
+		return fmt.Errorf("ui: encrypt session data cookie: %w", err)
+	}
+
+	http.SetCookie(w, cookie.NewSessionData(encrypted))
+	return nil
 }

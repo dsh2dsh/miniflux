@@ -5,7 +5,6 @@ package ui
 
 import (
 	"crypto/subtle"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -198,28 +197,4 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, cookie.ExpiredSessionData())
 	http.SetCookie(w, cookie.NewSession(s.ID))
 	h.redirect(w, r, user.DefaultHomePage)
-}
-
-func (h *handler) sessionData(r *http.Request) (*model.SessionData, error) {
-	if s := request.Session(r); s != nil {
-		return s.Data, nil
-	}
-
-	plaintext := request.CookieValue(r, cookie.CookieSessionData)
-	if plaintext == "" {
-		return nil, errors.New("session data cookie not found")
-	}
-
-	b, err := h.secureCookie.DecryptCookie(plaintext)
-	if err != nil {
-		return nil, fmt.Errorf(
-			"ui: unable decrypt session data from cookie: %w", err)
-	}
-
-	sessionData := new(model.SessionData)
-	if err := json.Unmarshal(b, sessionData); err != nil {
-		return nil, fmt.Errorf(
-			"ui: unable unmarshal session data from cookie: %w", err)
-	}
-	return sessionData, nil
 }
