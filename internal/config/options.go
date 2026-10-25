@@ -265,10 +265,11 @@ func (o *options) validate() error {
 		}
 	}
 
-	if o.env.DisableLocalAuth &&
-		o.env.Oauth2Provider == "" && o.env.AuthProxyHeader == "" {
-
-		return errors.New("DISABLE_LOCAL_AUTH is enabled but neither OAUTH2_PROVIDER nor AUTH_PROXY_HEADER is not set. Please enable at least one authentication source")
+	invalidAuth := o.env.DisableLocalAuth &&
+		o.env.Oauth2Provider == "" && o.env.AuthProxyHeader == "" &&
+		!o.env.WebAuthn
+	if invalidAuth {
+		return errors.New("DISABLE_LOCAL_AUTH is enabled but none of OAUTH2_PROVIDER, AUTH_PROXY_HEADER, or WEBAUTHN is set. Please enable at least one authentication source")
 	}
 	return nil
 }

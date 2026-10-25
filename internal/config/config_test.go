@@ -1129,6 +1129,13 @@ func TestValidateDisableLocalAuthWithoutAlternative(t *testing.T) {
 	assert.ErrorContains(t, err, "DISABLE_LOCAL_AUTH is enabled")
 }
 
+func TestValidateDisableLocalAuthWithWebAuthn(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("DISABLE_LOCAL_AUTH", "1")
+	t.Setenv("WEBAUTHN", "1")
+	require.NoError(t, Load(""))
+}
+
 func TestValidateDisableLocalAuthWithOAuth2ButNoUserCreation(t *testing.T) {
 	os.Clearenv()
 	t.Setenv("DISABLE_LOCAL_AUTH", "1")
