@@ -113,17 +113,19 @@ func (m *middleware) handleAppSession(next http.Handler) http.Handler {
 			return
 		}
 
+		ctx := r.Context()
 		d, err := sessionDataFromCookie(r, m.secureCookie)
-		if err != nil {
-			logging.FromContext(r.Context()).Error(
+		switch {
+		case err != nil:
+			logging.FromContext(ctx).Error(
 				"unable load session from cookie",
 				slog.Any("error", err))
-			ctx := request.WithSession(r.Context(), &publicSession)
-			next.ServeHTTP(w, r.WithContext(ctx))
-			return
+			ctx = request.WithSession(ctx, &publicSession)
+		case d != nil:
+			ctx = request.WithSession(ctx, &model.Session{Data: d})
+		default:
+			ctx = request.WithSession(ctx, &publicSession)
 		}
-
-		ctx := request.WithSession(r.Context(), &model.Session{Data: d})
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
