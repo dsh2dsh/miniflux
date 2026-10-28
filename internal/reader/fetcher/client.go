@@ -28,6 +28,7 @@ var (
 	clientOnce    sync.Once
 
 	proxyFromEnvironment = http.ProxyFromEnvironment
+	sixToFourPrefix      = netip.MustParsePrefix("2002::/16")
 )
 
 type Client struct {
@@ -125,16 +126,16 @@ func denyDialToPrivate(ctx context.Context, network, address string,
 		return fmt.Errorf("%w: parse %q: %w", ErrPrivateNetworkHost, address, err)
 	}
 
-	private := addr.IsLinkLocalMulticast() ||
-		addr.IsLinkLocalUnicast() ||
-		addr.IsLoopback() ||
-		addr.IsMulticast() ||
-		addr.IsPrivate() ||
-		addr.IsUnspecified() ||
-		config.FetcherDeniedNetwork(addr.Unmap())
-
-	if !private {
-		return nil
+	if !privateAddr(addr) {
+		switch {
+		case sixToFourPrefix.Contains(addr):
+			addrBytes := addr.As16()
+			if !privateAddr(netip.AddrFrom4([4]byte(addrBytes[2:6]))) {
+				return nil
+			}
+		default:
+			return nil
+		}
 	}
 
 	reqURL := r.req.URL.String()
@@ -145,6 +146,16 @@ func denyDialToPrivate(ctx context.Context, network, address string,
 			reqURL)
 	}
 	return nil
+}
+
+func privateAddr(addr netip.Addr) bool {
+	return addr.IsLinkLocalMulticast() ||
+		addr.IsLinkLocalUnicast() ||
+		addr.IsLoopback() ||
+		addr.IsMulticast() ||
+		addr.IsPrivate() ||
+		addr.IsUnspecified() ||
+		config.FetcherDeniedNetwork(addr.Unmap())
 }
 
 func proxyFromClient(req *http.Request) (*url.URL, error) {

@@ -379,7 +379,10 @@ func TestRequestBuilder_InvalidURL(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestDenyDialToPrivate(t *testing.T) {
+func Test_denyDialToPrivate(t *testing.T) {
+	os.Clearenv()
+	require.NoError(t, config.Load(""))
+
 	tests := []struct {
 		name    string
 		address string
@@ -414,6 +417,34 @@ func TestDenyDialToPrivate(t *testing.T) {
 			address: "[ff02::1]:8000",
 		},
 		{
+			name:    "6to4 loopback IPv4",
+			address: "[2002:7f00:1::]",
+		},
+		{
+			name:    "6to4 private IPv4",
+			address: "[2002:a00:1::]",
+		},
+		{
+			name:    "6to4 link-local IPv4",
+			address: "[2002:a9fe:a9fe::]",
+		},
+		{
+			name:    "IPv4-compatible loopback",
+			address: "[::127.0.0.1]",
+		},
+		{
+			name:    "IPv4-compatible private",
+			address: "[::10.0.0.1]",
+		},
+		{
+			name:    "IPv4-compatible link-local",
+			address: "[::169.254.169.254]",
+		},
+		{
+			name:    "IPv4-compatible public",
+			address: "[::93.184.216.34]",
+		},
+		{
 			name:    "public IPv4",
 			address: "93.184.216.34:8000",
 			allow:   true,
@@ -423,12 +454,20 @@ func TestDenyDialToPrivate(t *testing.T) {
 			address: "[2001:4860:4860::8888]:8000",
 			allow:   true,
 		},
+		{
+			name:    "NAT64 public IPv4",
+			address: "[64:ff9b::5db8:d822]",
+		},
+		{
+			name:    "6to4 public IPv4",
+			address: "[2002:5db8:d822::1]",
+		},
 	}
 
 	r := requestContext{
 		client: &Client{rb: &RequestBuilder{}},
 	}
-	u := url.URL{}
+	u := url.URL{Scheme: "https"}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
