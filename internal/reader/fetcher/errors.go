@@ -69,15 +69,15 @@ func networkError(err error) bool {
 }
 
 func sslError(err error) bool {
-	if _, ok := errors.AsType[*x509.UnknownAuthorityError](err); ok {
+	if _, ok := errors.AsType[x509.UnknownAuthorityError](err); ok {
 		return true
 	}
 
-	if _, ok := errors.AsType[*x509.HostnameError](err); ok {
+	if _, ok := errors.AsType[x509.HostnameError](err); ok {
 		return true
 	}
 
-	_, ok := errors.AsType[*x509.InsecureAlgorithmError](err)
+	_, ok := errors.AsType[x509.InsecureAlgorithmError](err)
 	return ok
 }
 
