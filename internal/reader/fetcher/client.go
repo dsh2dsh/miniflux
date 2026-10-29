@@ -225,7 +225,7 @@ func (self *Client) Do(req *http.Request) (*ResponseHandler, error) {
 		slog.Duration("request_time", time.Since(start)))
 
 	//nolint:bodyclose // ResponseSemaphore.Close() it later
-	return NewResponseHandler(afterBodyClose(resp, cancel)), nil
+	return NewResponseHandler(req, afterBodyClose(resp, cancel)), nil
 }
 
 func (self *Client) Request(ctx context.Context, requestURL string,

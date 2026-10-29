@@ -40,11 +40,12 @@ type ResponseHandler struct {
 	closed bool
 }
 
-func NewResponseHandler(resp *http.Response) *ResponseHandler {
+func NewResponseHandler(req *http.Request, resp *http.Response,
+) *ResponseHandler {
 	r := &ResponseHandler{
 		httpResponse: resp,
 
-		hostname:    resp.Request.URL.Hostname(),
+		hostname:    req.URL.Hostname(),
 		maxBodySize: config.HTTPClientMaxBodySize(),
 	}
 	return r.init()
