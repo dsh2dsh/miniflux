@@ -9,9 +9,12 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"slices"
 	"time"
+
+	"golang.org/x/net/publicsuffix"
 
 	"miniflux.app/v2/internal/config"
 	"miniflux.app/v2/internal/model"
@@ -24,6 +27,8 @@ const (
 )
 
 var ProxyRotatorInstance *proxyrotator.ProxyRotator
+
+var cookieJarOptions = cookiejar.Options{PublicSuffixList: publicsuffix.List}
 
 func Do(req *http.Request, opts ...Option) (*ResponseHandler, error) {
 	return NewRequestBuilder(opts...).Do(req)
@@ -45,6 +50,7 @@ type RequestBuilder struct {
 	proxyRotator     *proxyrotator.ProxyRotator
 	feedProxy        *config.Proxy
 	allowPrivateNets bool
+	jar              *cookiejar.Jar
 
 	customized bool
 }
@@ -72,7 +78,7 @@ func NewRequestFeed(f *model.Feed) *RequestBuilder {
 		DisableHTTP2(f.DisableHTTP2).
 		IgnoreTLSErrors(f.AllowSelfSignedCertificates).
 		UseCustomApplicationProxy(f.FetchViaProxy).
-		WithCookie(f.Cookie).
+		WithCookies(f.FeedURL, f.Cookie).
 		WithCustomFeedProxy(f.ProxyURL).
 		WithUsernameAndPassword(f.Username, f.Password)
 }
@@ -103,10 +109,38 @@ func (self *RequestBuilder) WithUserAgent(userAgent string) *RequestBuilder {
 	return self
 }
 
-func (self *RequestBuilder) WithCookie(cookie string) *RequestBuilder {
-	if cookie != "" {
-		self.headers.Set("Cookie", cookie)
+func (self *RequestBuilder) WithCookies(rawURL, cookies string) *RequestBuilder {
+	if cookies == "" {
+		return self
 	}
+
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return self
+	}
+
+	parsed, err := http.ParseCookie(cookies)
+	if err != nil {
+		return self
+	}
+
+	domain, err := publicsuffix.EffectiveTLDPlusOne(u.Hostname())
+	if err == nil {
+		for _, c := range parsed {
+			c.Domain = domain
+		}
+	}
+
+	if self.jar == nil {
+		jar, err := cookiejar.New(&cookieJarOptions)
+		if err != nil {
+			return self
+		}
+		self.jar = jar
+	}
+
+	u2 := url.URL{Scheme: u.Scheme, Host: u.Host, Path: "/"}
+	self.jar.SetCookies(&u2, parsed)
 	return self
 }
 

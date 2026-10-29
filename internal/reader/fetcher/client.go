@@ -48,11 +48,19 @@ func (self *Client) build(rb *RequestBuilder) *Client {
 
 	if self.customized() {
 		self.httpClient = self.makeClient()
+		if rb.jar != nil {
+			self.httpClient.Jar = rb.jar
+		}
 		return self
 	}
 
 	clientOnce.Do(func() { defaultClient = self.makeClient() })
 	self.httpClient = defaultClient
+
+	if rb.jar != nil {
+		self.httpClient = new(*defaultClient)
+		self.httpClient.Jar = rb.jar
+	}
 	return self
 }
 

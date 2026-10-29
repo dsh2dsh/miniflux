@@ -112,7 +112,7 @@ func NewRequestFeedCreation(r *model.FeedCreationRequest,
 		DisableHTTP2(r.DisableHTTP2).
 		IgnoreTLSErrors(r.AllowSelfSignedCertificates).
 		UseCustomApplicationProxy(r.FetchViaProxy).
-		WithCookie(r.Cookie).
+		WithCookies(r.FeedURL, r.Cookie).
 		WithCustomFeedProxy(r.ProxyURL).
 		WithUserAgent(r.UserAgent).
 		WithUsernameAndPassword(r.Username, r.Password)

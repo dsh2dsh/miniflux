@@ -181,11 +181,145 @@ func TestRequestBuilder_WithCookie(t *testing.T) {
 			t.Cleanup(func() { server.Close() })
 
 			builder := NewRequestBuilder()
-			resp, err := builder.WithCookie(tt.cookie).Request(t.Context(), server.URL)
+			resp, err := builder.WithCookies(server.URL, tt.cookie).Request(t.Context(), server.URL)
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			t.Cleanup(func() { resp.Close() })
 		})
+	}
+}
+
+func TestRequestBuilder_WithCookies_onlySentToSameSite(t *testing.T) {
+	// The proxy receives the requests sent to any host, so no DNS is needed.
+	receivedCookies := make([]string, 0, 1)
+	proxyServer := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			receivedCookies = append(receivedCookies, r.Header.Get("Cookie"))
+			w.WriteHeader(http.StatusOK)
+		}))
+	t.Cleanup(proxyServer.Close)
+
+	t.Setenv("FETCHER_ALLOW_PRIVATE_NETWORKS", "1")
+	t.Setenv("HTTP_CLIENT_PROXY", proxyServer.URL)
+	configureNoRateLimit(t)
+
+	// The same builder is used for all requests, like when scraping the entries
+	// of a feed.
+	builder := NewRequestBuilder().
+		UseCustomApplicationProxy(true).
+		WithCookies("http://feeds.example.org/rss.xml", "session=secret")
+
+	tests := []struct {
+		requestURL string
+		expected   string
+	}{
+		{"http://feeds.example.org/rss.xml", "session=secret"},
+		{"http://www.example.org/article.html", "session=secret"},
+		{"http://example.org/favicon.ico", "session=secret"},
+		{"http://example.net/article.html", ""},
+		{"http://feeds.example.org.example.net/rss.xml", ""},
+		{"http://cdn.example.com/icon.png", ""},
+	}
+
+	for _, tt := range tests {
+		resp, err := builder.Request(t.Context(), tt.requestURL)
+		require.NoError(t, err)
+		resp.Close()
+
+		assert.Equal(t, []string{tt.expected}, receivedCookies,
+			"Unexpected cookie for %s", tt.requestURL)
+		receivedCookies = receivedCookies[:0]
+	}
+}
+
+func TestRequestBuilder_WithCookies_notForwardedOnRedirectToAnotherSite(
+	t *testing.T,
+) {
+	type receivedRequest struct {
+		host   string
+		cookie string
+	}
+
+	receivedRequests := make([]receivedRequest, 0, 2)
+	proxyServer := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			receivedRequests = append(receivedRequests, receivedRequest{
+				r.Host,
+				r.Header.Get("Cookie"),
+			})
+
+			if r.Host == "www.example.org" {
+				http.Redirect(w, r, "http://example.net/article.html", http.StatusFound)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+	t.Cleanup(proxyServer.Close)
+
+	t.Setenv("FETCHER_ALLOW_PRIVATE_NETWORKS", "1")
+	t.Setenv("HTTP_CLIENT_PROXY", proxyServer.URL)
+	configureNoRateLimit(t)
+
+	const cookies = "session=secret"
+	builder := NewRequestBuilder().
+		UseCustomApplicationProxy(true).
+		WithCookies("http://feeds.example.org/rss.xml", cookies)
+
+	resp, err := builder.Request(t.Context(),
+		"http://www.example.org/article.html")
+	require.NoError(t, err)
+	resp.Close()
+
+	assert.Equal(t, []receivedRequest{
+		{"www.example.org", cookies},
+		{"example.net", ""},
+	}, receivedRequests)
+}
+
+func TestRequestBuilder_WithCookies_sameSite(t *testing.T) {
+	tests := []struct {
+		host     string
+		siteHost string
+		expected bool
+	}{
+		{"example.org", "example.org", true},
+		{"www.example.org", "example.org", true},
+		{"example.org", "www.example.org", true},
+		{"www.example.org", "feeds.example.org", true},
+		{"WWW.Example.ORG", "feeds.example.org", true},
+		{"news.example.co.uk", "www.example.co.uk", true},
+		{"xn--bcher-kva.example", "xn--bcher-kva.example", true},
+		{"example.net", "example.org", false},
+		{"notexample.org", "example.org", false},
+		{"example.org.example.net", "example.org", false},
+		{"attacker.co.uk", "example.co.uk", false},
+		{"attacker.CO.UK", "www.example.CO.UK", false},
+		{"bob.github.io", "alice.github.io", false},
+		{"127.0.0.1", "127.0.0.1", true},
+		{"10.0.0.1", "192.168.0.1", false},
+		{"[::1]", "[::1]", true},
+		{"localhost", "localhost", true},
+		{"intranet", "localhost", false},
+	}
+
+	require.NoError(t, config.Load(""))
+
+	const cookies = "session=secret"
+	want := []*http.Cookie{{Name: "session", Value: "secret"}}
+
+	for _, tt := range tests {
+		rb := NewRequestBuilder().WithCookies("http://"+tt.siteHost+"/rss.xml",
+			cookies)
+
+		u, err := url.Parse("http://" + tt.host + "/rss.xml")
+		require.NoError(t, err)
+		got := rb.jar.Cookies(u)
+		if !tt.expected {
+			assert.Empty(t, got, "Unexpected cookies from %s", tt.host)
+			continue
+		} else {
+			assert.Equal(t, want, got, "Unexpected cookies from %s", tt.host)
+		}
 	}
 }
 
@@ -362,7 +496,7 @@ func TestRequestBuilder_ChainedMethods(t *testing.T) {
 	builder := NewRequestBuilder()
 	resp, err := builder.
 		WithUserAgent("TestAgent/1.0").
-		WithCookie("test=value").
+		WithCookies(server.URL, "test=value").
 		WithETag("etag123").
 		Request(t.Context(), server.URL)
 	require.NoError(t, err)

@@ -43,7 +43,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 			WithCustomFeedProxy(f.ProxyURL).
 			UseCustomApplicationProxy(f.FetchViaProxy).
 			WithUserAgent(f.UserAgent).
-			WithCookie(f.Cookie).
+			WithCookies(f.URL, f.Cookie).
 			WithUsernameAndPassword(f.Username, f.Password).
 			IgnoreTLSErrors(f.AllowSelfSignedCertificates).
 			DisableHTTP2(f.DisableHTTP2),
