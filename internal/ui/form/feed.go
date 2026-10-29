@@ -145,7 +145,7 @@ func NewFeedForm(r *http.Request) *FeedForm {
 		Description:                 r.FormValue("description"),
 		ScraperRules:                r.FormValue("scraper_rules"),
 		UserAgent:                   r.FormValue("user_agent"),
-		Cookie:                      r.FormValue("cookie"),
+		Cookie:                      strings.TrimSpace(r.FormValue("cookie")),
 		RewriteRules:                strings.TrimSpace(r.FormValue("rewrite_rules")),
 		UrlRewriteRules:             strings.TrimSpace(r.FormValue("urlrewrite_rules")),
 		BlockFilterEntryRules:       r.FormValue("block_filter_entry_rules"),

@@ -6,6 +6,7 @@ package validator
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"strings"
 
 	"github.com/andybalholm/cascadia"
@@ -88,6 +89,20 @@ func ValidateFeedCreation(ctx context.Context, store *storage.Storage,
 		if err := ValidateScraperRules(ctx, r.ScraperRules); err != nil {
 			return err
 		}
+	}
+
+	if r.Cookie != "" {
+		if err := ValidateCookie(r.Cookie); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ValidateCookie(s string) *locale.LocalizedError {
+	_, err := http.ParseCookie(s)
+	if err != nil {
+		return locale.NewLocalizedError("Invalid cookie: " + err.Error())
 	}
 	return nil
 }
@@ -226,6 +241,12 @@ func ValidateFeedModification(ctx context.Context, store *storage.Storage,
 
 	if rules := model.OptionalValue(r.ScraperRules); rules != "" {
 		if err := ValidateScraperRules(ctx, rules); err != nil {
+			return err
+		}
+	}
+
+	if s := model.OptionalValue(r.Cookie); s != "" {
+		if err := ValidateCookie(s); err != nil {
 			return err
 		}
 	}

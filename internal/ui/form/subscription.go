@@ -89,6 +89,12 @@ func (s *SubscriptionForm) Validate(ctx context.Context) *locale.LocalizedError 
 			return err
 		}
 	}
+
+	if s.Cookie != "" {
+		if err := validator.ValidateCookie(s.Cookie); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
