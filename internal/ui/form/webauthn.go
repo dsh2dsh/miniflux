@@ -23,7 +23,7 @@ func NewWebauthnForm(r *http.Request) *WebauthnForm {
 }
 
 // Validate makes sure the form values are valid.
-func (f *WebauthnForm) Validate() *locale.LocalizedError {
+func (f *WebauthnForm) Validate() locale.Error {
 	if f.Name == "" {
 		return locale.NewLocalizedError("error.fields_mandatory")
 	}

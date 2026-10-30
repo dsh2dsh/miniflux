@@ -18,7 +18,7 @@ import (
 // ValidateUserCreationWithPassword validates user creation with a password.
 func ValidateUserCreationWithPassword(ctx context.Context,
 	store *storage.Storage, r *model.UserCreationRequest,
-) *locale.LocalizedError {
+) locale.Error {
 	if r.Username == "" {
 		return locale.NewLocalizedError("error.user_mandatory_fields")
 	}
@@ -40,7 +40,7 @@ func ValidateUserCreationWithPassword(ctx context.Context,
 // ValidateUserModification validates user modifications.
 func ValidateUserModification(ctx context.Context, store *storage.Storage,
 	userID int64, r *model.UserModificationRequest,
-) *locale.LocalizedError {
+) locale.Error {
 	if r.Username != nil {
 		if *r.Username == "" {
 			return locale.NewLocalizedError("error.user_mandatory_fields")
@@ -160,14 +160,14 @@ func ValidateUserModification(ctx context.Context, store *storage.Storage,
 	return nil
 }
 
-func validateReadingSpeed(readingSpeed int) *locale.LocalizedError {
+func validateReadingSpeed(readingSpeed int) locale.Error {
 	if readingSpeed <= 0 {
 		return locale.NewLocalizedError("error.settings_reading_speed_is_positive")
 	}
 	return nil
 }
 
-func validatePassword(password string) *locale.LocalizedError {
+func validatePassword(password string) locale.Error {
 	if len(password) < 6 {
 		return locale.NewLocalizedError("error.password_min_length")
 	}
@@ -180,7 +180,7 @@ func validatePassword(password string) *locale.LocalizedError {
 // Note: this validation should not be applied to previously created usernames,
 // and cannot be applied to Google/OIDC accounts creation because the email
 // address is used for the username field.
-func validateUsername(username string) *locale.LocalizedError {
+func validateUsername(username string) locale.Error {
 	if strings.ContainsFunc(username, func(r rune) bool {
 		if unicode.IsLetter(r) || unicode.IsNumber(r) {
 			return false
@@ -195,7 +195,7 @@ func validateUsername(username string) *locale.LocalizedError {
 	return nil
 }
 
-func validateTheme(theme string) *locale.LocalizedError {
+func validateTheme(theme string) locale.Error {
 	themes := model.Themes()
 	if _, found := themes[theme]; !found {
 		return locale.NewLocalizedError("error.invalid_theme")
@@ -203,7 +203,7 @@ func validateTheme(theme string) *locale.LocalizedError {
 	return nil
 }
 
-func validateLanguage(language string) *locale.LocalizedError {
+func validateLanguage(language string) locale.Error {
 	languages := locale.AvailableLanguages
 	if _, found := languages[language]; !found {
 		return locale.NewLocalizedError("error.invalid_language")
@@ -213,7 +213,7 @@ func validateLanguage(language string) *locale.LocalizedError {
 
 func validateTimezone(ctx context.Context, store *storage.Storage,
 	timezone string,
-) *locale.LocalizedError {
+) locale.Error {
 	timezones, err := store.Timezones(ctx)
 	if err != nil {
 		return locale.NewLocalizedError(err.Error())
@@ -225,7 +225,7 @@ func validateTimezone(ctx context.Context, store *storage.Storage,
 	return nil
 }
 
-func validateEntriesPerPage(entriesPerPage int) *locale.LocalizedError {
+func validateEntriesPerPage(entriesPerPage int) locale.Error {
 	if entriesPerPage < 1 {
 		return locale.NewLocalizedError("error.entries_per_page_invalid")
 	}
@@ -234,35 +234,35 @@ func validateEntriesPerPage(entriesPerPage int) *locale.LocalizedError {
 
 // validateEntrySortingOrder must accept only the values of the
 // entry_sorting_order enum type in the database.
-func validateEntrySortingOrder(order string) *locale.LocalizedError {
+func validateEntrySortingOrder(order string) locale.Error {
 	if order != "published_at" && order != "created_at" {
 		return locale.NewLocalizedError("error.invalid_entry_order")
 	}
 	return nil
 }
 
-func validateCategoriesSortingOrder(order string) *locale.LocalizedError {
+func validateCategoriesSortingOrder(order string) locale.Error {
 	if order != "alphabetical" && order != "unread_count" {
 		return locale.NewLocalizedError("error.invalid_categories_sorting_order")
 	}
 	return nil
 }
 
-func validateDisplayMode(displayMode string) *locale.LocalizedError {
+func validateDisplayMode(displayMode string) locale.Error {
 	if displayMode != "fullscreen" && displayMode != "standalone" && displayMode != "minimal-ui" && displayMode != "browser" {
 		return locale.NewLocalizedError("error.invalid_display_mode")
 	}
 	return nil
 }
 
-func validateGestureNav(gestureNav string) *locale.LocalizedError {
+func validateGestureNav(gestureNav string) locale.Error {
 	if gestureNav != "none" && gestureNav != "tap" && gestureNav != "swipe" {
 		return locale.NewLocalizedError("error.invalid_gesture_nav")
 	}
 	return nil
 }
 
-func validateDefaultHomePage(defaultHomePage string) *locale.LocalizedError {
+func validateDefaultHomePage(defaultHomePage string) locale.Error {
 	defaultHomePages := model.HomePages()
 	if _, found := defaultHomePages[defaultHomePage]; !found {
 		return locale.NewLocalizedError("error.invalid_default_home_page")
@@ -270,7 +270,7 @@ func validateDefaultHomePage(defaultHomePage string) *locale.LocalizedError {
 	return nil
 }
 
-func validateMediaPlaybackRate(mediaPlaybackRate float64) *locale.LocalizedError {
+func validateMediaPlaybackRate(mediaPlaybackRate float64) locale.Error {
 	if mediaPlaybackRate < 0.25 || mediaPlaybackRate > 4 {
 		return locale.NewLocalizedError("error.settings_media_playback_rate_range")
 	}

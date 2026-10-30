@@ -10,7 +10,7 @@ type Error interface {
 }
 
 type LocalizedErrorWrapper struct {
-	originalErr     error
+	err             error
 	translationKey  string
 	translationArgs []any
 }
@@ -21,18 +21,18 @@ func NewLocalizedErrorWrapper(originalErr error, translationKey string,
 	translationArgs ...any,
 ) *LocalizedErrorWrapper {
 	return &LocalizedErrorWrapper{
-		originalErr:     originalErr,
+		err:             originalErr,
 		translationKey:  translationKey,
 		translationArgs: translationArgs,
 	}
 }
 
-func (l *LocalizedErrorWrapper) Error() string { return l.originalErr.Error() }
-func (l *LocalizedErrorWrapper) Unwrap() error { return l.originalErr }
+func (l *LocalizedErrorWrapper) Error() string { return l.err.Error() }
+func (l *LocalizedErrorWrapper) Unwrap() error { return l.err }
 
 func (l *LocalizedErrorWrapper) Translate(language string) string {
 	if l.translationKey == "" {
-		if l.originalErr == nil {
+		if l.err == nil {
 			return ""
 		}
 		return l.Error()

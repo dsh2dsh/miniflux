@@ -41,7 +41,7 @@ func (f *SubscriptionFinder) FeedResponseInfo() *model.FeedCreationRequestFromSu
 
 func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 	rb *fetcher.RequestBuilder, websiteURL, rssBridgeURL, rssBridgeToken string,
-) (Subscriptions, *locale.LocalizedErrorWrapper) {
+) (Subscriptions, locale.Error) {
 	client, err := rb.NewClient()
 	if err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err, "error.http_client_error")
@@ -174,7 +174,7 @@ func (f *SubscriptionFinder) FindSubscriptions(ctx context.Context,
 
 func (f *SubscriptionFinder) findSubscriptionsFromWebPage(websiteURL,
 	contentType string, body []byte,
-) (Subscriptions, *locale.LocalizedErrorWrapper) {
+) (Subscriptions, locale.Error) {
 	r, err := encoding.NewCharsetReader(bytes.NewReader(body), contentType)
 	if err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err,
@@ -278,7 +278,7 @@ func (f *SubscriptionFinder) findSubscriptionsFromWellKnownURLs(
 
 func (f *SubscriptionFinder) findSubscriptionsFromRSSBridge(ctx context.Context,
 	log *slog.Logger, websiteURL, rssBridgeURL, rssBridgeToken string,
-) (Subscriptions, *locale.LocalizedErrorWrapper) {
+) (Subscriptions, locale.Error) {
 	log = log.With(
 		slog.String("rssbridge_url", rssBridgeURL),
 		slog.String("rssbridge_token", rssBridgeToken))
@@ -306,7 +306,7 @@ func (f *SubscriptionFinder) findSubscriptionsFromRSSBridge(ctx context.Context,
 
 func (f *SubscriptionFinder) findSubscriptionsFromYouTube(log *slog.Logger,
 	websiteURL string,
-) (Subscriptions, *locale.LocalizedErrorWrapper) {
+) (Subscriptions, locale.Error) {
 	playlistPrefixes := [...]struct {
 		prefix string
 		title  string
@@ -361,7 +361,7 @@ func (f *SubscriptionFinder) findSubscriptionsFromYouTube(log *slog.Logger,
 // mechanisms.
 func (f *SubscriptionFinder) findSubscriptionsFromGitHub(log *slog.Logger,
 	websiteURL string,
-) (Subscriptions, *locale.LocalizedErrorWrapper) {
+) (Subscriptions, locale.Error) {
 	decodedURL, err := url.Parse(websiteURL)
 	if err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err,

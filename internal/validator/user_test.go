@@ -14,7 +14,7 @@ import (
 )
 
 func TestValidateUsername(t *testing.T) {
-	scenarios := map[string]*locale.LocalizedError{
+	scenarios := map[string]locale.Error{
 		"userone":          nil,
 		"user.name":        nil,
 		"user@example.com": nil,

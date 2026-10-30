@@ -38,7 +38,7 @@ type SubscriptionForm struct {
 }
 
 // Validate makes sure the form values locale.are valid.
-func (s *SubscriptionForm) Validate(ctx context.Context) *locale.LocalizedError {
+func (s *SubscriptionForm) Validate(ctx context.Context) locale.Error {
 	if s.URL == "" || s.CategoryID == 0 {
 		return locale.NewLocalizedError("error.feed_mandatory_fields")
 	}

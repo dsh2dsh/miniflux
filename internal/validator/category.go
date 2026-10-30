@@ -15,7 +15,7 @@ import (
 // ValidateCategoryCreation validates category creation.
 func ValidateCategoryCreation(ctx context.Context, store *storage.Storage,
 	userID int64, request *model.CategoryCreationRequest,
-) *locale.LocalizedError {
+) locale.Error {
 	if request.Title == "" {
 		return locale.NewLocalizedError("error.title_required")
 	}
@@ -30,7 +30,7 @@ func ValidateCategoryCreation(ctx context.Context, store *storage.Storage,
 // ValidateCategoryModification validates category modification.
 func ValidateCategoryModification(ctx context.Context, store *storage.Storage,
 	userID, categoryID int64, r *model.CategoryModificationRequest,
-) *locale.LocalizedError {
+) locale.Error {
 	if r.Title != nil {
 		if *r.Title == "" {
 			return locale.NewLocalizedError("error.title_required")

@@ -37,7 +37,7 @@ func New(store *storage.Storage, userID int64, t *template.Engine) *Create {
 
 func (self *Create) FromDiscovery(ctx context.Context,
 	r *model.FeedCreationRequestFromSubscriptionDiscovery,
-) (*model.Feed, *locale.LocalizedErrorWrapper) {
+) (*model.Feed, locale.Error) {
 	log := logging.FromContext(ctx).With(
 		slog.Int64("user_id", self.userID),
 		slog.String("feed_url", r.FeedURL),
@@ -64,7 +64,7 @@ func (self *Create) FromDiscovery(ctx context.Context,
 // CreateFeed fetch, parse and store a new feed.
 func (self *Create) FromRequest(ctx context.Context,
 	r *model.FeedCreationRequest,
-) (*model.Feed, *locale.LocalizedErrorWrapper) {
+) (*model.Feed, locale.Error) {
 	log := logging.FromContext(ctx).With(
 		slog.Int64("user_id", self.userID),
 		slog.String("feed_url", r.FeedURL),
@@ -120,7 +120,7 @@ func NewRequestFeedCreation(r *model.FeedCreationRequest,
 
 func (self *Create) createFeed(ctx context.Context,
 	r *model.FeedCreationRequest, url, etag, lastModified string, body []byte,
-) (*model.Feed, *locale.LocalizedErrorWrapper) {
+) (*model.Feed, locale.Error) {
 	feed, err := parser.ParseBytes(url, body)
 	if err != nil {
 		return nil, locale.NewLocalizedErrorWrapper(err,

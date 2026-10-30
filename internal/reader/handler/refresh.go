@@ -289,7 +289,7 @@ func (self *Refresh) parseFeed(feedURL string, body []byte, log *slog.Logger,
 ) (*model.Feed, error) {
 	feed, err := parser.ParseBytes(feedURL, body)
 	if err != nil {
-		var lerr *locale.LocalizedErrorWrapper
+		var lerr locale.Error
 		switch {
 		case errors.Is(err, parser.ErrFeedFormatNotDetected):
 			lerr = locale.NewLocalizedErrorWrapper(err,
@@ -493,7 +493,7 @@ func (self *Refresh) entriesLogGroup(refreshed *model.FeedRefreshed) slog.Attr {
 }
 
 func (self *Refresh) incFeedErrors(ctx context.Context, err error) error {
-	lerr, ok := errors.AsType[*locale.LocalizedErrorWrapper](err)
+	lerr, ok := errors.AsType[locale.Error](err)
 	if !ok {
 		return err
 	}

@@ -11,7 +11,7 @@ import (
 )
 
 // ValidateSubscriptionDiscovery validates subscription discovery requests.
-func ValidateSubscriptionDiscovery(request *model.SubscriptionDiscoveryRequest) *locale.LocalizedError {
+func ValidateSubscriptionDiscovery(request *model.SubscriptionDiscoveryRequest) locale.Error {
 	if !urllib.IsAbsoluteURL(request.URL) {
 		return locale.NewLocalizedError("error.invalid_site_url")
 	}

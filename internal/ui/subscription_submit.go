@@ -139,7 +139,7 @@ func (h *handler) submitSubscription(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) showSubscriptionError(w http.ResponseWriter, r *http.Request,
-	f *form.SubscriptionForm, lerr *locale.LocalizedErrorWrapper,
+	f *form.SubscriptionForm, lerr locale.Error,
 	renderFunc func(v *View),
 ) {
 	v := h.View(r)

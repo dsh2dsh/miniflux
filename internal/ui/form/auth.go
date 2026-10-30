@@ -17,7 +17,7 @@ type AuthForm struct {
 }
 
 // Validate makes sure the form values are valid.
-func (a AuthForm) Validate() *locale.LocalizedError {
+func (a AuthForm) Validate() locale.Error {
 	if a.Username == "" || a.Password == "" {
 		return locale.NewLocalizedError("error.fields_mandatory")
 	}

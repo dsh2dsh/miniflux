@@ -273,7 +273,7 @@ func (self *ResponseHandler) Body() io.ReadCloser {
 	return http.MaxBytesReader(nil, self.httpResponse.Body, self.maxBodySize)
 }
 
-func (self *ResponseHandler) ReadBody() ([]byte, *locale.LocalizedErrorWrapper) {
+func (self *ResponseHandler) ReadBody() ([]byte, locale.Error) {
 	var buffer bytes.Buffer
 	if err := self.WriteBodyTo(&buffer); err != nil {
 		return nil, err
@@ -288,7 +288,7 @@ func (self *ResponseHandler) ReadBody() ([]byte, *locale.LocalizedErrorWrapper) 
 }
 
 func (self *ResponseHandler) WriteBodyTo(w io.Writer,
-) *locale.LocalizedErrorWrapper {
+) locale.Error {
 	_, err := io.Copy(w, self.Body())
 	if err == nil || errors.Is(err, io.EOF) {
 		return nil

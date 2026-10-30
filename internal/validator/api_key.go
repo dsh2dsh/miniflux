@@ -14,7 +14,7 @@ import (
 // ValidateAPIKeyCreation ensures API key creation requests include a description and are unique per user.
 func ValidateAPIKeyCreation(ctx context.Context, store *storage.Storage,
 	userID int64, request *model.APIKeyCreationRequest,
-) *locale.LocalizedError {
+) locale.Error {
 	if request.Description == "" {
 		return locale.NewLocalizedError("error.fields_mandatory")
 	}

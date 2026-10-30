@@ -132,7 +132,7 @@ func (s *SettingsForm) Merge(user *model.User) *model.User {
 }
 
 // Validate makes sure the form values are valid.
-func (s *SettingsForm) Validate() *locale.LocalizedError {
+func (s *SettingsForm) Validate() locale.Error {
 	missingFields := (s.Username == "" && !config.DisableLocalAuth()) ||
 		s.Theme == "" ||
 		s.Language == "" ||

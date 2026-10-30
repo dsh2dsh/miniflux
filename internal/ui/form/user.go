@@ -19,7 +19,7 @@ type UserForm struct {
 }
 
 // ValidateCreation validates user creation.
-func (u UserForm) ValidateCreation() *locale.LocalizedError {
+func (u UserForm) ValidateCreation() locale.Error {
 	if u.Username == "" || u.Password == "" || u.Confirmation == "" {
 		return locale.NewLocalizedError("error.fields_mandatory")
 	}
@@ -32,7 +32,7 @@ func (u UserForm) ValidateCreation() *locale.LocalizedError {
 }
 
 // ValidateModification validates user modification.
-func (u UserForm) ValidateModification() *locale.LocalizedError {
+func (u UserForm) ValidateModification() locale.Error {
 	if u.Username == "" {
 		return locale.NewLocalizedError("error.user_mandatory_fields")
 	}

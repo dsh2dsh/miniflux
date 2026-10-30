@@ -27,11 +27,11 @@ var translatedStatusCodes = map[int]string{
 	http.StatusGatewayTimeout:      "error.http_gateway_timeout",
 }
 
-func (self *ResponseHandler) LocalizedError() *locale.LocalizedErrorWrapper {
+func (self *ResponseHandler) LocalizedError() locale.Error {
 	return self.localizeStatusCode()
 }
 
-func LocalizedError(err error) *locale.LocalizedErrorWrapper {
+func LocalizedError(err error) locale.Error {
 	if err == nil {
 		return nil
 	}
@@ -81,7 +81,7 @@ func sslError(err error) bool {
 	return ok
 }
 
-func (self *ResponseHandler) localizeStatusCode() *locale.LocalizedErrorWrapper {
+func (self *ResponseHandler) localizeStatusCode() locale.Error {
 	statusCode := self.StatusCode()
 	if self.goodStatusCode() {
 		if statusCode != http.StatusNotModified {
@@ -123,7 +123,7 @@ func (self *ResponseHandler) badStatusErr() *ErrBadStatus {
 	}
 }
 
-func (self ResponseHandler) CloudflareChallenge() *locale.LocalizedErrorWrapper {
+func (self ResponseHandler) CloudflareChallenge() locale.Error {
 	statusCode := self.StatusCode()
 	cf := statusCode == http.StatusForbidden &&
 		strings.EqualFold(self.Header("cf-mitigated"), "challenge") &&
@@ -174,7 +174,7 @@ func (self *ErrTooManyRequests) RetryAfter() time.Time {
 
 func (self *ErrTooManyRequests) RetryHeader() string { return self.retryHeader }
 
-func (self *ErrTooManyRequests) Localized() *locale.LocalizedErrorWrapper {
+func (self *ErrTooManyRequests) Localized() locale.Error {
 	return locale.NewLocalizedErrorWrapper(self, "error.http_too_many_requests")
 }
 

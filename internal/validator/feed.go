@@ -24,7 +24,7 @@ import (
 // ValidateFeedCreation validates feed creation.
 func ValidateFeedCreation(ctx context.Context, store *storage.Storage,
 	userID int64, r *model.FeedCreationRequest,
-) *locale.LocalizedError {
+) locale.Error {
 	if r.FeedURL == "" || r.CategoryID <= 0 {
 		return locale.NewLocalizedError("error.feed_mandatory_fields")
 	}
@@ -99,7 +99,7 @@ func ValidateFeedCreation(ctx context.Context, store *storage.Storage,
 	return nil
 }
 
-func ValidateCookie(s string) *locale.LocalizedError {
+func ValidateCookie(s string) locale.Error {
 	_, err := http.ParseCookie(s)
 	if err != nil {
 		return locale.NewLocalizedError("Invalid cookie: " + err.Error())
@@ -108,7 +108,7 @@ func ValidateCookie(s string) *locale.LocalizedError {
 }
 
 func ValidateUrlRewriteRules(ctx context.Context, rules string,
-) *locale.LocalizedError {
+) locale.Error {
 	feed := model.Feed{UrlRewriteRules: rules}
 	var entry model.Entry
 	if err := rewrite.RewriteEntryURL(ctx, &feed, &entry); err != nil {
@@ -118,7 +118,7 @@ func ValidateUrlRewriteRules(ctx context.Context, rules string,
 }
 
 func ValidateContentRewriteRules(ctx context.Context, rules string,
-) *locale.LocalizedError {
+) locale.Error {
 	contentRewrite, err := rewrite.NewContentRewrite(rules, nil, nil)
 	if err != nil {
 		return locale.NewLocalizedError("error.feed_invalid_rewrite_rule")
@@ -133,7 +133,7 @@ func ValidateContentRewriteRules(ctx context.Context, rules string,
 }
 
 func ValidateScraperRules(ctx context.Context, rules string,
-) *locale.LocalizedError {
+) locale.Error {
 	if rules = strings.TrimSpace(rules); rules == "" {
 		return nil
 	}
@@ -147,7 +147,7 @@ func ValidateScraperRules(ctx context.Context, rules string,
 // ValidateFeedModification validates feed modification.
 func ValidateFeedModification(ctx context.Context, store *storage.Storage,
 	userID, feedID int64, r *model.FeedModificationRequest,
-) *locale.LocalizedError {
+) locale.Error {
 	if r.FeedURL != nil {
 		if *r.FeedURL == "" {
 			return locale.NewLocalizedError("error.feed_url_not_empty")

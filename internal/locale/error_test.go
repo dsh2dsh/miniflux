@@ -17,8 +17,8 @@ func TestNewLocalizedErrorWrapper(t *testing.T) {
 
 	wrapper := NewLocalizedErrorWrapper(originalErr, translationKey, args...)
 
-	if !errors.Is(wrapper.originalErr, originalErr) {
-		t.Errorf("Expected original error to be %v, got %v", originalErr, wrapper.originalErr)
+	if !errors.Is(wrapper, originalErr) {
+		t.Errorf("Expected original error to be %v, got %v", originalErr, wrapper.err)
 	}
 
 	if wrapper.translationKey != translationKey {
