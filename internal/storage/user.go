@@ -230,10 +230,10 @@ WHERE id = $29`,
 		}
 
 		if hashedPassword != "" {
-			_, err := tx.Exec(ctx, `UPDATE users SET password=$1 WHERE id=$2`,
-				user.ID)
+			_, err := tx.Exec(ctx, `UPDATE users SET password = $2 WHERE id = $1`,
+				user.ID, hashedPassword)
 			if err != nil {
-				return fmt.Errorf(`update password: %w`, err)
+				return fmt.Errorf("update password: %w", err)
 			}
 		}
 		return nil

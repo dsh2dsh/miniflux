@@ -5,11 +5,13 @@ package ui
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
 	"miniflux.app/v2/internal/http/response"
 	"miniflux.app/v2/internal/locale"
+	"miniflux.app/v2/internal/logging"
 	"miniflux.app/v2/internal/model"
 	"miniflux.app/v2/internal/ui/form"
 	"miniflux.app/v2/internal/ui/session"
@@ -49,8 +51,9 @@ func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx := r.Context()
 	userID := request.UserID(r)
-	lerr := validator.ValidateUserModification(r.Context(), h.store, userID,
+	lerr := validator.ValidateUserModification(ctx, h.store, userID,
 		&modifyRequest)
 	if lerr != nil {
 		h.showUpdateSettingsError(w, r, func(v *View) {
@@ -62,13 +65,33 @@ func (h *handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := request.User(r)
-	err := h.store.UpdateUser(r.Context(), f.Merge(user))
+	if f.Password != "" {
+		err := h.store.CheckPassword(ctx, user.Username, f.CurrentPassword)
+		if err != nil {
+			logging.FromContext(ctx).Warn(
+				"Incorrect current password on password change",
+				slog.String("client_ip", request.ClientIP(r)),
+				slog.String("user_agent", r.UserAgent()),
+				slog.String("username", user.Username),
+				slog.Any("error", err))
+
+			lerr := locale.NewLocalizedError("error.invalid_current_password")
+			h.showUpdateSettingsError(w, r, func(v *View) {
+				v.Set("form", f).
+					Set("errorMessage", lerr.Translate(v.User().Language))
+				response.HTML(w, r, v.Render("settings"))
+			})
+			return
+		}
+	}
+
+	err := h.store.UpdateUser(ctx, f.Merge(user))
 	if err != nil {
 		response.ServerError(w, r, err)
 		return
 	}
 
-	session.FromContext(r.Context()).
+	session.FromContext(ctx).
 		SetLanguage(user.Language).
 		SetTheme(user.Theme).
 		NewFlashMessage(

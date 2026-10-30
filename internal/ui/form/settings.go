@@ -27,6 +27,7 @@ const (
 type SettingsForm struct {
 	Username               string
 	Password               string
+	CurrentPassword        string
 	Confirmation           string
 	Theme                  string
 	Language               string
@@ -132,7 +133,14 @@ func (s *SettingsForm) Merge(user *model.User) *model.User {
 
 // Validate makes sure the form values are valid.
 func (s *SettingsForm) Validate() *locale.LocalizedError {
-	if (s.Username == "" && !config.DisableLocalAuth()) || s.Theme == "" || s.Language == "" || s.Timezone == "" || s.EntryDirection == "" || s.DisplayMode == "" || s.DefaultHomePage == "" {
+	missingFields := (s.Username == "" && !config.DisableLocalAuth()) ||
+		s.Theme == "" ||
+		s.Language == "" ||
+		s.Timezone == "" ||
+		s.EntryDirection == "" ||
+		s.DisplayMode == "" ||
+		s.DefaultHomePage == ""
+	if missingFields {
 		return locale.NewLocalizedError("error.settings_mandatory_fields")
 	}
 
@@ -140,15 +148,14 @@ func (s *SettingsForm) Validate() *locale.LocalizedError {
 		return locale.NewLocalizedError("error.settings_reading_speed_is_positive")
 	}
 
-	if s.Confirmation == "" {
-		// Firefox insists on auto-completing the password field.
-		// If the confirmation field is blank, the user probably
-		// didn't intend to change their password.
+	switch {
+	case s.Confirmation == "":
+		// Firefox insists on auto-completing the password field. If the
+		// confirmation field is blank, the user probably didn't intend to change
+		// their password.
 		s.Password = ""
-	} else if s.Password != "" {
-		if s.Password != s.Confirmation {
-			return locale.NewLocalizedError("error.different_passwords")
-		}
+	case s.Password != "" && s.Password != s.Confirmation:
+		return locale.NewLocalizedError("error.different_passwords")
 	}
 
 	if s.MediaPlaybackRate < 0.25 || s.MediaPlaybackRate > 4 {
@@ -170,20 +177,25 @@ func NewSettingsForm(r *http.Request) *SettingsForm {
 	if err != nil {
 		entriesPerPage = 0
 	}
+
 	defaultReadingSpeed, err := strconv.Atoi(r.FormValue("default_reading_speed"))
 	if err != nil {
 		defaultReadingSpeed = 0
 	}
+
 	cjkReadingSpeed, err := strconv.Atoi(r.FormValue("cjk_reading_speed"))
 	if err != nil {
 		cjkReadingSpeed = 0
 	}
+
 	mediaPlaybackRate, err := strconv.ParseFloat(r.FormValue("media_playback_rate"), 64)
 	if err != nil {
 		mediaPlaybackRate = 1
 	}
+
 	return &SettingsForm{
 		Username:                r.FormValue("username"),
+		CurrentPassword:         r.FormValue("current_password"),
 		Password:                r.FormValue("password"),
 		Confirmation:            r.FormValue("confirmation"),
 		Theme:                   r.FormValue("theme"),
