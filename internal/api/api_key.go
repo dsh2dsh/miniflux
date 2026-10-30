@@ -25,7 +25,7 @@ func (h *handler) createAPIKey(w http.ResponseWriter, r *http.Request,
 	userID := request.UserID(r)
 	lerr := validator.ValidateAPIKeyCreation(ctx, h.store, userID, &createRequest)
 	if lerr != nil {
-		return nil, response.WrapBadRequest(lerr.Error())
+		return nil, response.WrapBadRequest(lerr)
 	}
 
 	apiKey, err := h.store.CreateAPIKey(ctx, userID, createRequest.Description)

@@ -43,7 +43,7 @@ func (h *handler) createFeed(w http.ResponseWriter, r *http.Request,
 
 	lerr := validator.ValidateFeedCreation(ctx, h.store, userID, &createRequest)
 	if lerr != nil {
-		return nil, response.WrapBadRequest(lerr.Error())
+		return nil, response.WrapBadRequest(lerr)
 	}
 
 	feed, localizedError := feedHandler.New(h.store, userID, h.templates).
@@ -119,7 +119,7 @@ func (h *handler) updateFeed(w http.ResponseWriter, r *http.Request,
 	lerr := validator.ValidateFeedModification(ctx, h.store, userID,
 		feed.ID, &modifyRequest)
 	if lerr != nil {
-		return nil, response.WrapBadRequest(lerr.Error())
+		return nil, response.WrapBadRequest(lerr)
 	}
 
 	modifyRequest.Patch(feed)

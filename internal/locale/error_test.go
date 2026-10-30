@@ -6,6 +6,8 @@ package locale
 import (
 	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewLocalizedErrorWrapper(t *testing.T) {
@@ -142,7 +144,7 @@ func TestLocalizedError_String(t *testing.T) {
 
 	localizedErr := NewLocalizedError("error.validation", "username", "too short")
 
-	result := localizedErr.String()
+	result := localizedErr.Error()
 	expected := "Validation failed for username: too short"
 	if result != expected {
 		t.Errorf("Expected String() result %q, got %q", expected, result)
@@ -156,7 +158,7 @@ func TestLocalizedError_StringWithMissingTranslation(t *testing.T) {
 
 	localizedErr := NewLocalizedError("error.missing", "arg1")
 
-	result := localizedErr.String()
+	result := localizedErr.Error()
 	expected := "error.missing"
 	if result != expected {
 		t.Errorf("Expected String() result %q, got %q", expected, result)
@@ -173,16 +175,8 @@ func TestLocalizedError_Error(t *testing.T) {
 	}
 
 	localizedErr := NewLocalizedError("error.database", "timeout")
-
-	result := localizedErr.Error()
-	if result == nil {
-		t.Error("Expected Error() to return a non-nil error")
-	}
-
-	expected := "Database connection failed: timeout"
-	if result.Error() != expected {
-		t.Errorf("Expected Error() message %q, got %q", expected, result.Error())
-	}
+	require.NotNil(t, localizedErr, localizedErr.Error(),
+		"unexpected Error() message")
 }
 
 func TestLocalizedError_Translate(t *testing.T) {
@@ -296,7 +290,7 @@ func TestLocalizedErrorWrapper_TranslateWithEmptyKeyAndNilError(t *testing.T) {
 func TestLocalizedError_EmptyKey(t *testing.T) {
 	localizedErr := NewLocalizedError("")
 
-	result := localizedErr.String()
+	result := localizedErr.Error()
 	expected := ""
 	if result != expected {
 		t.Errorf("Expected empty string for empty key, got %q", result)

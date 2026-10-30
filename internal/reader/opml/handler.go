@@ -173,7 +173,7 @@ func validateSubscription(ctx context.Context, userID, categoryID int64,
 	lerr := validator.ValidateFeedCreation(ctx, store, userID,
 		feedCreationRequest)
 	if lerr != nil {
-		return lerr.Error()
+		return lerr
 	}
 	return nil
 }

@@ -29,7 +29,7 @@ func (h *handler) createCategory(w http.ResponseWriter, r *http.Request,
 	lerr := validator.ValidateCategoryCreation(ctx, h.store, userID,
 		&createRequest)
 	if lerr != nil {
-		return nil, response.WrapBadRequest(lerr.Error())
+		return nil, response.WrapBadRequest(lerr)
 	}
 
 	category, err := h.store.CreateCategory(ctx, userID, &createRequest)
@@ -60,7 +60,7 @@ func (h *handler) updateCategory(w http.ResponseWriter, r *http.Request,
 	lerr := validator.ValidateCategoryModification(ctx, h.store, userID,
 		category.ID, &modifyRequest)
 	if lerr != nil {
-		return nil, response.WrapBadRequest(lerr.Error())
+		return nil, response.WrapBadRequest(lerr)
 	}
 
 	modifyRequest.Patch(category)

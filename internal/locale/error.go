@@ -3,7 +3,11 @@
 
 package locale
 
-import "errors"
+type Error interface {
+	error
+
+	Translate(string) string
+}
 
 type LocalizedErrorWrapper struct {
 	originalErr     error
@@ -11,9 +15,11 @@ type LocalizedErrorWrapper struct {
 	translationArgs []any
 }
 
-var _ error = (*LocalizedErrorWrapper)(nil)
+var _ Error = (*LocalizedErrorWrapper)(nil)
 
-func NewLocalizedErrorWrapper(originalErr error, translationKey string, translationArgs ...any) *LocalizedErrorWrapper {
+func NewLocalizedErrorWrapper(originalErr error, translationKey string,
+	translationArgs ...any,
+) *LocalizedErrorWrapper {
 	return &LocalizedErrorWrapper{
 		originalErr:     originalErr,
 		translationKey:  translationKey,
@@ -39,17 +45,17 @@ type LocalizedError struct {
 	translationArgs []any
 }
 
-func NewLocalizedError(translationKey string, translationArgs ...any) *LocalizedError {
-	return &LocalizedError{translationKey: translationKey, translationArgs: translationArgs}
+var _ Error = (*LocalizedError)(nil)
+
+func NewLocalizedError(translationKey string, translationArgs ...any,
+) *LocalizedError {
+	return &LocalizedError{
+		translationKey:  translationKey,
+		translationArgs: translationArgs,
+	}
 }
 
-func (v *LocalizedError) String() string {
-	return NewPrinter("en_US").Printf(v.translationKey, v.translationArgs...)
-}
-
-func (v *LocalizedError) Error() error {
-	return errors.New(v.String())
-}
+func (v *LocalizedError) Error() string { return v.Translate("en_US") }
 
 func (v *LocalizedError) Translate(language string) string {
 	return NewPrinter(language).Printf(v.translationKey, v.translationArgs...)

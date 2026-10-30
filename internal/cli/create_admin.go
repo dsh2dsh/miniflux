@@ -59,7 +59,7 @@ func createAdminUser(ctx context.Context, store *storage.Storage, username,
 	validateErr := validator.ValidateUserCreationWithPassword(ctx, store,
 		&userCreationRequest)
 	if validateErr != nil {
-		return validateErr.Error()
+		return validateErr
 	}
 
 	user, err := store.CreateUser(ctx, &userCreationRequest)

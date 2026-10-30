@@ -492,7 +492,7 @@ func (h *handler) subscribe(ctx context.Context, newFeed, category Stream, title
 	}
 	lerr := validator.ValidateFeedCreation(ctx, h.store, userID, &createRequest)
 	if lerr != nil {
-		return nil, lerr.Error()
+		return nil, lerr
 	}
 
 	feed, lwerr := mff.New(h.store, userID, h.templates).FromRequest(ctx,
@@ -894,7 +894,7 @@ func (h *handler) renameTagHandler(w http.ResponseWriter, r *http.Request) {
 	lerr := validator.ValidateCategoryModification(ctx, h.store, userID,
 		category.ID, &modifyRequest)
 	if lerr != nil {
-		response.BadRequestJSON(w, r, lerr.Error())
+		response.BadRequestJSON(w, r, lerr)
 		return
 	}
 

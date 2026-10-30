@@ -35,7 +35,7 @@ func (h *handler) createUser(w http.ResponseWriter, r *http.Request,
 	lerr := validator.ValidateUserCreationWithPassword(ctx, h.store,
 		&createRequest)
 	if lerr != nil {
-		return nil, response.WrapBadRequest(lerr.Error())
+		return nil, response.WrapBadRequest(lerr)
 	}
 
 	user, err := h.store.CreateUser(ctx, &createRequest)
@@ -74,7 +74,7 @@ func (h *handler) updateUser(w http.ResponseWriter, r *http.Request,
 
 	lerr := validator.ValidateUserModification(ctx, h.store, user.ID, &m)
 	if lerr != nil {
-		return nil, response.WrapBadRequest(lerr.Error())
+		return nil, response.WrapBadRequest(lerr)
 	}
 
 	m.Patch(user)

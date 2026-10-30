@@ -40,7 +40,7 @@ func resetPassword(ctx context.Context, store *storage.Storage) error {
 	validationErr := validator.ValidateUserModification(ctx, store, user.ID,
 		&userModificationRequest)
 	if validationErr != nil {
-		return validationErr.Error()
+		return validationErr
 	}
 
 	user.Password = password

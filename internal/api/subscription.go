@@ -23,7 +23,7 @@ func (h *handler) discoverSubscriptions(w http.ResponseWriter, r *http.Request,
 	}
 
 	if lerr := validator.ValidateSubscriptionDiscovery(&discovery); lerr != nil {
-		return nil, response.WrapBadRequest(lerr.Error())
+		return nil, response.WrapBadRequest(lerr)
 	}
 
 	user := request.User(r)
