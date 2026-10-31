@@ -5,6 +5,7 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"miniflux.app/v2/internal/http/request"
@@ -24,14 +25,21 @@ func (h *handler) updateUser(w http.ResponseWriter, r *http.Request) {
 		return err
 	})
 
-	if err := v.Wait(); err != nil {
+	err := v.Wait()
+	switch {
+	case err != nil:
 		response.ServerError(w, r, err)
 		return
-	} else if !v.User().IsAdmin {
+	case !v.User().IsAdmin:
 		response.Forbidden(w, r)
 		return
-	} else if user == nil {
+	case user == nil:
 		response.NotFound(w, r)
+		return
+	case user.ID == v.UserID():
+		// Changing your own password must go through the authentication page, which
+		// asks for the current password.
+		response.BadRequest(w, r, errors.New("you cannot edit yourself"))
 		return
 	}
 
@@ -56,8 +64,7 @@ func (h *handler) updateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userForm.Merge(user)
-	err := h.store.UpdateUser(r.Context(), user)
-	if err != nil {
+	if err = h.store.UpdateUser(r.Context(), user); err != nil {
 		response.ServerError(w, r, err)
 		return
 	}
