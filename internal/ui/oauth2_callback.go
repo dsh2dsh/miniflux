@@ -187,6 +187,12 @@ func (h *handler) oauth2Callback(w http.ResponseWriter, r *http.Request) {
 			response.ServerError(w, r, err)
 			return
 		}
+
+		log.Info("Updated admin role from OIDC group membership",
+			slog.Int64("user_id", user.ID),
+			slog.String("username", user.Username),
+			slog.Bool("is_admin", isAdmin),
+			slog.String("admin_group", adminGroup))
 	}
 
 	if err := h.store.SetLastLogin(ctx, user.ID); err != nil {
