@@ -436,14 +436,21 @@ func (h *handler) handleWriteItems(w http.ResponseWriter, r *http.Request,
 			model.EntryStatusUnread)
 	case "saved":
 		log.Debug("[Fever] Mark entry as saved")
-		err := h.store.ToggleBookmark(ctx, userID, entryID)
-		if err != nil {
-			return nil, response.WrapServerError(err)
+		if entry.Starred {
+			break
 		}
-		integration.SendEntry(ctx, entry, request.User(r))
+		err := h.store.SetEntriesBookmarkedState(ctx, userID, []int64{entryID},
+			true)
+		if err == nil {
+			integration.SendEntry(ctx, entry, request.User(r))
+		}
 	case "unsaved":
 		log.Debug("[Fever] Mark entry as unsaved")
-		err = h.store.ToggleBookmark(ctx, userID, entryID)
+		if !entry.Starred {
+			break
+		}
+		err = h.store.SetEntriesBookmarkedState(ctx, userID, []int64{entryID},
+			false)
 	}
 	if err != nil {
 		return nil, response.WrapServerError(err)
@@ -489,25 +496,31 @@ before=? where ? is replaced with the Unix timestamp of the the local client’s
 */
 func (h *handler) handleWriteGroups(w http.ResponseWriter, r *http.Request,
 ) (*baseResponse, error) {
-	userID := request.UserID(r)
 	groupID := request.FormInt64Value(r, "id")
-	before := time.Unix(request.FormInt64Value(r, "before"), 0)
+	if groupID < 0 {
+		return nil, response.WrapBadRequest(fmt.Errorf("invalid id=%v", groupID))
+	}
+
+	userID := request.UserID(r)
+	beforeValue := request.FormInt64Value(r, "before")
+	before := time.Unix(beforeValue, 0)
 
 	ctx := r.Context()
 	log := logging.FromContext(ctx).With(
 		slog.Int64("user_id", userID),
 		slog.Int64("group_id", groupID),
 		slog.Time("before_ts", before))
-	log.Debug("[Fever] Mark group as read before a given date")
-
-	if groupID < 0 {
-		return nil, response.WrapBadRequest(fmt.Errorf("invalid id=%v", groupID))
-	}
 
 	var err error
-	if groupID == 0 {
+	switch {
+	case groupID == 0 && beforeValue <= 0:
+		log.Debug("[Fever] Mark all items as read")
 		err = h.store.MarkAllAsRead(ctx, userID)
-	} else {
+	case groupID == 0:
+		log.Debug("[Fever] Mark all items as read before a given dat")
+		err = h.store.MarkAllAsReadBeforeDate(ctx, userID, before)
+	default:
+		log.Debug("[Fever] Mark group as read before a given date")
 		_, err = h.store.MarkCategoryAsRead(ctx, userID, groupID, before)
 	}
 	if err != nil {

@@ -112,14 +112,16 @@ SELECT id, user_id, title, hide_globally, extra
 	return category, nil
 }
 
-// CategoryByTitle finds a category by the title.
+// CategoryByTitle finds a category by its case-insensitive title, preferring an
+// exact match.
 func (s *Storage) CategoryByTitle(ctx context.Context, userID int64,
 	title string,
 ) (*model.Category, error) {
 	rows, _ := s.db.Query(ctx, `
 SELECT id, user_id, title, hide_globally, extra
   FROM categories
- WHERE user_id = $1 AND title = $2`,
+ WHERE user_id = $1 AND lower(title) = lower($2)
+ ORDER BY title = $2 DESC, id ASC LIMIT 1`,
 		userID, title)
 
 	category, err := pgx.CollectExactlyOneRow(rows,

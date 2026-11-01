@@ -17,7 +17,7 @@ func ValidateSubscriptionDiscovery(request *model.SubscriptionDiscoveryRequest) 
 	}
 
 	if request.ProxyURL != "" && config.FindProxy(request.ProxyURL) == nil {
-		return locale.NewLocalizedError("error.invalid_proxy_url")
+		return locale.NewLocalizedError("error.invalid_feed_proxy_url")
 	}
 
 	return nil
