@@ -223,6 +223,9 @@ func (self *EndpointTestSuite) TestRemoveUserEndpointAsAdmin() {
 	self.Require().NoError(err)
 	self.Require().NotNil(user)
 	self.Require().NoError(self.admin.DeleteUser(user.ID))
+
+	_, err = self.admin.UserByID(user.ID)
+	self.Require().ErrorIs(err, client.ErrNotFound)
 }
 
 func (self *EndpointTestSuite) TestRemoveUserEndpointAsRegularUser() {
