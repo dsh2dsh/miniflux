@@ -211,6 +211,8 @@ func NewOptions() *options {
 			TrustedProxies:                 []string{"127.0.0.1"},
 
 			FetcherDenyNetworks: []netip.Prefix{
+				// "This network" (RFC 6890)
+				netip.MustParsePrefix("0.0.0.0/8"),
 				netip.MustParsePrefix("100.64.0.0/10"),
 				// NAT64 loopback IPv4, NAT64 link-local IPv4
 				netip.MustParsePrefix("64:ff9b::/96"),
@@ -220,6 +222,8 @@ func NewOptions() *options {
 				netip.MustParsePrefix("192.0.0.192/32"),
 				// benchmarking IPv4
 				netip.MustParsePrefix("198.18.0.0/15"),
+				// Reserved and limited broadcast (RFC 6890)
+				netip.MustParsePrefix("240.0.0.0/4"),
 				// Deprecated IPv4-compatible IPv6 addresses (RFC 4291)
 				netip.MustParsePrefix("::/96"),
 				// site-local IPv6

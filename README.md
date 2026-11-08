@@ -337,11 +337,14 @@ This project is an opinionated fork of Miniflux.
 
   `FETCHER_DENY_NETWORKS` contains list of forbidded networks. Default value is
 
+  - `0.0.0.0/8`
   - `100.64.0.0/10`
   - `64:ff9b::/96`
   - `168.63.129.16/32`
   - `192.0.0.192/32`
   - `198.18.0.0/15`
+  - `240.0.0.0/4`
+  - `::/96`
   - `fec0::/10`
 
   The fetcher isn't allowed to access any IP address from that list, like it
