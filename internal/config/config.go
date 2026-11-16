@@ -51,7 +51,7 @@ func WithYAMLFile(filename string) LoadOption {
 			return fmt.Errorf("config: reading %q: %w", filename, err)
 		}
 
-		if err := yaml.Unmarshal(b, &cfg.opts.yaml); err != nil {
+		if err := yaml.Load(b, &cfg.opts.yaml); err != nil {
 			return fmt.Errorf("config: parse yaml %q: %w", filename, err)
 		}
 		return nil
@@ -68,7 +68,7 @@ func WithYAMLBytes(b []byte) LoadOption {
 			return nil
 		}
 
-		if err := yaml.Unmarshal(b, &cfg.opts.yaml); err != nil {
+		if err := yaml.Load(b, &cfg.opts.yaml); err != nil {
 			return fmt.Errorf("config: parse yaml from bytes: %w", err)
 		}
 		return nil
