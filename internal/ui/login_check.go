@@ -109,6 +109,8 @@ func (h *handler) redirectFromCookie(r *http.Request) (string, error) {
 	d, err := sessionDataFromCookie(r, h.secureCookie)
 	if err != nil {
 		return "", fmt.Errorf("ui: login redirect cookie: %w", err)
+	} else if d == nil {
+		return "", nil
 	}
 	return d.Redirect, nil
 }
