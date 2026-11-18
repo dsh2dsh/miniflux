@@ -522,80 +522,49 @@ func Test_denyDialToPrivate(t *testing.T) {
 		address string
 		allow   bool
 	}{
-		{
-			name:    "private IPv4",
-			address: "192.168.1.10:8000",
-		},
-		{
-			name:    "loopback IPv4",
-			address: "127.0.0.1:8000",
-		},
-		{
-			name:    "link-local IPv4",
-			address: "169.254.42.1:8000",
-		},
-		{
-			name:    "multicast IPv4",
-			address: "224.0.0.1:8000",
-		},
-		{
-			name:    "unspecified IPv6",
-			address: "[::]:8000",
-		},
-		{
-			name:    "loopback IPv6",
-			address: "[::1]:8000",
-		},
-		{
-			name:    "multicast IPv6",
-			address: "[ff02::1]:8000",
-		},
-		{
-			name:    "6to4 loopback IPv4",
-			address: "[2002:7f00:1::]",
-		},
-		{
-			name:    "6to4 private IPv4",
-			address: "[2002:a00:1::]",
-		},
-		{
-			name:    "6to4 link-local IPv4",
-			address: "[2002:a9fe:a9fe::]",
-		},
-		{
-			name:    "IPv4-compatible loopback",
-			address: "[::127.0.0.1]",
-		},
-		{
-			name:    "IPv4-compatible private",
-			address: "[::10.0.0.1]",
-		},
-		{
-			name:    "IPv4-compatible link-local",
-			address: "[::169.254.169.254]",
-		},
-		{
-			name:    "IPv4-compatible public",
-			address: "[::93.184.216.34]",
-		},
-		{
-			name:    "public IPv4",
-			address: "93.184.216.34:8000",
-			allow:   true,
-		},
-		{
-			name:    "public IPv6",
-			address: "[2001:4860:4860::8888]:8000",
-			allow:   true,
-		},
-		{
-			name:    "NAT64 public IPv4",
-			address: "[64:ff9b::5db8:d822]",
-		},
-		{
-			name:    "6to4 public IPv4",
-			address: "[2002:5db8:d822::1]",
-		},
+		{"private IPv4", "192.168.1.10", false},
+		{"shared address space IPv4", "100.64.0.1", false},
+		{"loopback IPv4", "127.0.0.1", false},
+		{"link-local IPv4", "169.254.42.1", false},
+		{"Azure WireServer IPv4", "168.63.129.16", false},
+		{"Oracle Cloud metadata IPv4", "192.0.0.192", false},
+		{"benchmarking IPv4", "198.18.0.1", false},
+		{"multicast IPv4", "224.0.0.1", false},
+		{"unspecified IPv4", "0.0.0.0", false},
+		{"this network IPv4", "0.0.0.1", false},
+		{"this network IPv4 upper bound", "0.255.255.255", false},
+		{"IPv4-mapped this network", "[::ffff:0.0.0.1]", false},
+		{"NAT64 this network IPv4", "[64:ff9b::1]", false},
+		{"6to4 this network IPv4", "[2002:0:1::]", false},
+		{"reserved IPv4", "240.0.0.1", false},
+		{"limited broadcast IPv4", "255.255.255.255", false},
+		{"unspecified IPv6", "[::]", false},
+		{"loopback IPv6", "[::1]", false},
+		{"multicast IPv6", "[ff02::1]", false},
+		{"site-local IPv6", "[fec0::1]", false},
+		{"NAT64 loopback IPv4", "[64:ff9b::7f00:1]", false},
+		{"NAT64 link-local IPv4", "[64:ff9b::a9fe:a9fe]", false},
+		{"NAT64 local-use private IPv4", "[64:ff9b:1::a00:1]", false},
+		{"NAT64 local-use loopback IPv4", "[64:ff9b:1::7f00:1]", false},
+		{"NAT64 local-use link-local IPv4", "[64:ff9b:1::a9fe:a9fe]", false},
+		{"NAT64 local-use /48 layout private IPv4", "[64:ff9b:1:a63:63:6300::]", false},
+		{"NAT64 local-use /64 layout public IPv4", "[64:ff9b:1:0:5d:b8d8:2200:0]", false},
+		{"IPv4-translated private", "[::ffff:0:a00:1]", false},
+		{"IPv4-translated public", "[::ffff:0:5db8:d822]", false},
+		{"6to4 loopback IPv4", "[2002:7f00:1::]", false},
+		{"6to4 private IPv4", "[2002:a00:1::]", false},
+		{"6to4 link-local IPv4", "[2002:a9fe:a9fe::]", false},
+		{"IPv4-compatible loopback", "[::127.0.0.1]", false},
+		{"IPv4-compatible private", "[::10.0.0.1]", false},
+		{"IPv4-compatible link-local", "[::169.254.169.254]", false},
+		{"IPv4-compatible public", "[::93.184.216.34]", false},
+		{"public IPv4", "93.184.216.34", true},
+		{"public IPv4 after this network", "1.0.0.1", true},
+		{"public IPv4 before reserved", "223.255.255.254", true},
+		{"public IPv6", "[2001:4860:4860::8888]", true},
+		{"NAT64 public IPv4", "[64:ff9b::5db8:d822]", true},
+		{"NAT64 local-use public IPv4", "[64:ff9b:1::5db8:d822]", true},
+		{"6to4 public IPv4", "[2002:5db8:d822::1]", true},
 	}
 
 	r := requestContext{
@@ -607,7 +576,8 @@ func Test_denyDialToPrivate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := contextWithRequest(t.Context(), &r)
 
-			u.Host = tt.address
+			host := tt.address + ":8000"
+			u.Host = host
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 				u.String(), nil)
 			require.NoError(t, err)
@@ -615,10 +585,10 @@ func Test_denyDialToPrivate(t *testing.T) {
 			r.req = req
 
 			if tt.allow {
-				require.NoError(t, denyDialToPrivate(ctx, "", tt.address, nil))
+				require.NoError(t, denyDialToPrivate(ctx, "", host, nil))
 				return
 			}
-			require.ErrorIs(t, denyDialToPrivate(ctx, "", tt.address, nil),
+			require.ErrorIs(t, denyDialToPrivate(ctx, "", host, nil),
 				ErrPrivateNetworkHost)
 		})
 	}

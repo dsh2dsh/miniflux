@@ -214,8 +214,6 @@ func NewOptions() *options {
 				// "This network" (RFC 6890)
 				netip.MustParsePrefix("0.0.0.0/8"),
 				netip.MustParsePrefix("100.64.0.0/10"),
-				// NAT64 loopback IPv4, NAT64 link-local IPv4
-				netip.MustParsePrefix("64:ff9b::/96"),
 				// Azure WireServer IPv4
 				netip.MustParsePrefix("168.63.129.16/32"),
 				// Oracle Cloud metadata IPv4
@@ -226,6 +224,8 @@ func NewOptions() *options {
 				netip.MustParsePrefix("240.0.0.0/4"),
 				// Deprecated IPv4-compatible IPv6 addresses (RFC 4291)
 				netip.MustParsePrefix("::/96"),
+				// Deprecated IPv4-translated IPv6 addresses (RFC 2765)
+				netip.MustParsePrefix("::ffff:0:0:0/96"),
 				// site-local IPv6
 				netip.MustParsePrefix("fec0::/10"),
 			},

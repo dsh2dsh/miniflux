@@ -28,6 +28,9 @@ var (
 	clientOnce    sync.Once
 
 	proxyFromEnvironment = http.ProxyFromEnvironment
+
+	nat64WellKnownPrefix = netip.MustParsePrefix("64:ff9b::/96")
+	nat64LocalUsePrefix  = netip.MustParsePrefix("64:ff9b:1::/48")
 	sixToFourPrefix      = netip.MustParsePrefix("2002::/16")
 )
 
@@ -126,24 +129,16 @@ func denyDialToPrivate(ctx context.Context, network, address string,
 
 	host, _, err := net.SplitHostPort(address)
 	if err != nil {
-		return fmt.Errorf("%w: split %q: %w", ErrPrivateNetworkHost, address, err)
+		return fmt.Errorf("split %q: %w", address, err)
 	}
 
 	addr, err := netip.ParseAddr(host)
 	if err != nil {
-		return fmt.Errorf("%w: parse %q: %w", ErrPrivateNetworkHost, address, err)
+		return fmt.Errorf("parse %q: %w", address, err)
 	}
 
-	if !privateAddr(addr) {
-		switch {
-		case sixToFourPrefix.Contains(addr):
-			addrBytes := addr.As16()
-			if !privateAddr(netip.AddrFrom4([4]byte(addrBytes[2:6]))) {
-				return nil
-			}
-		default:
-			return nil
-		}
+	if !privateAddr(addr) && !privateAddr6(addr) {
+		return nil
 	}
 
 	reqURL := r.req.URL.String()
@@ -164,6 +159,27 @@ func privateAddr(addr netip.Addr) bool {
 		addr.IsPrivate() ||
 		addr.IsUnspecified() ||
 		config.FetcherDeniedNetwork(addr.Unmap())
+}
+
+func privateAddr6(addr netip.Addr) bool {
+	if nat64WellKnownPrefix.Contains(addr) {
+		addrBytes := addr.As16()
+		return privateAddr(netip.AddrFrom4([4]byte(addrBytes[12:])))
+	}
+
+	// The translator picks the prefix length, so only the /96 layout is accepted:
+	// with bits 48 to 95 set to zero, every other layout decodes to 0.0.0.0/8.
+	if nat64LocalUsePrefix.Contains(addr) {
+		addrBytes := addr.As16()
+		return [6]byte(addrBytes[6:12]) != [6]byte{} ||
+			privateAddr(netip.AddrFrom4([4]byte(addrBytes[12:])))
+	}
+
+	if sixToFourPrefix.Contains(addr) {
+		addrBytes := addr.As16()
+		return privateAddr(netip.AddrFrom4([4]byte(addrBytes[2:6])))
+	}
+	return false
 }
 
 func proxyFromClient(req *http.Request) (*url.URL, error) {
