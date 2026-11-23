@@ -111,6 +111,12 @@ func (self *ContentRewrite) applyRule(ctx context.Context, entry *model.Entry,
 		slog.String("entry_url", entry.URL))
 	log.Debug("Applying content rewrite rule")
 
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("aborted with panic: %v", r)
+		}
+	}()
+
 	switch r.name {
 	case "add_image_title":
 		entry.Content = addImageTitle(entry.Content)
@@ -149,9 +155,9 @@ func (self *ContentRewrite) applyRule(ctx context.Context, entry *model.Entry,
 	case "base64_decode":
 		err = r.applyBase64Decode(entry)
 	case "add_hn_links_using_hack":
-		entry.Content = addHackerNewsLinksUsing(entry.Content, "hack")
+		err = r.addHackerNewsLinksUsing(entry, "hack")
 	case "add_hn_links_using_opener":
-		entry.Content = addHackerNewsLinksUsing(entry.Content, "opener")
+		err = r.addHackerNewsLinksUsing(entry, "opener")
 	case "remove_tables":
 		entry.Content = removeTables(entry.Content)
 	case "remove_clickbait":

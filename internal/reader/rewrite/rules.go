@@ -3,10 +3,13 @@ package rewrite
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/andybalholm/cascadia"
+	nethtml "golang.org/x/net/html"
 
 	"miniflux.app/v2/internal/model"
 )
@@ -105,5 +108,73 @@ func (self *rule) applyBase64Decode(entry *model.Entry) error {
 
 	entry.Content = applyFuncOnTextContent(entry.Content, selector,
 		decodeBase64Content)
+	return nil
+}
+
+func (self *rule) addHackerNewsLinksUsing(entry *model.Entry, app string,
+) error {
+	entryContent := entry.Content
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(entryContent))
+	if err != nil {
+		return nil
+	}
+
+	const hn_prefix = "https://news.ycombinator.com/"
+	links := doc.Find(`a[href^="` + hn_prefix + `"]`)
+	if links.Length() == 0 && !self.validate {
+		return nil
+	}
+
+	var handler func(u *url.URL) goquery.Selection
+	switch app {
+	case "opener":
+		handler = func(u *url.URL) goquery.Selection {
+			params := url.Values{}
+			params.Add("url", u.String())
+			opener := url.URL{
+				Scheme:   "opener",
+				Host:     "x-callback-url",
+				Path:     "show-options",
+				RawQuery: params.Encode(),
+			}
+
+			s := goquery.Selection{Nodes: []*nethtml.Node{new(linkNode)}}
+			s.SetAttr("href", opener.String()).SetText("Open with Opener")
+			return s
+		}
+	case "hack":
+		handler = func(u *url.URL) goquery.Selection {
+			s := goquery.Selection{Nodes: []*nethtml.Node{new(linkNode)}}
+			s.SetAttr(
+				"href",
+				strings.Replace(u.String(), hn_prefix, "hack://", 1),
+			).SetText("Open with HACK")
+			return s
+		}
+	default:
+		return fmt.Errorf("unknown app provided: %s", app)
+	}
+
+	var changed bool
+	for _, a := range links.EachIter() {
+		u, err := url.Parse(a.AttrOr("href", ""))
+		if err != nil {
+			continue
+		}
+
+		s := handler(u)
+		a.Parent().AppendNodes(new(spaceNode)).AppendSelection(&s)
+		changed = true
+	}
+
+	if !changed {
+		return nil
+	}
+
+	output, err := doc.FindMatcher(body).Html()
+	if err != nil {
+		return nil
+	}
+	entry.Content = output
 	return nil
 }

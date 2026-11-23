@@ -4,7 +4,7 @@ go 1.27
 
 require (
 	codeberg.org/readeck/go-readability/v2 v2.1.3
-	github.com/PuerkitoBio/goquery v1.13.0
+	github.com/PuerkitoBio/goquery v1.14.0
 	github.com/andybalholm/cascadia v1.3.5
 	github.com/caarlos0/env/v11 v11.4.2
 	github.com/cespare/xxhash/v2 v2.3.0
@@ -23,7 +23,7 @@ require (
 	go.yaml.in/yaml/v4 v4.0.0
 	golang.org/x/crypto v0.59.0
 	golang.org/x/image v0.48.0
-	golang.org/x/net v0.62.0
+	golang.org/x/net v0.63.0
 	golang.org/x/oauth2 v0.38.0
 	golang.org/x/sync v0.25.0
 	golang.org/x/term v0.48.0

@@ -327,30 +327,30 @@ func TestRewriteWithInexistingCustomRule(t *testing.T) {
 }
 
 func TestRewriteWithXkcdLink(t *testing.T) {
-	controlEntry := &model.Entry{
-		URL:     "https://xkcd.com/1912/",
-		Title:   `A title`,
-		Content: `<figure><img src="https://imgs.xkcd.com/comics/thermostat.png" alt="Your problem is so terrible, I worry that, if I help you, I risk drawing the attention of whatever god of technology inflicted it on you."/><figcaption><p>Your problem is so terrible, I worry that, if I help you, I risk drawing the attention of whatever god of technology inflicted it on you.</p></figcaption></figure>`,
-	}
 	testEntry := &model.Entry{
 		URL:     "https://xkcd.com/1912/",
 		Title:   `A title`,
 		Content: `<img src="https://imgs.xkcd.com/comics/thermostat.png" title="Your problem is so terrible, I worry that, if I help you, I risk drawing the attention of whatever god of technology inflicted it on you." alt="Your problem is so terrible, I worry that, if I help you, I risk drawing the attention of whatever god of technology inflicted it on you." />`,
+	}
+	controlEntry := &model.Entry{
+		URL:     "https://xkcd.com/1912/",
+		Title:   `A title`,
+		Content: `<figure><img src="https://imgs.xkcd.com/comics/thermostat.png" title="Your problem is so terrible, I worry that, if I help you, I risk drawing the attention of whatever god of technology inflicted it on you." alt="Your problem is so terrible, I worry that, if I help you, I risk drawing the attention of whatever god of technology inflicted it on you."/><figcaption><p>Your problem is so terrible, I worry that, if I help you, I risk drawing the attention of whatever god of technology inflicted it on you.</p></figcaption></figure>`,
 	}
 	applyContentRewriteRules(t, testEntry, ``)
 	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestRewriteWithXkcdLinkHtmlInjection(t *testing.T) {
-	controlEntry := &model.Entry{
-		URL:     "https://xkcd.com/1912/",
-		Title:   `A title`,
-		Content: `<figure><img src="https://imgs.xkcd.com/comics/thermostat.png" alt="&lt;foo&gt;"/><figcaption><p>&lt;foo&gt;</p></figcaption></figure>`,
-	}
 	testEntry := &model.Entry{
 		URL:     "https://xkcd.com/1912/",
 		Title:   `A title`,
 		Content: `<img src="https://imgs.xkcd.com/comics/thermostat.png" title="<foo>" alt="<foo>" />`,
+	}
+	controlEntry := &model.Entry{
+		URL:     "https://xkcd.com/1912/",
+		Title:   `A title`,
+		Content: `<figure><img src="https://imgs.xkcd.com/comics/thermostat.png" title="&lt;foo&gt;" alt="&lt;foo&gt;"/><figcaption><p>&lt;foo&gt;</p></figcaption></figure>`,
 	}
 	applyContentRewriteRules(t, testEntry, ``)
 	assert.EqualExportedValues(t, controlEntry, testEntry)
@@ -402,18 +402,15 @@ func TestRewriteWithXkcdAndNoImage(t *testing.T) {
 }
 
 func TestRewriteMailtoLink(t *testing.T) {
-	controlEntry := &model.Entry{
-		URL:     "https://www.qwantz.com/",
-		Title:   `A title`,
-		Content: `<a href="mailto:ryan@qwantz.com?subject=blah%20blah">contact [blah blah]</a>`,
-	}
-	testEntry := &model.Entry{
+	testEntry := model.Entry{
 		URL:     "https://www.qwantz.com/",
 		Title:   `A title`,
 		Content: `<a href="mailto:ryan@qwantz.com?subject=blah%20blah">contact</a>`,
 	}
-	applyContentRewriteRules(t, testEntry, ``)
-	assert.EqualExportedValues(t, controlEntry, testEntry)
+	applyContentRewriteRules(t, &testEntry, ``)
+
+	const want = `<a href="mailto:ryan@qwantz.com?subject=blah%20blah">contact <span>[blah blah]</span></a>`
+	assert.Equal(t, want, testEntry.Content)
 }
 
 func TestRewriteWithPDFLink(t *testing.T) {
@@ -462,18 +459,15 @@ func TestRewriteWithLazyImage(t *testing.T) {
 }
 
 func TestRewriteWithLazyDivImage(t *testing.T) {
-	controlEntry := &model.Entry{
-		URL:     "https://example.org/article",
-		Title:   `A title`,
-		Content: `<img src="https://example.org/image.jpg" alt="Image"/><noscript><img src="https://example.org/fallback.jpg" alt="Fallback"/></noscript>`,
-	}
-	testEntry := &model.Entry{
+	testEntry := model.Entry{
 		URL:     "https://example.org/article",
 		Title:   `A title`,
 		Content: `<div data-url="https://example.org/image.jpg" alt="Image"></div><noscript><img src="https://example.org/fallback.jpg" alt="Fallback"></noscript>`,
 	}
-	applyContentRewriteRules(t, testEntry, "add_dynamic_image")
-	assert.EqualExportedValues(t, controlEntry, testEntry)
+	applyContentRewriteRules(t, &testEntry, "add_dynamic_image")
+
+	const want = `<img src="https://example.org/image.jpg" alt="Image"/><noscript><img src="https://example.org/fallback.jpg" alt="Fallback"/></noscript>`
+	assert.Equal(t, want, testEntry.Content)
 }
 
 func TestRewriteWithUnknownLazyNoScriptImage(t *testing.T) {
@@ -597,12 +591,7 @@ func TestConvertTextLinkRewriteRule(t *testing.T) {
 }
 
 func TestMediumImage(t *testing.T) {
-	controlEntry := &model.Entry{
-		URL:     "https://example.org/article",
-		Title:   `A title`,
-		Content: `<img alt="Image for post" class="t u v if aj" src="https://miro.medium.com/max/2560/1*ephLSqSzQYLvb7faDwzRbw.jpeg" width="1280" height="720" srcset="https://miro.medium.com/max/552/1*ephLSqSzQYLvb7faDwzRbw.jpeg 276w, https://miro.medium.com/max/1104/1*ephLSqSzQYLvb7faDwzRbw.jpeg 552w, https://miro.medium.com/max/1280/1*ephLSqSzQYLvb7faDwzRbw.jpeg 640w, https://miro.medium.com/max/1400/1*ephLSqSzQYLvb7faDwzRbw.jpeg 700w" sizes="700px"/>`,
-	}
-	testEntry := &model.Entry{
+	testEntry := model.Entry{
 		URL:   "https://example.org/article",
 		Title: `A title`,
 		Content: `
@@ -625,9 +614,11 @@ func TestMediumImage(t *testing.T) {
 		</figure>
 		`,
 	}
-	applyContentRewriteRules(t, testEntry, "fix_medium_images")
+	applyContentRewriteRules(t, &testEntry, "fix_medium_images")
 	testEntry.Content = strings.TrimSpace(testEntry.Content)
-	assert.EqualExportedValues(t, controlEntry, testEntry)
+
+	const want = `<img alt="Image for post" class="t u v if aj" src="https://miro.medium.com/max/2560/1*ephLSqSzQYLvb7faDwzRbw.jpeg" width="1280" height="720" srcset="https://miro.medium.com/max/552/1*ephLSqSzQYLvb7faDwzRbw.jpeg 276w, https://miro.medium.com/max/1104/1*ephLSqSzQYLvb7faDwzRbw.jpeg 552w, https://miro.medium.com/max/1280/1*ephLSqSzQYLvb7faDwzRbw.jpeg 640w, https://miro.medium.com/max/1400/1*ephLSqSzQYLvb7faDwzRbw.jpeg 700w" sizes="700px"/>`
+	assert.Equal(t, want, testEntry.Content)
 }
 
 func TestRewriteNoScriptImageWithoutNoScriptTag(t *testing.T) {
@@ -647,19 +638,16 @@ func TestRewriteNoScriptImageWithoutNoScriptTag(t *testing.T) {
 }
 
 func TestRewriteNoScriptImageWithNoScriptTag(t *testing.T) {
-	controlEntry := &model.Entry{
-		URL:     "https://example.org/article",
-		Title:   `A title`,
-		Content: `<figure><img src="http://example.org/logo.svg"/><figcaption>MDN Logo</figcaption></figure>`,
-	}
-	testEntry := &model.Entry{
+	testEntry := model.Entry{
 		URL:     "https://example.org/article",
 		Title:   `A title`,
 		Content: `<figure><img src="https://developer.mozilla.org/static/img/favicon144.png" alt="The beautiful MDN logo."><noscript><img src="http://example.org/logo.svg"></noscript><figcaption>MDN Logo</figcaption></figure>`,
 	}
-	applyContentRewriteRules(t, testEntry, "use_noscript_figure_images")
+	applyContentRewriteRules(t, &testEntry, "use_noscript_figure_images")
 	testEntry.Content = strings.TrimSpace(testEntry.Content)
-	assert.EqualExportedValues(t, controlEntry, testEntry)
+
+	const want = `<figure><img src="http://example.org/logo.svg"/><figcaption>MDN Logo</figcaption></figure>`
+	assert.Equal(t, want, testEntry.Content)
 }
 
 func TestRewriteReplaceCustom(t *testing.T) {
@@ -798,48 +786,39 @@ func TestRewriteAddEnclosureLinksWithoutEnclosureURL(t *testing.T) {
 }
 
 func TestRewriteBase64Decode(t *testing.T) {
-	controlEntry := &model.Entry{
-		URL:     "https://example.org/article",
-		Title:   `A title`,
-		Content: `This is some base64 encoded content`,
-	}
-	testEntry := &model.Entry{
+	testEntry := model.Entry{
 		URL:     "https://example.org/article",
 		Title:   `A title`,
 		Content: `VGhpcyBpcyBzb21lIGJhc2U2NCBlbmNvZGVkIGNvbnRlbnQ=`,
 	}
-	applyContentRewriteRules(t, testEntry, `base64_decode`)
-	assert.EqualExportedValues(t, controlEntry, testEntry)
+	applyContentRewriteRules(t, &testEntry, `base64_decode`)
+
+	const want = `This is some base64 encoded content`
+	assert.Equal(t, want, testEntry.Content)
 }
 
 func TestRewriteBase64DecodeInHTML(t *testing.T) {
-	controlEntry := &model.Entry{
-		URL:     "https://example.org/article",
-		Title:   `A title`,
-		Content: `<div>Lorem Ipsum not valid base64<span class="base64">This is some base64 encoded content</span></div>`,
-	}
-	testEntry := &model.Entry{
+	testEntry := model.Entry{
 		URL:     "https://example.org/article",
 		Title:   `A title`,
 		Content: `<div>Lorem Ipsum not valid base64<span class="base64">VGhpcyBpcyBzb21lIGJhc2U2NCBlbmNvZGVkIGNvbnRlbnQ=</span></div>`,
 	}
-	applyContentRewriteRules(t, testEntry, `base64_decode`)
-	assert.EqualExportedValues(t, controlEntry, testEntry)
+	applyContentRewriteRules(t, &testEntry, `base64_decode`)
+
+	const want = `<div>Lorem Ipsum not valid base64<span class="base64">This is some base64 encoded content</span></div>`
+	assert.Equal(t, want, testEntry.Content)
 }
 
 func TestRewriteBase64DecodeArgs(t *testing.T) {
-	controlEntry := &model.Entry{
-		URL:     "https://example.org/article",
-		Title:   `A title`,
-		Content: `<div>Lorem Ipsum<span class="base64">This is some base64 encoded content</span></div>`,
-	}
-	testEntry := &model.Entry{
+	testEntry := model.Entry{
 		URL:     "https://example.org/article",
 		Title:   `A title`,
 		Content: `<div>Lorem Ipsum<span class="base64">VGhpcyBpcyBzb21lIGJhc2U2NCBlbmNvZGVkIGNvbnRlbnQ=</span></div>`,
 	}
-	applyContentRewriteRules(t, testEntry, `base64_decode(".base64")`)
-	assert.EqualExportedValues(t, controlEntry, testEntry)
+	applyContentRewriteRules(t, &testEntry, `base64_decode(".base64")`)
+
+	const want = `<div>Lorem Ipsum<span class="base64">This is some base64 encoded content</span></div>`
+	assert.Equal(t, want, testEntry.Content)
 }
 
 func TestRewriteRemoveTables(t *testing.T) {
@@ -893,7 +872,7 @@ func TestRemoveClickbait(t *testing.T) {
 }
 
 func TestAddHackerNewsLinksUsingHack(t *testing.T) {
-	testEntry := &model.Entry{
+	testEntry := model.Entry{
 		URL:   "https://example.org/article",
 		Title: `A title`,
 		Content: `<p>Article URL: <a href="https://example.org/url">https://example.org/article</a></p>
@@ -901,21 +880,17 @@ func TestAddHackerNewsLinksUsingHack(t *testing.T) {
 		<p>Points: 23</p>
 		<p># Comments: 38</p>`,
 	}
+	applyContentRewriteRules(t, &testEntry, `add_hn_links_using_hack`)
 
-	controlEntry := &model.Entry{
-		URL:   "https://example.org/article",
-		Title: `A title`,
-		Content: `<p>Article URL: <a href="https://example.org/url">https://example.org/article</a></p>
+	const want = `<p>Article URL: <a href="https://example.org/url">https://example.org/article</a></p>
 		<p>Comments URL: <a href="https://news.ycombinator.com/item?id=37620043">https://news.ycombinator.com/item?id=37620043</a> <a href="hack://item?id=37620043">Open with HACK</a></p>
 		<p>Points: 23</p>
-		<p># Comments: 38</p>`,
-	}
-	applyContentRewriteRules(t, testEntry, `add_hn_links_using_hack`)
-	assert.EqualExportedValues(t, controlEntry, testEntry)
+		<p># Comments: 38</p>`
+	assert.Equal(t, want, testEntry.Content)
 }
 
 func TestAddHackerNewsLinksUsingOpener(t *testing.T) {
-	testEntry := &model.Entry{
+	testEntry := model.Entry{
 		URL:   "https://example.org/article",
 		Title: `A title`,
 		Content: `<p>Article URL: <a href="https://example.org/url">https://example.org/article</a></p>
@@ -923,52 +898,63 @@ func TestAddHackerNewsLinksUsingOpener(t *testing.T) {
 		<p>Points: 23</p>
 		<p># Comments: 38</p>`,
 	}
+	applyContentRewriteRules(t, &testEntry, `add_hn_links_using_opener`)
 
-	controlEntry := &model.Entry{
-		URL:   "https://example.org/article",
-		Title: `A title`,
-		Content: `<p>Article URL: <a href="https://example.org/url">https://example.org/article</a></p>
+	const want = `<p>Article URL: <a href="https://example.org/url">https://example.org/article</a></p>
 		<p>Comments URL: <a href="https://news.ycombinator.com/item?id=37620043">https://news.ycombinator.com/item?id=37620043</a> <a href="opener://x-callback-url/show-options?url=https%3A%2F%2Fnews.ycombinator.com%2Fitem%3Fid%3D37620043">Open with Opener</a></p>
 		<p>Points: 23</p>
-		<p># Comments: 38</p>`,
-	}
-	applyContentRewriteRules(t, testEntry, `add_hn_links_using_opener`)
-	assert.EqualExportedValues(t, controlEntry, testEntry)
+		<p># Comments: 38</p>`
+	assert.Equal(t, want, testEntry.Content)
 }
 
 func TestAddImageTitle(t *testing.T) {
-	testEntry := &model.Entry{
-		URL:   "https://example.org/article",
-		Title: `A title`,
-		Content: `
-		<img src="pif" title="pouf">
-		<img src="pif" title="pouf" alt='"onerror=alert(1) a="'>
-		<img src="pif" title="pouf" alt='&quot;onerror=alert(1) a=&quot'>
-		<img src="pif" title="pouf" alt=';&amp;quot;onerror=alert(1) a=;&amp;quot;'>
-		<img src="pif" alt="pouf" title='"onerror=alert(1) a="'>
-		<img src="pif" alt="pouf" title='&quot;onerror=alert(1) a=&quot'>
-		<img src="pif" alt="pouf" title=';&amp;quot;onerror=alert(1) a=;&amp;quot;'>
-		`,
+	tests := []struct {
+		in     string
+		expect string
+	}{
+		{
+			in:     `<img src="pif" title="pouf">`,
+			expect: `<figure><img src="pif" title="pouf"/><figcaption><p>pouf</p></figcaption></figure>`,
+		},
+		{
+			in:     `<img src="pif" title="pouf" alt='"onerror=alert(1) a="'>`,
+			expect: `<figure><img src="pif" title="pouf" alt="&#34;onerror=alert(1) a=&#34;"/><figcaption><p>pouf</p></figcaption></figure>`,
+		},
+		{
+			in:     `<img src="pif" title="pouf" alt='&quot;onerror=alert(1) a=&quot'>`,
+			expect: `<figure><img src="pif" title="pouf" alt="&#34;onerror=alert(1) a=&#34;"/><figcaption><p>pouf</p></figcaption></figure>`,
+		},
+		{
+			in:     `<img src="pif" title="pouf" alt=';&amp;quot;onerror=alert(1) a=;&amp;quot;'>`,
+			expect: `<figure><img src="pif" title="pouf" alt=";&amp;quot;onerror=alert(1) a=;&amp;quot;"/><figcaption><p>pouf</p></figcaption></figure>`,
+		},
+		{
+			in:     `<img src="pif" alt="pouf" title='"onerror=alert(1) a="'>`,
+			expect: `<figure><img src="pif" alt="pouf" title="&#34;onerror=alert(1) a=&#34;"/><figcaption><p>&#34;onerror=alert(1) a=&#34;</p></figcaption></figure>`,
+		},
+		{
+			in:     `<img src="pif" alt="pouf" title='&quot;onerror=alert(1) a=&quot'>`,
+			expect: `<figure><img src="pif" alt="pouf" title="&#34;onerror=alert(1) a=&#34;"/><figcaption><p>&#34;onerror=alert(1) a=&#34;</p></figcaption></figure>`,
+		},
+		{
+			in:     `<img src="pif" alt="pouf" title=';&amp;quot;onerror=alert(1) a=;&amp;quot;'>`,
+			expect: `<figure><img src="pif" alt="pouf" title=";&amp;quot;onerror=alert(1) a=;&amp;quot;"/><figcaption><p>;&amp;quot;onerror=alert(1) a=;&amp;quot;</p></figcaption></figure>`,
+		},
 	}
 
-	controlEntry := &model.Entry{
-		URL:   "https://example.org/article",
-		Title: `A title`,
-		Content: `<figure><img src="pif" alt=""/><figcaption><p>pouf</p></figcaption></figure>
-		<figure><img src="pif" alt="" onerror="alert(1)" a=""/><figcaption><p>pouf</p></figcaption></figure>
-		<figure><img src="pif" alt="" onerror="alert(1)" a=""/><figcaption><p>pouf</p></figcaption></figure>
-		<figure><img src="pif" alt=";&#34;onerror=alert(1) a=;&#34;"/><figcaption><p>pouf</p></figcaption></figure>
-		<figure><img src="pif" alt="pouf"/><figcaption><p>&#34;onerror=alert(1) a=&#34;</p></figcaption></figure>
-		<figure><img src="pif" alt="pouf"/><figcaption><p>&#34;onerror=alert(1) a=&#34;</p></figcaption></figure>
-		<figure><img src="pif" alt="pouf"/><figcaption><p>;&amp;quot;onerror=alert(1) a=;&amp;quot;</p></figcaption></figure>
-		`,
+	for i, tt := range tests {
+		entry := model.Entry{
+			URL:     "https://example.org/article",
+			Title:   `A title`,
+			Content: tt.in,
+		}
+		applyContentRewriteRules(t, &entry, `add_image_title`)
+		assert.Equal(t, tt.expect, entry.Content, "test %d: %s", i+1, tt.in)
 	}
-	applyContentRewriteRules(t, testEntry, `add_image_title`)
-	assert.EqualExportedValues(t, controlEntry, testEntry)
 }
 
 func TestFixGhostCard(t *testing.T) {
-	testEntry := &model.Entry{
+	testEntry := model.Entry{
 		URL:   "https://example.org/article",
 		Title: `A title`,
 		Content: `<figure class="kg-card kg-bookmark-card">
@@ -988,54 +974,42 @@ func TestFixGhostCard(t *testing.T) {
 			</a>
 		</figure>`,
 	}
+	applyContentRewriteRules(t, &testEntry, `fix_ghost_cards`)
 
-	controlEntry := &model.Entry{
-		URL:     "https://example.org/article",
-		Title:   `A title`,
-		Content: `<a href="https://example.org/article">Example Article - Example</a>`,
-	}
-	applyContentRewriteRules(t, testEntry, `fix_ghost_cards`)
-	assert.EqualExportedValues(t, controlEntry, testEntry)
+	const want = `<a href="https://example.org/article">Example Article - Example</a>`
+	assert.Equal(t, want, testEntry.Content)
 }
 
 func TestFixGhostCardNoCard(t *testing.T) {
-	testEntry := &model.Entry{
+	testEntry := model.Entry{
 		URL:     "https://example.org/article",
 		Title:   `A title`,
 		Content: `<a href="https://example.org/article">Example Article - Example</a>`,
 	}
+	applyContentRewriteRules(t, &testEntry, `fix_ghost_cards`)
 
-	controlEntry := &model.Entry{
-		URL:     "https://example.org/article",
-		Title:   `A title`,
-		Content: `<a href="https://example.org/article">Example Article - Example</a>`,
-	}
-	applyContentRewriteRules(t, testEntry, `fix_ghost_cards`)
-	assert.EqualExportedValues(t, controlEntry, testEntry)
+	const want = `<a href="https://example.org/article">Example Article - Example</a>`
+	assert.Equal(t, want, testEntry.Content)
 }
 
 func TestFixGhostCardInvalidCard(t *testing.T) {
-	testEntry := &model.Entry{
+	testEntry := model.Entry{
 		URL:   "https://example.org/article",
 		Title: `A title`,
 		Content: `<figure class="kg-card kg-bookmark-card">
 			<a href="https://example.org/article">This card does not have the required fields</a>
 		</figure>`,
 	}
+	applyContentRewriteRules(t, &testEntry, `fix_ghost_cards`)
 
-	controlEntry := &model.Entry{
-		URL:   "https://example.org/article",
-		Title: `A title`,
-		Content: `<figure class="kg-card kg-bookmark-card">
+	const want = `<figure class="kg-card kg-bookmark-card">
 			<a href="https://example.org/article">This card does not have the required fields</a>
-		</figure>`,
-	}
-	applyContentRewriteRules(t, testEntry, `fix_ghost_cards`)
-	assert.EqualExportedValues(t, controlEntry, testEntry)
+		</figure>`
+	assert.Equal(t, want, testEntry.Content)
 }
 
 func TestFixGhostCardMissingAuthor(t *testing.T) {
-	testEntry := &model.Entry{
+	testEntry := model.Entry{
 		URL:   "https://example.org/article",
 		Title: `A title`,
 		Content: `<figure class="kg-card kg-bookmark-card">
@@ -1050,18 +1024,14 @@ func TestFixGhostCardMissingAuthor(t *testing.T) {
 			</a>
 		</figure>`,
 	}
+	applyContentRewriteRules(t, &testEntry, `fix_ghost_cards`)
 
-	controlEntry := &model.Entry{
-		URL:     "https://example.org/article",
-		Title:   `A title`,
-		Content: `<a href="https://example.org/article">Example Article</a>`,
-	}
-	applyContentRewriteRules(t, testEntry, `fix_ghost_cards`)
-	assert.EqualExportedValues(t, controlEntry, testEntry)
+	const want = `<a href="https://example.org/article">Example Article</a>`
+	assert.Equal(t, want, testEntry.Content)
 }
 
 func TestFixGhostCardDuplicatedAuthor(t *testing.T) {
-	testEntry := &model.Entry{
+	testEntry := model.Entry{
 		URL:   "https://example.org/article",
 		Title: `A title`,
 		Content: `<figure class="kg-card kg-bookmark-card">
@@ -1081,18 +1051,14 @@ func TestFixGhostCardDuplicatedAuthor(t *testing.T) {
 			</a>
 		</figure>`,
 	}
+	applyContentRewriteRules(t, &testEntry, `fix_ghost_cards`)
 
-	controlEntry := &model.Entry{
-		URL:     "https://example.org/article",
-		Title:   `A title`,
-		Content: `<a href="https://example.org/article">Example Article - Example</a>`,
-	}
-	applyContentRewriteRules(t, testEntry, `fix_ghost_cards`)
-	assert.EqualExportedValues(t, controlEntry, testEntry)
+	const want = `<a href="https://example.org/article">Example Article - Example</a>`
+	assert.Equal(t, want, testEntry.Content)
 }
 
 func TestFixGhostCardMultiple(t *testing.T) {
-	testEntry := &model.Entry{
+	testEntry := model.Entry{
 		URL:   "https://example.org/article",
 		Title: `A title`,
 		Content: `<figure class="kg-card kg-bookmark-card">
@@ -1128,18 +1094,14 @@ func TestFixGhostCardMultiple(t *testing.T) {
 			</a>
 		</figure>`,
 	}
+	applyContentRewriteRules(t, &testEntry, `fix_ghost_cards`)
 
-	controlEntry := &model.Entry{
-		URL:     "https://example.org/article",
-		Title:   `A title`,
-		Content: `<ul><li><a href="https://example.org/article1">Example Article 1 - Example</a></li><li><a href="https://example.org/article2">Example Article 2 - Example</a></li></ul>`,
-	}
-	applyContentRewriteRules(t, testEntry, `fix_ghost_cards`)
-	assert.EqualExportedValues(t, controlEntry, testEntry)
+	const want = `<ul><li><a href="https://example.org/article1">Example Article 1 - Example</a></li><li><a href="https://example.org/article2">Example Article 2 - Example</a></li></ul>`
+	assert.Equal(t, want, testEntry.Content)
 }
 
 func TestFixGhostCardMultipleSplit(t *testing.T) {
-	testEntry := &model.Entry{
+	testEntry := model.Entry{
 		URL:   "https://example.org/article",
 		Title: `A title`,
 		Content: `<figure class="kg-card kg-bookmark-card">
@@ -1176,16 +1138,12 @@ func TestFixGhostCardMultipleSplit(t *testing.T) {
 			</a>
 		</figure>`,
 	}
+	applyContentRewriteRules(t, &testEntry, `fix_ghost_cards`)
 
-	controlEntry := &model.Entry{
-		URL:   "https://example.org/article",
-		Title: `A title`,
-		Content: `<a href="https://example.org/article1">Example Article 1 - Example</a>
+	const want = `<a href="https://example.org/article1">Example Article 1 - Example</a>
 		<p>This separates the two cards</p>
-		<a href="https://example.org/article2">Example Article 2 - Example</a>`,
-	}
-	applyContentRewriteRules(t, testEntry, `fix_ghost_cards`)
-	assert.EqualExportedValues(t, controlEntry, testEntry)
+		<a href="https://example.org/article2">Example Article 2 - Example</a>`
+	assert.Equal(t, want, testEntry.Content)
 }
 
 func TestStripImageQueryParams(t *testing.T) {
@@ -1409,4 +1367,52 @@ func TestParseRulesWellFormed(t *testing.T) {
 		{name: "replace", args: []string{"a", "b"}},
 		{name: "nl2br"},
 	}, contentRewrite.rules)
+}
+
+func TestRewriteRemoveTablesUnwrapsAllTableElements(t *testing.T) {
+	testEntry := model.Entry{
+		URL:     "https://example.org/article",
+		Title:   `A title`,
+		Content: `<table><caption>Caption</caption><colgroup><col span="2"></colgroup><thead><tr><th><p>Head</p></th></tr></thead><tbody><tr><td><p>Body</p></td></tr></tbody><tfoot><tr><td><p>Foot</p></td></tr></tfoot></table>`,
+	}
+	applyContentRewriteRules(t, &testEntry, `remove_tables`)
+
+	const want = `Caption<p>Head</p><p>Body</p><p>Foot</p>`
+	assert.Equal(t, want, testEntry.Content)
+}
+
+func TestRewriteBase64DecodeEscapesRawTextElements(t *testing.T) {
+	testEntry := model.Entry{
+		URL:     "https://example.org/article",
+		Title:   `A title`,
+		Content: `<p>VGhpcyBpcyBzb21lIGJhc2U2NCBlbmNvZGVkIGNvbnRlbnQ=</p><script>PC9zY3JpcHQ+PC9zdHlsZT48Yj5pbmplY3RlZDwvYj4=</script><style>PC9zY3JpcHQ+PC9zdHlsZT48Yj5pbmplY3RlZDwvYj4=</style>`,
+	}
+	applyContentRewriteRules(t, &testEntry, `base64_decode`)
+
+	const want = `<p>This is some base64 encoded content</p><script>&lt;/script&gt;&lt;/style&gt;&lt;b&gt;injected&lt;/b&gt;</script><style>&lt;/script&gt;&lt;/style&gt;&lt;b&gt;injected&lt;/b&gt;</style>`
+	assert.Equal(t, want, testEntry.Content)
+}
+
+func TestMediumImageKeepsOtherNoScriptContentEscaped(t *testing.T) {
+	testEntry := model.Entry{
+		URL:     "https://example.org/article",
+		Title:   `A title`,
+		Content: `<figure class="paragraph-image"><noscript><img src="https://example.org/image.jpg"></noscript></figure><noscript>&lt;/noscript&gt;&lt;b&gt;injected&lt;/b&gt;</noscript>`,
+	}
+	applyContentRewriteRules(t, &testEntry, "fix_medium_images")
+
+	const want = `<img src="https://example.org/image.jpg"/><noscript>&lt;/noscript&gt;&lt;b&gt;injected&lt;/b&gt;</noscript>`
+	assert.Equal(t, want, testEntry.Content)
+}
+
+func TestRewriteNoScriptImageKeepsOtherNoScriptContentEscaped(t *testing.T) {
+	testEntry := model.Entry{
+		URL:     "https://example.org/article",
+		Title:   `A title`,
+		Content: `<figure><img src="https://example.org/placeholder.jpg"><noscript><img src="https://example.org/image.jpg"></noscript></figure><noscript>&lt;/noscript&gt;&lt;b&gt;injected&lt;/b&gt;</noscript>`,
+	}
+	applyContentRewriteRules(t, &testEntry, "use_noscript_figure_images")
+
+	const want = `<figure><img src="https://example.org/image.jpg"/></figure><noscript>&lt;/noscript&gt;&lt;b&gt;injected&lt;/b&gt;</noscript>`
+	assert.Equal(t, want, testEntry.Content)
 }

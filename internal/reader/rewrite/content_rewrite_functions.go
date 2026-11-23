@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"html"
-	"log/slog"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -18,6 +17,7 @@ import (
 	"miniflux.app/v2/internal/model"
 
 	nethtml "golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -25,6 +25,33 @@ import (
 var (
 	youtubeIdRegex = regexp.MustCompile(`youtube_id"?\s*[:=]\s*"([a-zA-Z0-9_-]{11})"`)
 	textLinkRegex  = regexp.MustCompile(`(?mi)(\bhttps?:\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])`)
+)
+
+var (
+	body = goquery.Single("body")
+
+	figure = nethtml.Node{
+		Type:     nethtml.ElementNode,
+		Data:     "figure",
+		DataAtom: atom.Figure,
+	}
+
+	imgNode = nethtml.Node{
+		Type:     nethtml.ElementNode,
+		Data:     "img",
+		DataAtom: atom.Img,
+	}
+
+	linkNode = nethtml.Node{
+		Type:     nethtml.ElementNode,
+		Data:     "a",
+		DataAtom: atom.A,
+	}
+
+	spaceNode = nethtml.Node{
+		Type: nethtml.TextNode,
+		Data: " ",
+	}
 )
 
 // titlelize returns a copy of the string s with all Unicode letters that begin words
@@ -51,22 +78,23 @@ func addImageTitle(entryContent string) string {
 		return entryContent
 	}
 
-	matches := doc.Find("img[src][title]")
-
-	if matches.Length() > 0 {
-		matches.Each(func(i int, img *goquery.Selection) {
-			altAttr := img.AttrOr("alt", "")
-			srcAttr, _ := img.Attr("src")
-			titleAttr, _ := img.Attr("title")
-
-			img.ReplaceWithHtml(`<figure><img src="` + srcAttr + `" alt="` + altAttr + `"/><figcaption><p>` + html.EscapeString(titleAttr) + `</p></figcaption></figure>`)
-		})
-
-		output, _ := doc.FindMatcher(goquery.Single("body")).Html()
-		return output
+	images := doc.Find("img[src][title]")
+	if images.Length() == 0 {
+		return entryContent
 	}
 
-	return entryContent
+	for _, img := range images.EachIter() {
+		img.WrapAllNode(new(figure)).Parent().
+			AppendHtml(`<figcaption><p></p></figcaption>`).
+			Children().Last(). // figcaption
+			Children().SetText(img.AttrOr("title", ""))
+	}
+
+	output, err := doc.FindMatcher(body).Html()
+	if err != nil {
+		return entryContent
+	}
+	return output
 }
 
 func addMailtoSubject(entryContent string) string {
@@ -75,38 +103,37 @@ func addMailtoSubject(entryContent string) string {
 		return entryContent
 	}
 
-	matches := doc.Find(`a[href^="mailto:"]`)
-
-	if matches.Length() > 0 {
-		matches.Each(func(i int, a *goquery.Selection) {
-			hrefAttr, _ := a.Attr("href")
-
-			mailto, err := url.Parse(hrefAttr)
-			if err != nil {
-				return
-			}
-
-			subject := mailto.Query().Get("subject")
-			if subject == "" {
-				return
-			}
-
-			a.AppendHtml(" [" + html.EscapeString(subject) + "]")
-		})
-
-		output, _ := doc.FindMatcher(goquery.Single("body")).Html()
-		return output
+	mailToLinks := doc.Find(`a[href^="mailto:"]`)
+	if mailToLinks.Length() == 0 {
+		return entryContent
 	}
 
-	return entryContent
-}
+	for _, a := range mailToLinks.EachIter() {
+		mailto, err := url.Parse(a.AttrOr("href", ""))
+		if err != nil {
+			continue
+		}
 
-func addDynamicImage(entryContent string) string {
-	parserHtml, err := nethtml.ParseWithOptions(strings.NewReader(entryContent), nethtml.ParseOptionEnableScripting(false))
+		if subject := mailto.Query().Get("subject"); subject != "" {
+			a.AppendNodes(new(spaceNode)).AppendHtml(`<span></span>`).
+				Children().Last().SetText("[" + subject + "]")
+		}
+	}
+
+	output, err := doc.FindMatcher(body).Html()
 	if err != nil {
 		return entryContent
 	}
-	doc := goquery.NewDocumentFromNode(parserHtml)
+	return output
+}
+
+func addDynamicImage(entryContent string) string {
+	doc, err := goquery.NewDocumentFromReaderWithOptions(
+		strings.NewReader(entryContent),
+		nethtml.ParseOptionEnableScripting(false))
+	if err != nil {
+		return entryContent
+	}
 
 	// Ordered most preferred to least preferred.
 	candidateAttrs := [...]string{
@@ -125,61 +152,72 @@ func addDynamicImage(entryContent string) string {
 		"data-500src",
 		"data-380src",
 	}
+	candidateSrcsetAttrs := [...]string{"data-srcset"}
 
-	candidateSrcsetAttrs := [...]string{
-		"data-srcset",
-	}
-
-	changed := false
-
-	doc.Find("img,div").Each(func(i int, img *goquery.Selection) {
+	var changed bool
+	for _, img := range doc.Find("img,div").EachIter() {
 		// Src-linked candidates
-		for _, candidateAttr := range candidateAttrs {
-			if srcAttr, found := img.Attr(candidateAttr); found {
-				changed = true
+		for _, attr := range candidateAttrs {
+			src, found := img.Attr(attr)
+			if !found {
+				continue
+			}
 
-				if img.Is("img") {
-					img.SetAttr("src", srcAttr)
-				} else {
-					altAttr := img.AttrOr("alt", "")
-					img.ReplaceWithHtml(`<img src="` + srcAttr + `" alt="` + altAttr + `"/>`)
-				}
-
+			changed = true
+			if img.Is("img") {
+				img.SetAttr("src", src)
 				break
 			}
+
+			s := (&goquery.Selection{Nodes: []*nethtml.Node{new(imgNode)}}).
+				SetAttr("src", src)
+			if alt, ok := img.Attr("alt"); ok {
+				s.SetAttr("alt", alt)
+			}
+
+			img.ReplaceWithSelection(s)
+			break
 		}
 
 		// Srcset-linked candidates
-		for _, candidateAttr := range candidateSrcsetAttrs {
-			if srcAttr, found := img.Attr(candidateAttr); found {
-				changed = true
+		for _, attr := range candidateSrcsetAttrs {
+			src, found := img.Attr(attr)
+			if !found {
+				continue
+			}
 
-				if img.Is("img") {
-					img.SetAttr("srcset", srcAttr)
-				} else {
-					altAttr := img.AttrOr("alt", "")
-					img.ReplaceWithHtml(`<img srcset="` + srcAttr + `" alt="` + altAttr + `"/>`)
-				}
-
+			changed = true
+			if img.Is("img") {
+				img.SetAttr("srcset", src)
 				break
 			}
+
+			s := goquery.Selection{Nodes: []*nethtml.Node{new(imgNode)}}
+			s.SetAttr("srcset", src)
+			if alt, ok := img.Attr("alt"); ok {
+				s.SetAttr("alt", alt)
+			}
+
+			img.ReplaceWithSelection(&s)
+			break
 		}
-	})
+	}
 
 	if !changed {
-		doc.Find("noscript").Each(func(i int, noscript *goquery.Selection) {
+		for _, noscript := range doc.Find("noscript").EachIter() {
 			if img := noscript.Find("img"); img.Length() == 1 {
 				img.Unwrap()
 				changed = true
 			}
-		})
+		}
 	}
 
 	if changed {
-		output, _ := doc.FindMatcher(goquery.Single("body")).Html()
-		return output
+		output, err := doc.FindMatcher(body).Html()
+		if err == nil {
+			return output
+		}
 	}
-
 	return entryContent
 }
 
@@ -198,26 +236,26 @@ func addDynamicIframe(entryContent string) string {
 		"data-lazy-src",
 	}
 
-	changed := false
-
-	doc.Find("iframe").Each(func(i int, iframe *goquery.Selection) {
-		for _, candidateAttr := range candidateAttrs {
-			if srcAttr, found := iframe.Attr(candidateAttr); found {
+	var changed bool
+	for _, iframe := range doc.Find("iframe").EachIter() {
+		for _, attr := range candidateAttrs {
+			if src, found := iframe.Attr(attr); found {
 				changed = true
-
-				iframe.SetAttr("src", srcAttr)
-
+				iframe.SetAttr("src", src)
 				break
 			}
 		}
-	})
-
-	if changed {
-		output, _ := doc.FindMatcher(goquery.Single("body")).Html()
-		return output
 	}
 
-	return entryContent
+	if !changed {
+		return entryContent
+	}
+
+	output, err := doc.FindMatcher(body).Html()
+	if err != nil {
+		return entryContent
+	}
+	return output
 }
 
 func fixMediumImages(entryContent string) string {
@@ -226,14 +264,28 @@ func fixMediumImages(entryContent string) string {
 		return entryContent
 	}
 
-	doc.Find("figure.paragraph-image").Each(func(i int, paragraphImage *goquery.Selection) {
-		noscriptElement := paragraphImage.Find("noscript")
-		if noscriptElement.Length() > 0 {
-			paragraphImage.ReplaceWithHtml(noscriptElement.Text())
+	var changed bool
+	for _, fg := range doc.Find("figure.paragraph-image").EachIter() {
+		noscript := fg.Find("noscript")
+		if noscript.Length() != 0 {
+			images, err := nethtml.ParseFragment(
+				strings.NewReader(noscript.Text()), fg.Get(0).Parent)
+			if err != nil {
+				continue
+			}
+			fg.ReplaceWithNodes(images...)
+			changed = true
 		}
-	})
+	}
 
-	output, _ := doc.FindMatcher(goquery.Single("body")).Html()
+	if !changed {
+		return entryContent
+	}
+
+	output, err := doc.FindMatcher(body).Html()
+	if err != nil {
+		return entryContent
+	}
 	return output
 }
 
@@ -243,19 +295,32 @@ func useNoScriptImages(entryContent string) string {
 		return entryContent
 	}
 
-	doc.Find("figure").Each(func(i int, figureElement *goquery.Selection) {
-		imgElement := figureElement.Find("img")
-		if imgElement.Length() > 0 {
-			noscriptElement := figureElement.Find("noscript")
-			if noscriptElement.Length() > 0 {
-				figureElement.PrependHtml(noscriptElement.Text())
-				imgElement.Remove()
-				noscriptElement.Remove()
-			}
+	for _, fg := range doc.Find("figure").EachIter() {
+		img := fg.Find("img")
+		if img.Length() == 0 {
+			continue
 		}
-	})
 
-	output, _ := doc.FindMatcher(goquery.Single("body")).Html()
+		noscript := fg.Find("noscript")
+		if noscript.Length() == 0 {
+			continue
+		}
+
+		images, err := nethtml.ParseFragment(
+			strings.NewReader(noscript.Text()), fg.Get(0))
+		if err != nil {
+			continue
+		}
+
+		fg.PrependNodes(images...)
+		img.Remove()
+		noscript.Remove()
+	}
+
+	output, err := doc.FindMatcher(body).Html()
+	if err != nil {
+		return entryContent
+	}
 	return output
 }
 
@@ -405,14 +470,22 @@ func addCastopodEpisode(entryURL, entryContent string) string {
 	return player + `<br>` + entryContent
 }
 
-func applyFuncOnTextContent(entryContent, selector string, repl func(string) string) string {
-	var treatChildren func(i int, s *goquery.Selection)
-	treatChildren = func(i int, s *goquery.Selection) {
-		if s.Nodes[0].Type == nethtml.TextNode {
-			s.ReplaceWithHtml(repl(s.Nodes[0].Data))
-		} else {
-			s.Contents().Each(treatChildren)
+// applyFuncOnTextContent replaces the text nodes under the selector with the
+// plain text returned by decoder.
+func applyFuncOnTextContent(entryContent, selector string,
+	decoder func(string) (string, bool),
+) string {
+	var changed bool
+	var fn func(i int, s *goquery.Selection)
+	fn = func(i int, s *goquery.Selection) {
+		if n := s.Nodes[0]; n.Type == nethtml.TextNode {
+			if s, ok := decoder(n.Data); ok && s != n.Data {
+				n.Data = html.EscapeString(s)
+				changed = true
+			}
+			return
 		}
+		s.Contents().Each(fn)
 	}
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(entryContent))
@@ -420,70 +493,24 @@ func applyFuncOnTextContent(entryContent, selector string, repl func(string) str
 		return entryContent
 	}
 
-	doc.Find(selector).Each(treatChildren)
+	doc.Find(selector).Each(fn)
+	if !changed {
+		return entryContent
+	}
 
-	output, _ := doc.FindMatcher(goquery.Single("body")).Html()
+	output, err := doc.FindMatcher(body).Html()
+	if err != nil {
+		return entryContent
+	}
 	return output
 }
 
-func decodeBase64Content(entryContent string) string {
-	if ret, err := base64.StdEncoding.DecodeString(strings.TrimSpace(entryContent)); err != nil {
-		return entryContent
-	} else {
-		return html.EscapeString(string(ret))
-	}
-}
-
-func addHackerNewsLinksUsing(entryContent, app string) string {
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(entryContent))
+func decodeBase64Content(entryContent string) (string, bool) {
+	b, err := base64.StdEncoding.DecodeString(strings.TrimSpace(entryContent))
 	if err != nil {
-		return entryContent
+		return entryContent, false
 	}
-
-	hn_prefix := "https://news.ycombinator.com/"
-	matches := doc.Find(`a[href^="` + hn_prefix + `"]`)
-
-	if matches.Length() > 0 {
-		matches.Each(func(i int, a *goquery.Selection) {
-			hrefAttr, _ := a.Attr("href")
-
-			hn_uri, err := url.Parse(hrefAttr)
-			if err != nil {
-				return
-			}
-
-			switch app {
-			case "opener":
-				params := url.Values{}
-				params.Add("url", hn_uri.String())
-
-				url := url.URL{
-					Scheme:   "opener",
-					Host:     "x-callback-url",
-					Path:     "show-options",
-					RawQuery: params.Encode(),
-				}
-
-				open_with_opener := `<a href="` + url.String() + `">Open with Opener</a>`
-				a.Parent().AppendHtml(" " + open_with_opener)
-			case "hack":
-				url := strings.Replace(hn_uri.String(), hn_prefix, "hack://", 1)
-
-				open_with_hack := `<a href="` + url + `">Open with HACK</a>`
-				a.Parent().AppendHtml(" " + open_with_hack)
-			default:
-				slog.Warn("Unknown app provided for openHackerNewsLinksWith rewrite rule",
-					slog.String("app", app),
-				)
-				return
-			}
-		})
-
-		output, _ := doc.FindMatcher(goquery.Single("body")).Html()
-		return output
-	}
-
-	return entryContent
+	return string(b), true
 }
 
 func removeTables(entryContent string) string {
@@ -492,32 +519,21 @@ func removeTables(entryContent string) string {
 		return entryContent
 	}
 
-	selectors := []string{"table", "tbody", "thead", "td", "th", "td"}
+	// Column definitions have no content to keep.
+	doc.Find("col").Remove()
 
-	var loopElement *goquery.Selection
-
-	for _, selector := range selectors {
-		for {
-			loopElement = doc.FindMatcher(goquery.Single(selector))
-
-			if loopElement.Length() == 0 {
-				break
-			}
-
-			innerHtml, err := loopElement.Html()
-			if err != nil {
-				break
-			}
-
-			// Replace the element with its own content in place, so the
-			// surrounding content keeps its original document order.
-			// Appending to the parent would move the unwrapped content to
-			// the end of the parent instead.
-			loopElement.ReplaceWithHtml(innerHtml)
-		}
+	// Replace each table element with its own content in place, so the
+	// surrounding content keeps its original document order. Appending to the
+	// parent would move the unwrapped content to the end of the parent instead.
+	const selector = "table, caption, colgroup, thead, tbody, tfoot, tr, th, td"
+	for _, s := range doc.Find(selector).EachIter() {
+		s.ReplaceWithSelection(s.Contents())
 	}
 
-	output, _ := doc.FindMatcher(goquery.Single("body")).Html()
+	output, err := doc.FindMatcher(body).Html()
+	if err != nil {
+		return entryContent
+	}
 	return output
 }
 
@@ -528,48 +544,58 @@ func fixGhostCards(entryContent string) string {
 	}
 
 	const cardSelector = "figure.kg-card"
-	var currentList *goquery.Selection
+	cards := doc.Find(cardSelector)
+	if cards.Length() == 0 {
+		return entryContent
+	}
 
-	doc.Find(cardSelector).Each(func(i int, s *goquery.Selection) {
-		title := s.Find(".kg-bookmark-title").First().Text()
-		author := s.Find(".kg-bookmark-author").First().Text()
-		href := s.Find("a.kg-bookmark-container").First().AttrOr("href", "")
+	var currentList *goquery.Selection
+	for _, card := range cards.EachIter() {
+		title := card.Find(".kg-bookmark-title").First().Text()
+		author := card.Find(".kg-bookmark-author").First().Text()
+		href := card.Find("a.kg-bookmark-container").First().AttrOr("href", "")
 
 		// if there is no link or title, skip processing
 		if href == "" || title == "" {
-			return
+			continue
 		}
 
-		var link string
+		s := goquery.Selection{Nodes: []*nethtml.Node{new(linkNode)}}
+		s.SetAttr("href", href)
 		if author == "" || strings.HasSuffix(title, author) {
-			link = fmt.Sprintf("<a href=\"%s\">%s</a>", href, title)
+			s.SetText(title)
 		} else {
-			link = fmt.Sprintf("<a href=\"%s\">%s - %s</a>", href, title, author)
+			s.SetText(title + " - " + author)
 		}
 
-		next := s.Next()
+		next := card.Next()
 
 		// if the next element is also a card, start a list
 		if next.Is(cardSelector) && currentList == nil {
-			currentList = s.BeforeHtml("<ul></ul>").Prev()
+			currentList = card.BeforeHtml("<ul></ul>").Prev()
 		}
 
 		if currentList != nil {
 			// add this card to the list, then delete it
-			currentList.AppendHtml("<li>" + link + "</li>")
-			s.Remove()
+			currentList.AppendHtml("<li></li>").
+				Children().Last(). // <li>
+				AppendSelection(&s)
+			card.Remove()
 		} else {
 			// replace single card
-			s.ReplaceWithHtml(link)
+			card.ReplaceWithSelection(&s)
 		}
 
 		// if the next element is not a card, start a new list
 		if !next.Is(cardSelector) && currentList != nil {
 			currentList = nil
 		}
-	})
+	}
 
-	output, _ := doc.FindMatcher(goquery.Single("body")).Html()
+	output, err := doc.FindMatcher(body).Html()
+	if err != nil {
+		return entryContent
+	}
 	return strings.TrimSpace(output)
 }
 
