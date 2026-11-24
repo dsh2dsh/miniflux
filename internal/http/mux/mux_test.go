@@ -1,8 +1,11 @@
 package mux
 
 import (
+	"bytes"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -191,4 +194,57 @@ func TestServeMux(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestServeMux_cleanup_multipartForm(t *testing.T) {
+	mux := New()
+	mux.Use(func(next http.Handler) http.Handler {
+		fn := func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r.WithContext(r.Context()))
+		}
+		return http.HandlerFunc(fn)
+	})
+
+	// os.TempDir reads TMPDIR on Unix and TMP on Windows.
+	tempDir := t.TempDir()
+	t.Setenv("TMPDIR", tempDir)
+	t.Setenv("TMP", tempDir)
+
+	mux.HandleFunc("POST /upload", func(w http.ResponseWriter, r *http.Request) {
+		// A tiny memory limit forces the file part to be written to disk.
+		if !assert.NoError(t, r.ParseMultipartForm(1)) {
+			return
+		}
+
+		entries, err := os.ReadDir(tempDir)
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.NotEmpty(t, entries,
+			"Expected the file part to be stored in a temporary file")
+	})
+
+	var body bytes.Buffer
+	mpw := multipart.NewWriter(&body)
+	part, err := mpw.CreateFormFile("file", "feeds.opml")
+	require.NoError(t, err)
+	_, err = part.Write(bytes.Repeat([]byte("a"), 4096))
+	require.NoError(t, err)
+	require.NoError(t, mpw.Close())
+	contentType := mpw.FormDataContentType()
+
+	r := httptest.NewRequestWithContext(t.Context(),
+		http.MethodPost, "/upload", &body)
+	r.Header.Set("Content-Type", contentType)
+
+	rw := httptest.NewRecorder()
+	mux.ServeHTTP(rw, r)
+	resp := rw.Result()
+	t.Cleanup(func() { _ = resp.Body.Close() })
+
+	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code")
+
+	entries, err := os.ReadDir(tempDir)
+	require.NoError(t, err)
+	assert.Empty(t, entries, "Expected temporary files to be removed")
 }

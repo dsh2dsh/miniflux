@@ -43,10 +43,21 @@ func (self *ServeMux) Handle(pattern string, handler http.Handler) *ServeMux {
 func (self *ServeMux) mux() *http.ServeMux { return self.ServeMux }
 
 func (self *ServeMux) wrapped(handler http.Handler) http.Handler {
+	handler = self.cleanup(handler)
 	for _, m := range slices.Backward(self.middlewares) {
 		handler = m(handler)
 	}
 	return handler
+}
+
+func (self *ServeMux) cleanup(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r)
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll()
+		}
+	}
+	return http.HandlerFunc(fn)
 }
 
 func (self *ServeMux) HandleFunc(pattern string,
