@@ -71,9 +71,6 @@ func (h *handler) updateIntegration(w http.ResponseWriter, r *http.Request) {
 			h.redirect(w, r, "integrations")
 			return
 		}
-		if i.LinktacoVisibility == "" {
-			i.LinktacoVisibility = "PUBLIC"
-		}
 	}
 
 	if err := h.store.UpdateUser(ctx, user); err != nil {

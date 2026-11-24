@@ -277,6 +277,19 @@ function showToastNotification(iconType, notificationMessage) {
 }
 
 /**
+ * Navigate to the current page from the top without preserving scroll position.
+ *
+ * Unlike location.reload(), location.replace() does not restore the previous
+ * scroll position. We also clear the hash so the browser fetches the page
+ * instead of treating location.replace() as an in-page jump.
+ */
+function reloadPageAtTop() {
+    const url = new URL(window.location.href);
+    url.hash = "";
+    window.location.replace(url.href);
+}
+
+/**
  * Navigate to a specific page.
  *
  * @param {string} page - The page to navigate to.
@@ -288,7 +301,7 @@ function goToPage(page, reloadOnFail = false) {
     if (element) {
         document.location.href = element.href;
     } else if (reloadOnFail) {
-        location.replace(location.href);
+        reloadPageAtTop();
     }
 }
 
@@ -589,7 +602,7 @@ function markPageAsReadAction() {
         const showOnlyUnread = element?.dataset.showOnlyUnread || false;
 
         if (showOnlyUnread) {
-            location.replace(location.href);
+            reloadPageAtTop();
         } else {
             goToPage("next", true);
         }
