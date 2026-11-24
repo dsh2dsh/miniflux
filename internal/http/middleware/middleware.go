@@ -44,3 +44,9 @@ func CrossOriginProtection() MiddlewareFunc {
 	}
 	return func(next http.Handler) http.Handler { return c.Handler(next) }
 }
+
+func MaxBytes(n int64) MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.MaxBytesHandler(next, n)
+	}
+}

@@ -268,7 +268,11 @@ func (self *Server) httpHandler() http.Handler {
 		})
 	}
 
-	m.Use(middleware.WithAccessLog(), middleware.WithPanic)
+	m.Use(
+		middleware.WithAccessLog(),
+		middleware.MaxBytes(config.HTTPServerMaxBodySize()),
+		middleware.WithPanic,
+	)
 
 	fever.Serve(m, self.store)
 	googlereader.Serve(m, self.store, self.templates)

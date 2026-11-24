@@ -98,6 +98,7 @@ type envOptions struct {
 	HttpClientProxyURL             *url.URL   `env:"HTTP_CLIENT_PROXY"`
 	HttpClientTimeout              int        `env:"HTTP_CLIENT_TIMEOUT" validate:"min=1"`
 	HttpClientUserAgent            string     `env:"HTTP_CLIENT_USER_AGENT"`
+	HttpServerMaxBodySize          int64      `env:"HTTP_SERVER_MAX_BODY_SIZE" validate:"min=1"`
 	HttpServerTimeout              int        `env:"HTTP_SERVER_TIMEOUT" validate:"min=1"`
 	IntegrationPrivateNets         bool       `env:"INTEGRATION_ALLOW_PRIVATE_NETWORKS"`
 	InvidiousInstance              string     `env:"INVIDIOUS_INSTANCE"`
@@ -200,6 +201,7 @@ func NewOptions() *options {
 			HttpClientTimeout:              20,
 			HttpClientMaxBodySize:          15,
 			HttpClientUserAgent:            defaultUA,
+			HttpServerMaxBodySize:          15,
 			HttpServerTimeout:              300,
 			MaintenanceMessage:             "Miniflux is currently under maintenance",
 			MetricsRefreshInterval:         60,
@@ -459,6 +461,7 @@ func (o *options) sortedOptions(redactSecret bool) []Option {
 		"HTTP_CLIENT_PROXY":                  clientProxyURLRedacted,
 		"HTTP_CLIENT_TIMEOUT":                o.env.HttpClientTimeout,
 		"HTTP_CLIENT_USER_AGENT":             o.env.HttpClientUserAgent,
+		"HTTP_SERVER_MAX_BODY_SIZE":          o.env.HttpServerMaxBodySize,
 		"HTTP_SERVER_TIMEOUT":                o.env.HttpServerTimeout,
 		"HTTP_SERVICE":                       !o.env.DisableHttpService,
 		"INVIDIOUS_INSTANCE":                 o.env.InvidiousInstance,
@@ -835,6 +838,10 @@ func HTTPClientProxies() []*url.URL { return opts.env.HttpClientProxies }
 // configured.
 func HasHTTPClientProxiesConfigured() bool {
 	return len(opts.env.HttpClientProxies) > 0
+}
+
+func HTTPServerMaxBodySize() int64 {
+	return opts.env.HttpServerMaxBodySize * 1024 * 1024
 }
 
 // HTTPServerTimeout returns the time limit in seconds before the HTTP server
