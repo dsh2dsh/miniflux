@@ -805,6 +805,92 @@ func TestRequestBuilder_DenyPrivateNetwork_skipProxy(t *testing.T) {
 		proxyRequests)
 }
 
+func TestRequestBuilder_refuseRedirectToEnvProxyAddress(t *testing.T) {
+	if testing.Verbose() {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
+	configureNoRateLimit(t)
+
+	var proxyRequests string
+	var proxyServer *httptest.Server
+	proxyServer = httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			// A proxied request carries an absolute URL, a direct request does not.
+			if r.URL.IsAbs() {
+				http.Redirect(w, r, proxyServer.URL+"/private", http.StatusFound)
+				return
+			}
+
+			proxyRequests = r.URL.Path
+			w.WriteHeader(http.StatusOK)
+		}))
+	t.Cleanup(proxyServer.Close)
+	t.Log("proxyServer:", proxyServer.URL)
+
+	t.Setenv("HTTP_PROXY", proxyServer.URL)
+
+	const targetURL = "http://feed.invalid/rss.xml"
+	_, err := NewRequestBuilder().Request(t.Context(), targetURL)
+	require.ErrorIs(t, err, ErrPrivateNetworkHost)
+	assert.Empty(t, proxyRequests,
+		"Expected the environment proxy to receive no direct request")
+}
+
+func TestRequestBuilder_refuseRequestToEnvProxyAddress(t *testing.T) {
+	if testing.Verbose() {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
+	configureNoRateLimit(t)
+
+	var proxyRequests string
+	proxyServer := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			proxyRequests = r.URL.Path
+			w.WriteHeader(http.StatusOK)
+		}))
+	t.Cleanup(proxyServer.Close)
+	t.Log("proxyServer:", proxyServer.URL)
+
+	t.Setenv("HTTP_PROXY", proxyServer.URL)
+
+	targetURL := proxyServer.URL + "/private"
+	_, err := NewRequestBuilder().Request(t.Context(), targetURL)
+	require.ErrorIs(t, err, ErrPrivateNetworkHost)
+	assert.Empty(t, proxyRequests,
+		"Expected the environment proxy to receive no request")
+}
+
+func TestRequestBuilder_refuseRedirectFromEnvProxyToPrivate(t *testing.T) {
+	if testing.Verbose() {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
+	configureNoRateLimit(t)
+
+	var privateRequests string
+	privateServer := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			privateRequests = r.URL.Path
+			w.WriteHeader(http.StatusOK)
+		}))
+	t.Cleanup(privateServer.Close)
+	t.Log("privateServer:", privateServer.URL)
+
+	proxyServer := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, privateServer.URL+"/private", http.StatusFound)
+		}))
+	t.Cleanup(proxyServer.Close)
+	t.Log("proxyServer:", proxyServer.URL)
+
+	t.Setenv("HTTP_PROXY", proxyServer.URL)
+
+	const targetURL = "http://feed.invalid/rss.xml"
+	_, err := NewRequestBuilder().Request(t.Context(), targetURL)
+	require.ErrorIs(t, err, ErrPrivateNetworkHost)
+	assert.Empty(t, privateRequests,
+		"Expected the private server to receive no request")
+}
+
 func TestRequestBuilder_AllowPrivateEnvProxy_afterRedirect(t *testing.T) {
 	if testing.Verbose() {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
