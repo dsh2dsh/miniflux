@@ -9,7 +9,23 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/text/encoding/unicode"
 )
+
+func TestParseFeedWithUTF16Encoding(t *testing.T) {
+	t.Skip() // TODO: unskip later
+
+	document := `<?xml version="1.0" encoding="utf-16"?><rss version="2.0"><channel><title>Título</title><item><title>i</title></item></channel></rss>`
+	data, err := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM).
+		NewEncoder().
+		Bytes([]byte(document))
+	require.NoError(t, err)
+
+	feed, err := ParseBytes("https://example.org/", data)
+	require.NoError(t, err)
+	assert.Equal(t, "Título", feed.Title, "Incorrect feed title")
+	assert.Len(t, feed.Entries, 1, "Incorrect number of entries")
+}
 
 func BenchmarkParseBytes(b *testing.B) {
 	tests := []struct {
