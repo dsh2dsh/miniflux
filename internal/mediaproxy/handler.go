@@ -6,10 +6,12 @@ import (
 	"encoding/base64"
 	"errors"
 	"log/slog"
+	"mime"
 	"net/http"
 	"net/url"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"miniflux.app/v2/internal/config"
@@ -33,7 +35,6 @@ var proxyResponseHeaders = [...]string{
 	"Content-Encoding",
 	"Content-Length",
 	"Content-Range",
-	"Content-Type",
 }
 
 func Serve(w http.ResponseWriter, r *http.Request) {
@@ -72,7 +73,8 @@ func Serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := url.Parse(string(decodedURL))
+	mediaURL := string(decodedURL)
+	u, err := url.Parse(mediaURL)
 	if err != nil {
 		response.BadRequest(w, r, errors.New("invalid URL provided"))
 		return
@@ -88,7 +90,6 @@ func Serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mediaURL := string(decodedURL)
 	log := logging.FromContext(r.Context()).With(
 		slog.String("media_url", mediaURL))
 	log.Debug("MediaProxy: Fetching remote resource")
@@ -136,13 +137,28 @@ func Serve(w http.ResponseWriter, r *http.Request) {
 
 	etag := crypto.HashFromBytes(decodedURL)
 
+	contentType, inline := inlineMediaType(resp.Header("Content-Type"))
+	if !inline {
+		log.Debug("MediaProxy: Forcing download for non-media content type",
+			slog.String("content_type", resp.Header("Content-Type")))
+	}
+
+	filename := path.Base(u.EscapedPath())
+	switch filename {
+	case ".", "/":
+		filename = ""
+	}
+
 	response.New(w, r).WithCaching(etag, 72*time.Hour, func(b *response.Builder) {
 		b.WithStatus(resp.StatusCode())
 		b.WithHeader("Content-Security-Policy",
 			response.ContentSecurityPolicyForUntrustedContent)
-		b.WithHeader("Content-Type", resp.Header("Content-Type"))
+		b.WithHeader("Content-Type", contentType)
 
-		if filename := path.Base(u.EscapedPath()); filename != "" {
+		switch {
+		case !inline:
+			b.WithAttachment(filename)
+		case filename != "":
 			b.WithInline(filename)
 		}
 
@@ -156,4 +172,21 @@ func Serve(w http.ResponseWriter, r *http.Request) {
 		b.WithoutCompression()
 		b.Write()
 	})
+}
+
+func inlineMediaType(contentType string) (string, bool) {
+	const octetStream = "application/octet-stream"
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return octetStream, false
+	}
+
+	ok := strings.HasPrefix(mediaType, "image/") ||
+		strings.HasPrefix(mediaType, "audio/") ||
+		strings.HasPrefix(mediaType, "video/")
+
+	if !ok {
+		return octetStream, false
+	}
+	return contentType, true
 }

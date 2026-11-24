@@ -5,7 +5,10 @@ package mediaproxy
 
 import (
 	_ "embed"
+	"io"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"testing"
 
@@ -914,6 +917,172 @@ func TestProxifyEnclosures_list(t *testing.T) {
 			if changedCount != tt.expectedChangedCount {
 				t.Errorf("ProxifyEnclosureURL() changed %d URLs, want %d", changedCount, tt.expectedChangedCount)
 			}
+		})
+	}
+}
+
+func Test_inlineMediaType(t *testing.T) {
+	tests := []struct {
+		contentType string
+		inline      bool
+	}{
+		{"image/png", true},
+		{"image/svg+xml", true},
+		{"IMAGE/JPEG; charset=utf-8", true},
+		{"audio/mpeg", true},
+		{"video/mp4", true},
+		{"text/html", false},
+		{"text/html; charset=utf-8", false},
+		{"application/xhtml+xml", false},
+		{"application/octet-stream", false},
+		{"text/plain", false},
+		{"", false},
+		{";;", false},
+		{"image", false},
+	}
+
+	for _, tt := range tests {
+		contentType, inline := inlineMediaType(tt.contentType)
+		assert.Equal(t, tt.inline, inline, "unexpected inline")
+
+		if inline {
+			assert.Equal(t, tt.contentType, contentType,
+				"unexpected inline content type")
+		} else {
+			assert.Equal(t, "application/octet-stream", contentType,
+				"unexpected attachment content type")
+		}
+	}
+}
+
+func configureNoRateLimit(t *testing.T) {
+	t.Helper()
+	t.Setenv("FETCHER_ALLOW_PRIVATE_NETWORKS", "1")
+	t.Setenv("MEDIA_PROXY_PRIVATE_KEY", "test-private-key")
+	t.Setenv("RATE_LIMIT_PER_SERVER", "0")
+	require.NoError(t, config.Load(""))
+}
+
+func TestMediaProxyContentTypeHandling(t *testing.T) {
+	configureNoRateLimit(t)
+
+	tests := []struct {
+		name                       string
+		upstreamPath               string
+		upstreamContentType        string
+		expectedContentType        string
+		expectedContentDisposition string
+	}{
+		{
+			"png image",
+			"/image.png",
+			"image/png",
+			"image/png",
+			"inline; filename=image.png",
+		},
+		{
+			"svg image with parameters",
+			"/image.svg",
+			"IMAGE/SVG+XML; charset=utf-8",
+			"IMAGE/SVG+XML; charset=utf-8",
+			"inline; filename=image.svg",
+		},
+		{
+			"audio",
+			"/episode.mp3",
+			"audio/mpeg",
+			"audio/mpeg",
+			"inline; filename=episode.mp3",
+		},
+		{
+			"video",
+			"/clip.mp4",
+			"video/mp4",
+			"video/mp4",
+			"inline; filename=clip.mp4",
+		},
+		{
+			"image without filename",
+			"/",
+			"image/png",
+			"image/png",
+			"",
+		},
+		{
+			"html page",
+			"/page.html",
+			"text/html; charset=utf-8",
+			"application/octet-stream",
+			"attachment; filename=page.html",
+		},
+		{
+			"xhtml page",
+			"/page.xhtml",
+			"application/xhtml+xml",
+			"application/octet-stream",
+			"attachment; filename=page.xhtml",
+		},
+		{
+			"html page without filename",
+			"/",
+			"text/html",
+			"application/octet-stream",
+			"attachment",
+		},
+		{
+			"missing content type",
+			"/unknown",
+			"",
+			"application/octet-stream",
+			"attachment; filename=unknown",
+		},
+		{
+			"malformed content type",
+			"/broken",
+			";;",
+			"application/octet-stream",
+			"attachment; filename=broken",
+		},
+	}
+
+	mux := mux.New()
+	mux.NameHandleFunc("GET /proxy/{encodedDigest}/{encodedURL}", Serve, "proxy")
+	proxy := proxyRewriter{m: mux}
+
+	const upstreamBody = "<html><body>upstream body</body></html>"
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			upstreamServer := httptest.NewServer(http.HandlerFunc(
+				func(w http.ResponseWriter, r *http.Request) {
+					if tt.upstreamContentType == "" {
+						// Setting the header to nil prevents net/http from sniffing a Content-Type.
+						w.Header()["Content-Type"] = nil
+					} else {
+						w.Header().Set("Content-Type", tt.upstreamContentType)
+					}
+					io.WriteString(w, upstreamBody)
+				}))
+			t.Cleanup(upstreamServer.Close)
+
+			u, err := url.Parse(upstreamServer.URL + tt.upstreamPath)
+			require.NoError(t, err)
+			proxyPath := proxy.proxify(u).String()
+
+			rr := httptest.NewRecorder()
+			mux.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, proxyPath, nil))
+
+			resp := rr.Result()
+			require.Equal(t, http.StatusOK, resp.StatusCode,
+				"Unexpected status code")
+
+			contentType := resp.Header.Get("Content-Type")
+			assert.Equal(t, tt.expectedContentType, contentType,
+				"Unexpected Content-Type")
+
+			contentDisposition := resp.Header.Get("Content-Disposition")
+			assert.Equal(t, tt.expectedContentDisposition, contentDisposition,
+				"Unexpected Content-Disposition")
 		})
 	}
 }
