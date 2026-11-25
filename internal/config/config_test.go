@@ -1053,6 +1053,11 @@ func TestFetcherDenyNetworks(t *testing.T) {
 		"240.0.0.0/4",
 		"::/96",
 		"::ffff:0:0:0/96",
+		"100::/64",
+		"2001:2::/48",
+		"2001:db8::/32",
+		"3fff::/20",
+		"5f00::/16",
 		"fec0::/10",
 	}, denyNetworks())
 
